@@ -1,0 +1,281 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-date-range-picker { box-sizing: border-box; container-type: inline-size; inline-size: 100%; max-inline-size: 820px; background: var(--ds-color-surface-overlay); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay); font: var(--ds-text-body-md); overflow: hidden; text-wrap: pretty; }
+.odl-date-range-picker *, .odl-date-range-picker *::before { box-sizing: border-box; }
+.odl-date-range-picker svg { stroke-width: var(--ds-icon-stroke-md); }
+.odl-date-range-picker .odl-body { display: grid; grid-template-columns: minmax(0, 1fr); }
+.odl-date-range-picker .odl-presets { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-sunken); }
+.odl-date-range-picker .odl-presets button { flex: none; min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-control);
+  background: transparent; color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); text-align: start; white-space: nowrap; cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-date-range-picker .odl-presets button:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-text-primary); }
+.odl-date-range-picker .odl-presets button[aria-pressed="true"] { border-color: var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); box-shadow: var(--ds-elevation-raised); font-weight: var(--ds-font-weight-label); }
+.odl-date-range-picker .odl-main { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); }
+.odl-date-range-picker .odl-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: var(--ds-space-inline-md); }
+.odl-date-range-picker .odl-field { display: grid; gap: var(--ds-space-stack-sm); min-inline-size: 0; }
+.odl-date-range-picker .odl-field > span:first-child { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-date-range-picker .odl-field output { display: flex; align-items: center; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border: var(--ds-border-width-default) solid var(--ds-color-border-input);
+  border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); font: var(--ds-text-body-md); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.odl-date-range-picker .odl-field.is-active output { border-color: var(--ds-color-border-focus); box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-border-focus); }
+.odl-date-range-picker .odl-field output.is-empty { color: var(--ds-color-text-tertiary); }
+.odl-date-range-picker .odl-arrow { display: grid; place-items: center; block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); color: var(--ds-color-icon-subtle); }
+.odl-date-range-picker .odl-arrow svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-date-range-picker .odl-months { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-xl); }
+.odl-date-range-picker .odl-month { display: grid; gap: var(--ds-space-stack-md); align-content: start; }
+.odl-date-range-picker .odl-mhead { display: grid; grid-template-columns: max(var(--ds-size-control-sm), var(--ds-size-target-min)) 1fr max(var(--ds-size-control-sm), var(--ds-size-target-min)); align-items: center; }
+.odl-date-range-picker .odl-mhead h3 { grid-column: 2; margin: 0; text-align: center; font: var(--ds-text-title-sm); font-variant-numeric: tabular-nums; }
+.odl-date-range-picker .odl-nav { display: grid; place-items: center; min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0; border: 0; border-radius: var(--ds-radius-control);
+  background: transparent; color: var(--ds-color-icon-default); cursor: pointer; }
+.odl-date-range-picker .odl-nav.is-next { grid-column: 3; }
+.odl-date-range-picker .odl-nav:hover:not(:disabled) { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-date-range-picker .odl-nav:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-date-range-picker .odl-nav svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-date-range-picker .odl-wd, .odl-date-range-picker .odl-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.odl-date-range-picker .odl-grid { row-gap: var(--ds-space-2); }
+.odl-date-range-picker .odl-wd abbr { padding-block: var(--ds-space-4); text-align: center; text-decoration: none; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); }
+.odl-date-range-picker .odl-day { display: grid; place-items: center; min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0; border: 0; background: transparent; color: var(--ds-color-text-primary);
+  font: var(--ds-text-body-md); font-variant-numeric: tabular-nums; cursor: pointer; }
+.odl-date-range-picker .odl-day span { display: grid; place-items: center; inline-size: min(100%, max(var(--ds-size-control-sm), var(--ds-size-target-min))); aspect-ratio: 1; border-radius: var(--ds-radius-control-sm);
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-date-range-picker .odl-day:hover:not(:disabled) span { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-date-range-picker .odl-day.is-range { background: var(--ds-color-bg-accent-subtle); }
+.odl-date-range-picker .odl-day.is-range:hover span { background: var(--ds-color-bg-accent-subtle-hover); }
+.odl-date-range-picker .odl-day.is-start.has-end { background: linear-gradient(to right, transparent 50%, var(--ds-color-bg-accent-subtle) 50%); }
+.odl-date-range-picker .odl-day.is-end.has-start { background: linear-gradient(to left, transparent 50%, var(--ds-color-bg-accent-subtle) 50%); }
+.odl-date-range-picker .odl-day.is-start.is-end { background: transparent; }
+.odl-date-range-picker .odl-day.is-range:nth-child(7n+1), .odl-date-range-picker .odl-day.is-range:first-of-type { border-start-start-radius: var(--ds-radius-control-sm); border-end-start-radius: var(--ds-radius-control-sm); }
+.odl-date-range-picker .odl-day.is-range:nth-child(7n), .odl-date-range-picker .odl-day.is-range:last-child { border-start-end-radius: var(--ds-radius-control-sm); border-end-end-radius: var(--ds-radius-control-sm); }
+.odl-date-range-picker .odl-day.is-start span, .odl-date-range-picker .odl-day.is-end span, .odl-date-range-picker .odl-day.is-start:hover span, .odl-date-range-picker .odl-day.is-end:hover span {
+  background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); font-weight: var(--ds-font-weight-label); }
+.odl-date-range-picker .odl-day.is-today span { box-shadow: inset 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-border-accent); font-weight: var(--ds-font-weight-label); }
+.odl-date-range-picker .odl-day.is-today.is-start span, .odl-date-range-picker .odl-day.is-today.is-end span { box-shadow: inset 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-bg-action-primary), inset 0 0 0 calc(var(--ds-border-width-emphasis) * 2) var(--ds-color-surface-overlay); }
+.odl-date-range-picker .odl-day:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-date-range-picker .odl-day:focus-visible { outline: none; }
+.odl-date-range-picker .odl-day:focus-visible span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-date-range-picker footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-stack-md) var(--ds-space-inline-md); padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-date-range-picker .odl-summary { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-date-range-picker .odl-summary strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-date-range-picker .odl-actions { display: flex; gap: var(--ds-space-inline-sm); margin-inline-start: auto; }
+.odl-date-range-picker .odl-actions button { min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-lg); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg);
+  font-weight: var(--ds-font-weight-label); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-date-range-picker .odl-cancel { border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-date-range-picker .odl-cancel:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-date-range-picker .odl-apply { border: 0; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-date-range-picker .odl-apply:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-date-range-picker .odl-apply:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-date-range-picker .odl-presets button:focus-visible, .odl-date-range-picker .odl-nav:focus-visible, .odl-date-range-picker .odl-actions button:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 30rem) {
+  /* phone: the presets fill two even columns (each well over 140 px), and Custom closes the set across both. Content is inset at
+     least the panel's corner radius, so no preset or button sits inside the curve, and every section keeps one edge. */
+  .odl-date-range-picker .odl-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: max(var(--ds-space-inset-lg), calc(var(--ds-radius-overlay) - var(--ds-border-width-default))); }
+  .odl-date-range-picker .odl-presets button { text-align: center; }
+  .odl-date-range-picker .odl-presets button:last-child { grid-column: 1 / -1; }
+  .odl-date-range-picker .odl-main { padding: max(var(--ds-space-inset-lg), calc(var(--ds-radius-overlay) - var(--ds-border-width-default))); }
+  .odl-date-range-picker footer { row-gap: var(--ds-space-stack-lg); padding: max(var(--ds-space-inset-lg), calc(var(--ds-radius-overlay) - var(--ds-border-width-default))); }
+  .odl-date-range-picker .odl-actions { flex: 1 1 100%; }
+  .odl-date-range-picker .odl-actions button { flex: 1; }
+}
+@container (max-width: 22rem) {
+  .odl-date-range-picker .odl-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .odl-date-range-picker .odl-arrow { display: none; }
+  .odl-date-range-picker .odl-field output { padding-inline: var(--ds-space-inset-xs); }
+}
+@container (min-width: 600px) {
+  .odl-date-range-picker .odl-months { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .odl-date-range-picker .odl-month + .odl-month .odl-nav.is-prev, .odl-date-range-picker .odl-month:first-child .odl-nav.is-next { display: none; }
+}
+@container (max-width: 599.98px) {
+  .odl-date-range-picker .odl-month + .odl-month { display: none; }
+}
+@container (min-width: 740px) {
+  .odl-date-range-picker .odl-body { grid-template-columns: 11rem minmax(0, 1fr); }
+  .odl-date-range-picker .odl-presets { flex-direction: column; flex-wrap: nowrap; gap: var(--ds-space-2); overflow: visible; padding: var(--ds-space-inset-lg) var(--ds-space-inset-md); border-block-end: 0; border-inline-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+  .odl-date-range-picker .odl-presets button { border-color: transparent; }
+  .odl-date-range-picker .odl-presets button[aria-pressed="true"] { border-color: var(--ds-color-border-subtle); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-date-range-picker, .odl-date-range-picker *, .odl-date-range-picker *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-date-range-picker" role="dialog" aria-label="Choose a date range">
+  <div class="odl-body">
+    <div class="odl-presets" role="group" aria-label="Quick ranges">
+      <button type="button" data-preset="today" aria-pressed="false">Today</button>
+      <button type="button" data-preset="7" aria-pressed="false">Last 7 days</button>
+      <button type="button" data-preset="month" aria-pressed="false">This month</button>
+      <button type="button" data-preset="quarter" aria-pressed="false">Last quarter</button>
+      <button type="button" data-preset="custom" aria-pressed="true">Custom</button>
+    </div>
+    <div class="odl-main">
+      <div class="odl-fields">
+        <div class="odl-field"><span>Start</span><output class="odl-start">Oct 27, 2026</output></div>
+        <span class="odl-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+        <div class="odl-field"><span>End</span><output class="odl-end">Nov 9, 2026</output></div>
+      </div>
+      <div class="odl-months">
+        <section class="odl-month" aria-labelledby="odl-drp-m1">
+          <div class="odl-mhead">
+            <button type="button" class="odl-nav is-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <h3 id="odl-drp-m1">October 2026</h3>
+            <button type="button" class="odl-nav is-next" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          <div class="odl-wd" aria-hidden="true"><abbr>Su</abbr><abbr>Mo</abbr><abbr>Tu</abbr><abbr>We</abbr><abbr>Th</abbr><abbr>Fr</abbr><abbr>Sa</abbr></div>
+          <div class="odl-grid">
+            <span class="odl-pad"></span>
+            <span class="odl-pad"></span>
+            <span class="odl-pad"></span>
+            <span class="odl-pad"></span>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-01" aria-label="Thursday, October 1, 2026" aria-pressed="false"><span>1</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-02" aria-label="Friday, October 2, 2026" aria-pressed="false"><span>2</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-03" aria-label="Saturday, October 3, 2026" aria-pressed="false"><span>3</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-04" aria-label="Sunday, October 4, 2026" aria-pressed="false"><span>4</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-05" aria-label="Monday, October 5, 2026" aria-pressed="false"><span>5</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-06" aria-label="Tuesday, October 6, 2026" aria-pressed="false"><span>6</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-07" aria-label="Wednesday, October 7, 2026" aria-pressed="false"><span>7</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-08" aria-label="Thursday, October 8, 2026" aria-pressed="false"><span>8</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-09" aria-label="Friday, October 9, 2026" aria-pressed="false"><span>9</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-10" aria-label="Saturday, October 10, 2026" aria-pressed="false"><span>10</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-11" aria-label="Sunday, October 11, 2026" aria-pressed="false"><span>11</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-12" aria-label="Monday, October 12, 2026" aria-pressed="false"><span>12</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-13" aria-label="Tuesday, October 13, 2026" aria-pressed="false"><span>13</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-14" aria-label="Wednesday, October 14, 2026" aria-pressed="false"><span>14</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-15" aria-label="Thursday, October 15, 2026" aria-pressed="false"><span>15</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-16" aria-label="Friday, October 16, 2026" aria-pressed="false"><span>16</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-17" aria-label="Saturday, October 17, 2026" aria-pressed="false"><span>17</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-18" aria-label="Sunday, October 18, 2026" aria-pressed="false"><span>18</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-19" aria-label="Monday, October 19, 2026" aria-pressed="false"><span>19</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-20" aria-label="Tuesday, October 20, 2026" aria-pressed="false"><span>20</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-21" aria-label="Wednesday, October 21, 2026" aria-pressed="false"><span>21</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-22" aria-label="Thursday, October 22, 2026" aria-pressed="false"><span>22</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-23" aria-label="Friday, October 23, 2026" aria-pressed="false"><span>23</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-24" aria-label="Saturday, October 24, 2026" aria-pressed="false"><span>24</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-25" aria-label="Sunday, October 25, 2026" aria-pressed="false"><span>25</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-10-26" aria-label="Monday, October 26, 2026" aria-pressed="false"><span>26</span></button>
+            <button type="button" class="odl-day has-start has-end is-start" data-date="2026-10-27" aria-label="Tuesday, October 27, 2026" aria-pressed="true"><span>27</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-10-28" aria-label="Wednesday, October 28, 2026" aria-pressed="false"><span>28</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-10-29" aria-label="Thursday, October 29, 2026" aria-pressed="false"><span>29</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-10-30" aria-label="Friday, October 30, 2026" aria-pressed="false"><span>30</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-10-31" aria-label="Saturday, October 31, 2026" aria-pressed="false"><span>31</span></button>
+          </div>
+        </section>
+        <section class="odl-month" aria-labelledby="odl-drp-m2">
+          <div class="odl-mhead">
+            <button type="button" class="odl-nav is-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <h3 id="odl-drp-m2">November 2026</h3>
+            <button type="button" class="odl-nav is-next" aria-label="Next month" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          <div class="odl-wd" aria-hidden="true"><abbr>Su</abbr><abbr>Mo</abbr><abbr>Tu</abbr><abbr>We</abbr><abbr>Th</abbr><abbr>Fr</abbr><abbr>Sa</abbr></div>
+          <div class="odl-grid">
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-01" aria-label="Sunday, November 1, 2026" aria-pressed="false"><span>1</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-02" aria-label="Monday, November 2, 2026" aria-pressed="false"><span>2</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-03" aria-label="Tuesday, November 3, 2026" aria-pressed="false"><span>3</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-04" aria-label="Wednesday, November 4, 2026" aria-pressed="false"><span>4</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-05" aria-label="Thursday, November 5, 2026" aria-pressed="false"><span>5</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-06" aria-label="Friday, November 6, 2026" aria-pressed="false"><span>6</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-07" aria-label="Saturday, November 7, 2026" aria-pressed="false"><span>7</span></button>
+            <button type="button" class="odl-day has-start has-end is-range" data-date="2026-11-08" aria-label="Sunday, November 8, 2026" aria-pressed="false"><span>8</span></button>
+            <button type="button" class="odl-day has-start has-end is-end" data-date="2026-11-09" aria-label="Monday, November 9, 2026" aria-pressed="true"><span>9</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-10" aria-label="Tuesday, November 10, 2026" aria-pressed="false"><span>10</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-11" aria-label="Wednesday, November 11, 2026" aria-pressed="false"><span>11</span></button>
+            <button type="button" class="odl-day has-start has-end is-today" data-date="2026-11-12" aria-label="Thursday, November 12, 2026" aria-pressed="false" aria-current="date"><span>12</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-13" aria-label="Friday, November 13, 2026" aria-pressed="false" disabled><span>13</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-14" aria-label="Saturday, November 14, 2026" aria-pressed="false" disabled><span>14</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-15" aria-label="Sunday, November 15, 2026" aria-pressed="false" disabled><span>15</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-16" aria-label="Monday, November 16, 2026" aria-pressed="false" disabled><span>16</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-17" aria-label="Tuesday, November 17, 2026" aria-pressed="false" disabled><span>17</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-18" aria-label="Wednesday, November 18, 2026" aria-pressed="false" disabled><span>18</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-19" aria-label="Thursday, November 19, 2026" aria-pressed="false" disabled><span>19</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-20" aria-label="Friday, November 20, 2026" aria-pressed="false" disabled><span>20</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-21" aria-label="Saturday, November 21, 2026" aria-pressed="false" disabled><span>21</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-22" aria-label="Sunday, November 22, 2026" aria-pressed="false" disabled><span>22</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-23" aria-label="Monday, November 23, 2026" aria-pressed="false" disabled><span>23</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-24" aria-label="Tuesday, November 24, 2026" aria-pressed="false" disabled><span>24</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-25" aria-label="Wednesday, November 25, 2026" aria-pressed="false" disabled><span>25</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-26" aria-label="Thursday, November 26, 2026" aria-pressed="false" disabled><span>26</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-27" aria-label="Friday, November 27, 2026" aria-pressed="false" disabled><span>27</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-28" aria-label="Saturday, November 28, 2026" aria-pressed="false" disabled><span>28</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-29" aria-label="Sunday, November 29, 2026" aria-pressed="false" disabled><span>29</span></button>
+            <button type="button" class="odl-day has-start has-end" data-date="2026-11-30" aria-label="Monday, November 30, 2026" aria-pressed="false" disabled><span>30</span></button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <p class="odl-summary" aria-live="polite"><strong>14 days</strong> · in your workspace time, UTC−5</p>
+    <div class="odl-actions"><button type="button" class="odl-cancel">Cancel</button><button type="button" class="odl-apply">Apply</button></div>
+  </footer>
+</div>
+<script>
+document.querySelectorAll(".odl-date-range-picker").forEach((root) => {
+  if (root.dataset.odlReady) return; root.dataset.odlReady = "1";
+  const TODAY = new Date(2026, 10, 12);
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const short = (d) => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${d.getFullYear()}`;
+  const months = [...root.querySelectorAll(".odl-month")], presets = [...root.querySelectorAll("[data-preset]")];
+  const startOut = root.querySelector(".odl-start"), endOut = root.querySelector(".odl-end"), summary = root.querySelector(".odl-summary");
+  const initial = { start: new Date(2026, 9, 27), end: new Date(2026, 10, 9), view: new Date(2026, 9, 1), preset: "custom" };
+  let state = { ...initial };
+  const render = () => {
+    const s = state.start && iso(state.start), e = state.end && iso(state.end);
+    months.forEach((sec, i) => {
+      const first = new Date(state.view.getFullYear(), state.view.getMonth() + i, 1), grid = sec.querySelector(".odl-grid");
+      sec.querySelector("h3").textContent = `${MONTHS[first.getMonth()]} ${first.getFullYear()}`;
+      const cells = [];
+      for (let p = 0; p < first.getDay(); p++) { const pad = document.createElement("span"); pad.className = "odl-pad"; cells.push(pad); }
+      for (let d = new Date(first); d.getMonth() === first.getMonth(); d.setDate(d.getDate() + 1)) {
+        const k = iso(d), b = document.createElement("button"), n = document.createElement("span");
+        b.type = "button"; b.dataset.date = k; n.textContent = d.getDate(); b.append(n);
+        b.setAttribute("aria-label", `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`);
+        b.className = "odl-day";
+        if (k === s) b.classList.add("is-start");
+        if (k === e) b.classList.add("is-end");
+        if (s && e) { b.classList.add("has-start", "has-end"); if (k > s && k < e) b.classList.add("is-range"); }
+        if (k === iso(TODAY)) { b.classList.add("is-today"); b.setAttribute("aria-current", "date"); }
+        b.setAttribute("aria-pressed", k === s || k === e ? "true" : "false");
+        b.disabled = d > TODAY;
+        cells.push(b);
+      }
+      grid.replaceChildren(...cells);
+      sec.querySelector(".is-prev").disabled = false;
+      sec.querySelector(".is-next").disabled = new Date(first.getFullYear(), first.getMonth() + 1, 1) > TODAY;
+    });
+    startOut.textContent = state.start ? short(state.start) : "Pick a day";
+    endOut.textContent = state.end ? short(state.end) : "Pick a day";
+    startOut.classList.toggle("is-empty", !state.start); endOut.classList.toggle("is-empty", !state.end);
+    startOut.parentElement.classList.toggle("is-active", !state.start);
+    endOut.parentElement.classList.toggle("is-active", !!state.start && !state.end);
+    presets.forEach((p) => p.setAttribute("aria-pressed", p.dataset.preset === state.preset ? "true" : "false"));
+    const strong = document.createElement("strong");
+    if (state.start && state.end) {
+      const n = Math.round((state.end - state.start) / 864e5) + 1;
+      strong.textContent = n === 1 ? "1 day" : `${n} days`;
+      summary.replaceChildren(strong, " · in your workspace time, UTC−5");
+    } else { strong.textContent = "Pick an end day"; summary.replaceChildren(strong, " · or click the start day again for one day"); }
+  };
+  const show = (end) => { state.view = new Date(end.getFullYear(), end.getMonth() - 1, 1); };
+  root.addEventListener("click", (ev) => {
+    const day = ev.target.closest(".odl-day"), nav = ev.target.closest(".odl-nav"), pre = ev.target.closest("[data-preset]");
+    if (day && !day.disabled) {
+      const [y, m, d] = day.dataset.date.split("-").map(Number), picked = new Date(y, m - 1, d);
+      if (!state.start || state.end) { state.start = picked; state.end = null; }
+      else if (picked < state.start) { state.end = state.start; state.start = picked; }
+      else state.end = picked;
+      state.preset = "custom"; render();
+      const again = root.querySelector(`.odl-day[data-date="${day.dataset.date}"]`); if (again) again.focus();
+    } else if (nav && !nav.disabled) {
+      state.view = new Date(state.view.getFullYear(), state.view.getMonth() + (nav.classList.contains("is-next") ? 1 : -1), 1); render();
+    } else if (pre) {
+      const t = TODAY, p = pre.dataset.preset;
+      if (p === "today") { state.start = new Date(t); state.end = new Date(t); }
+      if (p === "7") { state.start = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 6); state.end = new Date(t); }
+      if (p === "month") { state.start = new Date(t.getFullYear(), t.getMonth(), 1); state.end = new Date(t); }
+      if (p === "quarter") { const q = Math.floor(t.getMonth() / 3) * 3; state.start = new Date(t.getFullYear(), q - 3, 1); state.end = new Date(t.getFullYear(), q, 0); }
+      state.preset = p; if (state.end) show(state.end); render();
+    } else if (ev.target.closest(".odl-cancel")) { state = { ...initial }; render(); }
+  });
+  render();
+});
+</script>

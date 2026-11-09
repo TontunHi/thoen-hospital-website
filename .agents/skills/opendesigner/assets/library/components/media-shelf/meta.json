@@ -1,0 +1,87 @@
+{
+  "name": "Media shelf",
+  "summary": "Two swipeable rows for a streaming home: Continue watching, with stills, a progress bar and the time left, and Because you watched, with posters and New season labels.",
+  "use": "on the home screen of a video, music or course app, for picking up where people left off",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "media",
+    "education",
+    "games"
+  ],
+  "tags": [
+    "streaming",
+    "carousel",
+    "posters",
+    "continue watching",
+    "recommendations"
+  ],
+  "states": [
+    "hover",
+    "focus",
+    "in progress",
+    "new",
+    "scrolled to start",
+    "scrolled to end"
+  ],
+  "source": null,
+  "a11y": "Each row is a labelled list that scrolls inside itself (swipe, shift-scroll or the arrow buttons, which turn off at each end); every title is one button whose name says the episode and time left.",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1578429827733-272eb6d7972e",
+      "author": "Keagan Henman",
+      "page": "Jfz6IdxMSuQ"
+    },
+    {
+      "img": "photo-1617195737496-bc30194e3a19",
+      "author": "Ouael Ben Salah",
+      "page": "z0rL2Kfxf7w"
+    },
+    {
+      "img": "photo-1500530855697-b586d89ba3ee",
+      "author": "Jake Blucker",
+      "page": "tMzCrBkM99Y"
+    },
+    {
+      "img": "photo-1707340733209-d8adf5ad25e6",
+      "author": "Michael Reinhard",
+      "page": "BF1MklaV4NI"
+    },
+    {
+      "img": "photo-1589194837853-340f4a2f6559",
+      "author": "Mikita Yo",
+      "page": "TcFEeMQTAKk"
+    },
+    {
+      "img": "photo-1494783367193-149034c05e8f",
+      "author": "Diego Jimenez",
+      "page": "A-NVHPka9Rk"
+    },
+    {
+      "img": "photo-1625851823298-70d1151f5b71",
+      "author": "Robbie Herrera",
+      "page": "pKRKky5DUv4"
+    },
+    {
+      "img": "photo-1608126199278-50a5f584dbdd",
+      "author": "Marc Kleen",
+      "page": "V-5bcuvx0u4"
+    },
+    {
+      "img": "photo-1547235001-d703406d3f17",
+      "author": "Juli Kosolapova",
+      "page": "Us_dv71f1bc"
+    },
+    {
+      "img": "photo-1601042879364-f3947d3f9c16",
+      "author": "Valentin BEAUVAIS",
+      "page": "yVUQlyRlJSw"
+    },
+    {
+      "img": "photo-1470229722913-7c0e2dbbafd3",
+      "author": "Yvette de Wit",
+      "page": "NYrVisodQ2M"
+    }
+  ]
+}

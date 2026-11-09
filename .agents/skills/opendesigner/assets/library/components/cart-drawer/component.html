@@ -1,0 +1,193 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-cart-drawer { box-sizing: border-box; inline-size: 100%; max-inline-size: 60rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-cart-drawer *, .odl-cart-drawer *::before, .odl-cart-drawer *::after { box-sizing: border-box; }
+.odl-cart-drawer svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: var(--ds-icon-stroke-md); }
+/* The shop page behind, dimmed, so the sheet reads as a sheet. */
+.odl-cart-drawer .odl-stage { --odl-tap: max(var(--ds-size-target-min), var(--ds-size-control-md)); position: relative; display: flex; justify-content: flex-end; min-block-size: 40rem; padding: var(--ds-space-inset-sm); overflow: hidden; border-radius: var(--ds-radius-container);
+  background: var(--ds-color-surface-base); }
+.odl-cart-drawer .odl-page { position: absolute; inset: 0; display: grid; align-content: start; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); color: var(--ds-color-text-primary); }
+.odl-cart-drawer .odl-nav { display: flex; align-items: center; gap: var(--ds-space-24); padding-block-end: var(--ds-space-inset-md); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); font: var(--ds-text-label-md); color: var(--ds-color-text-secondary); }
+.odl-cart-drawer .odl-nav b { color: var(--ds-color-text-primary); font: var(--ds-text-title-sm); letter-spacing: 0.08em; }
+.odl-cart-drawer .odl-hero { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-cart-drawer .odl-hero b { font: var(--ds-text-title-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-cart-drawer .odl-hero span { color: var(--ds-color-text-secondary); }
+.odl-cart-drawer .odl-shelf { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--ds-space-inline-md); }
+.odl-cart-drawer .odl-shelf div { display: grid; gap: var(--ds-space-stack-xs); font: var(--ds-text-label-md); }
+.odl-cart-drawer .odl-shelf img { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-sunken); }
+.odl-cart-drawer .odl-shelf small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-cart-drawer .odl-stage::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--ds-color-overlay-scrim); }
+.odl-cart-drawer .odl-sheet { position: relative; z-index: 2; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; inline-size: 100%; max-inline-size: 28rem; margin-inline-start: var(--ds-space-32);
+  background: var(--ds-color-surface-overlay); border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay); overflow: hidden; }
+.odl-cart-drawer .odl-top { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); padding: var(--ds-space-inset-lg) var(--ds-space-inset-md) var(--ds-space-inset-sm) var(--ds-space-inset-xl); }
+.odl-cart-drawer h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-cart-drawer h3 span { color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
+.odl-cart-drawer .odl-icon { display: grid; place-items: center; inline-size: var(--odl-tap); block-size: var(--odl-tap); padding: 0; border: 0; border-radius: var(--ds-radius-full); background: transparent;
+  color: var(--ds-color-text-secondary); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-cart-drawer .odl-icon:hover { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-cart-drawer .odl-icon svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+/* Free delivery: quiet, neutral; the bar is the only filled thing. */
+.odl-cart-drawer .odl-free { display: grid; gap: var(--ds-space-stack-sm); margin: var(--ds-space-stack-sm) var(--ds-space-inset-xl) 0; padding: var(--ds-space-inset-md); border-radius: var(--ds-radius-nested);
+  background: var(--ds-color-surface-sunken); font: var(--ds-text-body-sm); }
+.odl-cart-drawer .odl-free p { display: flex; align-items: center; gap: var(--ds-space-inline-md); margin: 0; }
+.odl-cart-drawer .odl-free svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); }
+.odl-cart-drawer .odl-free b { font-weight: var(--ds-font-weight-heading); font-variant-numeric: tabular-nums; }
+.odl-cart-drawer .odl-bar { block-size: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-border-subtle); overflow: hidden; }
+.odl-cart-drawer .odl-bar span { display: block; block-size: 100%; inline-size: var(--p, 0%); border-radius: var(--ds-radius-full); background: var(--ds-color-text-primary);
+  transition: inline-size var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-cart-drawer .odl-free-ok, .odl-cart-drawer .odl-free.is-done .odl-free-left { display: none; }
+.odl-cart-drawer .odl-free.is-done .odl-free-ok { display: inline; }
+.odl-cart-drawer .odl-free.is-done svg { color: var(--ds-color-text-success); }
+.odl-cart-drawer .odl-free.is-done .odl-bar span { background: var(--ds-color-bg-success-bold); }
+/* Items */
+.odl-cart-drawer ul { margin: 0; padding: var(--ds-space-stack-sm) var(--ds-space-inset-xl); list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.odl-cart-drawer li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--ds-space-inline-md); padding-block: var(--ds-space-stack-lg); }
+.odl-cart-drawer li + li { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-cart-drawer .odl-pic { display: block; inline-size: calc(var(--ds-size-control-lg) * 2); block-size: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-sunken); }
+.odl-cart-drawer .odl-item { display: grid; align-content: space-between; gap: var(--ds-space-stack-md); min-inline-size: 0; }
+.odl-cart-drawer .odl-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); }
+.odl-cart-drawer .odl-name { margin: 0; font: var(--ds-text-label-lg); }
+.odl-cart-drawer .odl-var { grid-column: 1; margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-cart-drawer .odl-sum { grid-row: 1; grid-column: 2; margin: 0; font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; text-align: end; }
+.odl-cart-drawer .odl-act { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); }
+.odl-cart-drawer .odl-step { display: inline-flex; align-items: center; border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised); }
+.odl-cart-drawer .odl-step button { display: grid; place-items: center; inline-size: var(--odl-tap); block-size: var(--odl-tap); padding: 0; border: 0; border-radius: var(--ds-radius-control); background: transparent;
+  color: var(--ds-color-text-primary); cursor: pointer; }
+.odl-cart-drawer .odl-step button:hover:not(:disabled) { background: var(--ds-color-bg-neutral-subtle); }
+.odl-cart-drawer .odl-step button:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-cart-drawer .odl-step svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-cart-drawer .odl-step output { min-inline-size: var(--ds-space-32); text-align: center; font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; }
+.odl-cart-drawer .odl-remove { min-block-size: var(--odl-tap); padding: 0 var(--ds-space-inset-sm); border: 0; border-radius: var(--ds-radius-control-sm); background: transparent; color: var(--ds-color-text-secondary);
+  font: var(--ds-text-label-md); text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
+.odl-cart-drawer .odl-remove:hover { color: var(--ds-color-text-primary); background: var(--ds-color-bg-neutral-subtle); }
+.odl-cart-drawer .odl-empty { display: none; margin: 0; padding: var(--ds-space-inset-xl); color: var(--ds-color-text-secondary); text-align: center; }
+.odl-cart-drawer .odl-sheet.is-empty .odl-empty { display: block; }
+.odl-cart-drawer .odl-sheet.is-empty .odl-free, .odl-cart-drawer .odl-sheet.is-empty ul { display: none; }
+/* Footer */
+.odl-cart-drawer .odl-foot { display: grid; gap: var(--ds-space-stack-md); padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl) var(--ds-space-inset-xl); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); background: var(--ds-color-surface-overlay); }
+.odl-cart-drawer dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--ds-space-stack-sm) var(--ds-space-inline-md); margin: 0; font-variant-numeric: tabular-nums; }
+.odl-cart-drawer dt { color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); }
+.odl-cart-drawer dd { margin: 0; text-align: end; font: var(--ds-text-body-md); }
+.odl-cart-drawer dt.is-total, .odl-cart-drawer dd.is-total { padding-block-start: var(--ds-space-stack-sm); color: var(--ds-color-text-primary); font: var(--ds-text-title-sm); }
+.odl-cart-drawer .odl-go { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-lg);
+  border: 0; border-radius: var(--ds-radius-control); background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-cart-drawer .odl-go:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-cart-drawer .odl-go:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-cart-drawer .odl-go:disabled { background: var(--ds-color-bg-disabled); color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-cart-drawer .odl-go svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-cart-drawer .odl-note { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); margin: 0; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); text-align: center; }
+.odl-cart-drawer .odl-note svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-cart-drawer button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-cart-drawer .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Phone: only the drawer, as it fills the screen there. */
+@container (max-width: 30rem) {
+  .odl-cart-drawer .odl-stage { --odl-tap: var(--ds-size-target-touch); min-block-size: 0; padding: 0; background: transparent; overflow: visible; }
+  .odl-cart-drawer .odl-stage::before, .odl-cart-drawer .odl-page { display: none; }
+  .odl-cart-drawer .odl-sheet { max-inline-size: none; margin-inline-start: 0; border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+  .odl-cart-drawer .odl-top { padding-inline-start: var(--ds-space-inset-lg); padding-inline-end: var(--ds-space-inset-sm); }
+  .odl-cart-drawer .odl-free { margin-inline: var(--ds-space-inset-lg); }
+  .odl-cart-drawer ul { padding-inline: var(--ds-space-inset-lg); }
+  .odl-cart-drawer .odl-foot { padding: var(--ds-space-inset-lg); }
+  .odl-cart-drawer .odl-pic { inline-size: calc(var(--ds-size-control-lg) * 1.75); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-cart-drawer, .odl-cart-drawer *, .odl-cart-drawer *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-cart-drawer">
+  <div class="odl-stage">
+    <div class="odl-page" aria-hidden="true">
+      <div class="odl-nav"><b>WRENFOLD</b><span>New in</span><span>Knitwear</span><span>Home</span></div>
+      <div class="odl-hero"><b>Autumn layers</b><span>Soft knits and leather goods for cooler mornings</span></div>
+      <div class="odl-shelf">
+        <div><img src="https://images.unsplash.com/photo-1646270968802-6bad28659329?w=400&h=500&fit=crop&auto=format&q=70" alt="" width="400" height="500" loading="lazy" decoding="async">Lambswool crew<small>$96.00</small></div>
+        <div><img src="https://images.unsplash.com/photo-1605733513597-a8f8341084e6?w=400&h=500&fit=crop&auto=format&q=70" alt="" width="400" height="500" loading="lazy" decoding="async">Leather satchel<small>$140.00</small></div>
+        <div><img src="https://images.unsplash.com/photo-1603808033192-082d6919d3e1?w=400&h=500&fit=crop&auto=format&q=70" alt="" width="400" height="500" loading="lazy" decoding="async">Court trainer<small>$120.00</small></div>
+        <div><img src="https://images.unsplash.com/photo-1570974802254-4b0ad1a755f5?w=400&h=500&fit=crop&auto=format&q=70" alt="" width="400" height="500" loading="lazy" decoding="async">Ceramic table lamp<small>$88.00</small></div>
+      </div>
+    </div>
+    <section class="odl-sheet" role="dialog" aria-modal="false" aria-labelledby="odl-cd-title">
+      <div class="odl-top">
+        <h3 id="odl-cd-title">Your bag <span class="odl-count">(3)</span></h3>
+        <button type="button" class="odl-icon" aria-label="Close bag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="odl-free" data-free="120">
+        <p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span class="odl-free-left">Add <b class="odl-left">$10.00</b> more for free delivery</span><span class="odl-free-ok"><b>You get free delivery</b></span></p>
+        <div class="odl-bar" role="progressbar" aria-label="Towards free delivery" aria-valuemin="0" aria-valuemax="120" aria-valuenow="110"><span></span></div>
+      </div>
+      <ul aria-label="Items in your bag">
+        <li data-price="68">
+          <img class="odl-pic" src="https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=192&h=240&fit=crop&auto=format&q=70" alt="Cotton crew sweatshirt in white" width="192" height="240" loading="lazy" decoding="async">
+          <div class="odl-item">
+            <div class="odl-line"><p class="odl-name">Cotton crew sweatshirt</p><p class="odl-sum">$68.00</p><p class="odl-var">White · M</p></div>
+            <div class="odl-act">
+              <div class="odl-step" role="group" aria-label="Quantity of Cotton crew sweatshirt"><button type="button" class="odl-minus" aria-label="One fewer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><output aria-live="polite">1</output><button type="button" class="odl-plus" aria-label="One more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></div>
+              <button type="button" class="odl-remove">Remove<span class="odl-sr"> Cotton crew sweatshirt</span></button>
+            </div>
+          </div>
+        </li>
+        <li data-price="24">
+          <img class="odl-pic" src="https://images.unsplash.com/photo-1570784332176-fdd73da66f03?w=192&h=240&fit=crop&auto=format&q=70" alt="White stoneware mug" width="192" height="240" loading="lazy" decoding="async">
+          <div class="odl-item">
+            <div class="odl-line"><p class="odl-name">Stoneware mug</p><p class="odl-sum">$24.00</p><p class="odl-var">Chalk · 350 ml</p></div>
+            <div class="odl-act">
+              <div class="odl-step" role="group" aria-label="Quantity of Stoneware mug"><button type="button" class="odl-minus" aria-label="One fewer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><output aria-live="polite">1</output><button type="button" class="odl-plus" aria-label="One more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></div>
+              <button type="button" class="odl-remove">Remove<span class="odl-sr"> Stoneware mug</span></button>
+            </div>
+          </div>
+        </li>
+        <li data-price="18">
+          <img class="odl-pic" src="https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=192&h=240&fit=crop&auto=format&q=70" alt="Small succulent in a teal glazed pot" width="192" height="240" loading="lazy" decoding="async">
+          <div class="odl-item">
+            <div class="odl-line"><p class="odl-name">Glazed plant pot</p><p class="odl-sum">$18.00</p><p class="odl-var">Teal · Small, with plant</p></div>
+            <div class="odl-act">
+              <div class="odl-step" role="group" aria-label="Quantity of Glazed plant pot"><button type="button" class="odl-minus" aria-label="One fewer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><output aria-live="polite">1</output><button type="button" class="odl-plus" aria-label="One more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></div>
+              <button type="button" class="odl-remove">Remove<span class="odl-sr"> Glazed plant pot</span></button>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <p class="odl-empty">Your bag is empty.</p>
+      <div class="odl-foot">
+        <dl><dt>Subtotal</dt><dd class="odl-sub">$110.00</dd><dt>Delivery</dt><dd class="odl-ship">$4.95</dd><dt class="is-total">Total</dt><dd class="is-total odl-total">$114.95</dd></dl>
+        <button type="button" class="odl-go">Checkout<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+        <p class="odl-note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Secure checkout · taxes worked out there</p>
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+document.querySelectorAll(".odl-cart-drawer").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const sheet = root.querySelector(".odl-sheet"), free = root.querySelector(".odl-free"), goal = Number(free.dataset.free), ship = 4.95;
+  const money = (n) => "$" + n.toFixed(2);
+  const update = () => {
+    const rows = [...root.querySelectorAll("li")];
+    let sub = 0, count = 0;
+    rows.forEach((li) => {
+      const q = Number(li.querySelector("output").textContent), p = Number(li.dataset.price);
+      sub += q * p; count += q;
+      li.querySelector(".odl-sum").textContent = money(q * p);
+      li.querySelector(".odl-minus").disabled = q <= 1;
+    });
+    const left = Math.max(goal - sub, 0), fee = left ? ship : 0;
+    root.querySelector(".odl-count").textContent = `(${count})`;
+    root.querySelector(".odl-sub").textContent = money(sub);
+    root.querySelector(".odl-ship").textContent = fee ? money(fee) : "Free";
+    root.querySelector(".odl-total").textContent = money(sub + fee);
+    root.querySelector(".odl-left").textContent = money(left);
+    free.classList.toggle("is-done", !left);
+    const bar = free.querySelector(".odl-bar"); bar.setAttribute("aria-valuenow", String(Math.min(sub, goal)));
+    bar.firstElementChild.style.setProperty("--p", Math.min(sub / goal, 1) * 100 + "%");
+    sheet.classList.toggle("is-empty", !rows.length);
+    root.querySelector(".odl-go").disabled = !rows.length;
+  };
+  root.querySelectorAll("li").forEach((li) => {
+    const out = li.querySelector("output");
+    li.querySelector(".odl-plus").addEventListener("click", () => { out.textContent = Number(out.textContent) + 1; update(); });
+    li.querySelector(".odl-minus").addEventListener("click", () => { out.textContent = Math.max(1, Number(out.textContent) - 1); update(); });
+    li.querySelector(".odl-remove").addEventListener("click", () => { const next = li.nextElementSibling || li.previousElementSibling; li.remove(); update(); (next ? next.querySelector(".odl-remove") : root.querySelector(".odl-icon")).focus(); });
+  });
+  update();
+});
+</script>

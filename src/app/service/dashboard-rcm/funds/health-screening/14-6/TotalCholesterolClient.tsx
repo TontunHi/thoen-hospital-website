@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -33,6 +34,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import '../health-screening.css'
 
 const THAI_MONTHS = [
@@ -94,6 +97,15 @@ export default function TotalCholesterolClient({
     initialData?.cardFilter ?? 'ALL'
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(() => {
+    if (initialData?.pttypes) {
+      return initialData.pttypes.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    if (initialData?.ucOnly) {
+      return [...UC_ECLAIM_CODES]
+    }
+    return []
+  })
   const [targetAgeOnly, setTargetAgeOnly] = useState<boolean>(
     initialData?.targetAgeOnly ?? false
   )
@@ -250,7 +262,6 @@ export default function TotalCholesterolClient({
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           targetAgeOnly: String(targetAgeOnly),
           searchField,
           search: debouncedSearch,
@@ -259,6 +270,12 @@ export default function TotalCholesterolClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          q.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          q.set('ucOnly', 'true')
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -290,7 +307,7 @@ export default function TotalCholesterolClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, targetAgeOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, targetAgeOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -365,7 +382,6 @@ export default function TotalCholesterolClient({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         targetAgeOnly: String(targetAgeOnly),
         searchField,
         search: debouncedSearch,
@@ -373,6 +389,12 @@ export default function TotalCholesterolClient({
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        q.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        q.set('ucOnly', 'true')
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/health-screening/service-14-6?${q.toString()}`
@@ -395,7 +417,7 @@ export default function TotalCholesterolClient({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลารับบริการ',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -460,17 +482,13 @@ export default function TotalCholesterolClient({
         `"${r.subfund || ''}"`,
       ])
 
-      const csvContent =
-        '\uFEFF' + [headers.join(','), ...csvRows.map((e) => e.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `rcm_cholesterol_14_6_12004_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `rcm_cholesterol_14_6_12004_${ds1}_to_${ds2}.xlsx`,
+        title: 'การตรวจระดับคอเลสเตอรอลในเลือด (Total Cholesterol 14.6)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(`เกิดข้อผิดพลาดในการส่งออกไฟล์: ${e.message}`)
@@ -491,7 +509,7 @@ export default function TotalCholesterolClient({
           <h1 className="hs-title">14.6 Total Cholesterol / HDL (อายุ 45-59 ปี)</h1>
           <p className="hs-subtitle">
             บริการเจาะเลือดจากหลอดเลือดดำหลังอดอาหาร 8 ชม. เพื่อตรวจ Total Cholesterol หรือ HDL รหัส ADP{' '}
-            <strong>12004</strong> ในกลุ่มเป้าหมายอายุ 45-59 ปี ตรวจสอบการขอรหัส Authen
+            <strong>12004</strong> ในกลุ่มเป้าหมายอายุ 45-59 ปี ตรวจสอบการขอรหัส ClaimCode
             การตรวจซ้ำในปีงบ และสถานะการชดเชย
           </p>
         </div>
@@ -513,10 +531,11 @@ export default function TotalCholesterolClient({
             className="hs-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || items.length === 0}
-            aria-label="ส่งออกข้อมูลเป็นไฟล์ Excel / CSV"
+            aria-label="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} aria-hidden="true" />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel / CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -790,7 +809,7 @@ export default function TotalCholesterolClient({
           </div>
         </button>
 
-        {/* Card 6: Authen Code */}
+        {/* Card 6: ClaimCode */}
         <button
           type="button"
           className={`hs-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
@@ -798,11 +817,11 @@ export default function TotalCholesterolClient({
             setCardFilter('WITH_AUTHEN')
             setCurrentPage(1)
           }}
-          aria-label="ตัวกรอง: มีรหัส Authen Code"
+          aria-label="ตัวกรอง: มีรหัส ClaimCode"
         >
           <div className="hs-card-indicator" />
           <div className="hs-card-head">
-            <span className="hs-card-title">มีรหัส AUTHEN</span>
+            <span className="hs-card-title">มีรหัส ClaimCode</span>
             <span className="hs-card-badge success">{summary.authenRate.toFixed(1)}%</span>
           </div>
           <div className="hs-card-value text-emerald-700">
@@ -810,7 +829,7 @@ export default function TotalCholesterolClient({
           </div>
           <div className="hs-card-sub">
             <ShieldCheck size={14} aria-hidden="true" />
-            <span>ไม่มี Authen: {summary.withoutAuthenCount.toLocaleString('th-TH')} ครั้ง</span>
+            <span>ไม่มี ClaimCode: {summary.withoutAuthenCount.toLocaleString('th-TH')} ครั้ง</span>
           </div>
         </button>
       </section>
@@ -818,24 +837,6 @@ export default function TotalCholesterolClient({
       {/* ── 5. Search Bar & Secondary Filters ── */}
       <section className="hs-filter-bar" aria-label="ค้นหาและตัวกรองตาราง">
         <div className="hs-filter-left">
-          <select
-            className="hs-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as HealthScreeningSearchField)
-              setCurrentPage(1)
-            }}
-            aria-label="ค้นหาจากคอลัมน์"
-          >
-            <option value="ALL">ทุกคอลัมน์</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขบัตรประชาชน</option>
-            <option value="PTNAME">ชื่อ-สกุล</option>
-            <option value="VN">VN</option>
-            <option value="DIAG">รหัสโรค (ICD-10)</option>
-            <option value="PTTYPE">สิทธิการรักษา</option>
-          </select>
-
           <div className="hs-search-box">
             <Search size={18} className="hs-search-icon" aria-hidden="true" />
             <input
@@ -872,18 +873,39 @@ export default function TotalCholesterolClient({
             <span>เฉพาะอายุ 45-59 ปี</span>
           </label>
 
-          <label className="hs-checkbox-label">
-            <input
-              type="checkbox"
-              className="hs-checkbox"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
-              }}
-            />
-            <span>เฉพาะบัตรทอง (UC)</span>
-          </label>
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
+          {selectedPttypes.length > 0 && (
+            <div className="hs-active-filter-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem' }}>
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะบัตรทอง (UC)'
+                  : `${selectedPttypes.length} สิทธิ`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                className="hover:opacity-75"
+                title="ล้างตัวกรองสิทธิ"
+                aria-label="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           <select
             className="hs-select"
@@ -952,7 +974,7 @@ export default function TotalCholesterolClient({
                 </th>
                 <th className="col-center">
                   <button type="button" className="hs-table-sort-btn" onClick={() => handleSort('authencode')}>
-                    <span>Authen Code</span>
+                    <span>ClaimCode</span>
                     {renderSortIcon('authencode')}
                   </button>
                 </th>
@@ -1201,7 +1223,7 @@ export default function TotalCholesterolClient({
                     </span>
                   </div>
                   <div className="hs-modal-item">
-                    <span className="hs-modal-label">รหัส Authen Code</span>
+                    <span className="hs-modal-label">รหัส ClaimCode</span>
                     <span className="hs-modal-val font-mono">
                       {selectedItem.authencode || '— ไม่มีรหัส —'}
                     </span>

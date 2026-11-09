@@ -1,0 +1,118 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-social-post { box-sizing: border-box; inline-size: 100%; max-inline-size: 30rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-social-post *, .odl-social-post *::before, .odl-social-post *::after { box-sizing: border-box; }
+.odl-social-post .odl-card { display: grid; background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised); overflow: hidden; }
+.odl-social-post .odl-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: var(--ds-space-inline-md); padding: var(--ds-space-inset-md) var(--ds-space-inset-sm) var(--ds-space-inset-md) var(--ds-space-inset-lg); }
+.odl-social-post .odl-ring { display: grid; inline-size: var(--ds-size-control-lg); aspect-ratio: 1; padding: var(--ds-border-width-emphasis); border-radius: var(--ds-radius-person); background: var(--ds-color-bg-accent-bold); }
+.odl-social-post .odl-av { display: block; inline-size: 100%; block-size: 100%; aspect-ratio: 1; border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-social-post .odl-ring .odl-av { border: var(--ds-border-width-emphasis) solid var(--ds-color-surface-raised); }
+.odl-social-post .odl-av.is-sm { inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); }
+.odl-social-post .odl-who { display: grid; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-social-post .odl-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-social-post .odl-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-social-post button { display: inline-grid; place-items: center; min-inline-size: var(--ds-size-target-touch); min-block-size: var(--ds-size-target-touch); padding: 0; border: 0; border-radius: var(--ds-radius-full);
+  background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-social-post button:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-social-post button svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-social-post .odl-follow { padding-inline: var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-accent); font-weight: var(--ds-font-weight-heading); }
+.odl-social-post .odl-follow[aria-pressed="true"] { color: var(--ds-color-text-secondary); }
+.odl-social-post .odl-photo { position: relative; aspect-ratio: 1; overflow: hidden; user-select: none; background: var(--ds-color-bg-neutral-subtle); }
+.odl-social-post .odl-pic { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; object-position: 50% 75%; }
+.odl-social-post .odl-count { position: absolute; inset-block-start: var(--ds-space-inset-md); inset-inline-end: var(--ds-space-inset-md); padding: var(--ds-space-2) var(--ds-space-8); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-neutral-alpha-light-11); color: var(--ds-color-neutral-dark-12); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+/* The counter and the dots sit on small dark pills (the fixed dark alpha ramp, dark in both themes) so they read on any photo, a white one included. */
+.odl-social-post .odl-dots { position: absolute; inset-block-end: var(--ds-space-inset-md); inset-inline: 0; display: flex; justify-content: center; gap: var(--ds-space-6); inline-size: max-content; margin-inline: auto;
+  padding: var(--ds-space-4) var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-alpha-light-11); }
+.odl-social-post .odl-dots i { inline-size: var(--ds-space-6); block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); opacity: 0.5; }
+.odl-social-post .odl-dots i:first-child { opacity: 1; }
+.odl-social-post .odl-burst { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; color: var(--ds-color-surface-raised); }
+.odl-social-post .odl-burst svg { inline-size: 28%; block-size: auto; fill: currentColor; stroke-width: 0; filter: drop-shadow(0 0 var(--ds-space-12) var(--ds-color-shadow-key)); }
+.odl-social-post .odl-burst.is-on { animation: odl-social-post-burst var(--ds-motion-duration-extra) var(--ds-motion-easing-standard); }
+@keyframes odl-social-post-burst { 0% { opacity: 0; transform: scale(0.4); } 20% { opacity: 1; transform: scale(1.1); } 35% { transform: scale(0.95); } 75% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
+.odl-social-post .odl-body { display: grid; gap: var(--ds-space-stack-sm); padding: var(--ds-space-inset-xs) var(--ds-space-inset-xl) var(--ds-space-inset-xl); }
+.odl-social-post .odl-actions { display: flex; align-items: center; gap: var(--ds-space-inline-xs); margin-inline: calc(-1 * var(--ds-space-inset-sm)); }
+.odl-social-post .odl-save { margin-inline-start: auto; }
+.odl-social-post .odl-actions button svg { inline-size: var(--ds-size-icon-lg); block-size: var(--ds-size-icon-lg); }
+/* Liked and saved: the outline fills in the text colour (no status colour). */
+.odl-social-post .odl-like[aria-pressed="true"] svg, .odl-social-post .odl-save[aria-pressed="true"] svg, .odl-social-post .odl-top button[aria-pressed="true"] svg { fill: currentColor; }
+.odl-social-post .odl-like.is-pop svg { animation: odl-social-post-pop var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+@keyframes odl-social-post-pop { 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.odl-social-post .odl-likes, .odl-social-post .odl-caption, .odl-social-post .odl-top { margin: 0; }
+.odl-social-post .odl-likes { font: var(--ds-text-label-lg); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
+.odl-social-post b { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-heading); }
+.odl-social-post .odl-caption .odl-full[hidden] { display: none; }
+/* The shortened caption ends in "… more" on the same line; "more" swaps in the full text. */
+.odl-social-post .odl-text-btn.odl-more { display: inline-flex; vertical-align: baseline; min-inline-size: var(--ds-size-target-touch); min-block-size: 0; margin: 0; padding-inline: var(--ds-space-2); font: inherit; color: var(--ds-color-text-secondary); }
+.odl-social-post .odl-tag { color: var(--ds-color-text-link); }
+.odl-social-post .odl-text-btn { justify-self: start; min-inline-size: 0; padding-inline: var(--ds-space-4); margin-inline: calc(-1 * var(--ds-space-4)); border-radius: var(--ds-radius-control-sm);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); }
+.odl-social-post .odl-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: var(--ds-space-inline-md); padding-block-start: var(--ds-space-stack-xs); }
+.odl-social-post .odl-top > span { padding-block-start: var(--ds-space-4); }
+.odl-social-post .odl-top button { margin-block-start: calc(-1 * var(--ds-space-6)); }
+.odl-social-post .odl-top button svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-social-post time { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); }
+.odl-social-post button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-social-post .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (inline-size < 26rem) {
+  .odl-social-post .odl-head { padding-inline-start: var(--ds-space-inset-lg); }
+  .odl-social-post .odl-body { padding: var(--ds-space-inset-xs) var(--ds-space-inset-lg) var(--ds-space-inset-lg); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-social-post, .odl-social-post *, .odl-social-post *::before { transition: none !important; animation: none !important; } }
+</style>
+<article class="odl-social-post" aria-label="Post by rafal.makes">
+  <div class="odl-card">
+    <header class="odl-head">
+      <span class="odl-ring" aria-hidden="true"><img class="odl-av" src="https://images.unsplash.com/photo-1705645930353-0e335311ef20?w=96&h=96&fit=crop&auto=format&q=70" alt="" width="48" height="48" loading="lazy" decoding="async"></span>
+      <span class="odl-who"><b>rafal.makes</b><span>Los Angeles, California</span></span>
+      <button type="button" class="odl-follow" aria-pressed="false">Follow</button>
+      <button type="button" aria-label="More options"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+    </header>
+    <div class="odl-photo">
+      <img class="odl-pic" src="https://images.unsplash.com/photo-1512531123205-560f5974e686?w=960&h=960&fit=crop&crop=bottom&auto=format&q=70" alt="Photo 1 of 3: city rooftops and towers at sunset, the sky turning gold" width="480" height="480" loading="lazy" decoding="async">
+      <span class="odl-count" aria-hidden="true">1/3</span>
+      <span class="odl-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="odl-burst" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span>
+    </div>
+    <div class="odl-body">
+      <div class="odl-actions">
+        <button type="button" class="odl-like" aria-pressed="false" aria-label="Like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
+        <button type="button" aria-label="Comment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></button>
+        <button type="button" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg></button>
+        <button type="button" class="odl-save" aria-pressed="false" aria-label="Save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></button>
+      </div>
+      <p class="odl-likes" aria-live="polite">Liked by <b>yuki_h</b> and <b class="odl-n">2,481</b> others</p>
+      <p class="odl-caption" id="odl-sp-cap"><b>rafal.makes</b> <span class="odl-short">Third morning in a row on the same roof, waiting for the towers to turn gold…</span><span class="odl-full" id="odl-sp-full" hidden>Third morning in a row on the same roof, waiting for the towers to turn gold. It finally did, for about four minutes, and then the fog rolled back in. Worth every early alarm. <span class="odl-tag">#bluehour</span> <span class="odl-tag">#rooftops</span></span> <button type="button" class="odl-text-btn odl-more" aria-expanded="false" aria-controls="odl-sp-full">more</button></p>
+      <button type="button" class="odl-text-btn">View all 86 comments</button>
+      <p class="odl-top"><img class="odl-av is-sm" src="https://images.unsplash.com/photo-1596580817363-a4a8f67d4bc8?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async"><span><b>kwesi.frames</b> That light on the towers is unreal. Which lens?</span>
+        <button type="button" aria-pressed="false" aria-label="Like comment by kwesi.frames"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button></p>
+      <time datetime="PT2H">2 hours ago</time>
+    </div>
+  </div>
+</article>
+<script>
+document.querySelectorAll(".odl-social-post").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const like = root.querySelector(".odl-like"), n = root.querySelector(".odl-n"), burst = root.querySelector(".odl-burst");
+  const base = 2481, fmt = new Intl.NumberFormat("en");
+  const setLike = (on) => {
+    like.setAttribute("aria-pressed", String(on));
+    like.setAttribute("aria-label", on ? "Unlike" : "Like");
+    n.textContent = fmt.format(base + (on ? 1 : 0));
+    like.classList.remove("is-pop"); void like.offsetWidth; if (on) like.classList.add("is-pop");
+  };
+  like.addEventListener("click", () => setLike(like.getAttribute("aria-pressed") !== "true"));
+  // A double tap on the photo always likes (it never unlikes), like the apps people know.
+  root.querySelector(".odl-photo").addEventListener("dblclick", () => {
+    setLike(true); burst.classList.remove("is-on"); void burst.offsetWidth; burst.classList.add("is-on");
+  });
+  root.querySelectorAll(".odl-save, .odl-top button").forEach((b) => b.addEventListener("click", () => b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"))));
+  const follow = root.querySelector(".odl-follow");
+  follow.addEventListener("click", () => { const on = follow.getAttribute("aria-pressed") !== "true"; follow.setAttribute("aria-pressed", String(on)); follow.textContent = on ? "Following" : "Follow"; });
+  const more = root.querySelector(".odl-more"), short = root.querySelector(".odl-short"), full = root.querySelector(".odl-full");
+  more.addEventListener("click", () => { const open = full.hidden; full.hidden = !open; short.hidden = open; more.setAttribute("aria-expanded", String(open)); more.textContent = open ? "less" : "more"; });
+});
+</script>

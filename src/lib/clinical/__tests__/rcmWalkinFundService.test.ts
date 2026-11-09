@@ -275,5 +275,134 @@ describe('RcmWalkinFundService', () => {
       expect(res.items).toHaveLength(1)
       expect(res.items[0].ptname).toContain('สมใจ')
     })
+
+    it('uses Two-Source ClaimCode Guard and DATETIME Boundary Guard in SQL query', async () => {
+      const mockExecutor = createMockExecutor()
+
+      await RcmWalkinFundService.getReportData(
+        { ds1: '2026-10-01', ds2: '2026-10-31', refresh: true },
+        mockExecutor
+      )
+
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('COALESCE(NULLIF(TRIM(cc.AuthenCode)'),
+        expect.any(Array),
+        expect.any(Object)
+      )
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('LEFT JOIN visit_pttype vt ON vt.vn = o.vn'),
+        expect.any(Array),
+        expect.any(Object)
+      )
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)'),
+        expect.any(Array),
+        expect.any(Object)
+      )
+      expect(mockExecutor).not.toHaveBeenCalledWith(
+        expect.stringContaining('m.dateadm BETWEEN ? AND ?'),
+        expect.any(Array),
+        expect.any(Object)
+      )
+    })
+
+    it('filters correctly with pttypes and recalculates summary', async () => {
+      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('FROM s_drugitems')) {
+          return Promise.resolve([])
+        }
+        return Promise.resolve([
+          {
+            vn: '6910010001',
+            hn: '0011111',
+            cid: '1529900011111',
+            ptname: 'นาย ก',
+            sex_code: '1',
+            vstdate: '2026-10-01',
+            vsttime: '09:00:00',
+            maininscl: 'UCS',
+            pttypename: 'บัตรทอง',
+            pttype_eclaim_id: '01',
+            income: 1000,
+            compensated: 800,
+            rep: 'REP1',
+          },
+          {
+            vn: '6910010002',
+            hn: '0022222',
+            cid: '1529900022222',
+            ptname: 'นาง ข',
+            sex_code: '2',
+            vstdate: '2026-10-02',
+            vsttime: '10:00:00',
+            maininscl: 'SSS',
+            pttypename: 'ประกันสังคม',
+            pttype_eclaim_id: '30',
+            income: 2000,
+            compensated: 1500,
+            rep: 'REP2',
+          },
+        ])
+      })
+
+      const res = await RcmWalkinFundService.getReportData(
+        { ds1: '2026-10-01', ds2: '2026-10-31', pttypes: '01,02' },
+        mockExecutor
+      )
+
+      expect(res.items).toHaveLength(1)
+      expect(res.items[0].hn).toBe('0011111')
+      expect(res.summary.totalVisits).toBe(1)
+      expect(res.summary.totalIncome).toBe(1000)
+    })
+
+    it('falls back to ucOnly when pttypes is omitted', async () => {
+      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('FROM s_drugitems')) {
+          return Promise.resolve([])
+        }
+        return Promise.resolve([
+          {
+            vn: '6910010001',
+            hn: '0011111',
+            cid: '1529900011111',
+            ptname: 'นาย ก',
+            sex_code: '1',
+            vstdate: '2026-10-01',
+            vsttime: '09:00:00',
+            maininscl: 'UCS',
+            pttypename: 'บัตรทอง',
+            pttype_eclaim_id: '01',
+            income: 1000,
+            compensated: 800,
+            rep: 'REP1',
+          },
+          {
+            vn: '6910010002',
+            hn: '0022222',
+            cid: '1529900022222',
+            ptname: 'นาง ข',
+            sex_code: '2',
+            vstdate: '2026-10-02',
+            vsttime: '10:00:00',
+            maininscl: 'SSS',
+            pttypename: 'ประกันสังคม',
+            pttype_eclaim_id: '30',
+            income: 2000,
+            compensated: 1500,
+            rep: 'REP2',
+          },
+        ])
+      })
+
+      const res = await RcmWalkinFundService.getReportData(
+        { ds1: '2026-10-01', ds2: '2026-10-31', ucOnly: true },
+        mockExecutor
+      )
+
+      expect(res.items).toHaveLength(1)
+      expect(res.items[0].hn).toBe('0011111')
+      expect(res.summary.totalVisits).toBe(1)
+    })
   })
 })

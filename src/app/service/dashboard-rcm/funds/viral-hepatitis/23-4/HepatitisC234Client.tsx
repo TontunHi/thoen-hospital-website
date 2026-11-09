@@ -34,6 +34,9 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -93,6 +96,9 @@ export default function HepatitisC234Client({
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<HepatitisCCardFilter>(
     initialData?.cardFilter ?? 'ALL'
+  )
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(
+    initialData?.ucOnly ? [...UC_ECLAIM_CODES] : []
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
   const [withLabOnly, setWithLabOnly] = useState<boolean>(initialData?.withLabOnly ?? false)
@@ -184,7 +190,6 @@ export default function HepatitisC234Client({
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           withLabOnly: String(withLabOnly),
           search: debouncedSearch,
           sortBy,
@@ -192,6 +197,13 @@ export default function HepatitisC234Client({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          queryParams.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          queryParams.set('ucOnly', 'true')
+        }
+
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -225,6 +237,7 @@ export default function HepatitisC234Client({
       ds1,
       ds2,
       cardFilter,
+      selectedPttypes,
       ucOnly,
       withLabOnly,
       debouncedSearch,
@@ -355,21 +368,26 @@ export default function HepatitisC234Client({
     )
   }
 
-  // Export CSV with UTF-8 BOM
-  const handleExportCSV = async () => {
+  // Export Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         withLabOnly: String(withLabOnly),
         search: debouncedSearch,
         sortBy,
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        queryParams.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        queryParams.set('ucOnly', 'true')
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/viral-hepatitis/service-23-4?${queryParams.toString()}`
@@ -394,7 +412,7 @@ export default function HepatitisC234Client({
         'วันที่รับบริการ',
         'เวลา',
         'สิทธิการรักษา',
-        'Authen Code',
+        'ClaimCode',
         'แผนก',
         'คลินิก',
         'อาการสำคัญ (CC)',
@@ -413,53 +431,45 @@ export default function HepatitisC234Client({
         'เบอร์โทรศัพท์',
       ]
 
-      const csvLines = [headers.join(',')]
+      const rows = exportRows.map((r) => [
+        r.no,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.sex,
+        r.age,
+        r.vstdate,
+        r.vsttime,
+        r.pttypename || '',
+        r.authencode || '',
+        r.department || '',
+        r.clinic || '',
+        r.cc || '',
+        r.pdx || '',
+        r.labresult || '',
+        r.listname || '',
+        r.status || '',
+        r.rep || '',
+        r.compensated,
+        r.agency || '',
+        r.fund || '',
+        r.status_sm || '',
+        r.rep_sm || '',
+        r.compensated_sm,
+        r.address || '',
+        r.mobile || r.tel || '',
+      ])
 
-      exportRows.forEach((r) => {
-        const row = [
-          r.no,
-          `"${r.vn}"`,
-          `"${r.hn}"`,
-          `"${r.cid}"`,
-          `"${r.ptname.replace(/"/g, '""')}"`,
-          `"${r.sex}"`,
-          r.age,
-          `"${r.vstdate}"`,
-          `"${r.vsttime}"`,
-          `"${(r.pttypename || '').replace(/"/g, '""')}"`,
-          `"${(r.authencode || '').replace(/"/g, '""')}"`,
-          `"${(r.department || '').replace(/"/g, '""')}"`,
-          `"${(r.clinic || '').replace(/"/g, '""')}"`,
-          `"${(r.cc || '').replace(/"/g, '""')}"`,
-          `"${(r.pdx || '').replace(/"/g, '""')}"`,
-          `"${(r.labresult || '').replace(/"/g, '""')}"`,
-          `"${(r.listname || '').replace(/"/g, '""')}"`,
-          `"${(r.status || '').replace(/"/g, '""')}"`,
-          `"${(r.rep || '').replace(/"/g, '""')}"`,
-          r.compensated,
-          `"${(r.agency || '').replace(/"/g, '""')}"`,
-          `"${(r.fund || '').replace(/"/g, '""')}"`,
-          `"${(r.status_sm || '').replace(/"/g, '""')}"`,
-          `"${(r.rep_sm || '').replace(/"/g, '""')}"`,
-          r.compensated_sm,
-          `"${(r.address || '').replace(/"/g, '""')}"`,
-          `"${(r.mobile || r.tel || '').replace(/"/g, '""')}"`,
-        ]
-        csvLines.push(row.join(','))
+      await exportRcmExcel({
+        filename: `hepatitis-c-hcv-rna-36333-${ds1}-to-${ds2}.xlsx`,
+        title: '23.4 ตรวจยืนยันไวรัสตับ C HCV RNA (รหัส ADP 36333)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportRows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
       })
-
-      // Add UTF-8 BOM so Excel opens Thai characters without garbled text
-      const csvContent = '\uFEFF' + csvLines.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.setAttribute('href', url)
-      link.setAttribute('download', `hepatitis-c-hcv-rna-36333-${ds1}-to-${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
     } catch {
-      alert('ไม่สามารถส่งออกไฟล์ CSV ได้')
+      alert('ไม่สามารถส่งออกไฟล์ Excel ได้')
     } finally {
       setIsExporting(false)
     }
@@ -492,12 +502,12 @@ export default function HepatitisC234Client({
             <button
               type="button"
               className="hs-btn-primary"
-              onClick={handleExportCSV}
+              onClick={handleExportExcel}
               disabled={loading || isExporting || items.length === 0}
-              title="ส่งออกข้อมูลผู้รับบริการทั้งหมดเป็นไฟล์ CSV (UTF-8 BOM สำหรับ Excel)"
+              title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
             >
               <Download size={16} className={isExporting ? 'animate-spin' : ''} />
-              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
             </button>
           </div>
         </div>
@@ -705,14 +715,14 @@ export default function HepatitisC234Client({
           </div>
         </button>
 
-        {/* Row 1, Col 4: มี Authen Code */}
+        {/* Row 1, Col 4: มี ClaimCode */}
         <button
           type="button"
           className={`hs-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterSelect('WITH_AUTHEN')}
         >
           <div className="hs-kpi-card-header">
-            <span className="hs-kpi-title">มี Authen Code</span>
+            <span className="hs-kpi-title">มี ClaimCode</span>
             <div className="hs-kpi-icon-wrap">
               <ShieldCheck size={18} />
             </div>
@@ -726,14 +736,14 @@ export default function HepatitisC234Client({
           </div>
         </button>
 
-        {/* Row 2, Col 1: ไม่มี Authen Code */}
+        {/* Row 2, Col 1: ไม่มี ClaimCode */}
         <button
           type="button"
           className={`hs-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterSelect('NO_AUTHEN')}
         >
           <div className="hs-kpi-card-header">
-            <span className="hs-kpi-title">ไม่มี Authen Code</span>
+            <span className="hs-kpi-title">ไม่มี ClaimCode</span>
             <div className="hs-kpi-icon-wrap">
               <AlertTriangle size={18} />
             </div>
@@ -743,7 +753,7 @@ export default function HepatitisC234Client({
             <span className="hs-kpi-unit">ครั้ง</span>
           </div>
           <div className="hs-kpi-subtext">
-            <span>ต้องติดตามขอรหัส Authen</span>
+            <span>ต้องติดตามขอรหัส ClaimCode</span>
           </div>
         </button>
 
@@ -835,18 +845,56 @@ export default function HepatitisC234Client({
         </div>
 
         <div className="hs-toolbar-meta">
-          <label className="hs-checkbox-label">
-            <input
-              type="checkbox"
-              className="hs-checkbox-input"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
+          {selectedPttypes.length > 0 && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: '#e0f2fe',
+                color: '#0369a1',
+                padding: '2px 8px',
+                borderRadius: 6,
+                fontSize: '0.8rem',
               }}
-            />
-            <span>เฉพาะสิทธิบัตรทอง</span>
-          </label>
+            >
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะ UC (01-09)'
+                  : `${selectedPttypes.length} สิทธิ`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#0369a1',
+                  padding: 0,
+                  display: 'flex',
+                }}
+                title="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           <label className="hs-checkbox-label">
             <input
@@ -946,7 +994,7 @@ export default function HepatitisC234Client({
                   onClick={() => handleSort('authencode')}
                 >
                   <span className="hs-th-sort">
-                    <span>Authen Code</span>
+                    <span>ClaimCode</span>
                     {renderSortIndicator('authencode')}
                   </span>
                 </th>
@@ -1297,12 +1345,12 @@ export default function HepatitisC234Client({
                         <span className="hs-detail-value">{selectedItem.listname || '—'}</span>
                       </div>
                       <div className="hs-detail-item">
-                        <span className="hs-detail-label">Authen Code</span>
+                        <span className="hs-detail-label">ClaimCode:</span>
                         <span className="hs-detail-value">
                           {selectedItem.authencode ? (
                             <span className="hs-badge hs-badge-success">{selectedItem.authencode}</span>
                           ) : (
-                            <span className="hs-badge hs-badge-warning">ไม่มีรหัส Authen</span>
+                            <span className="hs-badge hs-badge-warning">ไม่มีรหัส ClaimCode</span>
                           )}
                         </span>
                       </div>

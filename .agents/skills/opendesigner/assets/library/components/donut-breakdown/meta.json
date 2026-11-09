@@ -1,0 +1,13 @@
+{
+  "name": "Spend breakdown donut",
+  "summary": "Spend split into four categories as a donut with the total in the middle, and a legend that lists each amount and share.",
+  "use": "for showing how a total splits into a few categories",
+  "type": "chart",
+  "style": "quiet",
+  "industries": ["saas", "finance", "devtools", "any"],
+  "tags": ["donut", "breakdown", "categories", "share", "legend"],
+  "states": ["hover row highlights its segment"],
+  "source": null,
+  "a11y": "The drawing is hidden from screen readers; the legend list carries every category, amount and share, and its label gives the total.",
+  "width": "medium"
+}

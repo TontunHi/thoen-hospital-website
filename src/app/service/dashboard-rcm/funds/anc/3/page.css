@@ -468,40 +468,38 @@
   text-align: left;
 }
 
-/* Multi-tier / grouped headers */
+/* Single-tier centered headers */
 .anc3-table th {
-  background: var(--anc-surface-3);
-  color: var(--anc-ink);
+  background: var(--anc-surface-2, #f4f7f5);
+  color: var(--anc-ink, #111e14);
   font-weight: 600;
   font-size: var(--anc-text-xs);
-  padding: 10px 12px;
-  border: 1px solid var(--anc-hairline);
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--anc-hairline, #e2e8e4);
   white-space: nowrap;
   letter-spacing: 0.01em;
-}
-
-.anc3-table th.is-group-head {
   text-align: center;
-  background: #E3ECE7;
-  color: var(--anc-accent-dark);
-  font-weight: 700;
-  font-size: var(--anc-text-xs);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .anc3-th-sortable {
   cursor: pointer;
   user-select: none;
-  transition: background 0.12s ease;
+  transition: background-color 150ms ease;
 }
 
 .anc3-th-sortable:hover {
-  background: var(--anc-surface-accent);
+  background: var(--anc-surface-3, #edf3f0);
 }
 
 .anc3-sort-wrap {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  white-space: nowrap;
 }
 
 /* Table body */

@@ -6,18 +6,18 @@
    ========================================================================== */
 
 .ccs10-page {
-  /* ── 1. Color Palette (Thoen Hospital Emerald Theme Preserved) ── */
-  --ccs-bg: var(--bg-main, #F0F4F2);
+  /* ── 1. Color Palette (Thoen Hospital Emerald Theme & Off-Black Ramp) ── */
+  --ccs-bg: var(--bg-main, #FAFCFB);
   --ccs-surface: var(--bg-surface, #FFFFFF);
-  --ccs-surface-2: var(--bg-subtle, #F6F9F7);
+  --ccs-surface-2: var(--bg-subtle, #F4F7F5);
   --ccs-surface-3: #EDF3F0;
-  --ccs-surface-accent: var(--primary-subtle, #E6F3ED);
-  --ccs-surface-accent-strong: var(--primary-light, #BFE1D2);
-  --ccs-ink: var(--gray-900, #14221A);
-  --ccs-ink-2: var(--gray-700, #33443B);
-  --ccs-muted: var(--gray-500, #5C7065);
-  --ccs-hairline: var(--gray-200, #DCE4DF);
-  --ccs-hairline-soft: var(--gray-100, #EFF3F1);
+  --ccs-surface-accent: var(--primary-subtle, #F0FDF4);
+  --ccs-surface-accent-strong: var(--primary-light, #DCFCE7);
+  --ccs-ink: var(--gray-900, #111E14);
+  --ccs-ink-2: var(--gray-700, #334237);
+  --ccs-muted: var(--gray-500, #6B7B70);
+  --ccs-hairline: var(--gray-200, #E2E8E4);
+  --ccs-hairline-soft: var(--gray-100, #F1F5F3);
   --ccs-hairline-strong: var(--gray-400, #9FB3A7);
   --ccs-accent: var(--primary, #0D7446);
   --ccs-accent-hover: var(--primary-hover, #0A5C37);
@@ -78,12 +78,12 @@
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
-  padding: var(--ccs-s5) var(--ccs-s6) var(--ccs-s10);
+  padding: var(--ccs-s6) var(--ccs-s8) var(--ccs-s10);
   color: var(--ccs-ink);
   font-family: var(--ccs-font);
   display: flex;
   flex-direction: column;
-  gap: var(--ccs-s4);
+  gap: var(--ccs-s6);
   min-width: 0;
   overflow-x: clip;
 }
@@ -105,6 +105,35 @@
   display: flex;
   flex-direction: column;
   gap: var(--ccs-s1);
+}
+
+.ccs10-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ccs-text-xs);
+  color: var(--ccs-muted);
+  margin-bottom: 2px;
+}
+
+.ccs10-breadcrumb-link {
+  color: var(--ccs-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ccs10-breadcrumb-link:hover {
+  color: var(--ccs-accent);
+}
+
+.ccs10-breadcrumb-sep {
+  color: var(--ccs-hairline-strong);
+  font-size: 0.75rem;
+}
+
+.ccs10-breadcrumb-current {
+  color: var(--ccs-ink-2);
+  font-weight: 500;
 }
 
 .ccs10-meta-tag {
@@ -292,14 +321,14 @@
   background: var(--ccs-surface);
   border: 1px solid var(--ccs-hairline);
   border-radius: var(--ccs-r-lg);
-  padding: var(--ccs-s3) var(--ccs-s4);
+  padding: var(--ccs-s3) var(--ccs-s5);
   box-shadow: var(--ccs-shadow-sm);
 }
 
 .ccs10-date-row {
   display: flex;
   align-items: center;
-  gap: var(--ccs-s3);
+  gap: var(--ccs-s4);
   flex-wrap: wrap;
 }
 
@@ -323,7 +352,7 @@
   color: var(--ccs-muted);
   border-radius: var(--ccs-r-sm);
   cursor: pointer;
-  transition: all 0.15s ease-out;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .ccs10-mode-tab:hover:not(.is-active) {
@@ -341,6 +370,20 @@
   color: var(--ccs-accent-dark);
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ccs10-date-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--ccs-hairline);
+  flex-shrink: 0;
+}
+
+.ccs10-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--ccs-s2);
+  flex-wrap: wrap;
 }
 
 .ccs10-date-select,
@@ -368,53 +411,44 @@
   box-shadow: 0 0 0 3px var(--ccs-focus-ring);
 }
 
-.ccs10-date-span-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  background: var(--ccs-surface-accent);
-  color: var(--ccs-accent-dark);
-  border: 1px solid var(--ccs-surface-accent-strong);
-  border-radius: var(--ccs-r-sm);
-  font-size: var(--ccs-text-xs);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-}
-
 /* ── 6. Clinical Audit Workbench Summary Ribbon (Interactive KPI Cards) ── */
 .ccs10-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--ccs-s3);
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ccs-s4);
+}
+
+@media (max-width: 1024px) {
+  .ccs10-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .ccs10-kpi-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ccs10-kpi-card {
   background: var(--ccs-surface);
   border: 1px solid var(--ccs-hairline);
-  border-top: 4px solid var(--ccs-hairline-strong);
   border-radius: var(--ccs-r-lg);
-  padding: var(--ccs-s4);
+  padding: var(--ccs-s5);
   display: flex;
   flex-direction: column;
   gap: var(--ccs-s1);
   box-shadow: var(--ccs-shadow-sm);
-  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
   user-select: none;
   text-align: left;
   position: relative;
-  background-clip: padding-box;
 }
 
 .ccs10-kpi-card:hover {
   border-color: var(--ccs-hairline-strong);
-  transform: translateY(-2px);
   box-shadow: var(--ccs-shadow-card);
-}
-
-.ccs10-kpi-card:active {
-  transform: translateY(0);
 }
 
 .ccs10-kpi-card:focus-visible {
@@ -422,45 +456,37 @@
   outline-offset: 2px;
 }
 
-/* Top Stripe Semantics */
-.ccs10-kpi-accent {
-  border-top-color: var(--ccs-accent);
-}
-
-.ccs10-kpi-success {
-  border-top-color: var(--ccs-ok);
-}
-
-.ccs10-kpi-warn {
-  border-top-color: var(--ccs-err);
-}
-
-/* Active Filtering State */
+/* Active Filtering State (High Contrast, Tactile, No Thick Stripes) */
 .ccs10-kpi-card.is-active-filter {
   border-color: var(--ccs-accent);
-  border-top-color: var(--ccs-accent);
   background: var(--ccs-surface-accent);
-  box-shadow: 0 0 0 2px var(--ccs-accent);
+  box-shadow: 0 0 0 1px var(--ccs-accent);
 }
 
 .ccs10-kpi-card.is-active-filter-success {
   border-color: var(--ccs-ok);
-  border-top-color: var(--ccs-ok);
   background: var(--ccs-ok-bg);
-  box-shadow: 0 0 0 2px var(--ccs-ok);
+  box-shadow: 0 0 0 1px var(--ccs-ok);
 }
 
 .ccs10-kpi-card.is-active-filter-warn {
   border-color: var(--ccs-err);
-  border-top-color: var(--ccs-err);
   background: var(--ccs-err-bg);
-  box-shadow: 0 0 0 2px var(--ccs-err);
+  box-shadow: 0 0 0 1px var(--ccs-err);
+}
+
+.ccs10-kpi-val-ok {
+  color: var(--ccs-ok) !important;
+}
+
+.ccs10-kpi-val-err {
+  color: var(--ccs-err) !important;
 }
 
 .ccs10-kpi-label {
   font-size: var(--ccs-text-xs);
   color: var(--ccs-muted);
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   display: flex;
@@ -470,21 +496,21 @@
 
 .ccs10-kpi-filter-tag {
   font-size: 0.6875rem;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--ccs-r-xs);
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.07);
   color: var(--ccs-ink);
   font-weight: 600;
   letter-spacing: 0;
 }
 
 .ccs10-kpi-value {
-  font-size: var(--ccs-text-2xl);
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 600;
   color: var(--ccs-ink);
   font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .ccs10-kpi-sub {
@@ -609,30 +635,15 @@
   line-height: 1.45;
 }
 
-/* Tier 1 Header (Merged Categories) */
-.ccs10-table thead tr:first-child th {
-  background: var(--ccs-surface-2);
-  color: var(--ccs-ink);
-  font-size: var(--ccs-text-xs);
-  font-weight: 700;
-  text-align: center;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--ccs-hairline);
-  border-right: 1px solid var(--ccs-hairline-soft);
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-}
-
-/* Tier 2 Header (Column Definitions) */
-.ccs10-table thead tr:nth-child(2) th {
-  background: var(--ccs-surface);
-  color: var(--ccs-ink-2);
+/* Single-tier Centered Header */
+.ccs10-table thead th {
+  background: var(--ccs-surface-2, #f4f7f5);
+  color: var(--ccs-ink, #111e14);
   font-size: var(--ccs-text-xs);
   font-weight: 600;
-  text-align: left;
-  padding: 9px 12px;
-  border-bottom: 2px solid var(--ccs-hairline);
-  border-right: 1px solid var(--ccs-hairline-soft);
+  text-align: center;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--ccs-hairline, #e2e8e4);
   white-space: nowrap;
   position: sticky;
   top: 0;
@@ -642,7 +653,7 @@
 .ccs10-table th.is-sortable {
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.1s ease;
+  transition: background-color 0.12s ease;
 }
 
 .ccs10-table th.is-sortable:hover {
@@ -654,18 +665,58 @@
   outline: 2px solid var(--ccs-accent);
 }
 
+.ccs10-th-sort-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ccs10-justify-end {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.ccs10-justify-center {
+  justify-content: center;
+  width: 100%;
+}
+
+.ccs10-sort-active {
+  color: var(--ccs-accent);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.ccs10-sort-muted {
+  color: var(--ccs-hairline-strong);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 /* Table Body Cells */
 .ccs10-table tbody td {
-  padding: 9px 12px;
+  padding: 13px 14px;
   border-bottom: 1px solid var(--ccs-hairline-soft);
   border-right: 1px solid var(--ccs-hairline-soft);
   color: var(--ccs-ink);
   white-space: nowrap;
+  vertical-align: middle;
   transition: background-color 0.1s ease;
 }
 
-.ccs10-table tbody tr:hover td {
+.ccs10-row-interactive {
+  cursor: pointer;
+}
+
+.ccs10-row-interactive:hover td {
   background: var(--ccs-surface-2);
+}
+
+.ccs10-pt-name {
+  display: inline-block;
+  min-width: 170px;
+  white-space: nowrap;
 }
 
 /* Summary 'รวม' Total Row */

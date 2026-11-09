@@ -36,6 +36,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -91,6 +93,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
   )
 
   // Filter & Search states
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [cardFilter, setCardFilter] = useState<TelemedCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
@@ -193,6 +196,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -236,6 +240,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
       sortOrder,
       currentPage,
       pageSize,
+      pttypes,
     ]
   )
 
@@ -368,8 +373,8 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     setCurrentPage(1)
   }
 
-  // Export CSV
-  const handleExportCsv = async () => {
+  // Export Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
@@ -383,6 +388,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/telemed-drug/telemed?${queryParams.toString()}`
@@ -404,7 +410,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         'วันที่รับบริการ',
         'เวลา',
         'ประเภทการมา (ovstist)',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'กลุ่มสิทธิ',
         'รพ.หลัก',
@@ -421,51 +427,43 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         'กองทุนย่อย (Subfund)',
       ]
 
-      const csvRows = [
-        headers.join(','),
-        ...exportRows.map((r) =>
-          [
-            r.no,
-            `"${r.vn}"`,
-            `"${r.hn}"`,
-            `"${r.cid}"`,
-            `"${r.ptname}"`,
-            `"${r.sex}"`,
-            r.age,
-            `"${r.vstdate}"`,
-            `"${r.vsttime}"`,
-            `"${r.ovstist}"`,
-            `"${r.authencode || ''}"`,
-            `"${r.pttypename}"`,
-            `"${r.maininscl}"`,
-            `"${r.hospmain || ''}"`,
-            `"${r.hospsub || ''}"`,
-            `"${r.department || ''}"`,
-            `"${r.clinic || ''}"`,
-            `"${r.pdx || ''}"`,
-            r.income,
-            r.sum_price,
-            `"${r.status}"`,
-            `"${r.rep || ''}"`,
-            r.compensated,
-            `"${r.fund || ''}"`,
-            `"${r.subfund || ''}"`,
-          ].join(',')
-        ),
-      ]
+      const rows = exportRows.map((r) => [
+        r.no,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.sex,
+        r.age,
+        r.vstdate,
+        r.vsttime,
+        r.ovstist,
+        r.authencode || '',
+        r.pttypename,
+        r.maininscl,
+        r.hospmain || '',
+        r.hospsub || '',
+        r.department || '',
+        r.clinic || '',
+        r.pdx || '',
+        r.income,
+        r.sum_price,
+        r.status,
+        r.rep || '',
+        r.compensated,
+        r.fund || '',
+        r.subfund || '',
+      ])
 
-      const csvContent = '\uFEFF' + csvRows.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `telemed_report_11_53_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `telemed_report_11_53_${ds1}_to_${ds2}.xlsx`,
+        title: '11.53 รายชื่อผู้ได้รับบริการ TelMed',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportRows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ CSV')
+      alert(err.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -506,12 +504,12 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           <button
             type="button"
             className="telemed-btn telemed-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={isExporting || items.length === 0}
-            title="ส่งออกไฟล์ CSV พร้อมรองรับภาษาไทยใน Microsoft Excel"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -747,7 +745,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           </div>
         </div>
 
-        {/* Card 5: มี Authen Code */}
+        {/* Card 5: มี ClaimCode */}
         <div
           className={`telemed-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
@@ -755,7 +753,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           tabIndex={0}
         >
           <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">มี Authen Code</span>
+            <span className="telemed-kpi-title">มี ClaimCode</span>
             <div className="telemed-kpi-icon-wrap" style={{ color: '#059669', backgroundColor: '#f0fdf4' }}>
               <ReceiptText size={18} />
             </div>
@@ -774,7 +772,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           </div>
         </div>
 
-        {/* Card 6: ไม่มี Authen Code */}
+        {/* Card 6: ไม่มี ClaimCode */}
         <div
           className={`telemed-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('NO_AUTHEN')}
@@ -782,7 +780,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           tabIndex={0}
         >
           <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">ไม่มี Authen Code</span>
+            <span className="telemed-kpi-title">ไม่มี ClaimCode</span>
             <div className="telemed-kpi-icon-wrap" style={{ color: '#dc2626', backgroundColor: '#fef2f2' }}>
               <AlertTriangle size={18} />
             </div>
@@ -878,6 +876,16 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="telemed-toolbar-actions">
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.875rem', cursor: 'pointer' }}>
@@ -983,7 +991,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                   className="telemed-th-sort"
                   onClick={() => handleSort('authencode')}
                 >
-                  <span>Authen Code</span>
+                  <span>ClaimCode</span>
                   {renderSortIcon('authencode')}
                 </button>
               </th>
@@ -1296,14 +1304,14 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                     </div>
 
                     <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">Authen Code (การยืนยันตัวตน)</span>
+                      <span className="telemed-detail-label">ClaimCode (การยืนยันตัวตน)</span>
                       <span className="telemed-detail-val">
                         {selectedItem.authencode ? (
                           <span className="telemed-badge telemed-badge-blue">
                             {selectedItem.authencode}
                           </span>
                         ) : (
-                          <span style={{ color: '#dc2626' }}>ไม่มี Authen Code</span>
+                          <span style={{ color: '#dc2626' }}>ไม่มี ClaimCode</span>
                         )}
                       </span>
                     </div>

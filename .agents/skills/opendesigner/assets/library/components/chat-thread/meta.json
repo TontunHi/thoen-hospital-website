@@ -1,0 +1,36 @@
+{
+  "name": "Chat thread",
+  "summary": "A one-to-one message thread with the other person's photo: bubbles on both sides grouped into runs, a quoted reply, a heart reaction, a read receipt, a typing indicator and a composer with attach and send that adds your message.",
+  "use": "in a messaging or social app, for a private conversation",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "social"
+  ],
+  "tags": [
+    "chat",
+    "messages",
+    "bubbles",
+    "composer",
+    "dm"
+  ],
+  "states": [
+    "sent",
+    "seen",
+    "typing",
+    "reply",
+    "reaction",
+    "send disabled",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The thread is a log region that can be scrolled with the keyboard, the typing indicator is a status, the quoted reply and reaction have screen-reader text, and Send stays disabled until there is text.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1531746020798-e6953c6e8e04",
+      "author": "Jimmy Fermin",
+      "page": "bqe0J0b26RQ"
+    }
+  ]
+}

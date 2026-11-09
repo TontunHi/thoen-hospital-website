@@ -1,0 +1,98 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-kanban-column { box-sizing: border-box; inline-size: 100%; max-inline-size: 25rem; margin-inline: auto; display: grid; gap: var(--ds-space-stack-md); padding: var(--ds-space-inset-lg);
+  background: var(--ds-color-surface-sunken); color: var(--ds-color-text-primary); border-radius: var(--ds-radius-container); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-kanban-column *, .odl-kanban-column *::before { box-sizing: border-box; }
+.odl-kanban-column svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-kanban-column .odl-head { display: flex; align-items: center; gap: var(--ds-space-inline-xs); padding-inline-start: var(--ds-space-inset-xs); }
+.odl-kanban-column .odl-head h3 { margin-inline-start: var(--ds-space-inline-xs); }
+.odl-kanban-column .odl-top { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-kanban-column .odl-status { inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-warning-bold); flex: none; }
+.odl-kanban-column h3 { flex: 1; margin: 0; display: flex; align-items: center; gap: var(--ds-space-inline-sm); font: var(--ds-text-title-md); }
+.odl-kanban-column h3 > span { min-inline-size: var(--ds-space-20); padding: 0 var(--ds-space-6); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; text-align: center; }
+.odl-kanban-column .odl-icon-btn { display: inline-grid; place-items: center; min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min));
+  border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-icon-subtle); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-kanban-column .odl-icon-btn:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-icon-default); }
+.odl-kanban-column ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-stack-md); }
+.odl-kanban-column .odl-card { position: relative; display: grid; gap: var(--ds-space-stack-md); padding: var(--ds-space-inset-md) var(--ds-space-inset-lg);
+  background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-nested);
+  box-shadow: var(--ds-elevation-raised); cursor: grab;
+  transition: box-shadow var(--ds-motion-duration-short) var(--ds-motion-easing-standard), border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-kanban-column .odl-card:hover { border-color: var(--ds-color-border-default); }
+.odl-kanban-column .odl-card:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-kanban-column .odl-id { color: var(--ds-color-text-tertiary); font: var(--ds-text-code-sm); }
+.odl-kanban-column .odl-title { margin: 0; font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-kanban-column .odl-labels { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); margin: 0; padding: 0; }
+.odl-kanban-column .odl-tag { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); padding: var(--ds-space-2) var(--ds-space-inset-xs); border-radius: var(--ds-radius-detail);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-kanban-column .odl-tag::before { content: ""; inline-size: var(--ds-space-6); block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: currentColor; }
+.odl-kanban-column .odl-tag.is-bug::before { background: var(--ds-color-bg-danger-bold); }
+.odl-kanban-column .odl-tag.is-billing::before { background: var(--ds-color-border-strong); }
+.odl-kanban-column .odl-tag.is-api::before { background: var(--ds-color-bg-info-bold); }
+.odl-kanban-column .odl-tag.is-design::before { background: var(--ds-color-bg-warning-bold); }
+.odl-kanban-column .odl-progress { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--ds-space-inline-sm); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+.odl-kanban-column .odl-bar { block-size: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); overflow: hidden; }
+.odl-kanban-column .odl-bar span { display: block; block-size: 100%; border-radius: inherit; background: var(--ds-color-bg-inverse); }
+.odl-kanban-column .odl-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-stack-xs) var(--ds-space-inline-sm); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-kanban-column .odl-foot > span, .odl-kanban-column .odl-foot time { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); white-space: nowrap; }
+.odl-kanban-column .odl-foot .odl-spacer { flex: 1; }
+.odl-kanban-column .is-overdue { padding: var(--ds-space-2) var(--ds-space-inset-xs); border-radius: var(--ds-radius-detail); background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); }
+.odl-kanban-column .odl-avatar { display: inline-grid; place-items: center; inline-size: var(--ds-size-icon-lg); block-size: var(--ds-size-icon-lg); border-radius: var(--ds-radius-person);
+  object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-kanban-column .odl-card.is-dragging { cursor: grabbing; transform: translateY(calc(-1 * var(--ds-space-4))); border-color: var(--ds-color-border-accent);
+  box-shadow: var(--ds-elevation-overlay); z-index: 1; }
+.odl-kanban-column .odl-add { display: flex; align-items: center; gap: var(--ds-space-inline-sm); inline-size: 100%; min-block-size: var(--ds-size-target-min); padding: 0 var(--ds-space-inset-sm);
+  border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-kanban-column .odl-add:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-text-primary); }
+.odl-kanban-column button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-kanban-column .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .odl-kanban-column, .odl-kanban-column *, .odl-kanban-column *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-kanban-column" aria-labelledby="odl-kc-title">
+  <div class="odl-head">
+    <span class="odl-status" aria-hidden="true"></span>
+    <h3 id="odl-kc-title">In review <span><span class="odl-sr">, </span>3<span class="odl-sr"> cards</span></span></h3>
+    <button type="button" class="odl-icon-btn" aria-label="Add a card to In review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+    <button type="button" class="odl-icon-btn" aria-label="Column options"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+  </div>
+  <ul>
+    <li class="odl-card" tabindex="0" aria-describedby="odl-kc-hint">
+      <div class="odl-top"><span class="odl-id">FEN-412</span><p class="odl-title">Split ACH batches over $50,000 into two runs</p></div>
+      <ul class="odl-labels" aria-label="Labels"><li class="odl-tag is-billing">Payments</li><li class="odl-tag is-api">API</li></ul>
+      <div class="odl-progress"><div class="odl-bar" role="progressbar" aria-label="Subtasks done" aria-valuenow="3" aria-valuemin="0" aria-valuemax="5"><span style="inline-size: 60%"></span></div><span>3/5</span></div>
+      <div class="odl-foot">
+        <time class="is-overdue" datetime="2026-10-19"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Oct 19 · overdue</time>
+        <span class="odl-spacer"></span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>6<span class="odl-sr"> comments</span></span>
+        <img class="odl-avatar" src="https://images.unsplash.com/photo-1725033489648-a819750348eb?w=48&h=48&fit=crop&crop=faces&auto=format&q=70" alt="Assigned to Nandini Iyer" width="24" height="24" loading="lazy" decoding="async">
+      </div>
+    </li>
+    <li class="odl-card is-dragging" tabindex="0" aria-grabbed="true" aria-describedby="odl-kc-hint">
+      <div class="odl-top"><span class="odl-id">FEN-398</span><p class="odl-title">Show the policy that applies on every bill row</p></div>
+      <ul class="odl-labels" aria-label="Labels"><li class="odl-tag is-design">Design</li></ul>
+      <div class="odl-progress"><div class="odl-bar" role="progressbar" aria-label="Subtasks done" aria-valuenow="4" aria-valuemin="0" aria-valuemax="4"><span style="inline-size: 100%"></span></div><span>4/4</span></div>
+      <div class="odl-foot">
+        <time datetime="2026-10-28"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Oct 28</time>
+        <span class="odl-spacer"></span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>2<span class="odl-sr"> comments</span></span>
+        <img class="odl-avatar" src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=48&h=48&fit=crop&crop=faces&auto=format&q=70" alt="Assigned to Bettina Marangoni" width="24" height="24" loading="lazy" decoding="async">
+      </div>
+    </li>
+    <li class="odl-card" tabindex="0" aria-describedby="odl-kc-hint">
+      <div class="odl-top"><span class="odl-id">FEN-421</span><p class="odl-title">Duplicate invoice warning fires on credit notes</p></div>
+      <ul class="odl-labels" aria-label="Labels"><li class="odl-tag is-bug">Bug</li><li class="odl-tag is-billing">Payments</li></ul>
+      <div class="odl-progress"><div class="odl-bar" role="progressbar" aria-label="Subtasks done" aria-valuenow="1" aria-valuemin="0" aria-valuemax="3"><span style="inline-size: 33%"></span></div><span>1/3</span></div>
+      <div class="odl-foot">
+        <time datetime="2026-11-03"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Nov 3</time>
+        <span class="odl-spacer"></span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>11<span class="odl-sr"> comments</span></span>
+        <img class="odl-avatar" src="https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?w=48&h=48&fit=crop&crop=faces&auto=format&q=70" alt="Assigned to Kwabena Asante" width="24" height="24" loading="lazy" decoding="async">
+      </div>
+    </li>
+  </ul>
+  <p id="odl-kc-hint" class="odl-sr">Press space to pick up a card, arrow keys to move it, space again to drop.</p>
+  <button type="button" class="odl-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Add card</button>
+</section>

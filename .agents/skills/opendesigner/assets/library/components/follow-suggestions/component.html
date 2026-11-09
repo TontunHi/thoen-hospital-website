@@ -1,0 +1,115 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-follow-suggestions { box-sizing: border-box; inline-size: 100%; max-inline-size: 44rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-follow-suggestions *, .odl-follow-suggestions *::before, .odl-follow-suggestions *::after { box-sizing: border-box; }
+.odl-follow-suggestions .odl-wrap { display: grid; gap: var(--ds-space-stack-md); padding-block: var(--ds-space-inset-lg); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); overflow: hidden; }
+.odl-follow-suggestions .odl-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); padding-inline: var(--ds-space-inset-xl) var(--ds-space-inset-md); }
+.odl-follow-suggestions h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-follow-suggestions button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-inline-size: var(--ds-size-target-touch); min-block-size: var(--ds-size-target-touch);
+  padding: 0; border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-follow-suggestions .odl-all { padding-inline: var(--ds-space-inset-sm); }
+.odl-follow-suggestions .odl-all:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-follow-suggestions .odl-row { display: flex; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-4) var(--ds-space-inset-xl) var(--ds-space-8); list-style: none; overflow-x: auto;
+  overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: var(--ds-space-inset-xl); scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, var(--ds-color-black) calc(100% - var(--ds-space-32)), transparent); mask-image: linear-gradient(to right, var(--ds-color-black) calc(100% - var(--ds-space-32)), transparent); }
+.odl-follow-suggestions .odl-row::-webkit-scrollbar { display: none; }
+.odl-follow-suggestions .odl-card { position: relative; flex: none; display: grid; grid-template-rows: auto auto auto 1fr auto; justify-items: center; gap: var(--ds-space-stack-xs); inline-size: 12.5rem; scroll-snap-align: start;
+  padding: var(--ds-space-inset-xs) var(--ds-space-inset-xs) var(--ds-space-inset-md); text-align: center; background: var(--ds-color-surface-raised);
+  border-radius: var(--ds-radius-container); box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-border-subtle); }
+.odl-follow-suggestions .odl-card.is-gone { animation: odl-follow-suggestions-out var(--ds-motion-duration-medium-exit) var(--ds-motion-easing-exit) forwards; }
+@keyframes odl-follow-suggestions-out { to { opacity: 0; transform: scale(0.92); } }
+/* The remove button shares the top row with the photo (a grid, not pinned), so the photo stays centred. */
+.odl-follow-suggestions .odl-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; inline-size: 100%; }
+.odl-follow-suggestions .odl-top .odl-av { grid-column: 2; grid-row: 1; margin-block-start: var(--ds-space-stack-md); }
+.odl-follow-suggestions .odl-x { grid-column: 3; grid-row: 1; justify-self: end; border-radius: var(--ds-radius-full); color: var(--ds-color-text-tertiary); }
+.odl-follow-suggestions .odl-x:hover { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-follow-suggestions .odl-x svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-follow-suggestions .odl-av { display: grid; inline-size: calc(var(--ds-size-control-lg) * 1.5); aspect-ratio: 1; margin-block-end: var(--ds-space-stack-sm); border-radius: var(--ds-radius-person); }
+.odl-follow-suggestions .odl-av img { display: block; inline-size: 100%; block-size: 100%; border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-follow-suggestions .odl-card > :not(.odl-top) { margin-inline: var(--ds-space-inset-md); }
+.odl-follow-suggestions .odl-name { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-follow-suggestions .odl-handle { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-follow-suggestions .odl-why { display: flex; flex-direction: column; align-items: center; align-self: start; justify-content: center; gap: var(--ds-space-stack-xs); margin-block: var(--ds-space-stack-sm) var(--ds-space-stack-md);
+  color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); text-align: center; }
+.odl-follow-suggestions .odl-mutual { display: flex; flex: none; }
+.odl-follow-suggestions .odl-mutual img { display: block; inline-size: var(--ds-space-20); block-size: var(--ds-space-20); border-radius: var(--ds-radius-person); object-fit: cover;
+  box-shadow: 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-surface-raised); background: var(--ds-color-bg-neutral-subtle); }
+.odl-follow-suggestions .odl-mutual img + img { margin-inline-start: calc(-1 * var(--ds-space-6)); }
+.odl-follow-suggestions .odl-follow { inline-size: 100%; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-touch)); padding-inline: var(--ds-space-inset-sm);
+  background: var(--ds-color-bg-accent-bold); color: var(--ds-color-text-on-accent); }
+.odl-follow-suggestions .odl-follow:hover { background: var(--ds-color-bg-accent-bold-hover); }
+.odl-follow-suggestions .odl-follow:active { background: var(--ds-color-bg-accent-bold-pressed); }
+.odl-follow-suggestions .odl-follow svg { display: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-lg); }
+.odl-follow-suggestions .odl-follow[aria-pressed="true"] { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-follow-suggestions .odl-follow[aria-pressed="true"]:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-follow-suggestions .odl-follow[aria-pressed="true"] svg { display: block; }
+.odl-follow-suggestions .odl-done { display: none; margin: 0; padding-inline: var(--ds-space-inset-xl); color: var(--ds-color-text-secondary); }
+.odl-follow-suggestions .odl-wrap.is-empty .odl-done { display: block; }
+.odl-follow-suggestions .odl-wrap.is-empty .odl-row { display: none; }
+.odl-follow-suggestions button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-follow-suggestions .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (max-width: 28rem) {
+  .odl-follow-suggestions .odl-head { padding-inline-start: var(--ds-space-inset-lg); }
+  .odl-follow-suggestions .odl-row { padding-inline: var(--ds-space-inset-lg); scroll-padding-inline: var(--ds-space-inset-lg); }
+  .odl-follow-suggestions .odl-done { padding-inline: var(--ds-space-inset-lg); }
+  .odl-follow-suggestions .odl-card { inline-size: 11rem; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-follow-suggestions, .odl-follow-suggestions *, .odl-follow-suggestions *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-follow-suggestions" aria-labelledby="odl-fs-title">
+  <div class="odl-wrap">
+    <div class="odl-head"><h3 id="odl-fs-title">People you may know</h3><button type="button" class="odl-all">See all</button></div>
+    <ul class="odl-row">
+      <li class="odl-card"><span class="odl-top"><button type="button" class="odl-x" aria-label="Remove Arash Tehrani from suggestions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=144&h=144&fit=crop&auto=format&q=70" alt="" width="72" height="72" loading="lazy" decoding="async"></span></span>
+        <span class="odl-name">Arash Tehrani</span><span class="odl-handle">@arash.t</span>
+        <span class="odl-why"><span class="odl-mutual" aria-hidden="true"><img src="https://images.unsplash.com/photo-1596580817363-a4a8f67d4bc8?w=40&h=40&fit=crop&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"><img src="https://images.unsplash.com/photo-1776781205743-33b4c1106adc?w=40&h=40&fit=crop&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"></span><span>Followed by kwesi.frames and 3 others</span></span>
+        <button type="button" class="odl-follow" aria-pressed="false" aria-label="Follow Arash Tehrani"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Follow</span></button></li>
+      <li class="odl-card"><span class="odl-top"><button type="button" class="odl-x" aria-label="Remove Leilani Kahale from suggestions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1534751516642-a1af1ef26a56?w=144&h=144&fit=crop&auto=format&q=70" alt="" width="72" height="72" loading="lazy" decoding="async"></span></span>
+        <span class="odl-name">Leilani Kahale</span><span class="odl-handle">@leilani.k</span>
+        <span class="odl-why"><span class="odl-mutual" aria-hidden="true"><img src="https://images.unsplash.com/photo-1684598273404-2d94d7a7ce2f?w=40&h=40&fit=crop&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"><img src="https://images.unsplash.com/photo-1758600587839-56ba05596c69?w=40&h=40&fit=crop&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"></span><span>Followed by yuki_h and 12 others</span></span>
+        <button type="button" class="odl-follow" aria-pressed="true" aria-label="Follow Leilani Kahale"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Following</span></button></li>
+      <li class="odl-card"><span class="odl-top"><button type="button" class="odl-x" aria-label="Remove Henrik Strandberg from suggestions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1600603406200-5b2a104684ac?w=144&h=144&fit=crop&auto=format&q=70" alt="" width="72" height="72" loading="lazy" decoding="async"></span></span>
+        <span class="odl-name">Henrik Strandberg</span><span class="odl-handle">@henrik.sb</span>
+        <span class="odl-why"><span>New to the app</span></span>
+        <button type="button" class="odl-follow" aria-pressed="false" aria-label="Follow Henrik Strandberg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Follow</span></button></li>
+      <li class="odl-card"><span class="odl-top"><button type="button" class="odl-x" aria-label="Remove Mireille Vasseur from suggestions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1607569708758-0270aa4651bd?w=144&h=144&fit=crop&auto=format&q=70" alt="" width="72" height="72" loading="lazy" decoding="async"></span></span>
+        <span class="odl-name">Mireille Vasseur</span><span class="odl-handle">@mireille.v</span>
+        <span class="odl-why"><span class="odl-mutual" aria-hidden="true"><img src="https://images.unsplash.com/photo-1607569708758-0270aa4651bd?w=40&h=40&fit=crop&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"></span><span>Follows you</span></span>
+        <button type="button" class="odl-follow" aria-pressed="false" aria-label="Follow Mireille Vasseur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Follow back</span></button></li>
+      <li class="odl-card"><span class="odl-top"><button type="button" class="odl-x" aria-label="Remove Yuki Hanabusa from suggestions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1684598273404-2d94d7a7ce2f?w=144&h=144&fit=crop&auto=format&q=70" alt="" width="72" height="72" loading="lazy" decoding="async"></span></span>
+        <span class="odl-name">Yuki Hanabusa</span><span class="odl-handle">@yuki_h</span>
+        <span class="odl-why"><span class="odl-mutual" aria-hidden="true"><img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=40&h=40&fit=crop&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"><img src="https://images.unsplash.com/photo-1712425718137-491250cfde88?w=40&h=40&fit=crop&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"></span><span>Followed by ximena.q and 8 others</span></span>
+        <button type="button" class="odl-follow" aria-pressed="false" aria-label="Follow Yuki Hanabusa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Follow</span></button></li>
+    </ul>
+    <p class="odl-done">You're all caught up. New suggestions show up here as your friends join.</p>
+    <p class="odl-sr" aria-live="polite"></p>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-follow-suggestions").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const wrap = root.querySelector(".odl-wrap"), live = root.querySelector('[aria-live]');
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)");
+  root.querySelectorAll(".odl-follow").forEach((b) => {
+    const label = b.querySelector("span"), idle = label.textContent === "Following" ? "Follow" : label.textContent;
+    b.addEventListener("click", () => {
+      const on = b.getAttribute("aria-pressed") !== "true";
+      b.setAttribute("aria-pressed", String(on)); label.textContent = on ? "Following" : idle;
+    });
+  });
+  root.querySelectorAll(".odl-x").forEach((x) => x.addEventListener("click", () => {
+    const card = x.closest(".odl-card"), name = card.querySelector(".odl-name").textContent;
+    const next = card.nextElementSibling || card.previousElementSibling;
+    const gone = () => {
+      card.remove(); live.textContent = `Removed ${name} from suggestions`;
+      if (!root.querySelector(".odl-card")) wrap.classList.add("is-empty");
+      else next.querySelector(".odl-x").focus({ preventScroll: true });
+    };
+    if (still.matches) return gone();
+    card.classList.add("is-gone"); card.addEventListener("animationend", gone, { once: true });
+  }));
+});
+</script>

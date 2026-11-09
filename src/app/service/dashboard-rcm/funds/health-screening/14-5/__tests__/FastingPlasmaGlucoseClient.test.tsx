@@ -36,6 +36,7 @@ const mockItem = {
   authencode: 'AUTH12003',
   maininscl: 'UCS',
   isUc: true,
+  pttype_eclaim_id: 'UCS',
   pttypename: 'บัตรทอง ทั่วไป',
   department: 'งานผู้ป่วยนอก',
   clinic: 'ตรวจโรคทั่วไป',
@@ -113,7 +114,7 @@ describe('FastingPlasmaGlucoseClient Component (14.5 ADP 12003)', () => {
     expect(screen.getByText('ผู้รับบริการทั้งหมด')).toBeInTheDocument()
     expect(screen.getByText('ได้รับชดเชยแล้ว')).toBeInTheDocument()
     expect(screen.getAllByText('เคยเคลมในปีงบ').length).toBeGreaterThan(0)
-    expect(screen.getByText('มีรหัส AUTHEN')).toBeInTheDocument()
+    expect(screen.getByText('มีรหัส ClaimCode')).toBeInTheDocument()
 
     // Check table headers
     expect(screen.getAllByText('HN').length).toBeGreaterThan(0)

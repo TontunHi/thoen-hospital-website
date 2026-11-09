@@ -252,4 +252,51 @@ describe('CcsScreenedRecipientsClient (CCS 1.2 — UI Style Brief)', () => {
       )
     })
   })
+
+  it('does not render redundant date range badge (Pass 7 Smart Subtraction)', async () => {
+    render(<CcsScreenedRecipientsClient />)
+
+    // The date badge "1 ต.ค. ... — 30 ก.ย. ..." should not be displayed
+    expect(screen.queryByText(/— 30 ก\.ย\./)).not.toBeInTheDocument()
+    expect(screen.queryByText(/1 ต\.ค\..*—/)).not.toBeInTheDocument()
+  })
+
+  it('renders quiet breadcrumbs navigation', () => {
+    render(<CcsScreenedRecipientsClient />)
+
+    expect(screen.getByRole('navigation', { name: 'แถบนำทาง' })).toBeInTheDocument()
+    expect(screen.getByText('Dashboard RCM')).toBeInTheDocument()
+    expect(screen.getByText('กองทุนมะเร็งปากมดลูก (CCS)')).toBeInTheDocument()
+    expect(screen.getByText('1.2 รายชื่อผู้รับบริการคัดกรอง')).toBeInTheDocument()
+  })
+
+  it('opens patient modal when clicking anywhere on the table row', async () => {
+    render(<CcsScreenedRecipientsClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
+    })
+
+    // Click on patient name cell instead of VN button
+    const ptNameCell = screen.getByText('นาง สมหญิง ทดสอบ')
+    fireEvent.click(ptNameCell)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('เวชระเบียนผู้รับบริการ: นาง สมหญิง ทดสอบ (HN: 0134464)')
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('does not render bottom tfoot summary row (Smart Subtraction)', async () => {
+    render(<CcsScreenedRecipientsClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText(/รวมทั้งหมดในหน้านี้/)).not.toBeInTheDocument()
+  })
 })
+
+

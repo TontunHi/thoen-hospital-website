@@ -1,0 +1,36 @@
+{
+  "name": "Page header with tabs",
+  "summary": "The top of a record page: breadcrumb, title with a favourite star and summary chips, two actions, and an underline tab bar with counts that scrolls on its own when narrow.",
+  "use": "at the top of a record page with several tabs",
+  "type": "navigation",
+  "style": "quiet",
+  "industries": [
+    "crm",
+    "saas",
+    "any"
+  ],
+  "tags": [
+    "page header",
+    "tabs",
+    "breadcrumb",
+    "record",
+    "title"
+  ],
+  "states": [
+    "selected tab",
+    "hover",
+    "focus",
+    "starred",
+    "narrow"
+  ],
+  "source": "brand/showcase/product/03-corvane-record",
+  "a11y": "Breadcrumb is a labelled nav with aria-current; the star is a toggle button with aria-pressed; tabs are a tablist with roving focus (arrow keys, Home, End).",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1601412436009-d964bd02edbc",
+      "author": "OSPAN ALI",
+      "page": "6xv4A1VA1rU"
+    }
+  ]
+}

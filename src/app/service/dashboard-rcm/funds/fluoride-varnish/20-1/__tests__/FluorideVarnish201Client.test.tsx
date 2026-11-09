@@ -122,8 +122,8 @@ describe('FluorideVarnish201Client Component', () => {
     expect(screen.getByText('ยอดเงินชดเชยรวม')).toBeInTheDocument()
     expect(screen.getByText('กลุ่มเป้าหมาย (25-29 ปี)')).toBeInTheDocument()
     expect(screen.getByText('สิทธิบัตรทอง (UC)')).toBeInTheDocument()
-    expect(screen.getByText('มี Authen Code')).toBeInTheDocument()
-    expect(screen.getByText('ไม่มี Authen Code')).toBeInTheDocument()
+    expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
+    expect(screen.getByText('ไม่มี ClaimCode')).toBeInTheDocument()
 
     // Table rows check
     expect(screen.getByText('นาย สมชาย')).toBeInTheDocument()

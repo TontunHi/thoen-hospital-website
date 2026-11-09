@@ -137,7 +137,7 @@ describe('DisabilityServicesClient', () => {
     expect(screen.getByText('HOSxP ขาดรหัส ADP')).toBeInTheDocument()
     expect(screen.getByText('ชดเชยแล้ว')).toBeInTheDocument()
     expect(screen.getByText('ยังไม่ชดเชย / รอชดเชย')).toBeInTheDocument()
-    expect(screen.getByText('มี Authen Code')).toBeInTheDocument()
+    expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
     expect(screen.getByText('ไม่มี VN ใน HOSxP')).toBeInTheDocument()
   })
 

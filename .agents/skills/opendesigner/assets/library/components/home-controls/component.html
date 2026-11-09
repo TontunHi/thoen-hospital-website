@@ -1,0 +1,156 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-home-controls { box-sizing: border-box; inline-size: 100%; max-inline-size: 48rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-home-controls *, .odl-home-controls *::before, .odl-home-controls *::after { box-sizing: border-box; }
+.odl-home-controls .odl-head { display: grid; gap: var(--ds-space-stack-xs); margin-block-end: var(--ds-space-stack-lg); }
+.odl-home-controls h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-home-controls .odl-sub { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); }
+.odl-home-controls fieldset { margin: 0 0 var(--ds-space-stack-lg); padding: 0; border: 0; min-inline-size: 0; }
+.odl-home-controls .odl-rooms div { display: flex; gap: var(--ds-space-inline-sm); overflow-x: auto; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, var(--ds-color-black) calc(100% - var(--ds-space-40)), transparent); mask-image: linear-gradient(to right, var(--ds-color-black) calc(100% - var(--ds-space-40)), transparent); padding: var(--ds-space-4); margin: calc(-1 * var(--ds-space-4)); }
+.odl-home-controls .odl-rooms label { position: relative; flex: none; }
+.odl-home-controls .odl-rooms input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-home-controls .odl-rooms span { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised); font: var(--ds-text-label-lg); white-space: nowrap;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-home-controls .odl-rooms small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-home-controls .odl-rooms label:hover span { border-color: var(--ds-color-border-strong); }
+.odl-home-controls .odl-rooms input:checked + span { background: var(--ds-color-bg-inverse); border-color: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); }
+.odl-home-controls .odl-rooms input:checked + span small { color: var(--ds-color-text-inverse); }
+.odl-home-controls .odl-rooms input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-home-controls .odl-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-stack-md); margin: 0; padding: 0; list-style: none; }
+.odl-home-controls .odl-tile { display: grid; align-content: space-between; gap: var(--ds-space-stack-md); min-block-size: calc(var(--ds-size-control-lg) * 3.2); padding: var(--ds-space-inset-lg);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); background: var(--ds-color-surface-sunken);
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), box-shadow var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-home-controls .odl-tile[hidden] { display: none; }
+.odl-home-controls .odl-tile.is-on { background: var(--ds-color-surface-raised); box-shadow: var(--ds-elevation-raised); }
+.odl-home-controls .odl-tile.is-wide { grid-column: span 2; }
+.odl-home-controls .odl-toggle { display: grid; justify-items: start; gap: var(--ds-space-stack-xs); inline-size: calc(100% + 2 * var(--ds-space-6)); min-block-size: var(--ds-size-target-min);
+  margin: calc(-1 * var(--ds-space-6)); padding: var(--ds-space-6); border: 0; border-radius: var(--ds-radius-nested); background: transparent; color: inherit; text-align: start; font: inherit; cursor: pointer; }
+.odl-home-controls .odl-toggle .odl-ico { margin-block-end: var(--ds-space-stack-sm); }
+.odl-home-controls .odl-toggle:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-home-controls .odl-ico { display: grid; place-items: center; inline-size: max(var(--ds-size-control-lg), 2.5rem); block-size: max(var(--ds-size-control-lg), 2.5rem); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-subtle); transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-home-controls .odl-ico svg { inline-size: max(var(--ds-size-icon-md), 1.25rem); block-size: max(var(--ds-size-icon-md), 1.25rem); stroke-width: var(--ds-icon-stroke-md); }
+.odl-home-controls .odl-ico .is-open, .odl-home-controls [aria-pressed="false"] .odl-ico .is-locked { display: none; }
+.odl-home-controls [aria-pressed="false"] .odl-ico .is-open { display: block; }
+.odl-home-controls .is-on .odl-ico { background: var(--ds-color-bg-accent-bold); color: var(--ds-color-icon-on-accent); }
+.odl-home-controls .odl-name { display: block; font: var(--ds-text-label-lg); }
+.odl-home-controls .odl-state { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.odl-home-controls .is-on .odl-state { color: var(--ds-color-text-primary); }
+.odl-home-controls .odl-slider { display: grid; }
+.odl-home-controls .odl-slider input { --v: 70%; inline-size: 100%; min-block-size: var(--ds-size-target-min); margin: 0; background: transparent; cursor: pointer; appearance: none; -webkit-appearance: none; border-radius: var(--ds-radius-4); }
+.odl-home-controls .odl-slider input::-webkit-slider-runnable-track { block-size: var(--ds-space-8); border-radius: var(--ds-radius-full);
+  background: linear-gradient(to right, var(--ds-color-bg-accent-bold) var(--v), var(--ds-color-border-default) var(--v)); }
+.odl-home-controls .odl-slider input::-moz-range-track { block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-border-default); }
+.odl-home-controls .odl-slider input::-moz-range-progress { block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-accent-bold); }
+.odl-home-controls .odl-slider input::-webkit-slider-thumb { -webkit-appearance: none; inline-size: var(--ds-space-20); block-size: var(--ds-space-20); margin-block-start: calc((var(--ds-space-8) - var(--ds-space-20)) / 2);
+  border: var(--ds-border-width-emphasis) solid var(--ds-color-bg-accent-bold); border-radius: var(--ds-radius-full); background: var(--ds-color-white); box-shadow: var(--ds-elevation-raised); }
+.odl-home-controls .odl-slider input::-moz-range-thumb { inline-size: var(--ds-space-16); block-size: var(--ds-space-16); border: var(--ds-border-width-emphasis) solid var(--ds-color-bg-accent-bold); border-radius: var(--ds-radius-full); background: var(--ds-color-white); }
+.odl-home-controls .odl-tile:not(.is-on) .odl-slider { opacity: var(--ds-opacity-disabled-content); }
+.odl-home-controls .odl-thermo { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--ds-space-inline-md); }
+.odl-home-controls .odl-dial { position: relative; display: grid; place-items: center; inline-size: calc(var(--ds-size-control-lg) * 2.6); aspect-ratio: 1; }
+.odl-home-controls .odl-dial svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; transform: rotate(135deg); }
+.odl-home-controls .odl-dial circle { fill: none; stroke-width: 7; stroke-linecap: round; }
+.odl-home-controls .odl-dial .d-track { stroke: var(--ds-color-border-default); stroke-dasharray: 75 100; }
+.odl-home-controls .odl-dial .d-val { stroke: var(--ds-color-bg-accent-bold); stroke-dasharray: calc(var(--t) * 0.75) 100; transition: stroke-dasharray var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-home-controls .odl-dial output { display: grid; justify-items: center; font: var(--ds-text-title-lg); font-variant-numeric: tabular-nums; line-height: 1; }
+.odl-home-controls .odl-dial output small { margin-block-start: var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-home-controls .odl-steps { display: flex; gap: var(--ds-space-inline-sm); }
+.odl-home-controls .odl-steps button { display: grid; place-items: center; inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0;
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); cursor: pointer; }
+.odl-home-controls .odl-steps button:hover { border-color: var(--ds-color-border-strong); }
+.odl-home-controls .odl-steps button:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-home-controls .odl-steps svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-home-controls .odl-tmeta { display: grid; gap: var(--ds-space-stack-md); justify-items: start; }
+.odl-home-controls .odl-tmeta p { margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-home-controls .odl-toggle:focus-visible, .odl-home-controls .odl-steps button:focus-visible, .odl-home-controls .odl-slider input:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-home-controls .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (min-width: 36rem) { .odl-home-controls .odl-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (min-width: 46rem) { .odl-home-controls .odl-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (max-width: 22rem) { .odl-home-controls .odl-dial { inline-size: calc(var(--ds-size-control-lg) * 2.2); } }
+@media (prefers-reduced-motion: reduce) { .odl-home-controls, .odl-home-controls *, .odl-home-controls *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-home-controls" aria-labelledby="odl-hc-title">
+  <div class="odl-head">
+    <h3 id="odl-hc-title">Home</h3>
+    <p class="odl-sub"><span class="odl-count">4 active</span> · 21° inside · front door locked</p>
+  </div>
+  <fieldset class="odl-rooms">
+    <legend class="odl-sr">Room</legend>
+    <div>
+      <label><input type="radio" name="odl-home-controls-room" value="all" checked><span>All <small>7</small></span></label>
+      <label><input type="radio" name="odl-home-controls-room" value="living"><span>Living room <small>3</small></span></label>
+      <label><input type="radio" name="odl-home-controls-room" value="kitchen"><span>Kitchen <small>1</small></span></label>
+      <label><input type="radio" name="odl-home-controls-room" value="bedroom"><span>Bedroom <small>2</small></span></label>
+      <label><input type="radio" name="odl-home-controls-room" value="entrance"><span>Entrance <small>1</small></span></label>
+    </div>
+  </fieldset>
+  <ul class="odl-tiles">
+    <li class="odl-tile is-wide is-on" data-room="living">
+      <div class="odl-thermo">
+        <div class="odl-dial" style="--t: 57.5">
+          <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="d-track" cx="50" cy="50" r="42" pathLength="100"/><circle class="d-val" cx="50" cy="50" r="42" pathLength="100"/></svg>
+          <output aria-live="polite"><span><span class="odl-temp">21.5</span>°</span><small>Heating</small></output>
+        </div>
+        <div class="odl-tmeta">
+          <div><span class="odl-name">Thermostat</span><p>Living room · now 20.8°</p></div>
+          <div class="odl-steps" data-min="10" data-max="30">
+            <button type="button" data-d="-0.5" aria-label="Lower to 21°"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+            <button type="button" data-d="0.5" aria-label="Raise to 22°"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <li class="odl-tile is-on" data-room="living">
+      <button type="button" class="odl-toggle" aria-pressed="true" data-on="70%" data-off="Off"><span class="odl-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span><span class="odl-name">Ceiling lights</span><span class="odl-state">70%</span></button>
+      <label class="odl-slider"><span class="odl-sr">Ceiling lights brightness</span><input type="range" min="1" max="100" value="70"></label>
+    </li>
+    <li class="odl-tile" data-room="living">
+      <button type="button" class="odl-toggle" aria-pressed="false" data-on="On" data-off="Off"><span class="odl-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2h8l4 10H4L8 2Z"/><path d="M12 12v6"/><path d="M8 22v-2c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v2H8Z"/></svg></span><span class="odl-name">Floor lamp</span><span class="odl-state">Off</span></button>
+    </li>
+    <li class="odl-tile is-on" data-room="kitchen">
+      <button type="button" class="odl-toggle" aria-pressed="true" data-on="Playing" data-off="Paused"><span class="odl-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M12 6h.01"/><circle cx="12" cy="14" r="4"/><path d="M12 14h.01"/></svg></span><span class="odl-name">Kitchen speaker</span><span class="odl-state">Playing</span></button>
+      <label class="odl-slider"><span class="odl-sr">Kitchen speaker volume</span><input type="range" min="0" max="100" value="40" style="--v: 40%"></label>
+    </li>
+    <li class="odl-tile is-on" data-room="entrance" data-kind="other">
+      <button type="button" class="odl-toggle" aria-pressed="true" data-on="Locked" data-off="Unlocked"><span class="odl-ico" aria-hidden="true"><svg class="is-locked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><svg class="is-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg></span><span class="odl-name">Front door</span><span class="odl-state">Locked</span></button>
+    </li>
+    <li class="odl-tile" data-room="bedroom">
+      <button type="button" class="odl-toggle" aria-pressed="false" data-on="On" data-off="Off"><span class="odl-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span><span class="odl-name">Bedside light</span><span class="odl-state">Off</span></button>
+    </li>
+    <li class="odl-tile" data-room="bedroom" data-kind="other">
+      <button type="button" class="odl-toggle" aria-pressed="false" data-on="Open" data-off="Closed"><span class="odl-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18"/><path d="M20 7H8"/><path d="M20 11H8"/><path d="M10 19h10"/><path d="M8 15h12"/><path d="M4 3v14"/><circle cx="4" cy="19" r="2"/></svg></span><span class="odl-name">Bedroom blinds</span><span class="odl-state">Closed</span></button>
+    </li>
+  </ul>
+</section>
+<script>
+document.querySelectorAll(".odl-home-controls").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const tiles = root.querySelectorAll(".odl-tile"), count = root.querySelector(".odl-count");
+  const tally = () => { const n = [...tiles].filter((t) => t.classList.contains("is-on")).length;
+    count.textContent = `${n} active`; };
+  root.querySelectorAll(".odl-rooms input").forEach((r) => r.addEventListener("change", () => {
+    tiles.forEach((t) => { t.hidden = r.value !== "all" && t.dataset.room !== r.value; });
+  }));
+  root.querySelectorAll(".odl-toggle").forEach((b) => b.addEventListener("click", () => {
+    const tile = b.closest(".odl-tile"), on = b.getAttribute("aria-pressed") !== "true", slider = tile.querySelector(".odl-slider input");
+    b.setAttribute("aria-pressed", String(on)); tile.classList.toggle("is-on", on);
+    b.querySelector(".odl-state").textContent = on ? (slider && b.dataset.on.endsWith("%") ? slider.value + "%" : b.dataset.on) : b.dataset.off;
+    tally();
+  }));
+  root.querySelectorAll(".odl-slider input").forEach((s) => s.addEventListener("input", () => {
+    s.style.setProperty("--v", ((s.value - s.min) / (s.max - s.min)) * 100 + "%");
+    const b = s.closest(".odl-tile").querySelector(".odl-toggle");
+    if (b.dataset.on.endsWith("%")) { b.dataset.on = s.value + "%"; if (b.getAttribute("aria-pressed") === "true") b.querySelector(".odl-state").textContent = s.value + "%"; }
+  }));
+  const steps = root.querySelector(".odl-steps"), dial = root.querySelector(".odl-dial"), temp = root.querySelector(".odl-temp");
+  const min = Number(steps.dataset.min), max = Number(steps.dataset.max), [down, up] = steps.querySelectorAll("button");
+  const fmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+  const set = (v) => { temp.textContent = fmt(v); dial.style.setProperty("--t", ((v - min) / (max - min)) * 100);
+    down.disabled = v <= min; up.disabled = v >= max; down.setAttribute("aria-label", `Lower to ${fmt(v - 0.5)}°`); up.setAttribute("aria-label", `Raise to ${fmt(v + 0.5)}°`); };
+  [down, up].forEach((b) => b.addEventListener("click", () => set(Math.min(max, Math.max(min, Number(temp.textContent) + Number(b.dataset.d))))));
+  set(Number(temp.textContent));
+});
+</script>

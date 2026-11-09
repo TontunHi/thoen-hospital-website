@@ -1,0 +1,89 @@
+{
+  "name": "Title detail",
+  "summary": "A film or series page: a still with the title, year, age rating, seasons and score, then Resume, My list, rate and share, the synopsis, the cast with portraits, a season switch and episode rows with stills and progress.",
+  "use": "on the detail page of a series, film, course or show",
+  "type": "content",
+  "style": "editorial",
+  "industries": [
+    "media",
+    "education",
+    "events"
+  ],
+  "tags": [
+    "streaming",
+    "series",
+    "episodes",
+    "seasons",
+    "watchlist"
+  ],
+  "states": [
+    "season 1",
+    "season 2",
+    "watched",
+    "in progress",
+    "in my list",
+    "rated",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "An article named by its title; the season switch is a native radio group, My list and the like button are toggle buttons with aria-pressed, and each episode row is one button that says its number, title and time left.",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1446038202205-1c96430dbdab",
+      "author": "Ian Schneider",
+      "page": "XJfHMPJ0e-g"
+    },
+    {
+      "img": "photo-1536766768598-e09213fdcf22",
+      "author": "Danie Franco",
+      "page": "f49XhYbpiA0"
+    },
+    {
+      "img": "photo-1608126199278-50a5f584dbdd",
+      "author": "Marc Kleen",
+      "page": "V-5bcuvx0u4"
+    },
+    {
+      "img": "photo-1578429827733-272eb6d7972e",
+      "author": "Keagan Henman",
+      "page": "Jfz6IdxMSuQ"
+    },
+    {
+      "img": "photo-1505490096310-204ef067fe6b",
+      "author": "Giammarco Boscaro",
+      "page": "UkOpMcslmX8"
+    },
+    {
+      "img": "photo-1625851823298-70d1151f5b71",
+      "author": "Robbie Herrera",
+      "page": "pKRKky5DUv4"
+    },
+    {
+      "img": "photo-1514565131-fce0801e5785",
+      "author": "Jonathan Roger",
+      "page": "LY1eyQMFeyo"
+    },
+    {
+      "img": "photo-1589194837853-340f4a2f6559",
+      "author": "Mikita Yo",
+      "page": "TcFEeMQTAKk"
+    },
+    {
+      "img": "photo-1598760122223-45f0f18a1bbd",
+      "author": "SJ Objio",
+      "page": "s-aktnfUOjs"
+    },
+    {
+      "img": "photo-1647082286159-16a43c39eab1",
+      "author": "nygi",
+      "page": "AbwT-wrOjuo"
+    },
+    {
+      "img": "photo-1507003211169-0a1dd7228f2d",
+      "author": "Joseph Gonzalez",
+      "page": "iFgRcqHznqg"
+    }
+  ]
+}

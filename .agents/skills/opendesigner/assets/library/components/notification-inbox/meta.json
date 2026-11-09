@@ -1,0 +1,19 @@
+{
+  "name": "Notification inbox",
+  "summary": "A notifications panel with All and Mentions tabs, unread dots, Today and Earlier groups, and one inline action such as Approve or View.",
+  "use": "for a work app's notifications and mentions",
+  "type": "data",
+  "style": "quiet",
+  "industries": ["saas", "finance", "productivity"],
+  "tags": ["notifications", "inbox", "mentions", "unread", "activity"],
+  "states": ["unread", "read", "hover", "focus", "tab selected", "approved", "filtered"],
+  "source": null,
+  "a11y": "Tabs follow the tab pattern with arrow keys; groups are labelled lists; Approve and View are real buttons and the result is shown as text. Placement as a popover is the project's.",
+  "width": "narrow",
+  "photos": [
+    {"img": "photo-1438761681033-6461ffad8d80", "author": "Christopher Campbell", "page": "rDEOVtE7vOs"},
+    {"img": "photo-1506794778202-cad84cf45f1d", "author": "Albert Dera", "page": "ILip77SbmOE"},
+    {"img": "photo-1725033489648-a819750348eb", "author": "Arnab De", "page": "WYwNK-zW7u4"},
+    {"img": "photo-1684598273404-2d94d7a7ce2f", "author": "Hugo ROUQUETTE", "page": "RhTXKh0UofQ"}
+  ]
+}

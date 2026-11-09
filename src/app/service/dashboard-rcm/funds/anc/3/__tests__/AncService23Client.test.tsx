@@ -293,4 +293,28 @@ describe('AncService23Client Component', () => {
       expect(screen.getByText('Normal pregnancy')).toBeInTheDocument()
     })
   })
+
+  it('filters by right when selecting options in PttypeMultiSelect', async () => {
+    render(<AncService23Client initialData={mockReportData} />)
+
+    const selectTrigger = screen.getByRole('button', { name: /เลือกสิทธิการรักษา/i })
+    expect(selectTrigger).toBeInTheDocument()
+    fireEvent.click(selectTrigger)
+
+    // Click UC preset
+    const ucBtn = screen.getByText('🏥 เฉพาะ UC (01-09)')
+    fireEvent.click(ucBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('pttypes=01%2C02%2C03%2C04%2C05%2C06%2C07%2C08%2C09'),
+        expect.anything()
+      )
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('page=1'),
+        expect.anything()
+      )
+    })
+  })
 })
+

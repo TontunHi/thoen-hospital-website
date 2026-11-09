@@ -1,0 +1,42 @@
+{
+  "name": "Product gallery",
+  "summary": "The top of a product page: a swipeable photo gallery with dots on a phone and thumbnails from tablet up, name, sale price, rating, colour swatches, size chips with one sold out, Add to bag and save.",
+  "use": "at the top of a product page, for choosing colour and size",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": [
+    "retail"
+  ],
+  "tags": [
+    "product page",
+    "gallery",
+    "swatches",
+    "sizes",
+    "add to bag",
+    "sale"
+  ],
+  "states": [
+    "selected",
+    "sold out",
+    "sale",
+    "added",
+    "saved",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The gallery is a focusable group that arrow keys move through, with named dots and thumbnails; colour and size are native radio groups (the sold-out size is disabled and named so), and the prices and rating are read as words.",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1581655353564-df123a1eb820",
+      "author": "Haryo Setyadi",
+      "page": "acn5ERAeSb4"
+    },
+    {
+      "img": "photo-1651761179569-4ba2aa054997",
+      "author": "mockupbee",
+      "page": "4rUYuwJ2vGw"
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-file-dropzone { box-sizing: border-box; container-type: inline-size; inline-size: 100%; max-inline-size: 40rem; margin-inline: auto; display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-file-dropzone *, .odl-file-dropzone *::before { box-sizing: border-box; }
+.odl-file-dropzone svg { stroke-width: var(--ds-icon-stroke-md); }
+.odl-file-dropzone .odl-head h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-file-dropzone .odl-head p { margin: var(--ds-space-stack-sm) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); }
+.odl-file-dropzone .odl-drop { position: relative; display: grid; justify-items: center; gap: var(--ds-space-stack-sm); padding: var(--ds-space-section-sm) var(--ds-space-inset-lg); text-align: center;
+  border: var(--ds-border-width-emphasis) dashed var(--ds-color-border-default); border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-sunken);
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-file-dropzone .odl-drop:hover { border-color: var(--ds-color-border-strong); }
+.odl-file-dropzone .odl-drop.is-over, .odl-file-dropzone .odl-drop:has(input:focus-visible) { border-color: var(--ds-color-border-focus); background: var(--ds-color-bg-accent-subtle); }
+.odl-file-dropzone .odl-drop-icon { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-icon-default); box-shadow: var(--ds-elevation-raised); }
+.odl-file-dropzone .odl-drop.is-over .odl-drop-icon { color: var(--ds-color-icon-accent); }
+.odl-file-dropzone .odl-drop-icon svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-file-dropzone .odl-drop p { margin: 0; }
+.odl-file-dropzone .odl-drop .odl-types { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-file-dropzone .odl-drop-icon { margin-block-end: var(--ds-space-stack-xs); }
+.odl-file-dropzone .odl-drop .odl-over-text { display: none; color: var(--ds-color-text-accent); font-weight: var(--ds-font-weight-label); }
+.odl-file-dropzone .odl-drop.is-over .odl-over-text { display: block; }
+.odl-file-dropzone .odl-drop.is-over .odl-idle { display: none; }
+.odl-file-dropzone .odl-browse { display: inline-flex; align-items: center; min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-xs);
+  color: var(--ds-color-text-link); font-weight: var(--ds-font-weight-label); text-decoration: underline; text-underline-offset: var(--ds-space-2); cursor: pointer; }
+.odl-file-dropzone .odl-browse input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; overflow: hidden; clip-path: inset(50%); }
+.odl-file-dropzone .odl-drop:has(input:focus-visible) .odl-browse { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); border-radius: var(--ds-radius-detail); }
+.odl-file-dropzone ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-stack-sm); }
+.odl-file-dropzone li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); padding: var(--ds-space-inset-md) var(--ds-space-inset-sm) var(--ds-space-inset-md) var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-raised); }
+.odl-file-dropzone li.is-failed { border-color: var(--ds-color-border-danger); }
+.odl-file-dropzone .odl-type { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-subtle); }
+.odl-file-dropzone .odl-type svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-file-dropzone .is-done .odl-type { background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); }
+.odl-file-dropzone .is-failed .odl-type { background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); }
+.odl-file-dropzone .odl-info { display: grid; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-file-dropzone .odl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ds-font-weight-label); }
+.odl-file-dropzone .odl-meta { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-file-dropzone .is-failed .odl-meta { color: var(--ds-color-text-danger); }
+.odl-file-dropzone .odl-bar { block-size: var(--ds-space-4); margin-block: var(--ds-space-2); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); overflow: hidden; }
+.odl-file-dropzone .odl-bar span { display: block; block-size: 100%; border-radius: inherit; background: var(--ds-color-bg-action-primary); transition: inline-size var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-file-dropzone .odl-row-actions { display: flex; align-items: center; gap: var(--ds-space-inline-xs); }
+.odl-file-dropzone .odl-icon-btn, .odl-file-dropzone .odl-retry { display: inline-grid; place-items: center; min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min));
+  min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0; border: 0; border-radius: var(--ds-radius-control-sm); background: transparent; color: var(--ds-color-icon-subtle); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-file-dropzone .odl-icon-btn:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-icon-default); }
+.odl-file-dropzone .odl-icon-btn svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-file-dropzone .odl-retry { display: inline-flex; gap: var(--ds-space-inline-xs); min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label); }
+.odl-file-dropzone .odl-retry:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-file-dropzone .odl-retry svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-file-dropzone .odl-done { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); color: var(--ds-color-text-success); font: var(--ds-text-label-md); }
+.odl-file-dropzone .odl-done svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-file-dropzone .odl-icon-btn:focus-visible, .odl-file-dropzone .odl-retry:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-file-dropzone .odl-foot { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+@media (max-width: 30rem) { .odl-file-dropzone { padding: var(--ds-space-inset-lg); } }
+@container (max-width: 440px) {
+  /* phone: the green file tile already says "uploaded", so the tick goes and the name gets the room */
+  .odl-file-dropzone .odl-done { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .odl-file-dropzone .odl-type { inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); }
+  .odl-file-dropzone li { padding-inline-end: var(--ds-space-inset-xs); }
+  .odl-file-dropzone .odl-name { overflow: visible; white-space: normal; text-overflow: clip; }
+  .odl-file-dropzone li.is-failed .odl-row-actions { grid-column: 2 / -1; margin-block-start: calc(-1 * var(--ds-space-4)); }
+  .odl-file-dropzone li { gap: var(--ds-space-inline-sm); }
+}
+@container (max-width: 17.5rem) {
+  .odl-file-dropzone li { grid-template-columns: minmax(0, 1fr) auto; padding-inline-start: var(--ds-space-inset-sm); }
+  .odl-file-dropzone .odl-type { display: none; }
+  .odl-file-dropzone li.is-failed .odl-row-actions { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-file-dropzone, .odl-file-dropzone *, .odl-file-dropzone *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-file-dropzone" aria-labelledby="odl-fdz-title">
+  <div class="odl-head">
+    <h3 id="odl-fdz-title">Attach October statements</h3>
+    <p>We match each line to a receipt. Files stay in the Abernathy &amp; Low workspace.</p>
+  </div>
+  <div class="odl-drop">
+    <span class="odl-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span>
+    <p class="odl-idle">Drag files here, or <label class="odl-browse">browse<input type="file" multiple accept=".pdf,.csv,.xlsx,.zip" aria-describedby="odl-fdz-types"></label></p>
+    <p class="odl-over-text" aria-hidden="true">Drop to upload</p>
+    <p class="odl-types" id="odl-fdz-types">PDF, CSV, XLSX or ZIP · up to 25 MB each</p>
+  </div>
+  <ul aria-label="Files" aria-live="polite">
+    <li class="is-done">
+      <span class="odl-type" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+      <span class="odl-info"><span class="odl-name">statement-oct-2026.pdf</span><span class="odl-meta">2.4 MB · 186 lines found</span></span>
+      <span class="odl-row-actions"><span class="odl-done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Uploaded</span></span>
+        <button type="button" class="odl-icon-btn" data-remove aria-label="Remove statement-oct-2026.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+    </li>
+    <li class="is-uploading">
+      <span class="odl-type" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12v-1"/><path d="M10 18v-2"/><path d="M10 7V6"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v16a2 2 0 0 0 .274 1.01"/><circle cx="10" cy="20" r="2"/></svg></span>
+      <span class="odl-info"><span class="odl-name">receipts-week-43.zip</span>
+        <span class="odl-bar" role="progressbar" aria-label="Uploading receipts-week-43.zip" aria-valuemin="0" aria-valuemax="100" aria-valuenow="64"><span style="inline-size: 64%"></span></span>
+        <span class="odl-meta">11.5 of 17.9 MB · about&nbsp;6&nbsp;s&nbsp;left</span></span>
+      <span class="odl-row-actions"><button type="button" class="odl-icon-btn" data-remove aria-label="Cancel upload of receipts-week-43.zip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+    </li>
+    <li class="is-failed">
+      <span class="odl-type" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg></span>
+      <span class="odl-info"><span class="odl-name">card-export-oct.csv</span><span class="odl-meta">Upload stopped at 40%. Check your connection and try again.</span></span>
+      <span class="odl-row-actions"><button type="button" class="odl-retry" data-retry><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Retry</button>
+        <button type="button" class="odl-icon-btn" data-remove aria-label="Remove card-export-oct.csv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+    </li>
+  </ul>
+  <p class="odl-foot">1 of 3 uploaded · 20.3 MB in total</p>
+</section>
+<script>
+document.querySelectorAll(".odl-file-dropzone").forEach((root) => {
+  if (root.dataset.odlReady) return; root.dataset.odlReady = "1";
+  const drop = root.querySelector(".odl-drop"), input = root.querySelector('input[type="file"]'), list = root.querySelector("ul"), foot = root.querySelector(".odl-foot");
+  let depth = 0;
+  const tplType = list.querySelector(".odl-type").cloneNode(true), tplRm = list.querySelector("[data-remove]").cloneNode(true);
+  const tally = () => { const all = list.children.length, done = list.querySelectorAll(".is-done").length; foot.textContent = all ? `${done} of ${all} uploaded` : "No files yet"; };
+  const add = (files) => {
+    [...files].forEach((f) => {
+      const li = document.createElement("li"), info = document.createElement("span"), name = document.createElement("span"), meta = document.createElement("span"), type = tplType.cloneNode(true);
+      li.className = "is-queued"; info.className = "odl-info"; name.className = "odl-name"; meta.className = "odl-meta";
+      name.textContent = f.name; meta.textContent = `${(f.size / 1048576).toFixed(1)} MB · waiting to upload`;
+      const acts = document.createElement("span"), rm = tplRm.cloneNode(true);
+      acts.className = "odl-row-actions"; rm.setAttribute("aria-label", `Remove ${f.name}`); acts.append(rm);
+      info.append(name, meta); li.append(type, info, acts); list.append(li);
+    });
+    tally();
+  };
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); if (t === "dragenter") depth++; drop.classList.add("is-over"); }));
+  drop.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) drop.classList.remove("is-over"); });
+  drop.addEventListener("drop", (e) => { e.preventDefault(); depth = 0; drop.classList.remove("is-over"); if (e.dataTransfer) add(e.dataTransfer.files); });
+  input.addEventListener("change", () => { add(input.files); input.value = ""; });
+  list.addEventListener("click", (e) => {
+    const rm = e.target.closest("[data-remove]"), retry = e.target.closest("[data-retry]");
+    if (rm) { const li = rm.closest("li"), next = li.nextElementSibling || li.previousElementSibling; li.remove(); tally(); (next ? next.querySelector("button") : input).focus(); }
+    if (retry) { const li = retry.closest("li"); li.className = "is-uploading"; li.querySelector(".odl-meta").textContent = "Retrying · 0 of 1.2 MB"; retry.remove(); }
+  });
+});
+</script>

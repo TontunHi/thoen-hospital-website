@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { apiGateway } from '@/lib/apiGateway'
 import { queryClinicalDb } from '@/lib/clinicalDb'
 import { z } from 'zod'
 import { checkRateLimit } from '@/lib/rateLimit'
@@ -33,26 +34,37 @@ export async function GET(request: Request) {
 
     const searchValue = parsed.data.q
 
-    const sql = `
-      SELECT 
-        ap.hn,
-        concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
-        ap.nextdate as appoint_date,
-        ap.nexttime as appoint_time,
-        c.name as clinic_name,
-        d.name as doctor_name,
-        ap.note as appoint_note,
-        ap.app_no
-      FROM oapp ap
-      LEFT OUTER JOIN patient pt ON ap.hn = pt.hn
-      LEFT OUTER JOIN clinic c ON ap.clinic = c.clinic
-      LEFT OUTER JOIN doctor d ON ap.doctor = d.code
-      WHERE pt.cid = ?
-        AND (ap.app_no IS NULL OR ap.app_no != 'C')
-      ORDER BY ap.nextdate DESC, ap.nexttime DESC
-    `
+    let appointments: any[] | null = null
+    try {
+      const gwRes = await apiGateway.clinical.getAppointmentsByCid(searchValue)
+      if (Array.isArray(gwRes)) {
+        appointments = gwRes
+      }
+    } catch {
+      // Graceful fallback to queryClinicalDb until Gateway is restarted with new endpoint
+    }
 
-    const appointments = await queryClinicalDb(sql, [searchValue])
+    if (appointments === null) {
+      const sql = `
+        SELECT 
+          ap.hn,
+          concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
+          ap.nextdate as appoint_date,
+          ap.nexttime as appoint_time,
+          c.name as clinic_name,
+          d.name as doctor_name,
+          ap.note as appoint_note,
+          ap.app_no
+        FROM oapp ap
+        LEFT OUTER JOIN patient pt ON ap.hn = pt.hn
+        LEFT OUTER JOIN clinic c ON ap.clinic = c.clinic
+        LEFT OUTER JOIN doctor d ON ap.doctor = d.code
+        WHERE pt.cid = ?
+          AND (ap.app_no IS NULL OR ap.app_no != 'C')
+        ORDER BY ap.nextdate DESC, ap.nexttime DESC
+      `
+      appointments = await queryClinicalDb(sql, [searchValue])
+    }
 
     // Log PDPA-compliant throttled audit for patient appointment lookup (coalesced 5-min window)
     const maskedCid = `x-xxxx-xxxxx-${searchValue.slice(-4)}`

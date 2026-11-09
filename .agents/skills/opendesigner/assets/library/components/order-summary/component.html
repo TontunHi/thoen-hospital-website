@@ -1,0 +1,183 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-order-summary { box-sizing: border-box; inline-size: 100%; max-inline-size: 28rem; margin-inline: auto; container-type: inline-size; text-wrap: pretty; }
+.odl-order-summary *, .odl-order-summary *::before { box-sizing: border-box; }
+.odl-order-summary svg { flex: none; stroke-width: var(--ds-icon-stroke-md); }
+.odl-order-summary .odl-card { --odl-thumb: calc(var(--ds-size-control-lg) * 1.5); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); }
+.odl-order-summary .odl-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-order-summary h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-order-summary .odl-head span { color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); font-variant-numeric: tabular-nums; }
+.odl-order-summary ul { margin: 0; padding: 0; list-style: none; display: grid; }
+.odl-order-summary .odl-item { display: grid; grid-template-columns: var(--odl-thumb) minmax(0, 1fr) auto; column-gap: var(--ds-space-inline-md); row-gap: var(--ds-space-stack-sm);
+  padding-block: var(--ds-space-stack-md); }
+.odl-order-summary .odl-item + .odl-item { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-order-summary .odl-item:first-child { padding-block-start: 0; }
+.odl-order-summary .odl-item:last-child { padding-block-end: 0; }
+.odl-order-summary .odl-thumb { grid-row: span 2; inline-size: var(--odl-thumb); block-size: var(--odl-thumb); border-radius: var(--ds-radius-nested); overflow: hidden;
+  background: var(--ds-color-surface-sunken); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-order-summary .odl-thumb img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-order-summary .odl-name { display: grid; align-content: start; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-order-summary .odl-name b { font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-order-summary .odl-name small { color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); font-variant-numeric: tabular-nums; }
+.odl-order-summary .odl-line { font-variant-numeric: tabular-nums; text-align: end; font-weight: var(--ds-font-weight-label); }
+.odl-order-summary .odl-step { grid-column: 2 / -1; justify-self: start; align-self: end; display: inline-flex; align-items: center; border: var(--ds-border-width-default) solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised); }
+.odl-order-summary .odl-step button { display: grid; place-items: center; min-inline-size: var(--ds-size-target-min); min-block-size: var(--ds-size-target-min); padding: 0;
+  border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-primary); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-order-summary .odl-step button:hover:not(:disabled) { background: var(--ds-color-bg-neutral-subtle); }
+.odl-order-summary .odl-step button:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-order-summary .odl-step svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-order-summary .odl-step output { min-inline-size: 3ch; text-align: center; font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; }
+.odl-order-summary .odl-promo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-sm); padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-order-summary .odl-lab { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-order-summary .odl-field { display: flex; gap: var(--ds-space-inline-sm); }
+.odl-order-summary input { flex: 1; inline-size: 0; min-inline-size: 0; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary);
+  font: var(--ds-text-body-md); text-transform: uppercase; }
+.odl-order-summary input::placeholder { color: var(--ds-color-text-tertiary); text-transform: none; }
+.odl-order-summary input[aria-invalid="true"] { border-color: var(--ds-color-border-danger); }
+.odl-order-summary .odl-apply { min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border: var(--ds-border-width-default) solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-order-summary .odl-apply:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-order-summary .odl-msg { margin: 0; color: var(--ds-color-text-danger); font: var(--ds-text-body-sm); }
+.odl-order-summary .odl-msg:empty { display: none; }
+.odl-order-summary .odl-chip { justify-self: start; display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); padding-inline-start: var(--ds-space-inset-sm);
+  border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); }
+.odl-order-summary .odl-chip[hidden] { display: none; }
+.odl-order-summary .odl-chip code { font: var(--ds-text-code-sm); font-weight: var(--ds-font-weight-label); }
+.odl-order-summary .odl-chip svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); }
+.odl-order-summary .odl-chip button { display: grid; place-items: center; min-inline-size: var(--ds-size-target-min); min-block-size: var(--ds-size-target-min); padding: 0;
+  border: 0; border-radius: var(--ds-radius-full); background: transparent; color: inherit; cursor: pointer; }
+.odl-order-summary .odl-chip button:hover svg { color: var(--ds-color-text-primary); }
+.odl-order-summary dl { margin: 0; display: grid; gap: var(--ds-space-stack-sm); padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  font-variant-numeric: tabular-nums; }
+.odl-order-summary dl div { display: flex; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-order-summary dt { color: var(--ds-color-text-secondary); }
+.odl-order-summary dd { margin: 0; text-align: end; }
+.odl-order-summary .odl-off dd { color: var(--ds-color-text-success); }
+.odl-order-summary .odl-off[hidden] { display: none; }
+.odl-order-summary .odl-total { align-items: baseline; margin-block-start: var(--ds-space-stack-xs); padding-block-start: var(--ds-space-stack-md); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-order-summary .odl-total dt { color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-order-summary .odl-total dd { font: var(--ds-text-numeric-md); font-weight: var(--ds-font-weight-heading); }
+.odl-order-summary .odl-total dd small { margin-inline-start: var(--ds-space-inline-xs); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-order-summary .odl-pay { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); inline-size: 100%;
+  min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border: 0; border-radius: var(--ds-radius-control);
+  background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-order-summary .odl-pay:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-order-summary .odl-pay:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-order-summary .odl-pay svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-order-summary .odl-fine { margin: calc(-1 * var(--ds-space-stack-sm)) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); text-align: center; text-wrap: balance; }
+.odl-order-summary button:focus-visible, .odl-order-summary input:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* Phone: less outer padding and a slightly smaller photo; the photo stays, the stepper sits under the name. */
+@container (max-width: 26rem) {
+  .odl-order-summary .odl-card { --odl-thumb: calc(var(--ds-size-control-lg) * 1.25); padding: var(--ds-space-inset-lg); }
+}
+/* Smallest phones: the price moves under the name so nothing is squeezed. */
+@container (max-width: 21rem) {
+  .odl-order-summary .odl-card { --odl-thumb: var(--ds-size-control-lg); }
+  .odl-order-summary .odl-item { grid-template-columns: var(--odl-thumb) minmax(0, 1fr); }
+  .odl-order-summary .odl-thumb { grid-row: span 3; }
+  .odl-order-summary .odl-line { grid-column: 2; text-align: start; }
+  .odl-order-summary .odl-step { grid-column: 2; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-order-summary, .odl-order-summary *, .odl-order-summary *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-order-summary" aria-label="Order summary">
+  <div class="odl-card">
+    <div class="odl-head"><h3>Order summary</h3><span class="odl-count">3 items</span></div>
+    <ul>
+      <li class="odl-item" data-price="28" data-unit="cup" data-units="cups">
+        <span class="odl-thumb"><img src="https://images.unsplash.com/photo-1782351076283-73aa35f76058?w=144&h=144&fit=crop&auto=format&q=70" alt="Speckled green stoneware cup" width="72" height="72" loading="lazy" decoding="async"></span>
+        <span class="odl-name"><b>Speckled stoneware cup</b><small>Moss glaze · $28.00 each</small></span>
+        <span class="odl-line">$56.00</span>
+        <div class="odl-step" role="group" aria-label="Stoneware cup quantity">
+          <button type="button" data-d="-1" aria-label="One cup fewer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+          <output aria-live="polite">2</output>
+          <button type="button" data-d="1" aria-label="One cup more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+        </div>
+      </li>
+      <li class="odl-item" data-price="96" data-unit="lamp" data-units="lamps">
+        <span class="odl-thumb"><img src="https://images.unsplash.com/photo-1570974802254-4b0ad1a755f5?w=144&h=144&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=0.55&fp-z=1&auto=format&q=70" alt="Cream metal gooseneck desk lamp" width="72" height="72" loading="lazy" decoding="async"></span>
+        <span class="odl-name"><b>Gooseneck desk lamp</b><small>Cream metal · $96.00 each</small></span>
+        <span class="odl-line">$96.00</span>
+        <div class="odl-step" role="group" aria-label="Desk lamp quantity">
+          <button type="button" data-d="-1" aria-label="One lamp fewer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+          <output aria-live="polite">1</output>
+          <button type="button" data-d="1" aria-label="One lamp more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+        </div>
+      </li>
+    </ul>
+    <div class="odl-promo">
+      <span class="odl-lab">Promo code</span>
+      <div class="odl-field">
+        <input type="text" aria-label="Promo code" autocomplete="off" spellcheck="false" placeholder="Enter a code">
+        <button type="button" class="odl-apply">Apply</button>
+      </div>
+      <p class="odl-msg" role="alert"></p>
+      <span class="odl-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+        <span><code>AUTUMN15</code> · 15% off</span>
+        <button type="button" class="odl-remove" aria-label="Remove code AUTUMN15"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+    </div>
+    <dl>
+      <div><dt>Subtotal</dt><dd class="odl-sub">$152.00</dd></div>
+      <div class="odl-off"><dt>Discount, 15%</dt><dd class="odl-disc">−$22.80</dd></div>
+      <div><dt>Shipping</dt><dd>Free</dd></div>
+      <div><dt>Sales tax, 8.25%</dt><dd class="odl-tax">$10.66</dd></div>
+      <div class="odl-total"><dt>Total</dt><dd><span class="odl-sum">$139.86</span><small>USD</small></dd></div>
+    </dl>
+    <button type="button" class="odl-pay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Pay <span class="odl-paysum">$139.86</span></button>
+    <p class="odl-fine">Charged to the card ending 2861. Free returns within 30 days.</p>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-order-summary").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const CODE = "AUTUMN15", RATE = 0.15, TAX = 0.0825;
+  const money = (n) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const $ = (s) => root.querySelector(s);
+  const input = $("input"), msg = $(".odl-msg"), chip = $(".odl-chip");
+  let applied = true;
+  const update = () => {
+    let sub = 0, count = 0;
+    root.querySelectorAll(".odl-item").forEach((item) => {
+      const q = Number(item.querySelector("output").textContent), line = q * Number(item.dataset.price);
+      sub += line; count += q;
+      item.querySelector(".odl-line").textContent = money(line);
+      item.querySelector('[data-d="-1"]').disabled = q <= 1;
+      item.querySelector('[data-d="1"]').disabled = q >= 20;
+    });
+    const disc = applied ? Math.round(sub * RATE * 100) / 100 : 0;
+    const tax = Math.round((sub - disc) * TAX * 100) / 100, total = sub - disc + tax;
+    $(".odl-count").textContent = `${count} ${count === 1 ? "item" : "items"}`;
+    $(".odl-sub").textContent = money(sub);
+    $(".odl-disc").textContent = "−" + money(disc);
+    $(".odl-off").hidden = !applied;
+    chip.hidden = !applied;
+    $(".odl-tax").textContent = money(tax);
+    $(".odl-sum").textContent = money(total);
+    $(".odl-paysum").textContent = money(total);
+  };
+  root.querySelectorAll(".odl-step button").forEach((b) => b.addEventListener("click", () => {
+    const out = b.parentElement.querySelector("output");
+    out.textContent = Math.min(20, Math.max(1, Number(out.textContent) + Number(b.dataset.d)));
+    update();
+  }));
+  $(".odl-remove").addEventListener("click", () => { applied = false; update(); input.focus(); });
+  const apply = () => {
+    const code = input.value.trim().toUpperCase();
+    if (!code) return;
+    const ok = code === CODE;
+    msg.textContent = ok ? "" : `${code} isn't a valid code. Check it and try again.`;
+    input.setAttribute("aria-invalid", String(!ok));
+    if (ok) { applied = true; input.value = ""; update(); }
+  };
+  $(".odl-apply").addEventListener("click", apply);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") apply(); });
+  update();
+});
+</script>

@@ -1,0 +1,14 @@
+<!-- @dsCard group="Actions" height=96 subtitle="Primary and secondary, with focus and disabled" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Button</title>
+<style>
+html,body{margin:0;background:var(--surface)} .row{display:flex;gap:12px;align-items:center;padding:24px;font-family:var(--font-text)}
+.b{font:inherit;font-size:16px;font-weight:500;min-height:44px;padding:0 16px;border-radius:var(--radius-control, 6px);border:1px solid transparent;cursor:pointer}
+.p{background:var(--accent);color:var(--on-accent)} .p:hover{background:var(--accent-hover)} .s{background:transparent;color:var(--ink);border-color:var(--line-strong)}
+.b:focus-visible,.f{outline:2px solid var(--focus-ring);outline-offset:2px} .b[disabled]{opacity:.45;cursor:not-allowed}
+</style></head>
+<body>
+<div class="row"><button class="b p">Save changes</button><button class="b s">Cancel</button><button class="b p f">Focused</button><button class="b p" disabled>Disabled</button></div>
+</body>
+</html>

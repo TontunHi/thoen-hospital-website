@@ -1,0 +1,25 @@
+<!-- @dsCard height=300 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Cover</title>
+<style>
+html,body{margin:0;background:var(--surface)}
+.cv{position:relative;width:960px;height:300px;background:var(--surface);font-family:var(--font-text)}
+.cv svg{position:absolute;left:0;top:0} .b-accent{fill:var(--accent)} .b-ink{fill:var(--ink)} .b-soft{fill:var(--accent-soft)} .b-sunk{fill:var(--surface-sunken)} .b-on{fill:var(--on-accent)}
+.name{position:absolute;left:48px;top:168px;margin:0;font-size:64px;line-height:60px;font-weight:400;letter-spacing:-0.025em;color:var(--ink)}
+.tag{position:absolute;left:50px;top:244px;margin:0;font-size:14px;line-height:20px;color:var(--ink-muted);max-width:440px}
+</style></head>
+<body>
+<div class="cv">
+<!--
+blocks: accent, ink, accent-soft, surface-sunken as one strip of unequal bands, 120px tall
+arrangement: top band, flush, bleeding off the right edge
+pattern: the radius tokens as tiles, square to round, on the accent block
+steps and radii: the radius tokens in order
+-->
+<svg width="960" height="128" viewBox="0 0 960 128" aria-hidden="true"><rect class="b-accent" x="0" y="0" width="384" height="120"/><rect class="b-ink" x="384" y="0" width="96" height="120"/><rect class="b-soft" x="480" y="0" width="192" height="120"/><rect class="b-sunk" x="672" y="0" width="288" height="120"/><rect class="b-on" x="24" y="36" width="48" height="48" rx="2"/><rect class="b-on" x="96" y="36" width="48" height="48" rx="4"/><rect class="b-on" x="168" y="36" width="48" height="48" rx="6"/><rect class="b-on" x="240" y="36" width="48" height="48" rx="8"/><rect class="b-on" x="312" y="36" width="48" height="48" rx="12"/></svg>
+<p class="name">Thoen Hospital Web Portal</p>
+<p class="tag">ระบบเว็บพอร์ทัลบริการประชาชนและระบบสารสนเทศบริหารจัดการภายใน โรงพยาบาลเถิน จังหวัดลำปาง พัฒนาด้วย Next.js (App Router), React 19, TypeScript และ Prisma</p>
+</div>
+</body>
+</html>

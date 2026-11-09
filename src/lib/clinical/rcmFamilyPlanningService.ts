@@ -1,6 +1,8 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Domain Types ──────────────────────────────────────────────────────────
 
@@ -63,6 +65,8 @@ export interface FamilyPlanningReportParams extends FiscalDateRangeParams {
   search?: string
   sortBy?: FamilyPlanningSortField
   sortOrder?: 'asc' | 'desc'
+  pttypes?: string | string[]
+  ucOnly?: boolean
   page?: number
   pageSize?: number
   exportAll?: boolean
@@ -134,6 +138,8 @@ export interface FamilyPlanning91Item {
   cc: string | null
   authencode: string | null
   pttypename: string | null
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   pdx: string | null
   dx0?: string | null
   dx1?: string | null
@@ -219,6 +225,8 @@ export interface FamilyPlanningItem {
   admdate?: string | null
   dchdate?: string | null
   pttypename: string
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   claimcode: string | null
   department: string | null
   clinic: string | null
@@ -334,6 +342,8 @@ export interface IudReportParams extends FiscalDateRangeParams {
   search?: string
   sortBy?: IudSortField
   sortOrder?: 'asc' | 'desc'
+  pttypes?: string | string[]
+  ucOnly?: boolean
   page?: number
   pageSize?: number
   exportAll?: boolean
@@ -361,6 +371,8 @@ export interface IudItem {
   admdate?: string | null
   dchdate?: string | null
   pttypename: string
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   claimcode: string | null
   department: string | null
   clinic: string | null
@@ -486,6 +498,8 @@ export interface FamilyPlanning932Item {
   department: string | null
   clinic: string | null
   pttypename: string
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   drugname: string | null
   listname: string | null
   adpcode: string | null
@@ -536,6 +550,8 @@ export interface FamilyPlanning932Params extends FiscalDateRangeParams {
   search?: string
   sortBy?: FamilyPlanning932SortField
   sortOrder?: 'asc' | 'desc'
+  pttypes?: string | string[]
+  ucOnly?: boolean
   page?: number
   pageSize?: number
   exportAll?: boolean
@@ -672,6 +688,27 @@ export class RcmFamilyPlanningService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping('FAMILY_PLANNING')
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                format,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback
+          }
+        }
+
         try {
           const placeholders = codes.map(() => '?').join(', ')
           const sql = `
@@ -718,6 +755,27 @@ export class RcmFamilyPlanningService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                adpCode,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -792,8 +850,15 @@ export class RcmFamilyPlanningService {
   ): Promise<any> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const format = params.format || 'NEW_ECLAIM'
+    const adpCodes =
+      format === 'KRUNGTHAI'
+        ? RcmFamilyPlanningService.KRUNGTHAI_ADP_CODES
+        : RcmFamilyPlanningService.NEW_ECLAIM_ADP_CODES
+    const adpPlaceholders = adpCodes.map(() => '?').join(', ')
+
     const serviceOnly = Boolean(params.serviceOnly)
     const statusParam = (params.status || 'ALL').trim()
+    const errorFilterParam = (params.errorFilter || 'ALL').trim()
     const cardFilter = params.cardFilter || 'ALL'
     const searchField = params.searchField || 'ALL'
     const search = (params.search || '').trim().toLowerCase()
@@ -813,6 +878,21 @@ export class RcmFamilyPlanningService {
       getCachedData(
         cacheKey,
         async () => {
+          if (executor === queryClinicalDb) {
+            try {
+              const gwRes = await apiGateway.clinical.getRcmFundData('family-planning', {
+                ds1,
+                ds2,
+                format,
+              } as any)
+              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+                return gwRes.data.rawRows
+              }
+            } catch {
+              // Fallback
+            }
+          }
+
           const sql = `
             SELECT 
               o.vn,
@@ -825,8 +905,9 @@ export class RcmFamilyPlanningService {
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
               s.cc,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               ptt.name AS pttypename,
+              ptt.pttype_eclaim_id,
               v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
               v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
               IFNULL(dx.icd10, '') AS icd10,
@@ -846,15 +927,29 @@ export class RcmFamilyPlanningService {
               rd.projectcode
             FROM (
               SELECT DISTINCT vn FROM (
-                SELECT vn FROM ovstdiag WHERE vstdate BETWEEN ? AND ? AND (icd10 REGEXP '^Z30' OR icd10 REGEXP '^697' OR icd10 REGEXP '^992')
+                SELECT vn 
+                FROM ovstdiag 
+                WHERE vstdate BETWEEN ? AND ? 
+                  AND icd10 REGEXP 'Z30' 
+                  AND icd10 <> 'Z302'
                 UNION
                 SELECT oo.vn
                 FROM s_drugitems d
                 JOIN opitemrece oo ON oo.icode = d.icode
-                WHERE (
-                  TRIM(d.nhso_adp_code) IN ('FP001', 'FP002', 'FP003_1', 'FP003_2', 'FP003_3', 'FP003_4', '20001', '20002', '20003', '20004')
-                  OR d.nhso_adp_code LIKE 'FP%'
-                ) AND oo.vstdate BETWEEN ? AND ? AND IFNULL(oo.vn, '') <> ''
+                WHERE TRIM(d.nhso_adp_code) IN (${adpPlaceholders})
+                  AND oo.vstdate BETWEEN ? AND ? 
+                  AND IFNULL(oo.vn, '') <> ''
+                UNION
+                SELECT oo.vn
+                FROM opitemrece oo
+                JOIN s_drugitems d ON d.icode = oo.icode
+                LEFT JOIN income inc ON inc.income = oo.income
+                WHERE oo.vstdate BETWEEN ? AND ?
+                  AND IFNULL(oo.vn, '') <> ''
+                  AND (d.name REGEXP 'norplant|คุมกำเนิด' OR d.drugcategory REGEXP 'FP|CONTRACEPTIVE|CONTRACEPTION')
+                  AND d.name NOT REGEXP 'condom|ถุงยางอนามัย'
+                  AND inc.group2 IN (3, 4, 5)
+                  AND oo.qty > 0
               ) u
             ) t
             JOIN ovst o ON o.vn = t.vn
@@ -870,44 +965,51 @@ export class RcmFamilyPlanningService {
                 GROUP_CONCAT(DISTINCT CONCAT_WS(':', d.nhso_adp_code, CONCAT(d.name, ' ', IFNULL(d.strength, ''))) SEPARATOR ', ') AS name
               FROM s_drugitems d
               JOIN opitemrece oo ON oo.icode = d.icode
-              WHERE (
-                TRIM(d.nhso_adp_code) IN ('FP001', 'FP002', 'FP003_1', 'FP003_2', 'FP003_3', 'FP003_4', '20001', '20002', '20003', '20004')
-                OR d.nhso_adp_code LIKE 'FP%'
-              ) AND oo.vstdate BETWEEN ? AND ?
+              WHERE TRIM(d.nhso_adp_code) IN (${adpPlaceholders})
+                AND oo.vstdate BETWEEN ? AND ?
               GROUP BY oo.vn
             ) fp ON fp.vn = o.vn
             LEFT JOIN (
               SELECT 
                 oo.vn,
-                GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS drugname
-              FROM drugitems d
-              JOIN opitemrece oo ON oo.icode = d.icode
-              WHERE (d.name LIKE '%คุมกำเนิด%' OR d.name LIKE '%DMPA%' OR d.name LIKE '%ยาคุม%' OR d.name LIKE '%ถุงยาง%')
-                AND oo.vstdate BETWEEN ? AND ?
+                GROUP_CONCAT(DISTINCT CONCAT(d.name, '#', oo.qty) SEPARATOR ', ') AS drugname
+              FROM opitemrece oo
+              JOIN s_drugitems d ON d.icode = oo.icode
+              LEFT JOIN income inc ON inc.income = oo.income
+              WHERE oo.vstdate BETWEEN ? AND ?
+                AND IFNULL(oo.vn, '') <> ''
+                AND (d.name REGEXP 'norplant|คุมกำเนิด' OR d.drugcategory REGEXP 'FP|CONTRACEPTIVE|CONTRACEPTION')
+                AND d.name NOT REGEXP 'condom|ถุงยางอนามัย'
+                AND inc.group2 IN (3, 4, 5)
+                AND oo.qty > 0
               GROUP BY oo.vn
             ) d ON d.vn = o.vn
             LEFT JOIN (
               SELECT vn,
-                     GROUP_CONCAT(DISTINCT icd10 SEPARATOR ', ') AS icd10,
-                     GROUP_CONCAT(DISTINCT IF(icd10 REGEXP '^697' OR icd10 REGEXP '^992', icd10, NULL) SEPARATOR ', ') AS op
+                     GROUP_CONCAT(DISTINCT IF(icd10 REGEXP '^[0-9]', NULL, icd10) SEPARATOR ', ') AS icd10,
+                     GROUP_CONCAT(DISTINCT IF(icd10 REGEXP '^697|^992', icd10, NULL) SEPARATOR ', ') AS op
               FROM ovstdiag
-              WHERE (icd10 REGEXP '^Z30' OR icd10 REGEXP '^697' OR icd10 REGEXP '^992')
-                AND vstdate BETWEEN ? AND ?
+              WHERE vstdate BETWEEN ? AND ?
+                AND (
+                  (icd10 REGEXP 'Z30' AND icd10 <> 'Z302')
+                  OR icd10 REGEXP '^697|^992'
+                )
               GROUP BY vn
             ) dx ON dx.vn = o.vn
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
             LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -920,17 +1022,33 @@ export class RcmFamilyPlanningService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1'
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             GROUP BY o.vn
             ORDER BY o.vstdate DESC, o.vsttime DESC
           `
-          return (await executor(
-            sql,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 45000 }
-          )) as any[]
+          const queryParams = [
+            ds1,
+            ds2,
+            ...adpCodes,
+            ds1,
+            ds2,
+            ds1,
+            ds2,
+            ...adpCodes,
+            ds1,
+            ds2,
+            ds1,
+            ds2,
+            ds1,
+            ds2,
+            ds1,
+            ds2,
+            ds1,
+            ds2,
+          ]
+          return (await executor(sql, queryParams, { timeoutMs: 45000 })) as any[]
         },
         300000
       ),
@@ -942,7 +1060,7 @@ export class RcmFamilyPlanningService {
       const icd10 = r.icd10 ? String(r.icd10).trim() : null
       const op = r.op ? String(r.op).trim() : null
       const hasFp = Boolean(listname && listname.length > 0)
-      const hasDx = Boolean(icd10 && icd10.length > 0) || Boolean(r.pdx)
+      const hasDx = Boolean(icd10 && icd10.length > 0)
       const hasDrug = Boolean(drugname && drugname.length > 0)
       const errorname = evaluateFamilyPlanningDiscrepancy(hasFp, hasDx, hasDrug, listname, op)
       const hasError = Boolean(errorname)
@@ -950,6 +1068,8 @@ export class RcmFamilyPlanningService {
       const authencode = r.authencode ? String(r.authencode).trim() : null
       const hasAuthen = Boolean(authencode && authencode.length > 0)
       const compensated = Number(r.compensated || 0)
+      const pttypeEclaimId = r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null
+      const isUc = isUcEclaimCode(pttypeEclaimId)
 
       return {
         no: idx + 1,
@@ -965,6 +1085,8 @@ export class RcmFamilyPlanningService {
         cc: r.cc ? String(r.cc).trim() : null,
         authencode,
         pttypename: r.pttypename ? String(r.pttypename).trim() : null,
+        pttype_eclaim_id: pttypeEclaimId,
+        isUc,
         pdx: r.pdx ? String(r.pdx).trim() : null,
         dx0: r.dx0 || null,
         dx1: r.dx1 || null,
@@ -998,20 +1120,28 @@ export class RcmFamilyPlanningService {
       }
     })
 
-    const totalVisits = allItems.length
-    const uniquePatients = new Set(allItems.map((i: any) => i.hn)).size
-    const serviceOnlyCount = allItems.filter((i: any) => i.hasService).length
-    const compensatedVisits = allItems.filter((i: any) => i.compensated > 0).length
+    // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i: any) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i: any) => i.isUc)
+    }
+
+    const totalVisits = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i: any) => i.hn)).size
+    const serviceOnlyCount = summaryCohort.filter((i: any) => i.hasService).length
+    const compensatedVisits = summaryCohort.filter((i: any) => i.compensated > 0).length
     const uncompensatedVisits = totalVisits - compensatedVisits
     const compensationRate =
       totalVisits > 0 ? Number(((compensatedVisits / totalVisits) * 100).toFixed(1)) : 0
-    const totalCompensated = allItems.reduce((acc: number, i: any) => acc + i.compensated, 0)
-    const totalIncome = allItems.reduce((acc: number, i: any) => acc + i.income, 0)
-    const errorCount = allItems.filter((i: any) => i.hasError).length
-    const authenCount = allItems.filter((i: any) => i.hasAuthen).length
+    const totalCompensated = summaryCohort.reduce((acc: number, i: any) => acc + i.compensated, 0)
+    const totalIncome = summaryCohort.reduce((acc: number, i: any) => acc + i.income, 0)
+    const errorCount = summaryCohort.filter((i: any) => i.hasError).length
+    const authenCount = summaryCohort.filter((i: any) => i.hasAuthen).length
     const noAuthenCount = totalVisits - authenCount
-    const withDxCount = allItems.filter((i: any) => Boolean(i.icd10 || i.pdx)).length
-    const withDrugCount = allItems.filter((i: any) => Boolean(i.drugname)).length
+    const withDxCount = summaryCohort.filter((i: any) => Boolean(i.icd10)).length
+    const withDrugCount = summaryCohort.filter((i: any) => Boolean(i.drugname)).length
 
     const summary = {
       totalVisits,
@@ -1031,9 +1161,21 @@ export class RcmFamilyPlanningService {
       totalIncome,
     }
 
-    let filtered = allItems
+    let filtered = summaryCohort
     if (serviceOnly) {
       filtered = filtered.filter((i: any) => i.hasService)
+    }
+    if (statusParam && statusParam !== 'ALL' && statusParam !== 'ทั้งหมด') {
+      filtered = filtered.filter((i: any) => i.status === statusParam)
+    }
+    if (errorFilterParam && errorFilterParam !== 'ALL') {
+      if (errorFilterParam === 'HAS_ERROR') {
+        filtered = filtered.filter((i: any) => i.hasError)
+      } else if (errorFilterParam === 'NO_ERROR') {
+        filtered = filtered.filter((i: any) => !i.hasError)
+      } else {
+        filtered = filtered.filter((i: any) => i.errorname === errorFilterParam)
+      }
     }
     if (cardFilter === 'SERVICE_ONLY') {
       filtered = filtered.filter((i: any) => i.hasService)
@@ -1053,9 +1195,25 @@ export class RcmFamilyPlanningService {
           i.hn.toLowerCase().includes(search) ||
           i.cid.includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
-          i.vn.toLowerCase().includes(search)
+          i.vn.toLowerCase().includes(search) ||
+          (i.drugname && i.drugname.toLowerCase().includes(search)) ||
+          (i.listname && i.listname.toLowerCase().includes(search)) ||
+          (i.errorname && i.errorname.toLowerCase().includes(search))
       )
     }
+
+    // Apply Sorting
+    filtered.sort((a: any, b: any) => {
+      let valA: string | number = a[sortBy] ?? ''
+      let valB: string | number = b[sortBy] ?? ''
+
+      if (typeof valA === 'string') valA = valA.toLowerCase()
+      if (typeof valB === 'string') valB = valB.toLowerCase()
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
 
     const totalCount = filtered.length
     const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -1121,20 +1279,90 @@ export class RcmFamilyPlanningService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const [mappingRes, rows] = await Promise.all([
-          RcmFamilyPlanningService.checkFamilyPlanningAdpMapping(adpCode, executor),
-          patientType === 'IPD'
-            ? RcmFamilyPlanningService.queryIpdRows(ds1, ds2, adpCode, executor, expectedDx)
-            : RcmFamilyPlanningService.queryOpdRows(ds1, ds2, adpCode, executor, expectedDx),
-        ])
+        let rows: Record<string, unknown>[] = []
+        let mappingRes: FamilyPlanningAdpMappingCheck = {
+          isMapped: false,
+          mappedCount: 0,
+          adpCode,
+          items: [],
+        }
 
-        return { rawRows: (rows || []) as Record<string, unknown>[], adpMapping: mappingRes }
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmFamilyPlanningService.checkFamilyPlanningAdpMapping(adpCode, executor),
+              apiGateway.clinical.getRcmFundData('family-planning', { ds1, ds2, adpCode, patientType }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmFamilyPlanningService.checkFamilyPlanningAdpMapping(adpCode, executor),
+            patientType === 'IPD'
+              ? RcmFamilyPlanningService.queryIpdRows(ds1, ds2, adpCode, executor, expectedDx)
+              : RcmFamilyPlanningService.queryOpdRows(ds1, ds2, adpCode, executor, expectedDx),
+          ])
+          rows = (dbRows || []) as Record<string, unknown>[]
+          mappingRes = mRes
+        }
+
+        return { rawRows: rows, adpMapping: mappingRes }
       },
       300000 // Cache TTL 5 minutes
     )
 
-    // Map raw rows into strongly typed domain items with validation
-    const allItems: FamilyPlanningItem[] = rawRows.map((r, idx) => {
+    // Separate and filter cases according to the specific objective of each report:
+    // - 9.3.1 / 9.3.1.1 (Implant Insertion): Exclude cases that only received removal service (FP002_2 / 71691) without insertion
+    // - 9.3.2 / 9.3.1.2 (Implant Removal): Exclude cases that only received insertion service (FP002_1 / FP002 / 20004) without removal
+    const isInsertionReport =
+      reportType === '9.3.1' || reportType === '9.3.1.1' || adpCode === 'FP002_1'
+    const isRemovalReport =
+      reportType === '9.3.2' || reportType === '9.3.1.2' || adpCode === 'FP002_2'
+
+    const targetRows = rawRows.filter((r) => {
+      const adpStr = [
+        String(r.all_adp_codes || ''),
+        String(r.adp_list || ''),
+        String(r.adpcode || ''),
+        String(r.drug || ''),
+      ]
+        .join(',')
+        .toUpperCase()
+
+      const drugStr = String(r.drug || '')
+      const isRemovalDrug = /ถอด/i.test(drugStr)
+      const isInsertionDrug =
+        /implanon|norplant|jadelle|etonogestrel/i.test(drugStr) ||
+        (/ฝัง/i.test(drugStr) && !isRemovalDrug)
+
+      const hasInsertionItem =
+        /FP002_1|FP002\b|20004/i.test(adpStr) || isInsertionDrug
+      const hasRemovalItem =
+        /FP002_2|71691/i.test(adpStr) || isRemovalDrug
+
+      if (isInsertionReport) {
+        if (hasRemovalItem && !hasInsertionItem) {
+          return false
+        }
+      } else if (isRemovalReport) {
+        if (hasInsertionItem && !hasRemovalItem) {
+          return false
+        }
+      }
+      return true
+    })
+
+    // Map target rows into strongly typed domain items with validation
+    const allItems: FamilyPlanningItem[] = targetRows.map((r, idx) => {
       const moneyEclaim = Number(r.money_eclaim || 0)
       const moneyRep = Number(r.money_rep || 0)
       const moneyInvoice = Number(r.money_invoice || 0)
@@ -1174,6 +1402,8 @@ export class RcmFamilyPlanningService {
         admdate: r.admdate ? String(r.admdate).trim() : null,
         dchdate: r.dchdate ? String(r.dchdate).trim() : null,
         pttypename: String(r.pttypename || '—').trim(),
+        pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null,
+        isUc: isUcEclaimCode(r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null),
         claimcode: r.claimcode ? String(r.claimcode).trim() : null,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
@@ -1197,22 +1427,30 @@ export class RcmFamilyPlanningService {
       }
     })
 
-    // Compute Overall Summary Metrics (across all items before filtering)
-    const totalCases = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn).filter(Boolean)).size
-    const compensatedCases = allItems.filter((i) => i.isCompensated).length
-    const eclaimSentCases = allItems.filter(
+    // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Overall Summary Metrics (across summaryCohort before card filtering)
+    const totalCases = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn).filter(Boolean)).size
+    const compensatedCases = summaryCohort.filter((i) => i.isCompensated).length
+    const eclaimSentCases = summaryCohort.filter(
       (i) => !i.isCompensated && !i.status.includes('ยังไม่ส่ง')
     ).length
-    const unsentCases = allItems.filter((i) => i.status.includes('ยังไม่ส่ง')).length
+    const unsentCases = summaryCohort.filter((i) => i.status.includes('ยังไม่ส่ง')).length
     const compensationRate =
       totalCases > 0 ? Number(((compensatedCases / totalCases) * 100).toFixed(1)) : 0
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
-    const totalIncome = allItems.reduce((acc, i) => acc + i.income, 0)
-    const errorDxCount = allItems.filter((i) => Boolean(i.errorDx)).length
-    const errorDrugCount = allItems.filter((i) => Boolean(i.errorDrug)).length
-    const hasErrorCount = allItems.filter((i) => i.hasError).length
-    const withAuthenCount = allItems.filter((i) => Boolean(i.claimcode)).length
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
+    const totalIncome = summaryCohort.reduce((acc, i) => acc + i.income, 0)
+    const errorDxCount = summaryCohort.filter((i) => Boolean(i.errorDx)).length
+    const errorDrugCount = summaryCohort.filter((i) => Boolean(i.errorDrug)).length
+    const hasErrorCount = summaryCohort.filter((i) => i.hasError).length
+    const withAuthenCount = summaryCohort.filter((i) => Boolean(i.claimcode)).length
     const withoutAuthenCount = totalCases - withAuthenCount
     const authenRate =
       totalCases > 0 ? Number(((withAuthenCount / totalCases) * 100).toFixed(1)) : 0
@@ -1235,7 +1473,7 @@ export class RcmFamilyPlanningService {
     }
 
     // Apply Interactive Card Filter
-    let filteredItems = allItems
+    let filteredItems = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filteredItems = filteredItems.filter((i) => i.isCompensated)
     } else if (cardFilter === 'ECLAIM_SENT') {
@@ -1353,6 +1591,13 @@ export class RcmFamilyPlanningService {
     expectedDx: string = 'Z308'
   ): Promise<any[]> {
     try {
+      const adpMatchExpr =
+        adpCode === 'FP002_1'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
+          : adpCode === 'FP002_2'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
+          : `TRIM(d.nhso_adp_code) = ?`
+
       const sql = `
         SELECT 
           o.vn,
@@ -1364,6 +1609,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
+          ptt.pttype_eclaim_id,
           cc.AuthenCode AS claimcode,
           dep.department AS department,
           spc.name AS clinic,
@@ -1371,7 +1617,8 @@ export class RcmFamilyPlanningService {
           IFNULL(v.income, 0) AS income,
           GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ') AS dx,
           GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(TRIM(d.nhso_adp_code) = ?, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT IF(${adpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
           COALESCE(e.income, 0) AS money_eclaim,
           COALESCE(r.income, 0) AS money_rep,
           COALESCE(n.income, 0) AS money_invoice,
@@ -1391,7 +1638,7 @@ export class RcmFamilyPlanningService {
             JOIN s_drugitems d ON d.icode = oo.icode
             WHERE oo.vstdate BETWEEN ? AND ?
               AND IFNULL(oo.vn, '') <> ''
-              AND TRIM(d.nhso_adp_code) = ?
+              AND ${adpMatchExpr}
           ) u
         ) t
         JOIN ovst o ON o.vn = t.vn
@@ -1456,6 +1703,13 @@ export class RcmFamilyPlanningService {
         { timeoutMs: 90000 }
       )
     } catch (primaryErr) {
+      const adpMatchExpr =
+        adpCode === 'FP002_1'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
+          : adpCode === 'FP002_2'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
+          : `TRIM(d.nhso_adp_code) = ?`
+
       // Graceful fallback without eclaimdb/rcmdb joins if cross-db schemas differ
       const fallbackSql = `
         SELECT 
@@ -1475,7 +1729,8 @@ export class RcmFamilyPlanningService {
           IFNULL(v.income, 0) AS income,
           GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ') AS dx,
           GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(TRIM(d.nhso_adp_code) = ?, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT IF(${adpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
           0 AS money_eclaim,
           0 AS money_rep,
           0 AS money_invoice,
@@ -1490,7 +1745,7 @@ export class RcmFamilyPlanningService {
             JOIN s_drugitems d ON d.icode = oo.icode
             WHERE oo.vstdate BETWEEN ? AND ?
               AND IFNULL(oo.vn, '') <> ''
-              AND TRIM(d.nhso_adp_code) = ?
+              AND ${adpMatchExpr}
           ) u
         ) t
         JOIN ovst o ON o.vn = t.vn
@@ -1521,6 +1776,20 @@ export class RcmFamilyPlanningService {
     expectedDx: string = 'Z308'
   ): Promise<any[]> {
     try {
+      const ipdAdpMatchExpr =
+        adpCode === 'FP002_1'
+          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
+          : adpCode === 'FP002_2'
+          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691')`
+          : `(TRIM(d.nhso_adp_code) = ? OR (? IN ('FP003_1', 'FP003_2', 'FP003_3', 'FP003_4') AND TRIM(d.nhso_adp_code) IN ('20003','71681','71682','FP003_1','FP003_2','FP003_3','FP003_4')))`
+
+      const ipdSubqueryAdpExpr =
+        adpCode === 'FP002_1'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
+          : adpCode === 'FP002_2'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
+          : `TRIM(d.nhso_adp_code) = ?`
+
       const sql = `
         SELECT 
           i.an AS vn,
@@ -1535,6 +1804,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(i.regdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
+          ptt.pttype_eclaim_id,
           cc.AuthenCode AS claimcode,
           w.name AS department,
           spc.name AS clinic,
@@ -1542,7 +1812,8 @@ export class RcmFamilyPlanningService {
           IFNULL(a.income, 0) AS income,
           GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ipt_diag_id SEPARATOR ', ') AS dx,
           GROUP_CONCAT(DISTINCT IF(op.icd9 REGEXP '^[0-9]', op.icd9, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(TRIM(d.nhso_adp_code) = ? OR (? IN ('FP003_1', 'FP003_2', 'FP003_3', 'FP003_4') AND TRIM(d.nhso_adp_code) IN ('20003','71681','71682','FP003_1','FP003_2','FP003_3','FP003_4')), CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT IF(${ipdAdpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
           COALESCE(e.income, 0) AS money_eclaim,
           COALESCE(r.income, 0) AS money_rep,
           COALESCE(n.income, 0) AS money_invoice,
@@ -1562,7 +1833,7 @@ export class RcmFamilyPlanningService {
             JOIN s_drugitems d ON d.icode = oo.icode
             WHERE oo.vstdate BETWEEN ? AND ?
               AND IFNULL(oo.an, '') <> ''
-              AND TRIM(d.nhso_adp_code) = ?
+              AND ${ipdSubqueryAdpExpr}
           ) u
         ) t
         JOIN ipt i ON i.an = t.an
@@ -1627,6 +1898,20 @@ export class RcmFamilyPlanningService {
         { timeoutMs: 90000 }
       )
     } catch (primaryErr) {
+      const ipdAdpMatchExpr =
+        adpCode === 'FP002_1'
+          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
+          : adpCode === 'FP002_2'
+          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691')`
+          : `(TRIM(d.nhso_adp_code) = ? OR (? IN ('FP003_1', 'FP003_2', 'FP003_3', 'FP003_4') AND TRIM(d.nhso_adp_code) IN ('20003','71681','71682','FP003_1','FP003_2','FP003_3','FP003_4')))`
+
+      const ipdSubqueryAdpExpr =
+        adpCode === 'FP002_1'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
+          : adpCode === 'FP002_2'
+          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
+          : `TRIM(d.nhso_adp_code) = ?`
+
       // Fallback without cross-db joins
       const fallbackSql = `
         SELECT 
@@ -1649,7 +1934,8 @@ export class RcmFamilyPlanningService {
           IFNULL(a.income, 0) AS income,
           GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ipt_diag_id SEPARATOR ', ') AS dx,
           GROUP_CONCAT(DISTINCT IF(op.icd9 REGEXP '^[0-9]', op.icd9, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(TRIM(d.nhso_adp_code) = ? OR (? IN ('FP003_1', 'FP003_2', 'FP003_3', 'FP003_4') AND TRIM(d.nhso_adp_code) IN ('20003','71681','71682','FP003_1','FP003_2','FP003_3','FP003_4')), CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT IF(${ipdAdpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
           0 AS money_eclaim,
           0 AS money_rep,
           0 AS money_invoice,
@@ -1664,7 +1950,7 @@ export class RcmFamilyPlanningService {
             JOIN s_drugitems d ON d.icode = oo.icode
             WHERE oo.vstdate BETWEEN ? AND ?
               AND IFNULL(oo.an, '') <> ''
-              AND TRIM(d.nhso_adp_code) = ?
+              AND ${ipdSubqueryAdpExpr}
           ) u
         ) t
         JOIN ipt i ON i.an = t.an
@@ -1837,6 +2123,8 @@ export class RcmFamilyPlanningService {
         admdate: r.admdate ? String(r.admdate).trim() : null,
         dchdate: r.dchdate ? String(r.dchdate).trim() : null,
         pttypename: String(r.pttypename || '—').trim(),
+        pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null,
+        isUc: isUcEclaimCode(r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null),
         claimcode: r.claimcode ? String(r.claimcode).trim() : null,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
@@ -1860,31 +2148,39 @@ export class RcmFamilyPlanningService {
       }
     })
 
-    // Compute Summary KPIs across all items (before client filtering)
-    const totalCases = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn)).size
-    const compensatedCases = allItems.filter((i) => i.isCompensated).length
+    // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Summary KPIs across summaryCohort (before card filtering)
+    const totalCases = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn)).size
+    const compensatedCases = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedCases = totalCases - compensatedCases
-    const eclaimSentCases = allItems.filter(
+    const eclaimSentCases = summaryCohort.filter(
       (i) => i.status !== '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
     ).length
     const unsentCases = totalCases - eclaimSentCases
     const compensationRate =
       totalCases > 0 ? Number(((compensatedCases / totalCases) * 100).toFixed(1)) : 0
 
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
-    const totalIncome = allItems.reduce((acc, i) => acc + i.income, 0)
-    const totalMoneyEclaim = allItems.reduce((acc, i) => acc + i.money_eclaim, 0)
-    const totalMoneyRep = allItems.reduce((acc, i) => acc + i.money_rep, 0)
-    const totalMoneyInvoice = allItems.reduce((acc, i) => acc + i.money_invoice, 0)
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
+    const totalIncome = summaryCohort.reduce((acc, i) => acc + i.income, 0)
+    const totalMoneyEclaim = summaryCohort.reduce((acc, i) => acc + i.money_eclaim, 0)
+    const totalMoneyRep = summaryCohort.reduce((acc, i) => acc + i.money_rep, 0)
+    const totalMoneyInvoice = summaryCohort.reduce((acc, i) => acc + i.money_invoice, 0)
 
-    const errorDxCount = allItems.filter((i) => Boolean(i.errorDx)).length
-    const errorOpCount = allItems.filter((i) => Boolean(i.errorOp)).length
-    const errorDrugCount = allItems.filter((i) => Boolean(i.errorDrug)).length
-    const hasErrorCount = allItems.filter((i) => i.hasError).length
-    const completeCount = allItems.filter((i) => !i.hasError).length
+    const errorDxCount = summaryCohort.filter((i) => Boolean(i.errorDx)).length
+    const errorOpCount = summaryCohort.filter((i) => Boolean(i.errorOp)).length
+    const errorDrugCount = summaryCohort.filter((i) => Boolean(i.errorDrug)).length
+    const hasErrorCount = summaryCohort.filter((i) => i.hasError).length
+    const completeCount = summaryCohort.filter((i) => !i.hasError).length
 
-    const withAuthenCount = allItems.filter((i) => Boolean(i.claimcode)).length
+    const withAuthenCount = summaryCohort.filter((i) => Boolean(i.claimcode)).length
     const withoutAuthenCount = totalCases - withAuthenCount
     const authenRate =
       totalCases > 0 ? Number(((withAuthenCount / totalCases) * 100).toFixed(1)) : 0
@@ -1913,7 +2209,7 @@ export class RcmFamilyPlanningService {
     }
 
     // Apply Card Filter
-    let filteredItems = allItems.filter((item) => {
+    let filteredItems = summaryCohort.filter((item) => {
       switch (cardFilter) {
         case 'COMPENSATED':
           return item.isCompensated
@@ -2046,6 +2342,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
+          ptt.pttype_eclaim_id,
           COALESCE(cc.AuthenCode, m.claimcode, '') AS claimcode,
           dep.department AS department,
           spc.name AS clinic,
@@ -2195,6 +2492,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(i.regdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
+          ptt.pttype_eclaim_id,
           COALESCE(cc.AuthenCode, m.claimcode, '') AS claimcode,
           w.name AS department,
           spc.name AS clinic,
@@ -2463,6 +2761,8 @@ export class RcmFamilyPlanningService {
         department: row.department ? String(row.department) : null,
         clinic: row.clinic ? String(row.clinic) : null,
         pttypename: String(row.pttypename || ''),
+        pttype_eclaim_id: row.pttype_eclaim_id ? String(row.pttype_eclaim_id).trim() : null,
+        isUc: isUcEclaimCode(row.pttype_eclaim_id ? String(row.pttype_eclaim_id).trim() : null),
         drugname,
         listname,
         adpcode: row.adpcode ? String(row.adpcode) : null,
@@ -2486,24 +2786,32 @@ export class RcmFamilyPlanningService {
       }
     })
 
-    const totalCases = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn).filter(Boolean)).size
-    const totalIncome = allItems.reduce((acc, i) => acc + i.income, 0)
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
-    const totalCompensatedEclaim = allItems.reduce((acc, i) => acc + i.compensated_eclaim, 0)
-    const totalCompensatedRep = allItems.reduce((acc, i) => acc + i.compensated_rep, 0)
-    const totalCompensatedNhso = allItems.reduce((acc, i) => acc + i.compensated_nhso, 0)
-    const compensatedCount = allItems.filter((i) => i.isCompensated).length
+    // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    const totalCases = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn).filter(Boolean)).size
+    const totalIncome = summaryCohort.reduce((acc, i) => acc + i.income, 0)
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
+    const totalCompensatedEclaim = summaryCohort.reduce((acc, i) => acc + i.compensated_eclaim, 0)
+    const totalCompensatedRep = summaryCohort.reduce((acc, i) => acc + i.compensated_rep, 0)
+    const totalCompensatedNhso = summaryCohort.reduce((acc, i) => acc + i.compensated_nhso, 0)
+    const compensatedCount = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedCount = totalCases - compensatedCount
     const compensationRate = totalCases > 0 ? (compensatedCount / totalCases) * 100 : 0
-    const eclaimSentCount = allItems.filter((i) => i.status && !i.status.includes('ยังไม่ได้ส่ง')).length
+    const eclaimSentCount = summaryCohort.filter((i) => i.status && !i.status.includes('ยังไม่ได้ส่ง')).length
     const unsentCount = totalCases - eclaimSentCount
-    const withAuthenCount = allItems.filter((i) => i.hasAuthen).length
+    const withAuthenCount = summaryCohort.filter((i) => i.hasAuthen).length
     const noAuthenCount = totalCases - withAuthenCount
     const authenRate = totalCases > 0 ? (withAuthenCount / totalCases) * 100 : 0
-    const withDrugCount = allItems.filter((i) => i.hasDrug).length
-    const withServiceCount = allItems.filter((i) => i.hasService).length
-    const hasErrorCount = allItems.filter((i) => i.hasError).length
+    const withDrugCount = summaryCohort.filter((i) => i.hasDrug).length
+    const withServiceCount = summaryCohort.filter((i) => i.hasService).length
+    const hasErrorCount = summaryCohort.filter((i) => i.hasError).length
 
     const summary: FamilyPlanning932Summary = {
       totalCases,
@@ -2526,7 +2834,7 @@ export class RcmFamilyPlanningService {
       hasErrorCount,
     }
 
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)
     } else if (cardFilter === 'UNCOMPENSATED') {
@@ -2652,7 +2960,8 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          COALESCE(cc.AuthenCode, cc2.claim_code, o.claim_code, '') AS authencode,
+          ptt.pttype_eclaim_id,
+          COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(cc2.auth_code), ''), NULLIF(TRIM(cc2.claim_code), ''), '') AS authencode,
           dep.department AS department,
           spc.name AS clinic,
           IFNULL(v.income, 0) AS income,
@@ -2721,7 +3030,7 @@ export class RcmFamilyPlanningService {
           GROUP BY oo.vn
         ) fp_sub ON fp_sub.vn = o.vn
         LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-        LEFT JOIN visit_pttype_authen cc2 ON cc2.vn = o.vn
+        LEFT JOIN visit_pttype cc2 ON cc2.vn = o.vn
         LEFT JOIN (
           SELECT e.opdseq AS vn,
                  SUM(COALESCE(cc.totpay1, 0)) AS income,
@@ -2785,7 +3094,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          COALESCE(cc2.claim_code, o.claim_code, '') AS authencode,
+          COALESCE(NULLIF(TRIM(cc2.auth_code), ''), NULLIF(TRIM(cc2.claim_code), ''), '') AS authencode,
           dep.department AS department,
           spc.name AS clinic,
           IFNULL(v.income, 0) AS income,
@@ -2848,7 +3157,7 @@ export class RcmFamilyPlanningService {
             AND nd.nhso_adp_code IN (?, ?)
           GROUP BY oo.vn
         ) fp_sub ON fp_sub.vn = o.vn
-        LEFT JOIN visit_pttype_authen cc2 ON cc2.vn = o.vn
+        LEFT JOIN visit_pttype cc2 ON cc2.vn = o.vn
         WHERE o.vstdate BETWEEN ? AND ?
           AND pt.sex = '2'
           AND (v.age_y >= 20 OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) >= 20)

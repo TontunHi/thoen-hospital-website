@@ -27,6 +27,7 @@ const colorectalCancerParamsSchema = z.object({
   ucOnly: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),
+  pttypes: z.string().max(300).optional(),
   searchField: z
     .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'DIAG', 'PTTYPE', 'CODE', 'LAB'])
     .optional(),

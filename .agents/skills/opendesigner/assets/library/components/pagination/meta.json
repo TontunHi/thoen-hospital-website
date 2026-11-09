@@ -1,0 +1,13 @@
+{
+  "name": "Pagination",
+  "summary": "The footer under a long table: how many rows are showing, rows per page, and previous, next and page numbers that collapse to \"Page 3 of 49\" when narrow.",
+  "use": "under a long table",
+  "type": "navigation",
+  "style": "dense",
+  "industries": ["any"],
+  "tags": ["pagination", "pager", "table footer", "pages", "rows per page"],
+  "states": ["current page", "hover", "focus", "disabled", "narrow"],
+  "source": null,
+  "a11y": "A navigation landmark named Pagination; the current page has aria-current, page buttons have full names, the ellipsis is hidden from screen readers and the row count is a polite live region.",
+  "width": "wide"
+}

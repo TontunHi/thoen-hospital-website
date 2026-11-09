@@ -240,5 +240,91 @@ describe('LtcRegistryService', () => {
     expect(syncRes.mismatches[0].hn).toBe('0005678')
     expect(apiGateway.app.transaction).toHaveBeenCalled()
   })
+
+  describe('LtcRegistryService with Named APIs', () => {
+    it('uses getLtcHns Named API when available', async () => {
+      ;(apiGateway.app as any).getLtcHns = vi.fn().mockResolvedValueOnce({
+        success: true,
+        count: 2,
+        data: ['0001234', '0005678'],
+      })
+
+      const set = await LtcRegistryService.getAllLtcHnSet()
+      expect(set.has('0001234')).toBe(true)
+      expect(set.has('0005678')).toBe(true)
+      expect((apiGateway.app as any).getLtcHns).toHaveBeenCalled()
+    })
+
+    it('uses getLtcRegistries Named API when available', async () => {
+      ;(apiGateway.app as any).getLtcRegistries = vi.fn().mockResolvedValueOnce({
+        success: true,
+        items: [{ id: 1, hn: '0001234', patientName: 'ใจดี' }],
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+        availableAreaZones: ['รพ.สต.ล้อมแรด'],
+        stats: { total: 1, avgAdl: 10, zoneCounts: { 'รพ.สต.ล้อมแรด': 1 } },
+      })
+
+      const res = await LtcRegistryService.listRegistries({ search: 'ใจดี' })
+      expect(res.items).toHaveLength(1)
+      expect(res.stats.avgAdl).toBe(10)
+      expect((apiGateway.app as any).getLtcRegistries).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'ใจดี' })
+      )
+    })
+
+    it('uses getLtcRegistryByHn Named API when available', async () => {
+      ;(apiGateway.app as any).getLtcRegistryByHn = vi.fn().mockResolvedValueOnce({
+        success: true,
+        exists: true,
+        data: { id: 5, hn: '0005555', patientName: 'นายทดสอบ' },
+      })
+
+      const rec = await LtcRegistryService.getRegistryByHn('5555')
+      expect(rec).not.toBeNull()
+      expect(rec?.id).toBe(5)
+      expect((apiGateway.app as any).getLtcRegistryByHn).toHaveBeenCalledWith('0005555')
+    })
+
+    it('uses createLtcRegistry, updateLtcRegistry, and deleteLtcRegistry Named APIs when available', async () => {
+      ;(apiGateway.app as any).getLtcRegistryByHn = vi.fn().mockResolvedValueOnce({
+        success: true,
+        exists: false,
+        data: null,
+      })
+      ;(apiGateway.app as any).createLtcRegistry = vi.fn().mockResolvedValueOnce({
+        success: true,
+        insertId: 99,
+      })
+      ;(apiGateway.app as any).getLtcRegistryById = vi.fn().mockResolvedValue({
+        success: true,
+        data: { id: 99, hn: '0009999', patientName: 'คนใหม่' },
+      })
+
+      const created = await LtcRegistryService.createRegistry({
+        hn: '9999',
+        patientName: 'คนใหม่',
+      })
+      expect(created.id).toBe(99)
+      expect((apiGateway.app as any).createLtcRegistry).toHaveBeenCalled()
+
+      ;(apiGateway.app as any).updateLtcRegistry = vi.fn().mockResolvedValueOnce({
+        success: true,
+        affectedRows: 1,
+      })
+      const updated = await LtcRegistryService.updateRegistry(99, { patientName: 'คนใหม่ แก้ไข' })
+      expect(updated.id).toBe(99)
+      expect((apiGateway.app as any).updateLtcRegistry).toHaveBeenCalled()
+
+      ;(apiGateway.app as any).deleteLtcRegistry = vi.fn().mockResolvedValueOnce({
+        success: true,
+        message: 'Deleted',
+      })
+      await LtcRegistryService.deleteRegistry(99)
+      expect((apiGateway.app as any).deleteLtcRegistry).toHaveBeenCalledWith(99)
+    })
+  })
 })
 

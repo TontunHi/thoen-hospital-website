@@ -1,0 +1,13 @@
+{
+  "name": "Service health chart",
+  "summary": "One service metric over a day against its objective, with yesterday for comparison, a deploy marker, a data gap and the moment it went wrong in the warning colour.",
+  "use": "on a status or monitoring page",
+  "type": "chart",
+  "style": "technical",
+  "industries": ["devtools", "saas"],
+  "tags": ["observability", "latency", "sparkline", "slo", "monitoring"],
+  "states": ["above objective", "missing data", "deploy marker"],
+  "source": "brand/showcase/product/04-sounding-observability",
+  "a11y": "The chart is one image with a sentence that says what it shows; the key spells out each line style, so colour is never the only cue.",
+  "width": "medium"
+}

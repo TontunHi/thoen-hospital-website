@@ -33,6 +33,8 @@ import type {
 } from '@/lib/clinical/rcmAmedHomewardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -91,6 +93,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
   const [cardFilter, setCardFilter] = useState<HomewardCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<HomewardSortField>(
@@ -192,6 +195,10 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          queryParams.set('pttypes', pttypes.join(','))
+        }
+
         if (refresh) {
           queryParams.append('refresh', 'true')
         }
@@ -221,7 +228,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -271,8 +278,8 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
     setTimeout(() => setCopiedKey(null), 2000)
   }
 
-  // Export full CSV with UTF-8 BOM
-  const handleExportCsv = async () => {
+  // Export full Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
@@ -284,6 +291,10 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         sortOrder,
         exportAll: 'true',
       })
+
+      if (pttypes.length > 0) {
+        queryParams.set('pttypes', pttypes.join(','))
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/amed-homeward/homeward?${queryParams.toString()}`
@@ -321,7 +332,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         'AdjRW',
         'แพทย์ผู้รับ',
         'แพทย์จำหน่าย',
-        'Authen Code',
+        'ClaimCode',
         'รหัสสิทธิ eClaim',
         'ชื่อสิทธิ eClaim',
         'รหัสสิทธิ รพ.',
@@ -355,81 +366,72 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         'เลข Invoice',
       ]
 
-      const csvRows: string[] = [headers.join(',')]
+      const rows = exportItems.map((item) => [
+        item.no,
+        item.an,
+        item.hn,
+        item.cid,
+        item.ptname,
+        item.sex,
+        item.age,
+        item.nation,
+        item.admdate,
+        item.dchdate,
+        item.los,
+        item.editdate || '',
+        item.day_diff,
+        item.ward,
+        item.bedno,
+        item.clinic,
+        item.prediag,
+        item.pdx,
+        item.pdxname,
+        item.sdx || '',
+        item.proc_code || '',
+        item.adjrw,
+        item.admdoctor,
+        item.dchdoctor,
+        item.authencode || '',
+        item.pttype_eclaim_id,
+        item.pttype_eclaim_name,
+        item.pttype,
+        item.pttypename,
+        item.gfmis,
+        item.accountcode,
+        item.pttypeno,
+        item.hospmain,
+        item.hospsub,
+        item.dchstts,
+        item.dchtype,
+        item.summary_status,
+        item.income,
+        item.uc_money,
+        item.discount_money,
+        item.paid_money,
+        item.rcpt_money,
+        item.debit,
+        item.max_debt_amount ?? '',
+        item.follow_money,
+        item.bill || '',
+        item.billdate || '',
+        item.staff,
+        item.address,
+        item.tel,
+        item.isOnAmed ? 'ลงทะเบียนแล้ว' : 'ยังไม่มีในระบบ',
+        item.onweb_cid || '',
+        item.anonweb || '',
+        item.rep || '',
+        item.rep_remark || '',
+        item.invoice || '',
+      ])
 
-      for (const item of exportItems) {
-        const row = [
-          item.no,
-          `"${item.an}"`,
-          `"${item.hn}"`,
-          `"${item.cid}"`,
-          `"${item.ptname}"`,
-          `"${item.sex}"`,
-          item.age,
-          `"${item.nation}"`,
-          `"${item.admdate}"`,
-          `"${item.dchdate}"`,
-          item.los,
-          `"${item.editdate || ''}"`,
-          item.day_diff,
-          `"${item.ward}"`,
-          `"${item.bedno}"`,
-          `"${item.clinic}"`,
-          `"${item.prediag.replace(/"/g, '""')}"`,
-          `"${item.pdx}"`,
-          `"${item.pdxname.replace(/"/g, '""')}"`,
-          `"${(item.sdx || '').replace(/"/g, '""')}"`,
-          `"${(item.proc_code || '').replace(/"/g, '""')}"`,
-          item.adjrw,
-          `"${item.admdoctor}"`,
-          `"${item.dchdoctor}"`,
-          `"${item.authencode || ''}"`,
-          `"${item.pttype_eclaim_id}"`,
-          `"${item.pttype_eclaim_name}"`,
-          `"${item.pttype}"`,
-          `"${item.pttypename}"`,
-          `"${item.gfmis}"`,
-          `"${item.accountcode}"`,
-          `"${item.pttypeno}"`,
-          `"${item.hospmain}"`,
-          `"${item.hospsub}"`,
-          `"${item.dchstts}"`,
-          `"${item.dchtype}"`,
-          `"${item.summary_status}"`,
-          item.income,
-          item.uc_money,
-          item.discount_money,
-          item.paid_money,
-          item.rcpt_money,
-          item.debit,
-          item.max_debt_amount ?? '',
-          item.follow_money,
-          `"${item.bill || ''}"`,
-          `"${item.billdate || ''}"`,
-          `"${item.staff}"`,
-          `"${item.address.replace(/"/g, '""')}"`,
-          `"${item.tel}"`,
-          item.isOnAmed ? '"ลงทะเบียนแล้ว"' : '"ยังไม่มีในระบบ"',
-          `"${item.onweb_cid || ''}"`,
-          `"${item.anonweb || ''}"`,
-          `"${item.rep || ''}"`,
-          `"${(item.rep_remark || '').replace(/"/g, '""')}"`,
-          `"${item.invoice || ''}"`,
-        ]
-        csvRows.push(row.join(','))
-      }
-
-      // Add UTF-8 BOM so Excel opens Thai cleanly
-      const bom = '\uFEFF'
-      const blob = new Blob([bom + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `รายงาน_HOMEWARD_${ds1}_ถึง_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `รายงาน_HOMEWARD_${ds1}_ถึง_${ds2}.xlsx`,
+        title: 'รายงาน HOMEWARD',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportItems.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: unknown) {
       alert((err as Error).message || 'เกิดข้อผิดพลาดในการส่งออกข้อมูล')
     } finally {
@@ -485,12 +487,12 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
           <button
             type="button"
             className="hw-btn hw-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกข้อมูลทั้งหมดเป็น CSV (UTF-8 BOM สำหรับ Excel)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={15} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -673,14 +675,14 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
           <div className="hw-kpi-sub">ยังไม่พบข้อมูล CID/AN บนระบบ AMed</div>
         </div>
 
-        {/* Card 4: มี Authen Code */}
+        {/* Card 4: มี ClaimCode */}
         <div
           className={`hw-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะผู้ป่วยที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะผู้ป่วยที่มี ClaimCode"
         >
           <div className="hw-kpi-card-header">
-            <span className="hw-kpi-title">มี Authen Code</span>
+            <span className="hw-kpi-title">มี ClaimCode</span>
             <div className={`hw-kpi-dot ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`} />
           </div>
           <div className="hw-kpi-value-row">
@@ -698,14 +700,14 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
           </div>
         </div>
 
-        {/* Card 5: ไม่มี Authen Code */}
+        {/* Card 5: ไม่มี ClaimCode */}
         <div
           className={`hw-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilterClick('NO_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะผู้ป่วยที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะผู้ป่วยที่ไม่มี ClaimCode"
         >
           <div className="hw-kpi-card-header">
-            <span className="hw-kpi-title">ไม่มี Authen Code</span>
+            <span className="hw-kpi-title">ไม่มี ClaimCode</span>
             <div className={`hw-kpi-dot ${cardFilter === 'NO_AUTHEN' ? 'is-active' : ''}`} />
           </div>
           <div className="hw-kpi-value-row">
@@ -802,6 +804,18 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
               <X size={14} />
             </button>
           )}
+        </div>
+
+        <div style={{ minWidth: '220px' }}>
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
         </div>
 
         <div className="hw-toolbar-info">
@@ -920,7 +934,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
                     </span>
                   </th>
                   <th className="col-center" style={{ width: 100 }}>
-                    Authen
+                    ClaimCode
                   </th>
                   <th className="col-center" style={{ width: 120 }}>
                     สถานะ AMed
@@ -1302,7 +1316,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
                         </span>
                       </div>
                       <div className="hw-detail-row">
-                        <span className="hw-detail-label">Authen Code:</span>
+                        <span className="hw-detail-label">ClaimCode:</span>
                         <span className="hw-detail-value" style={{ fontWeight: 600 }}>
                           {selectedItem.authencode || 'ไม่มี'}
                         </span>

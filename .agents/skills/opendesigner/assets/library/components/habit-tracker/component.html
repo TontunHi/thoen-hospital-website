@@ -1,0 +1,123 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-habit-tracker { box-sizing: border-box; inline-size: 100%; max-inline-size: 42rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-habit-tracker *, .odl-habit-tracker *::before, .odl-habit-tracker *::after { box-sizing: border-box; }
+.odl-habit-tracker p { margin: 0; }
+.odl-habit-tracker .odl-card { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-habit-tracker .odl-head { display: flex; align-items: end; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-habit-tracker h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-habit-tracker .odl-sub { margin-block-start: var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-habit-tracker .odl-today { display: grid; justify-items: end; gap: var(--ds-space-stack-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-habit-tracker .odl-today b { color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
+.odl-habit-tracker .odl-meter { inline-size: calc(var(--ds-size-control-lg) * 2.4); block-size: var(--ds-space-8); overflow: hidden; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); }
+.odl-habit-tracker .odl-meter span { display: block; inline-size: var(--p, 50%); block-size: 100%; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-accent-bold);
+  transition: inline-size var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-habit-tracker .odl-week, .odl-habit-tracker .odl-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.odl-habit-tracker .odl-week { margin: 0; padding: 0; list-style: none; color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); text-align: center; }
+.odl-habit-tracker .odl-week li { display: grid; gap: var(--ds-space-stack-xs); justify-items: center; }
+.odl-habit-tracker .odl-week b { color: var(--ds-color-text-primary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-habit-tracker .odl-week .is-today, .odl-habit-tracker .odl-week .is-today b { color: var(--ds-color-text-accent); }
+.odl-habit-tracker .odl-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.odl-habit-tracker .odl-habit { display: grid; gap: var(--ds-space-stack-md); padding-block: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-habit-tracker .odl-name { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--ds-space-inline-md); }
+.odl-habit-tracker .odl-icon { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-default); }
+.odl-habit-tracker .odl-icon svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-habit-tracker .odl-title { font: var(--ds-text-label-lg); }
+.odl-habit-tracker .odl-streak { display: flex; align-items: center; gap: var(--ds-space-inline-xs); margin-block-start: var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-habit-tracker .odl-streak svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-default); }
+.odl-habit-tracker .odl-habit.is-cold .odl-streak svg { color: var(--ds-color-text-disabled); }
+.odl-habit-tracker .odl-habit { --fill: var(--ds-color-bg-accent-bold); --on: var(--ds-color-text-on-accent); }
+.odl-habit-tracker .odl-days button { display: grid; place-items: center; min-inline-size: 0; min-block-size: var(--ds-size-target-touch); padding: 0; border: 0; border-radius: var(--ds-radius-full); background: transparent; cursor: pointer; }
+.odl-habit-tracker .odl-days button > span { display: grid; place-items: center; inline-size: calc(var(--ds-size-icon-lg) * 1.4); aspect-ratio: 1; border-radius: var(--ds-radius-full);
+  border: var(--ds-border-width-emphasis) solid var(--ds-color-border-default); color: transparent;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-habit-tracker .odl-days button > span svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-lg); }
+.odl-habit-tracker .odl-days button:hover > span { border-color: var(--ds-color-border-strong); }
+.odl-habit-tracker .odl-days button:active > span { transform: scale(var(--ds-motion-scale-press)); }
+.odl-habit-tracker .odl-days button.is-today > span { border-color: var(--fill); }
+.odl-habit-tracker .odl-days button[aria-pressed="true"] > span { border-color: var(--fill); background: var(--fill); color: var(--on); }
+.odl-habit-tracker .odl-days button:disabled { cursor: default; }
+.odl-habit-tracker .odl-days button:disabled > span { border-style: dashed; border-color: var(--ds-color-border-subtle); }
+.odl-habit-tracker .odl-days button:focus-visible { outline: none; }
+.odl-habit-tracker .odl-days button:focus-visible > span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-habit-tracker .odl-add { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); inline-size: 100%; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-touch));
+  border: var(--ds-border-width-default) dashed var(--ds-color-border-strong); border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-habit-tracker .odl-add:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-habit-tracker .odl-add svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-habit-tracker .odl-add:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* Wider: name on the left, the week on the right, one row per habit, the day letters over the same columns. */
+@container (min-width: 34rem) {
+  .odl-habit-tracker .odl-grid { --cols: minmax(0, 1fr) auto; }
+  .odl-habit-tracker .odl-week, .odl-habit-tracker .odl-days { grid-template-columns: repeat(7, calc(var(--ds-size-icon-lg) * 1.4 + var(--ds-space-12))); }
+  .odl-habit-tracker .odl-weekrow { display: grid; grid-template-columns: var(--cols); }
+  .odl-habit-tracker .odl-weekrow .odl-week { grid-column: 2; }
+  .odl-habit-tracker .odl-habit { grid-template-columns: var(--cols); align-items: center; }
+}
+@container (max-width: 26rem) { .odl-habit-tracker .odl-card { padding: var(--ds-space-inset-lg); } .odl-habit-tracker .odl-days button > span { inline-size: calc(var(--ds-size-icon-lg) * 1.25); } }
+@media (prefers-reduced-motion: reduce) { .odl-habit-tracker, .odl-habit-tracker *, .odl-habit-tracker *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-habit-tracker" aria-labelledby="odl-ht-title">
+  <div class="odl-card">
+    <div class="odl-head">
+      <div><h3 id="odl-ht-title">Habits</h3><p class="odl-sub">Week of 19 Oct</p></div>
+      <div class="odl-today"><span aria-live="polite"><b class="odl-count">2 of 4</b> done today</span><span class="odl-meter" aria-hidden="true"><span></span></span></div>
+    </div>
+    <div class="odl-grid">
+      <div class="odl-weekrow" aria-hidden="true"><ul class="odl-week">
+        <li>M<b>19</b></li><li>T<b>20</b></li><li>W<b>21</b></li><li class="is-today">T<b>22</b></li><li>F<b>23</b></li><li>S<b>24</b></li><li>S<b>25</b></li>
+      </ul></div>
+      <ul class="odl-list">
+      <li class="odl-habit is-water" data-base="9">
+        <div class="odl-name"><span class="odl-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg></span>
+          <div><p class="odl-title">Drink 8 glasses of water</p><p class="odl-streak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span><span class="odl-n">13</span>-day streak</span></p></div></div>
+        <div class="odl-days" role="group" aria-label="Drink 8 glasses of water, this week"><button type="button" aria-pressed="true" aria-label="Monday 19 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="true" aria-label="Tuesday 20 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="true" aria-label="Wednesday 21 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" class="is-today" aria-pressed="true" aria-label="Thursday 22 Oct, today"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" disabled aria-label="Friday 23 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Saturday 24 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Sunday 25 Oct, not yet"><span aria-hidden="true"></span></button></div>
+      </li>
+      <li class="odl-habit is-read" data-base="0">
+        <div class="odl-name"><span class="odl-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
+          <div><p class="odl-title">Read 20 pages</p><p class="odl-streak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span><span class="odl-n">1</span>-day streak</span></p></div></div>
+        <div class="odl-days" role="group" aria-label="Read 20 pages, this week"><button type="button" aria-pressed="true" aria-label="Monday 19 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="false" aria-label="Tuesday 20 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="true" aria-label="Wednesday 21 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" class="is-today" aria-pressed="false" aria-label="Thursday 22 Oct, today"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" disabled aria-label="Friday 23 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Saturday 24 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Sunday 25 Oct, not yet"><span aria-hidden="true"></span></button></div>
+      </li>
+      <li class="odl-habit is-walk" data-base="14">
+        <div class="odl-name"><span class="odl-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg></span>
+          <div><p class="odl-title">Walk 8,000 steps</p><p class="odl-streak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span><span class="odl-n">17</span>-day streak</span></p></div></div>
+        <div class="odl-days" role="group" aria-label="Walk 8,000 steps, this week"><button type="button" aria-pressed="true" aria-label="Monday 19 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="true" aria-label="Tuesday 20 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="true" aria-label="Wednesday 21 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" class="is-today" aria-pressed="false" aria-label="Thursday 22 Oct, today"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" disabled aria-label="Friday 23 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Saturday 24 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Sunday 25 Oct, not yet"><span aria-hidden="true"></span></button></div>
+      </li>
+      <li class="odl-habit is-stretch" data-base="0">
+        <div class="odl-name"><span class="odl-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 6-2"/><path d="M12 10v4"/></svg></span>
+          <div><p class="odl-title">Stretch for 10 minutes</p><p class="odl-streak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span><span class="odl-n">3</span>-day streak</span></p></div></div>
+        <div class="odl-days" role="group" aria-label="Stretch for 10 minutes, this week"><button type="button" aria-pressed="false" aria-label="Monday 19 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="true" aria-label="Tuesday 20 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" aria-pressed="true" aria-label="Wednesday 21 Oct"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" class="is-today" aria-pressed="true" aria-label="Thursday 22 Oct, today"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></button><button type="button" disabled aria-label="Friday 23 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Saturday 24 Oct, not yet"><span aria-hidden="true"></span></button><button type="button" disabled aria-label="Sunday 25 Oct, not yet"><span aria-hidden="true"></span></button></div>
+      </li>
+      </ul>
+    </div>
+    <button type="button" class="odl-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Add a habit</button>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-habit-tracker").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const TODAY = 3; // Thursday: the days after it are not yet
+  const count = root.querySelector(".odl-count"), meter = root.querySelector(".odl-meter span");
+  const update = () => {
+    const habits = [...root.querySelectorAll(".odl-habit")];
+    let today = 0;
+    habits.forEach((h) => {
+      const done = [...h.querySelectorAll(".odl-days button")].slice(0, TODAY + 1).map((b) => b.getAttribute("aria-pressed") === "true");
+      if (done[TODAY]) today += 1;
+      let i = done[TODAY] ? TODAY : TODAY - 1, n = 0;
+      while (i >= 0 && done[i]) { n += 1; i -= 1; }
+      if (i < 0) n += Number(h.dataset.base);
+      h.querySelector(".odl-n").textContent = String(n);
+      h.classList.toggle("is-cold", n === 0);
+    });
+    count.textContent = `${today} of ${habits.length}`;
+    meter.style.inlineSize = (today / habits.length) * 100 + "%";
+  };
+  root.querySelectorAll(".odl-days button:not(:disabled)").forEach((b) => b.addEventListener("click", () => {
+    b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); update();
+  }));
+  update();
+});
+</script>

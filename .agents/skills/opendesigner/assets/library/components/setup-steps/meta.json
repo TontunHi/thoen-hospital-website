@@ -1,0 +1,13 @@
+{
+  "name": "Setup checklist",
+  "summary": "A short list of first steps with progress: what is done, the one step to do now with its time and a way to skip, and what comes next.",
+  "use": "for a new account's first steps",
+  "type": "navigation",
+  "style": "friendly",
+  "industries": ["saas", "finance", "education", "health"],
+  "tags": ["onboarding", "checklist", "progress", "steps", "setup"],
+  "states": ["done", "current", "upcoming", "hover", "focus"],
+  "source": "brand/showcase/components/09-onboarding-stepper",
+  "a11y": "An ordered list with the current step marked aria-current; progress is a native progress element with a label, and the count is also written out.",
+  "width": "narrow"
+}

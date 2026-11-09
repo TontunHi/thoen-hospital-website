@@ -1,0 +1,36 @@
+{
+  "name": "Menu item",
+  "summary": "A restaurant dish as a sheet: a photo, description, a required choice, optional extras with prices and a limit, a note for the kitchen, quantity and an Add button with the live total.",
+  "use": "when someone taps a dish on a restaurant or café menu",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": [
+    "food"
+  ],
+  "tags": [
+    "menu",
+    "dish",
+    "options",
+    "extras",
+    "add to order",
+    "food delivery"
+  ],
+  "states": [
+    "required unanswered",
+    "required done",
+    "extras at limit",
+    "quantity",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The base and extras are native radio and checkbox groups whose whole row is the label; extras past the limit are disabled, the note has a label, the count is announced, and the Add button carries the live total.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1546069901-ba9599a7e63c",
+      "author": "Anh Nguyen",
+      "page": "kcA-c3f_3FE"
+    }
+  ]
+}

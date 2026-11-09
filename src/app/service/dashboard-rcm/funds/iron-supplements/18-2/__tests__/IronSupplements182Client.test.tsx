@@ -128,8 +128,8 @@ describe('IronSupplements182Client Component', () => {
     expect(screen.getByText('ชดเชยแล้ว')).toBeInTheDocument()
     expect(screen.getByText('รอชดเชย / ยังไม่ชดเชย')).toBeInTheDocument()
     expect(screen.getByText('สิทธิบัตรทอง (UC)')).toBeInTheDocument()
-    expect(screen.getByText('มี Authen Code')).toBeInTheDocument()
-    expect(screen.getByText('ไม่มี Authen Code')).toBeInTheDocument()
+    expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
+    expect(screen.getByText('ไม่มี ClaimCode')).toBeInTheDocument()
     expect(screen.getByText('มีรหัส ADP 14001')).toBeInTheDocument()
     expect(screen.getByText('จ่ายยาธาตุเหล็ก (DID)')).toBeInTheDocument()
 

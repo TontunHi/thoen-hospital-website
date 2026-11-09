@@ -82,15 +82,31 @@ export class LtcRegistryService {
     }
 
     try {
-      const rows = await apiGateway.app.query<{ hn: string }>(
-        'SELECT hn FROM long_term_care_registries WHERE hn IS NOT NULL'
-      )
+      let hns: string[] = []
+      if (typeof (apiGateway.app as any).getLtcHns === 'function') {
+        try {
+          const res = await (apiGateway.app as any).getLtcHns()
+          if (res && res.success && Array.isArray(res.data)) {
+            hns = res.data
+          }
+        } catch (apiErr) {
+          logger.warn({ apiErr }, 'Fallback to raw query for getAllLtcHnSet')
+        }
+      }
+
+      if (hns.length === 0) {
+        const rows = await apiGateway.app.query<{ hn: string }>(
+          'SELECT hn FROM long_term_care_registries WHERE hn IS NOT NULL'
+        )
+        hns = rows.map((r) => r.hn).filter(Boolean)
+      }
+
       const set = new Set<string>()
-      for (const r of rows) {
-        if (r.hn) {
-          const cleanHn = String(r.hn).trim().padStart(7, '0')
+      for (const hn of hns) {
+        if (hn) {
+          const cleanHn = String(hn).trim().padStart(7, '0')
           set.add(cleanHn)
-          set.add(String(r.hn).trim())
+          set.add(String(hn).trim())
         }
       }
       ltcHnCache = { set, timestamp: now }
@@ -146,15 +162,22 @@ export class LtcRegistryService {
     // Check if patient is already in LTC
     const existingLtc = await this.getRegistryByHn(cleanHn)
 
-    // Check if patient is in Palliative Care registry
+    // Check if patient is in Palliative Care registry via Named API
     let isPalliative = false
     try {
-      const palRows = await apiGateway.app.query<{ id: number }>(
-        'SELECT id FROM palliative_care_registries WHERE hn = ? LIMIT 1',
-        [cleanHn]
-      )
-      if (palRows && palRows.length > 0) {
-        isPalliative = true
+      if (typeof apiGateway.app.getPalliativeRegistryByHn === 'function') {
+        const pal = await apiGateway.app.getPalliativeRegistryByHn(cleanHn)
+        if (pal && (pal as any).id) {
+          isPalliative = true
+        }
+      } else {
+        const palRows = await apiGateway.app.query<{ id: number }>(
+          'SELECT id FROM palliative_care_registries WHERE hn = ? LIMIT 1',
+          [cleanHn]
+        )
+        if (palRows && palRows.length > 0) {
+          isPalliative = true
+        }
       }
     } catch (err) {
       logger.warn({ err }, 'Failed to check palliative care status for LTC lookup')
@@ -182,6 +205,31 @@ export class LtcRegistryService {
     const limit = Math.max(1, Math.min(1000, Number(params.limit) || 20))
     const search = (params.search || '').trim().toLowerCase()
     const areaZone = (params.areaZone || '').trim()
+
+    if (typeof (apiGateway.app as any).getLtcRegistries === 'function') {
+      try {
+        const res = await (apiGateway.app as any).getLtcRegistries({
+          search,
+          areaZone,
+          page,
+          limit,
+          exportAll: params.exportAll,
+        })
+        if (res && res.success && Array.isArray(res.items)) {
+          return {
+            items: res.items,
+            total: res.total,
+            page: res.page,
+            limit: res.limit,
+            totalPages: res.totalPages,
+            availableAreaZones: res.availableAreaZones || [],
+            stats: res.stats || { total: res.total, avgAdl: 0, zoneCounts: {} },
+          }
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Fallback to raw query for listRegistries')
+      }
+    }
 
     // Query all records from Website DB
     const sql = `
@@ -273,6 +321,17 @@ export class LtcRegistryService {
    * Retrieves a single LTC record by its primary key ID.
    */
   static async getRegistryById(id: number): Promise<LongTermCareRecord | null> {
+    if (typeof (apiGateway.app as any).getLtcRegistryById === 'function') {
+      try {
+        const res = await (apiGateway.app as any).getLtcRegistryById(id)
+        if (res && res.success && res.data) {
+          return res.data as LongTermCareRecord
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Fallback to raw query for getRegistryById')
+      }
+    }
+
     const rows = await apiGateway.app.query<LongTermCareRecord>(
       `
       SELECT 
@@ -306,6 +365,18 @@ export class LtcRegistryService {
   static async getRegistryByHn(hn: string): Promise<LongTermCareRecord | null> {
     const cleanHn = String(hn).trim().padStart(7, '0')
     const rawHn = String(hn).trim()
+
+    if (typeof (apiGateway.app as any).getLtcRegistryByHn === 'function') {
+      try {
+        const res = await (apiGateway.app as any).getLtcRegistryByHn(cleanHn)
+        if (res && res.success) {
+          if (res.exists && res.data) return res.data as LongTermCareRecord
+          if (res.exists === false) return null
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Fallback to raw query for getRegistryByHn')
+      }
+    }
 
     const rows = await apiGateway.app.query<LongTermCareRecord>(
       `
@@ -376,23 +447,53 @@ export class LtcRegistryService {
     `
 
     const user = context?.username || 'system'
-    const res = await apiGateway.app.execute(insertSql, [
-      cleanHn,
-      payload.cid?.trim() || null,
-      payload.patientName.trim(),
-      payload.address?.trim() || null,
-      payload.moo?.trim() || null,
-      payload.tambon?.trim() || null,
-      payload.age !== null && payload.age !== undefined ? Number(payload.age) : null,
-      payload.adlScore !== null && payload.adlScore !== undefined ? Number(payload.adlScore) : null,
-      payload.areaZone?.trim() || null,
-      user,
-      user,
-    ])
+    let insertId: number = 0
+
+    if (typeof (apiGateway.app as any).createLtcRegistry === 'function') {
+      try {
+        const createRes = await (apiGateway.app as any).createLtcRegistry({
+          hn: cleanHn,
+          cid: payload.cid?.trim() || null,
+          patientName: payload.patientName.trim(),
+          address: payload.address?.trim() || null,
+          moo: payload.moo?.trim() || null,
+          tambon: payload.tambon?.trim() || null,
+          age: payload.age !== null && payload.age !== undefined ? Number(payload.age) : null,
+          adlScore: payload.adlScore !== null && payload.adlScore !== undefined ? Number(payload.adlScore) : null,
+          areaZone: payload.areaZone?.trim() || null,
+          createdBy: user,
+        })
+        if (createRes && createRes.insertId) {
+          insertId = createRes.insertId
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('มีรายชื่อในทะเบียน')) {
+          throw err
+        }
+        logger.warn({ err }, 'Fallback to raw execute for createRegistry')
+      }
+    }
+
+    if (!insertId) {
+      const res = await apiGateway.app.execute(insertSql, [
+        cleanHn,
+        payload.cid?.trim() || null,
+        payload.patientName.trim(),
+        payload.address?.trim() || null,
+        payload.moo?.trim() || null,
+        payload.tambon?.trim() || null,
+        payload.age !== null && payload.age !== undefined ? Number(payload.age) : null,
+        payload.adlScore !== null && payload.adlScore !== undefined ? Number(payload.adlScore) : null,
+        payload.areaZone?.trim() || null,
+        user,
+        user,
+      ])
+      insertId = res.insertId || 0
+    }
 
     this.invalidateCache()
 
-    const created = await this.getRegistryById(res.insertId || 0)
+    const created = await this.getRegistryById(insertId || 0)
     if (!created) {
       // Fallback lookup by HN if insertId wasn't returned
       const byHn = await this.getRegistryByHn(cleanHn)
@@ -483,7 +584,34 @@ export class LtcRegistryService {
       WHERE id = ?
     `
 
-    await apiGateway.app.execute(updateSql, values)
+    let updatedViaApi = false
+    if (typeof (apiGateway.app as any).updateLtcRegistry === 'function') {
+      try {
+        const updatePayload: Record<string, unknown> = {
+          updatedBy: context?.username || 'system'
+        }
+        if (payload.patientName !== undefined) updatePayload.patientName = payload.patientName.trim()
+        if (payload.cid !== undefined) updatePayload.cid = payload.cid ? payload.cid.trim() : null
+        if (payload.address !== undefined) updatePayload.address = payload.address ? payload.address.trim() : null
+        if (payload.moo !== undefined) updatePayload.moo = payload.moo ? payload.moo.trim() : null
+        if (payload.tambon !== undefined) updatePayload.tambon = payload.tambon ? payload.tambon.trim() : null
+        if (payload.age !== undefined) updatePayload.age = payload.age !== null ? Number(payload.age) : null
+        if (payload.adlScore !== undefined) updatePayload.adlScore = payload.adlScore !== null ? Number(payload.adlScore) : null
+        if (payload.areaZone !== undefined) updatePayload.areaZone = payload.areaZone ? payload.areaZone.trim() : null
+
+        const res = await (apiGateway.app as any).updateLtcRegistry(id, updatePayload)
+        if (res && res.success) {
+          updatedViaApi = true
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Fallback to raw execute for updateRegistry')
+      }
+    }
+
+    if (!updatedViaApi) {
+      await apiGateway.app.execute(updateSql, values)
+    }
+
     this.invalidateCache()
 
     const updated = await this.getRegistryById(id)
@@ -514,7 +642,22 @@ export class LtcRegistryService {
       throw new Error(`ไม่พบข้อมูลทะเบียน LTC รหัส ${id}`)
     }
 
-    await apiGateway.app.execute('DELETE FROM long_term_care_registries WHERE id = ?', [id])
+    let deletedViaApi = false
+    if (typeof (apiGateway.app as any).deleteLtcRegistry === 'function') {
+      try {
+        const res = await (apiGateway.app as any).deleteLtcRegistry(id)
+        if (res && res.success) {
+          deletedViaApi = true
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Fallback to raw execute for deleteRegistry')
+      }
+    }
+
+    if (!deletedViaApi) {
+      await apiGateway.app.execute('DELETE FROM long_term_care_registries WHERE id = ?', [id])
+    }
+
     this.invalidateCache()
 
     try {

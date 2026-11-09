@@ -1,0 +1,69 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-article-card { box-sizing: border-box; position: relative; inline-size: 100%; max-inline-size: 760px; margin-inline: auto; container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1fr);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); text-wrap: pretty; overflow: hidden;
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), box-shadow var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-article-card *, .odl-article-card *::before, .odl-article-card *::after { box-sizing: border-box; }
+.odl-article-card:hover { border-color: var(--ds-color-border-default); box-shadow: var(--ds-elevation-floating); }
+.odl-article-card:has(.odl-link:focus-visible) { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-article-card .odl-inner { display: grid; grid-template-columns: minmax(0, 1fr); }
+.odl-article-card .odl-cover { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 16 / 9; object-fit: cover; background: var(--ds-color-surface-sunken); }
+.odl-article-card .odl-body { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--ds-space-stack-sm); padding: var(--ds-space-inset-lg); }
+.odl-article-card .odl-kicker { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); font-variant-numeric: tabular-nums; }
+.odl-article-card .odl-kicker b { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-article-card h3 { margin: 0; font: var(--ds-text-title-lg); text-wrap: balance; }
+.odl-article-card .odl-link { color: inherit; text-decoration: none; outline: none; }
+.odl-article-card .odl-link::after { content: ""; position: absolute; inset: 0; }
+.odl-article-card:hover .odl-link { text-decoration: underline; text-decoration-thickness: var(--ds-border-width-default); text-underline-offset: var(--ds-space-4); }
+.odl-article-card .odl-dek { margin: 0; color: var(--ds-color-text-secondary); }
+.odl-article-card footer { display: flex; align-items: center; gap: var(--ds-space-inline-md); margin-block-start: var(--ds-space-stack-md); padding-block-start: var(--ds-space-stack-md);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-article-card .odl-avatar { flex: none; display: block; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-person); object-fit: cover;
+  background: var(--ds-color-surface-sunken); }
+.odl-article-card .odl-byline { flex: 1; min-inline-size: 0; display: grid; gap: var(--ds-space-2); font: var(--ds-text-body-sm); }
+.odl-article-card .odl-byline strong { font-weight: var(--ds-font-weight-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-article-card .odl-byline time { color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
+.odl-article-card .odl-save { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm);
+  min-inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised);
+  color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-article-card .odl-save:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-article-card .odl-save svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-article-card .odl-save[aria-pressed="true"] { background: var(--ds-color-bg-accent-subtle); border-color: var(--ds-color-border-accent); color: var(--ds-color-text-accent); }
+.odl-article-card .odl-save[aria-pressed="true"] path { fill: currentColor; }
+.odl-article-card .odl-save .odl-on { display: none; }
+.odl-article-card .odl-save[aria-pressed="true"] .odl-on { display: inline; }
+.odl-article-card .odl-save[aria-pressed="true"] .odl-off { display: none; }
+.odl-article-card .odl-save:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* Wide: the photo sits beside the text and fills the card's height. */
+@container (min-width: 34rem) {
+  .odl-article-card .odl-inner { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+  .odl-article-card .odl-cover { block-size: 100%; aspect-ratio: auto; min-block-size: 18rem; }
+  .odl-article-card .odl-body { align-content: center; padding: var(--ds-space-inset-xl); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-article-card, .odl-article-card *, .odl-article-card *::before, .odl-article-card *::after { transition: none !important; animation: none !important; } }
+</style>
+<article class="odl-article-card">
+  <div class="odl-inner">
+  <img class="odl-cover" src="https://images.unsplash.com/photo-1762983870490-63e5ba07105b?w=800&h=600&fit=crop&auto=format&q=70" alt="A home office desk with a computer and plants" width="400" height="300" loading="lazy" decoding="async">
+  <div class="odl-body">
+    <p class="odl-kicker"><b>Changelog</b> · 6 min read</p>
+    <h3><a class="odl-link" href="#approvals-by-amount">Approvals now route by amount, not by team</a></h3>
+    <p class="odl-dek">Bills over €5,000 now go straight to finance. Smaller ones stay with the budget owner, starting Nov 4.</p>
+    <footer>
+      <img class="odl-avatar" src="https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?w=96&h=96&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async">
+      <span class="odl-byline"><strong>Kwabena Asante</strong><time datetime="2026-11-02">Nov 2, 2026</time></span>
+      <button type="button" class="odl-save" aria-pressed="false" aria-label="Save article"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg><span class="odl-off">Save</span><span class="odl-on">Saved</span></button>
+    </footer>
+  </div>
+  </div>
+</article>
+<script>
+document.querySelectorAll(".odl-article-card").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const save = root.querySelector(".odl-save");
+  save.addEventListener("click", () => save.setAttribute("aria-pressed", save.getAttribute("aria-pressed") === "true" ? "false" : "true"));
+});
+</script>

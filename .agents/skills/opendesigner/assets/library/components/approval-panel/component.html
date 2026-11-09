@@ -1,0 +1,106 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-approval-panel { box-sizing: border-box; inline-size: 100%; max-inline-size: 52rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-approval-panel .odl-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-xl); padding: var(--ds-space-inset-xl);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-approval-panel *, .odl-approval-panel *::before { box-sizing: border-box; }
+.odl-approval-panel .odl-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); }
+.odl-approval-panel .odl-vendor { margin: 0; font: var(--ds-text-title-md); }
+.odl-approval-panel .odl-badge { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); padding: var(--ds-space-2) var(--ds-space-inset-sm); white-space: nowrap;
+  border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-approval-panel .odl-amount { margin: 0; font: var(--ds-text-headline-sm); font-variant-numeric: tabular-nums; }
+.odl-approval-panel .odl-amount span { color: var(--ds-color-text-tertiary); }
+.odl-approval-panel .odl-amount small { margin-inline-start: var(--ds-space-4); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); }
+.odl-approval-panel .odl-due { margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-text-secondary); }
+.odl-approval-panel .odl-policy { display: flex; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-inset-md) var(--ds-space-inset-lg);
+  border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); }
+.odl-approval-panel .odl-policy svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin-block-start: calc((1lh - var(--ds-size-icon-sm)) / 2); color: var(--ds-color-text-warning); stroke-width: var(--ds-icon-stroke-md); }
+.odl-approval-panel .odl-label { margin: 0 0 var(--ds-space-stack-md); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-approval-panel ol { list-style: none; margin: 0; padding: 0; display: grid; }
+.odl-approval-panel li { position: relative; display: grid; grid-template-columns: var(--ds-size-icon-md) minmax(0, 1fr) auto; column-gap: var(--ds-space-inline-md); align-items: start; padding-block-end: var(--ds-space-stack-lg); }
+.odl-approval-panel li:last-child { padding-block-end: 0; }
+.odl-approval-panel li:not(:last-child)::before { content: ""; position: absolute; inset-inline-start: calc(var(--ds-size-icon-md) / 2 - var(--ds-border-width-emphasis) / 2);
+  inset-block: var(--ds-size-icon-md) 0; inline-size: var(--ds-border-width-emphasis); background: var(--ds-color-border-subtle); }
+.odl-approval-panel li.is-done:not(:last-child)::before { background: var(--ds-color-bg-success-bold); }
+.odl-approval-panel li time, .odl-approval-panel li .odl-when { color: var(--ds-color-text-tertiary); font: var(--ds-text-body-sm); white-space: nowrap; }
+.odl-approval-panel .odl-dot { position: relative; z-index: 1; background: var(--ds-color-surface-raised); inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); border-radius: var(--ds-radius-full); display: grid; place-items: center;
+  border: var(--ds-border-width-emphasis) solid var(--ds-color-border-default); color: var(--ds-color-icon-on-accent); }
+.odl-approval-panel .is-done .odl-dot { background: var(--ds-color-bg-success-bold); border-color: var(--ds-color-bg-success-bold); color: var(--ds-color-text-on-success); }
+.odl-approval-panel .is-now .odl-dot { border-color: var(--ds-color-text-primary); }
+.odl-approval-panel .is-now .odl-dot::after { content: ""; inline-size: 50%; block-size: 50%; border-radius: var(--ds-radius-full); background: var(--ds-color-text-primary); }
+.odl-approval-panel .odl-dot svg { inline-size: 70%; block-size: 70%; stroke-width: var(--ds-icon-stroke-lg); }
+.odl-approval-panel .is-next { color: var(--ds-color-text-secondary); }
+.odl-approval-panel dl { margin: 0; display: grid; gap: var(--ds-space-stack-sm); font-variant-numeric: tabular-nums; }
+.odl-approval-panel dl div { display: flex; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-approval-panel dt { color: var(--ds-color-text-secondary); white-space: nowrap; }
+.odl-approval-panel dd { margin: 0; text-align: end; white-space: nowrap; }
+.odl-approval-panel .odl-total { margin-block-start: var(--ds-space-stack-xs); padding-block-start: var(--ds-space-stack-md); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  font-weight: var(--ds-font-weight-heading); }
+.odl-approval-panel .odl-total dt { color: var(--ds-color-text-primary); }
+.odl-approval-panel .odl-actions { display: flex; justify-content: space-between; align-items: center; gap: var(--ds-space-inline-sm);
+  padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-approval-panel .odl-side { padding: var(--ds-space-inset-lg); border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-sunken); }
+.odl-approval-panel .odl-main, .odl-approval-panel .odl-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-xl); align-content: start; }
+.odl-approval-panel button { justify-content: center; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-lg); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg);
+  font-weight: var(--ds-font-weight-label); cursor: pointer; display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs);
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-approval-panel .odl-reject { background: transparent; color: var(--ds-color-text-danger); border: var(--ds-border-width-default) solid var(--ds-color-border-default); }
+.odl-approval-panel .odl-reject:hover { background: var(--ds-color-bg-danger-subtle); }
+.odl-approval-panel .odl-approve { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); border: 0; }
+.odl-approval-panel .odl-approve:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-approval-panel .odl-approve:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-approval-panel button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-approval-panel button svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+/* Wide: the decision on the left, the money and the buttons in a quiet column on the right. */
+@container (min-width: 40rem) {
+  .odl-approval-panel .odl-card { grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.8fr); column-gap: var(--ds-space-inset-xl); padding: var(--ds-space-inset-xl); }
+  .odl-approval-panel .odl-head { grid-column: 1 / -1; }
+  .odl-approval-panel .odl-side { padding: var(--ds-space-inset-xl); }
+  .odl-approval-panel .odl-actions { padding-block-start: 0; border: 0; flex-direction: column-reverse; align-items: stretch; }
+}
+/* Narrow: Approve takes the width; Reject stays a clear second choice. */
+@container (max-width: 30rem) {
+  .odl-approval-panel .odl-card { padding: var(--ds-space-inset-lg); gap: var(--ds-space-stack-lg); }
+  .odl-approval-panel .odl-policy { padding: var(--ds-space-inset-md); }
+  .odl-approval-panel .odl-approve { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-approval-panel, .odl-approval-panel *, .odl-approval-panel *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-approval-panel" aria-label="Bill from Tressel Freight Brokers">
+  <div class="odl-card">
+  <div class="odl-head"><h3 class="odl-vendor">Tressel Freight Brokers</h3><span class="odl-badge">1 of 2 approved</span></div>
+  <div class="odl-main">
+  <div>
+    <p class="odl-amount">$7,418<span>.60</span><small>USD</small></p>
+    <p class="odl-due">Due Oct 21 · in 7 days · Net 30</p>
+  </div>
+  <p class="odl-policy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <span><strong>Over $5,000: needs CFO approval.</strong> The budget owner approved; you are the last approver.</span></p>
+  <div>
+    <p class="odl-label">Approvals</p>
+    <ol>
+      <li class="is-done"><span class="odl-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Submitted by Nandini Iyer</span><time>Oct 9</time></li>
+      <li class="is-done"><span class="odl-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Approved by Bettina Marangoni</span><time>Oct 10</time></li>
+      <li class="is-now" aria-current="step"><span class="odl-dot"></span><span><strong>Waiting for you</strong>, CFO</span><span class="odl-when">4 days</span></li>
+      <li class="is-next"><span class="odl-dot"></span><span>ACH payment on Oct 20</span><span class="odl-when">after approval</span></li>
+    </ol>
+  </div>
+  </div>
+  <div class="odl-side">
+  <div>
+    <p class="odl-label">If you approve</p>
+    <dl>
+      <div><dt>Balance today</dt><dd>$63,904.52</dd></div>
+      <div><dt>Bills before Oct 20</dt><dd>−$15,277.75</dd></div>
+      <div><dt>This bill</dt><dd>−$7,418.60</dd></div>
+      <div class="odl-total"><dt>Left on Oct 20</dt><dd>$41,208.17</dd></div>
+    </dl>
+  </div>
+  <div class="odl-actions">
+    <button type="button" class="odl-reject">Reject</button>
+    <button type="button" class="odl-approve"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Approve</button>
+  </div>
+  </div>
+  </div>
+</section>

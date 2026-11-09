@@ -1,0 +1,37 @@
+{
+  "name": "Savings goal",
+  "summary": "A savings pot with a cover photo: the goal, a ring of how much is saved, what is left and the date it is on track for, a round-ups switch, and quick amounts to add money that move the ring.",
+  "use": "in a personal banking or budgeting app, for a pot people save toward",
+  "type": "chart",
+  "style": "friendly",
+  "industries": [
+    "money"
+  ],
+  "tags": [
+    "savings",
+    "goal",
+    "progress ring",
+    "round-ups",
+    "pot"
+  ],
+  "states": [
+    "in progress",
+    "round-ups on",
+    "round-ups off",
+    "amount selected",
+    "money added",
+    "goal reached",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The ring is a progressbar that reads \"£1,840 of £3,000, 61%\"; round-ups is a whole-row switch, the amounts are a radio group, and each top-up is announced in a polite live region.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1507525428034-b723cf961d3e",
+      "author": "Sean Oulashin",
+      "page": "KMn4VEeEPR8"
+    }
+  ]
+}

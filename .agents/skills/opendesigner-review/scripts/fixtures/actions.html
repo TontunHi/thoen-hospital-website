@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Competing actions (review fixture)</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; color: #18181b; background: #fff; }
+  header, section { padding: 16px 24px; }
+  nav a { padding: 8px 12px; border-radius: 6px; color: inherit; text-decoration: none; }
+  nav a[aria-current] { background: #18181b; color: #fff; }
+  .btn { display: inline-block; padding: 10px 16px; border-radius: 8px; border: 1px solid transparent; font: inherit; text-decoration: none; }
+  .blue { background: #2563eb; color: #fff; }
+  .black { background: #111827; color: #fff; }
+  .quiet { background: #f4f4f5; color: #18181b; }
+  .outline { background: transparent; border-color: #d4d4d8; color: #18181b; }
+  .red { background: #dc2626; color: #fff; }
+  .grad { background: linear-gradient(#7c3aed, #6d28d9); color: #fff; }
+  .card { display: block; width: 320px; height: 160px; background: #111827; color: #fff; border-radius: 12px; padding: 16px; }
+  [role=tab][aria-selected=true] { background: #2563eb; color: #fff; }
+  .spacer { height: 1200px; }
+</style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="#home" aria-current="page" id="nav-home">Home</a>   <!-- fine: the current page's nav item is a state -->
+      <a href="#docs" id="nav-docs">Docs</a>
+      <a href="#signup" class="btn blue" id="signup">Sign up</a>   <!-- planted: a primary in the header -->
+    </nav>
+  </header>
+  <section>
+    <h1>Ship the dispatch board</h1>
+    <!-- planted: two more filled actions in the first screen, in two different fills -->
+    <a href="#start" class="btn blue" id="start">Get started</a>
+    <button class="btn black" id="demo">Book a demo</button>
+    <!-- fine: quieter actions -->
+    <button class="btn quiet" id="tour">Take the tour</button>
+    <button class="btn outline" id="pricing">See pricing</button>
+    <!-- fine: a selected tab and a card link are not actions that shout -->
+    <div role="tablist"><button role="tab" aria-selected="true" class="btn" id="tab-day">Day</button><button role="tab" aria-selected="false" class="btn" id="tab-week">Week</button></div>
+    <a href="#case" class="card" id="card">A dark card that is a link</a>
+  </section>
+  <div class="spacer"></div>
+  <section>
+    <!-- planted: two filled buttons side by side, below the first screen; the red one is the danger level and is not a second style -->
+    <div id="dialog-actions"><button class="btn blue" id="save">Save</button><button class="btn red" id="delete">Delete</button></div>
+    <!-- planted: a gradient fill counts by its first colour -->
+    <button class="btn grad" id="upgrade">Upgrade</button>
+  </section>
+</body>
+</html>

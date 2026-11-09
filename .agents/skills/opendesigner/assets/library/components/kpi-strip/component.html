@@ -1,0 +1,32 @@
+<style>
+.odl-kpi-strip { box-sizing: border-box; inline-size: 100%; container-type: inline-size; text-wrap: pretty; }
+.odl-kpi-strip dl { box-sizing: border-box; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-border-width-default);
+  background: var(--ds-color-border-subtle); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); overflow: hidden; font: var(--ds-text-body-md); }
+.odl-kpi-strip dl > div { min-inline-size: 0; padding: var(--ds-space-inset-xl); display: grid; align-content: start; gap: var(--ds-space-stack-sm);
+  background: var(--ds-color-surface-raised); }
+.odl-kpi-strip dt { color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); }
+.odl-kpi-strip dd { margin: 0; }
+.odl-kpi-strip .odl-value { font: var(--ds-text-title-lg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@container (min-width: 50rem) { .odl-kpi-strip dl { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.odl-kpi-strip .odl-value span { color: var(--ds-color-text-tertiary); }
+.odl-kpi-strip .odl-note { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-kpi-strip .odl-meter { display: flex; align-items: center; gap: var(--ds-space-inline-sm); }
+.odl-kpi-strip .odl-meter i { flex: 1; max-inline-size: 6rem; block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); overflow: hidden; }
+.odl-kpi-strip .odl-meter i::before { content: ""; display: block; block-size: 100%; inline-size: var(--odl-fill, 50%); background: var(--ds-color-bg-inverse); border-radius: inherit; }
+.odl-kpi-strip .odl-warn { color: var(--ds-color-text-warning); }
+/* Phone: a 2 by 2 grid, label above value, the figure one step smaller so it never squeezes. */
+@container (max-width: 25.98rem) {
+  .odl-kpi-strip dl > div { padding: var(--ds-space-inset-lg); gap: var(--ds-space-stack-xs); }
+  .odl-kpi-strip .odl-value { font: var(--ds-text-title-sm); }
+  .odl-kpi-strip .odl-meter i { max-inline-size: 3rem; }
+  .odl-kpi-strip .odl-note { margin-block-start: var(--ds-space-stack-xs); }
+}
+</style>
+<div class="odl-kpi-strip"><dl aria-label="Receipts this month">
+  <div><dt>Received</dt><dd class="odl-value">$2,846,191<span>.37</span></dd><dd class="odl-note">2,418 receipts · USD at booking rates</dd></div>
+  <div><dt>Matched to invoices</dt><dd class="odl-value">$2,492,802<span>.73</span></dd>
+    <dd class="odl-note odl-meter"><i style="--odl-fill: 87.6%" aria-hidden="true"></i>87.6% of value</dd></div>
+  <div><dt>Waiting to match</dt><dd class="odl-value">$311,482<span>.09</span></dd><dd class="odl-note"><span class="odl-warn">192 receipts</span> · oldest from Oct 9</dd></div>
+  <div><dt>Held as credit</dt><dd class="odl-value">$41,906<span>.55</span></dd><dd class="odl-note">63 receipts on 58 accounts</dd></div>
+</dl></div>

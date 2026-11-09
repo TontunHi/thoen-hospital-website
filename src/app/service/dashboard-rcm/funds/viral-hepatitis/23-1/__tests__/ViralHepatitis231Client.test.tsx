@@ -200,7 +200,7 @@ describe('ViralHepatitis231Client', () => {
     render(<ViralHepatitis231Client initialData={mockInitialData} />)
 
     const searchInput = screen.getByPlaceholderText(
-      'ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ผล Lab, Authen Code, Rep...'
+      'ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ผล Lab, ClaimCode, Rep...'
     )
     fireEvent.change(searchInput, { target: { value: 'สมชาย' } })
 

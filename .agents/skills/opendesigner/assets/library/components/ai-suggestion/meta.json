@@ -1,0 +1,13 @@
+{
+  "name": "AI suggestion",
+  "summary": "A suggested rewrite of one sentence inside a text field, shown as a diff with the reason and where it came from, to accept, reject or swap for another.",
+  "use": "when an assistant proposes an edit a person should accept or reject",
+  "type": "ai",
+  "style": "quiet",
+  "industries": ["saas", "productivity", "crm"],
+  "tags": ["ai", "suggestion", "diff", "rewrite", "writing assistant"],
+  "states": ["suggested", "alternative", "accepted", "rejected", "undo", "hover", "focus"],
+  "source": null,
+  "a11y": "Removed and added words use del and ins; the buttons are real buttons, the result is announced in a status line with focus moved to Undo, and the alternative count is a polite live region.",
+  "width": "medium"
+}

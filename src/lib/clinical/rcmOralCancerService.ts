@@ -1,5 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
+import { matchesPttypeFilter } from './pttypeConstants'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 
 // ── 1. Domain Types: 12.1 บริการคัดกรองรอยโรคเสี่ยงมะเร็งและมะเร็งช่องปาก (Oral Cancer Screening ADP 90004) ──
@@ -37,6 +39,7 @@ export type OralCancerSortField =
 export interface OralCancerReportParams extends FiscalDateRangeParams {
   cardFilter?: OralCancerCardFilter
   ucOnly?: boolean
+  pttypes?: string
   searchField?: OralCancerSearchField
   search?: string
   sortBy?: OralCancerSortField
@@ -73,6 +76,7 @@ export interface OralCancerItem {
   authencode: string | null
   maininscl: string
   isUc: boolean
+  pttype_eclaim_id: string
   pttypename: string
   department: string | null
   clinic: string | null
@@ -123,6 +127,7 @@ export interface OralCancerReportResult {
   adpMapping: OralCancerAdpMappingCheck
   cardFilter: OralCancerCardFilter
   ucOnly: boolean
+  pttypes?: string
   searchField: OralCancerSearchField
   search: string
   sortBy: OralCancerSortField
@@ -175,6 +180,26 @@ export class RcmOralCancerService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping('90004')
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -244,10 +269,7 @@ export class RcmOralCancerService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const [mappingRes, rows] = await Promise.all([
-          RcmOralCancerService.checkOralCancerAdpMapping(executor, Boolean(params.refresh)),
-          executor(
-            `
+        const sql = `
             SELECT 
               o.vn,
               IFNULL(pt.cid, '') AS cid,
@@ -257,8 +279,9 @@ export class RcmOralCancerService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
+              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
               ptt.name AS pttypename,
               dep.department AS department,
               spc.name AS clinic,
@@ -267,7 +290,7 @@ export class RcmOralCancerService {
               v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
               IFNULL(v.income, 0) AS income,
               dd.name AS listname,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
               re.fund,
@@ -291,11 +314,12 @@ export class RcmOralCancerService {
               GROUP BY oo.vn
             ) dd ON dd.vn = o.vn
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -303,7 +327,7 @@ export class RcmOralCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
@@ -312,7 +336,7 @@ export class RcmOralCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                      GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) re ON re.vn = o.vn
             LEFT JOIN (
@@ -322,20 +346,50 @@ export class RcmOralCancerService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
               AND IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) >= 40
             GROUP BY o.vn
             ORDER BY o.hn ASC, o.vn ASC;
-            `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
-          ),
-        ])
+        `
+        const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
 
-        return { rawRows: rows as any[], adpMapping: mappingRes }
+        let rows: any[] = []
+        let mappingRes: OralCancerAdpMappingCheck = {
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmOralCancerService.checkOralCancerAdpMapping(executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('oral-cancer', { ds1, ds2 }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmOralCancerService.checkOralCancerAdpMapping(executor, Boolean(params.refresh)),
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+          ])
+          rows = dbRows || []
+          mappingRes = mRes
+        }
+
+        return { rawRows: rows, adpMapping: mappingRes }
       },
       180000 // Cache TTL 3 minutes
     )
@@ -369,6 +423,7 @@ export class RcmOralCancerService {
         authencode: r.authencode ? String(r.authencode).trim() : null,
         maininscl: String(r.maininscl || '').trim(),
         isUc,
+        pttype_eclaim_id: String(r.pttype_eclaim_id || '').trim(),
         pttypename: String(r.pttypename || '').trim(),
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
@@ -398,22 +453,30 @@ export class RcmOralCancerService {
       }
     })
 
-    // Compute Summary KPIs before filtering
-    const totalVisits = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn).filter(Boolean)).size
-    const compensatedVisits = allItems.filter((i) => i.isCompensated).length
+    const pttypes = (params.pttypes || '').trim()
+    const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
+
+    // Cohort for summary KPIs (Full page filter Q2: A)
+    const summaryCohort = selectedPttypesList.length > 0
+      ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
+      : allItems
+
+    // Compute Summary KPIs across summaryCohort
+    const totalVisits = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn).filter(Boolean)).size
+    const compensatedVisits = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedVisits = totalVisits - compensatedVisits
     const compensationRate = totalVisits > 0 ? (compensatedVisits / totalVisits) * 100 : 0
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
     const averageCompensated = compensatedVisits > 0 ? totalCompensated / compensatedVisits : 0
 
-    const withAuthenCount = allItems.filter((i) => Boolean(i.authencode)).length
+    const withAuthenCount = summaryCohort.filter((i) => Boolean(i.authencode)).length
     const withoutAuthenCount = totalVisits - withAuthenCount
     const authenRate = totalVisits > 0 ? (withAuthenCount / totalVisits) * 100 : 0
 
-    const ucCount = allItems.filter((i) => i.isUc).length
+    const ucCount = summaryCohort.filter((i) => i.isUc).length
     const ucRate = totalVisits > 0 ? (ucCount / totalVisits) * 100 : 0
-    const totalIncome = allItems.reduce((acc, i) => acc + i.income, 0)
+    const totalIncome = summaryCohort.reduce((acc, i) => acc + i.income, 0)
 
     const summary: OralCancerSummary = {
       totalVisits,
@@ -432,7 +495,7 @@ export class RcmOralCancerService {
     }
 
     // Apply Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)
     } else if (cardFilter === 'UNCOMPENSATED') {
@@ -445,8 +508,8 @@ export class RcmOralCancerService {
       filtered = filtered.filter((i) => i.isUc)
     }
 
-    // Secondary UC only filter toggle
-    if (ucOnly && cardFilter !== 'UC_ONLY') {
+    // Secondary UC only filter toggle (fallback when pttypes is empty)
+    if (selectedPttypesList.length === 0 && ucOnly && cardFilter !== 'UC_ONLY') {
       filtered = filtered.filter((i) => i.isUc)
     }
 
@@ -522,6 +585,7 @@ export class RcmOralCancerService {
       adpMapping,
       cardFilter,
       ucOnly,
+      pttypes,
       searchField,
       search,
       sortBy,

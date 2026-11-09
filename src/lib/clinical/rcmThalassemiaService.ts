@@ -1,6 +1,8 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Domain Types: 3.1 ธาลัสซีเมียในหญิงตั้งครรภ์ (Thalassemia in Pregnancy) ──
 
@@ -40,6 +42,8 @@ export interface ThalassemiaReportParams extends FiscalDateRangeParams {
   search?: string
   sortBy?: ThalassemiaSortField
   sortOrder?: 'asc' | 'desc'
+  pttypes?: string | string[]
+  ucOnly?: boolean
   page?: number
   pageSize?: number
   exportAll?: boolean
@@ -68,6 +72,8 @@ export interface ThalassemiaItem {
   ptname: string
   age: number
   pttypename: string
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   address: string
   labor_date: string
   labor_type: string
@@ -164,6 +170,26 @@ export class RcmThalassemiaService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping('30313')
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || ''),
+                  name: String(r.name || ''),
+                  strength: r.strength ? String(r.strength) : null,
+                  nhso_adp_code: String(r.nhso_adp_code || ''),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         const sql = `
           SELECT 
             icode, 
@@ -223,6 +249,17 @@ export class RcmThalassemiaService {
       getCachedData(
         cacheKey,
         async () => {
+          if (executor === queryClinicalDb) {
+            try {
+              const gwRes = await apiGateway.clinical.getRcmFundData('thalassemia', { ds1, ds2 })
+              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+                return gwRes.data.rawRows
+              }
+            } catch {
+              // Fallback to executor query
+            }
+          }
+
           const sql = `
             SELECT 
               p.person_id,
@@ -232,6 +269,7 @@ export class RcmThalassemiaService {
               CONCAT(IFNULL(p.pname,''), IFNULL(p.fname,''), ' ', IFNULL(p.lname,'')) AS ptname,
               IFNULL(TIMESTAMPDIFF(YEAR, p.birthdate, anc.labor_date), 0) AS age,
               IFNULL(ptt.name, p.pttype) AS pttypename,
+              ptt.pttype_eclaim_id,
               CONCAT_WS(' ', pt.addrpart, IF(pt.moopart IS NOT NULL AND pt.moopart != '', CONCAT('ม.', pt.moopart), NULL), pt.road) AS address,
               DATE_FORMAT(anc.labor_date, '%Y-%m-%d') AS labor_date,
               IFNULL(plt.person_labour_type_name, 'NORMAL') AS labor_type,
@@ -287,9 +325,11 @@ export class RcmThalassemiaService {
     ])
 
     // Map rows into strongly-typed domain items
-    let allItems: ThalassemiaItem[] = (rawRows || []).map((r, idx) => {
+    const allItems: ThalassemiaItem[] = (rawRows || []).map((r, idx) => {
       const labStatus = determineLabStatus(r.labname, r.labresult)
       const isThoen = r.labour_hospcode === '11152' || (r.hospital || '').includes('เถิน')
+      const pttypeEclaimId = r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null
+      const isUc = isUcEclaimCode(pttypeEclaimId)
       return {
         no: idx + 1,
         person_id: Number(r.person_id || 0),
@@ -299,6 +339,8 @@ export class RcmThalassemiaService {
         ptname: String(r.ptname || '').trim(),
         age: Number(r.age || 0),
         pttypename: String(r.pttypename || '—').trim(),
+        pttype_eclaim_id: pttypeEclaimId,
+        isUc,
         address: String(r.address || '').trim() || '—',
         labor_date: String(r.labor_date || ''),
         labor_type: String(r.labor_type || 'NORMAL').trim(),
@@ -319,18 +361,26 @@ export class RcmThalassemiaService {
       }
     })
 
-    // Compute Overall Summary from ALL records (before filtering)
-    const totalMothers = allItems.length
-    const screenedCount = allItems.filter((i) => i.has_lab).length
+    // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Overall Summary from filtered cohort (Q2: A Full Page Filter)
+    const totalMothers = summaryCohort.length
+    const screenedCount = summaryCohort.filter((i) => i.has_lab).length
     const unscreenedCount = totalMothers - screenedCount
     const screeningRate = totalMothers > 0 ? Number(((screenedCount / totalMothers) * 100).toFixed(1)) : 0
-    const normalCount = allItems.filter((i) => i.lab_status === 'NORMAL').length
-    const riskCount = allItems.filter((i) => i.lab_status === 'RISK').length
-    const pendingCount = allItems.filter((i) => i.lab_status === 'PENDING').length
-    const thoenHospitalCount = allItems.filter((i) => i.is_thoen_hospital).length
+    const normalCount = summaryCohort.filter((i) => i.lab_status === 'NORMAL').length
+    const riskCount = summaryCohort.filter((i) => i.lab_status === 'RISK').length
+    const pendingCount = summaryCohort.filter((i) => i.lab_status === 'PENDING').length
+    const thoenHospitalCount = summaryCohort.filter((i) => i.is_thoen_hospital).length
     const otherHospitalCount = totalMothers - thoenHospitalCount
-    const normalLaborCount = allItems.filter((i) => i.labor_type.toUpperCase() === 'NORMAL').length
-    const cesareanLaborCount = allItems.filter((i) => i.labor_type.toUpperCase() === 'CESAREAN').length
+    const normalLaborCount = summaryCohort.filter((i) => i.labor_type.toUpperCase() === 'NORMAL').length
+    const cesareanLaborCount = summaryCohort.filter((i) => i.labor_type.toUpperCase() === 'CESAREAN').length
     const otherLaborCount = totalMothers - normalLaborCount - cesareanLaborCount
 
     const summary: ThalassemiaSummary = {
@@ -348,33 +398,35 @@ export class RcmThalassemiaService {
       otherLaborCount,
     }
 
+    let filteredItems = summaryCohort
+
     // Apply Interactive Card Filter
     if (cardFilter === 'SCREENED') {
-      allItems = allItems.filter((i) => i.has_lab)
+      filteredItems = filteredItems.filter((i) => i.has_lab)
     } else if (cardFilter === 'UNSCREENED') {
-      allItems = allItems.filter((i) => !i.has_lab)
+      filteredItems = filteredItems.filter((i) => !i.has_lab)
     } else if (cardFilter === 'NORMAL') {
-      allItems = allItems.filter((i) => i.lab_status === 'NORMAL')
+      filteredItems = filteredItems.filter((i) => i.lab_status === 'NORMAL')
     } else if (cardFilter === 'RISK') {
-      allItems = allItems.filter((i) => i.lab_status === 'RISK')
+      filteredItems = filteredItems.filter((i) => i.lab_status === 'RISK')
     } else if (cardFilter === 'THOEN_HOSPITAL') {
-      allItems = allItems.filter((i) => i.is_thoen_hospital)
+      filteredItems = filteredItems.filter((i) => i.is_thoen_hospital)
     }
 
     // Apply Labor Type Filter
     if (laborTypeFilter === 'NORMAL') {
-      allItems = allItems.filter((i) => i.labor_type.toUpperCase() === 'NORMAL')
+      filteredItems = filteredItems.filter((i) => i.labor_type.toUpperCase() === 'NORMAL')
     } else if (laborTypeFilter === 'CESAREAN') {
-      allItems = allItems.filter((i) => i.labor_type.toUpperCase() === 'CESAREAN')
+      filteredItems = filteredItems.filter((i) => i.labor_type.toUpperCase() === 'CESAREAN')
     } else if (laborTypeFilter === 'OTHER') {
-      allItems = allItems.filter(
+      filteredItems = filteredItems.filter(
         (i) => i.labor_type.toUpperCase() !== 'NORMAL' && i.labor_type.toUpperCase() !== 'CESAREAN'
       )
     }
 
     // Apply Search Filter
     if (search) {
-      allItems = allItems.filter((item) => {
+      filteredItems = filteredItems.filter((item) => {
         if (searchField === 'HN') return item.hn.toLowerCase().includes(search)
         if (searchField === 'CID') return item.cid.includes(search)
         if (searchField === 'PTNAME') return item.ptname.toLowerCase().includes(search)
@@ -399,7 +451,7 @@ export class RcmThalassemiaService {
     }
 
     // Apply Sorting
-    allItems.sort((a, b) => {
+    filteredItems.sort((a, b) => {
       let valA: string | number = a[sortBy] ?? ''
       let valB: string | number = b[sortBy] ?? ''
 
@@ -412,17 +464,17 @@ export class RcmThalassemiaService {
     })
 
     // Re-index row numbers
-    allItems.forEach((item, index) => {
+    filteredItems.forEach((item, index) => {
       item.no = index + 1
     })
 
-    const totalCount = allItems.length
+    const totalCount = filteredItems.length
     const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
 
-    let pagedItems = allItems
+    let pagedItems = filteredItems
     if (!exportAll) {
       const startIndex = (page - 1) * pageSize
-      pagedItems = allItems.slice(startIndex, startIndex + pageSize)
+      pagedItems = filteredItems.slice(startIndex, startIndex + pageSize)
     }
 
     return {

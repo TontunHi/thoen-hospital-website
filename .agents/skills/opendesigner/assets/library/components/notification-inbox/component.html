@@ -1,0 +1,137 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-notification-inbox { box-sizing: border-box; inline-size: 100%; max-inline-size: 480px; margin-inline: auto; background: var(--ds-color-surface-overlay); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay);
+  font: var(--ds-text-body-md); text-wrap: pretty; container-type: inline-size; overflow: hidden; }
+.odl-notification-inbox *, .odl-notification-inbox *::before { box-sizing: border-box; }
+.odl-notification-inbox svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-notification-inbox .odl-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); padding: var(--ds-space-inset-lg) var(--ds-space-inset-md) var(--ds-space-stack-sm) var(--ds-space-inset-xl); }
+.odl-notification-inbox h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-notification-inbox button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-xs); min-block-size: var(--ds-size-target-min); min-inline-size: var(--ds-size-target-min);
+  padding: 0 var(--ds-space-inset-sm); border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-secondary);
+  font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-notification-inbox button:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-text-primary); }
+.odl-notification-inbox button:focus-visible, .odl-notification-inbox .odl-row:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: calc(-1 * var(--ds-focus-ring-width)); }
+.odl-notification-inbox [role="tablist"] { display: flex; gap: var(--ds-space-inline-xs); padding: 0 var(--ds-space-inset-md); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-notification-inbox [role="tab"] { position: relative; border-radius: var(--ds-radius-control) var(--ds-radius-control) 0 0; color: var(--ds-color-text-secondary); }
+.odl-notification-inbox [role="tab"][aria-selected="true"] { color: var(--ds-color-text-primary); }
+.odl-notification-inbox [role="tab"][aria-selected="true"]::after { content: ""; position: absolute; inset-inline: var(--ds-space-inset-sm); inset-block-end: calc(-1 * var(--ds-border-width-default));
+  border-block-end: var(--ds-border-width-selected) solid var(--ds-color-border-accent); }
+.odl-notification-inbox .odl-badge { min-inline-size: var(--ds-space-20); padding: 0 var(--ds-space-inset-xs); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-accent-bold);
+  color: var(--ds-color-text-on-accent); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; text-align: center; }
+.odl-notification-inbox .odl-group { margin: 0; padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl) var(--ds-space-inset-xs); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-notification-inbox ul { list-style: none; margin: 0; padding: 0 var(--ds-space-inset-xs) var(--ds-space-inset-xs); display: grid; gap: var(--ds-space-2); }
+.odl-notification-inbox .odl-row { position: relative; display: grid; grid-template-columns: var(--ds-space-8) var(--ds-size-control-sm) minmax(0, 1fr); gap: var(--ds-space-inline-md);
+  padding: var(--ds-space-inset-md) var(--ds-space-inset-lg) var(--ds-space-inset-md) var(--ds-space-inset-sm); border-radius: var(--ds-radius-nested); cursor: pointer; }
+.odl-notification-inbox .odl-row:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-notification-inbox .odl-dot { align-self: start; margin-block-start: calc((var(--ds-size-control-sm) - var(--ds-space-8)) / 2); inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); }
+.odl-notification-inbox .is-unread .odl-dot { background: var(--ds-color-bg-accent-bold); }
+.odl-notification-inbox .odl-avatar { display: grid; place-items: center; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); border-radius: var(--ds-radius-person);
+  object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-notification-inbox .odl-avatar.is-sys { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-subtle); }
+.odl-notification-inbox .odl-body { min-inline-size: 0; display: grid; gap: var(--ds-space-stack-xs); }
+.odl-notification-inbox .odl-line { margin: 0; color: var(--ds-color-text-secondary); }
+.odl-notification-inbox .odl-line strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-notification-inbox .is-unread .odl-line { color: var(--ds-color-text-primary); }
+.odl-notification-inbox .odl-meta { display: block; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-notification-inbox .odl-meta > * + *::before { content: "\00a0\00b7\0020"; }
+.odl-notification-inbox .odl-quote { margin: var(--ds-space-stack-xs) 0; padding-inline-start: var(--ds-space-inset-md); border-inline-start: var(--ds-border-width-emphasis) solid var(--ds-color-border-default);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); }
+.odl-notification-inbox .odl-actions { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); margin-block-start: var(--ds-space-stack-sm); }
+.odl-notification-inbox .odl-actions button { min-block-size: var(--ds-size-control-sm); padding: 0 var(--ds-space-inset-md); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-notification-inbox .odl-actions .odl-primary { border-color: transparent; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-notification-inbox .odl-actions .odl-primary:hover { background: var(--ds-color-bg-action-primary-hover); color: var(--ds-color-text-on-action); }
+.odl-notification-inbox .odl-done { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); margin-block-start: var(--ds-space-stack-sm); color: var(--ds-color-text-success); font: var(--ds-text-label-md); }
+.odl-notification-inbox [hidden] { display: none; }
+.odl-notification-inbox .odl-foot { display: flex; justify-content: center; border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); padding: var(--ds-space-inset-sm); }
+.odl-notification-inbox .odl-foot button { color: var(--ds-color-text-link); }
+@media (prefers-reduced-motion: reduce) { .odl-notification-inbox, .odl-notification-inbox *, .odl-notification-inbox *::before { transition: none !important; animation: none !important; } }
+@container (max-width: 26rem) {
+  .odl-notification-inbox .odl-head { padding-inline-start: var(--ds-space-inset-lg); }
+  .odl-notification-inbox .odl-group { padding-inline: var(--ds-space-inset-lg); }
+}
+</style>
+<section class="odl-notification-inbox" aria-labelledby="odl-ni-title">
+  <div class="odl-head">
+    <h3 id="odl-ni-title">Notifications</h3>
+    <button type="button" class="odl-markall"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>Mark all read</button>
+  </div>
+  <div role="tablist" aria-label="Filter notifications">
+    <button type="button" role="tab" id="odl-ni-t1" aria-selected="true" aria-controls="odl-ni-panel" data-filter="all">All</button>
+    <button type="button" role="tab" id="odl-ni-t2" aria-selected="false" aria-controls="odl-ni-panel" data-filter="mention" tabindex="-1">Mentions <span class="odl-badge" aria-label="2 unread">2</span></button>
+  </div>
+  <div id="odl-ni-panel" role="tabpanel" aria-labelledby="odl-ni-t1">
+    <p class="odl-group" id="odl-ni-today">Today</p>
+    <ul aria-labelledby="odl-ni-today">
+      <li class="odl-row is-unread" data-kind="mention" tabindex="0">
+        <span class="odl-dot"></span><img class="odl-avatar" src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-body">
+          <p class="odl-line"><strong>Bettina Marangoni</strong> mentioned you on <strong>Tressel Freight Brokers · TFB-118204</strong></p>
+          <p class="odl-quote">@Kwabena the fuel surcharge is the one we agreed on Sep 2. Fine to pay.</p>
+          <div class="odl-meta"><time datetime="2026-10-21T09:03">9:03 AM</time><span>Bills</span></div>
+          <div class="odl-actions"><button type="button">View bill</button></div>
+        </div>
+      </li>
+      <li class="odl-row is-unread" data-kind="approval" tabindex="0">
+        <span class="odl-dot"></span><img class="odl-avatar" src="https://images.unsplash.com/photo-1725033489648-a819750348eb?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-body">
+          <p class="odl-line"><strong>Nandini Iyer</strong> asked you to approve <strong>Wyndell Staffing Partners</strong> for $22,486.40</p>
+          <div class="odl-meta"><time datetime="2026-10-21T08:47">8:47 AM</time><span>Over $5,000 · you are the last approver</span></div>
+          <div class="odl-actions"><button type="button" class="odl-primary odl-approve">Approve</button><button type="button">View</button></div>
+          <span class="odl-done" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Approved · ACH on Oct 23</span>
+        </div>
+      </li>
+      <li class="odl-row is-unread" data-kind="mention" tabindex="0">
+        <span class="odl-dot"></span><img class="odl-avatar" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-body">
+          <p class="odl-line"><strong>Arash Tehrani</strong> mentioned you in <strong>October close checklist</strong></p>
+          <div class="odl-meta"><time datetime="2026-10-21T07:15">7:15 AM</time><span>Accounting</span></div>
+        </div>
+      </li>
+    </ul>
+    <p class="odl-group" id="odl-ni-earlier">Earlier</p>
+    <ul aria-labelledby="odl-ni-earlier">
+      <li class="odl-row" data-kind="system" tabindex="0">
+        <span class="odl-dot"></span><span class="odl-avatar is-sys" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg></span>
+        <div class="odl-body">
+          <p class="odl-line"><strong>14 payments</strong> went out by ACH, $41,920.18 in total</p>
+          <div class="odl-meta"><time datetime="2026-10-20T17:00">Yesterday, 5:00 PM</time><span>Payments</span></div>
+        </div>
+      </li>
+      <li class="odl-row" data-kind="approval" tabindex="0">
+        <span class="odl-dot"></span><img class="odl-avatar" src="https://images.unsplash.com/photo-1684598273404-2d94d7a7ce2f?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-body">
+          <p class="odl-line"><strong>Yuki Hanabusa</strong> rejected <strong>Pendrick Telecom · BT-0098341</strong></p>
+          <div class="odl-meta"><time datetime="2026-10-19T14:22">Oct 19</time><span>“Billed twice for September.”</span></div>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <div class="odl-foot"><button type="button">Notification settings</button></div>
+</section>
+<script>
+document.querySelectorAll(".odl-notification-inbox").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const tabs = [...root.querySelectorAll('[role="tab"]')], rows = [...root.querySelectorAll(".odl-row")], panel = root.querySelector('[role="tabpanel"]');
+  const select = (tab) => {
+    tabs.forEach((t) => { const on = t === tab; t.setAttribute("aria-selected", on ? "true" : "false"); t.tabIndex = on ? 0 : -1; });
+    panel.setAttribute("aria-labelledby", tab.id);
+    const f = tab.dataset.filter;
+    rows.forEach((r) => { r.hidden = f !== "all" && r.dataset.kind !== f; });
+    root.querySelectorAll(".odl-group").forEach((g) => { const list = g.nextElementSibling; g.hidden = list.hidden = ![...list.children].some((r) => !r.hidden); });
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => select(t));
+    t.addEventListener("keydown", (e) => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); const n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; n.focus(); select(n); } });
+  });
+  const badge = root.querySelector(".odl-badge");
+  const refresh = () => { const n = root.querySelectorAll('.is-unread[data-kind="mention"]').length; badge.textContent = n; badge.setAttribute("aria-label", n + " unread"); badge.hidden = n === 0; };
+  root.querySelector(".odl-markall").addEventListener("click", () => { rows.forEach((r) => r.classList.remove("is-unread")); refresh(); });
+  root.querySelectorAll(".odl-approve").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation(); const body = b.closest(".odl-body"); body.querySelector(".odl-actions").hidden = true; body.querySelector(".odl-done").hidden = false; b.closest(".odl-row").classList.remove("is-unread"); refresh();
+  }));
+});
+</script>

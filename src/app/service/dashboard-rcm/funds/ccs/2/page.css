@@ -78,12 +78,12 @@
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
-  padding: var(--ccs-s5) var(--ccs-s6) var(--ccs-s10);
+  padding: var(--ccs-s6) var(--ccs-s8) var(--ccs-s10);
   color: var(--ccs-ink);
   font-family: var(--ccs-font);
   display: flex;
   flex-direction: column;
-  gap: var(--ccs-s4);
+  gap: var(--ccs-s6);
   min-width: 0;
   overflow-x: clip;
 }
@@ -105,6 +105,35 @@
   display: flex;
   flex-direction: column;
   gap: var(--ccs-s1);
+}
+
+.ccs2-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ccs-text-xs);
+  color: var(--ccs-muted);
+  margin-bottom: 2px;
+}
+
+.ccs2-breadcrumb-link {
+  color: var(--ccs-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ccs2-breadcrumb-link:hover {
+  color: var(--ccs-accent);
+}
+
+.ccs2-breadcrumb-sep {
+  color: var(--ccs-hairline-strong);
+  font-size: 0.75rem;
+}
+
+.ccs2-breadcrumb-current {
+  color: var(--ccs-ink-2);
+  font-weight: 500;
 }
 
 .ccs2-meta-tag {
@@ -264,14 +293,14 @@
   background: var(--ccs-surface);
   border: 1px solid var(--ccs-hairline);
   border-radius: var(--ccs-r-lg);
-  padding: var(--ccs-s3) var(--ccs-s4);
+  padding: var(--ccs-s3) var(--ccs-s5);
   box-shadow: var(--ccs-shadow-sm);
 }
 
 .ccs2-date-row {
   display: flex;
   align-items: center;
-  gap: var(--ccs-s3);
+  gap: var(--ccs-s4);
   flex-wrap: wrap;
 }
 
@@ -315,6 +344,20 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.ccs2-date-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--ccs-hairline);
+  flex-shrink: 0;
+}
+
+.ccs2-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--ccs-s2);
+  flex-wrap: wrap;
+}
+
 .ccs2-date-select,
 .ccs2-input-text {
   height: 38px;
@@ -340,53 +383,44 @@
   box-shadow: 0 0 0 3px var(--ccs-focus-ring);
 }
 
-.ccs2-date-span-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  background: var(--ccs-surface-accent);
-  color: var(--ccs-accent-dark);
-  border: 1px solid var(--ccs-surface-accent-strong);
-  border-radius: var(--ccs-r-sm);
-  font-size: var(--ccs-text-xs);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-}
-
 /* ── 5. Clinical Audit Workbench Summary Ribbon (Interactive KPI Cards) ── */
 .ccs2-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--ccs-s3);
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ccs-s4);
+}
+
+@media (max-width: 1024px) {
+  .ccs2-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .ccs2-kpi-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ccs2-kpi-card {
   background: var(--ccs-surface);
   border: 1px solid var(--ccs-hairline);
-  border-top: 4px solid var(--ccs-hairline-strong);
   border-radius: var(--ccs-r-lg);
-  padding: var(--ccs-s4);
+  padding: var(--ccs-s5);
   display: flex;
   flex-direction: column;
   gap: var(--ccs-s1);
   box-shadow: var(--ccs-shadow-sm);
-  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
   user-select: none;
   text-align: left;
   position: relative;
-  background-clip: padding-box;
 }
 
 .ccs2-kpi-card:hover {
   border-color: var(--ccs-hairline-strong);
-  transform: translateY(-2px);
   box-shadow: var(--ccs-shadow-card);
-}
-
-.ccs2-kpi-card:active {
-  transform: translateY(0);
 }
 
 .ccs2-kpi-card:focus-visible {
@@ -394,45 +428,37 @@
   outline-offset: 2px;
 }
 
-/* Distinct Top Stripe Semantics */
-.ccs2-kpi-accent {
-  border-top-color: var(--ccs-accent);
-}
-
-.ccs2-kpi-success {
-  border-top-color: var(--ccs-ok);
-}
-
-.ccs2-kpi-warn {
-  border-top-color: var(--ccs-err);
-}
-
-/* Active Filtering State (High Contrast, Tactile) */
+/* Active Filtering State (High Contrast, Tactile, No Thick Stripes) */
 .ccs2-kpi-card.is-active-filter {
   border-color: var(--ccs-accent);
-  border-top-color: var(--ccs-accent);
   background: var(--ccs-surface-accent);
-  box-shadow: 0 0 0 2px var(--ccs-accent);
+  box-shadow: 0 0 0 1px var(--ccs-accent);
 }
 
 .ccs2-kpi-card.is-active-filter-success {
   border-color: var(--ccs-ok);
-  border-top-color: var(--ccs-ok);
   background: var(--ccs-ok-bg);
-  box-shadow: 0 0 0 2px var(--ccs-ok);
+  box-shadow: 0 0 0 1px var(--ccs-ok);
 }
 
 .ccs2-kpi-card.is-active-filter-warn {
   border-color: var(--ccs-err);
-  border-top-color: var(--ccs-err);
   background: var(--ccs-err-bg);
-  box-shadow: 0 0 0 2px var(--ccs-err);
+  box-shadow: 0 0 0 1px var(--ccs-err);
+}
+
+.ccs2-kpi-val-ok {
+  color: var(--ccs-ok) !important;
+}
+
+.ccs2-kpi-val-err {
+  color: var(--ccs-err) !important;
 }
 
 .ccs2-kpi-label {
   font-size: var(--ccs-text-xs);
   color: var(--ccs-muted);
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   display: flex;
@@ -442,21 +468,21 @@
 
 .ccs2-kpi-filter-tag {
   font-size: 0.6875rem;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--ccs-r-xs);
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.07);
   color: var(--ccs-ink);
   font-weight: 600;
   letter-spacing: 0;
 }
 
 .ccs2-kpi-value {
-  font-size: var(--ccs-text-2xl);
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 600;
   color: var(--ccs-ink);
   font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .ccs2-kpi-sub {
@@ -581,30 +607,15 @@
   line-height: 1.45;
 }
 
-/* Tier 1 Header (Merged Categories) */
-.ccs2-table thead tr:first-child th {
-  background: var(--ccs-surface-2);
-  color: var(--ccs-ink);
-  font-size: var(--ccs-text-xs);
-  font-weight: 700;
-  text-align: center;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--ccs-hairline);
-  border-right: 1px solid var(--ccs-hairline-soft);
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-}
-
-/* Tier 2 Header (Column Definitions) */
-.ccs2-table thead tr:nth-child(2) th {
-  background: var(--ccs-surface);
-  color: var(--ccs-ink-2);
+/* Single-tier Centered Table Header */
+.ccs2-table thead th {
+  background: var(--ccs-surface-2, #f4f7f5);
+  color: var(--ccs-ink, #111e14);
   font-size: var(--ccs-text-xs);
   font-weight: 600;
-  text-align: left;
-  padding: 9px 12px;
-  border-bottom: 2px solid var(--ccs-hairline);
-  border-right: 1px solid var(--ccs-hairline-soft);
+  text-align: center;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--ccs-hairline, #e2e8e4);
   white-space: nowrap;
   position: sticky;
   top: 0;
@@ -614,7 +625,7 @@
 .ccs2-table th.is-sortable {
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.1s ease;
+  transition: background-color 0.12s ease;
 }
 
 .ccs2-table th.is-sortable:hover {
@@ -626,23 +637,52 @@
   outline: 2px solid var(--ccs-accent);
 }
 
+.ccs2-th-sort-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ccs2-justify-end {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.ccs2-sort-active {
+  color: var(--ccs-accent);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.ccs2-sort-muted {
+  color: var(--ccs-hairline-strong);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 /* Table Body Cells */
 .ccs2-table tbody td {
-  padding: 9px 12px;
+  padding: 13px 14px;
   border-bottom: 1px solid var(--ccs-hairline-soft);
   border-right: 1px solid var(--ccs-hairline-soft);
   color: var(--ccs-ink);
   white-space: nowrap;
+  vertical-align: middle;
   transition: background-color 0.1s ease;
 }
 
-.ccs2-table tbody tr:hover td {
+.ccs2-row-interactive {
+  cursor: pointer;
+}
+
+.ccs2-row-interactive:hover td {
   background: var(--ccs-surface-2);
 }
 
 /* FoxPro _color Warning Highlight when OK is null (Missing PP Special Code) */
 .ccs2-row-not-ok {
-  background: rgba(254, 235, 235, 0.45);
+  background: rgba(254, 242, 242, 0.65);
 }
 
 .ccs2-row-not-ok td {
@@ -651,6 +691,16 @@
 
 .ccs2-row-not-ok td:first-child {
   border-left: 3px solid var(--ccs-err);
+}
+
+.ccs2-row-not-ok.ccs2-row-interactive:hover td {
+  background: rgba(254, 226, 226, 0.85);
+}
+
+.ccs2-pt-name {
+  display: inline-block;
+  min-width: 170px;
+  white-space: nowrap;
 }
 
 /* FoxPro Summary 'รวม' Total Row */

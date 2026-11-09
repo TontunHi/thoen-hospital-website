@@ -1,0 +1,82 @@
+{
+  "name": "Follow suggestions",
+  "summary": "\"People you may know\" as a sideways row of cards, each with the person's photo, name and handle, the mutual friends behind the suggestion, a follow button that turns into Following, and a way to remove the card.",
+  "use": "in a social feed or after sign-up, for finding people to follow",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "social",
+    "media"
+  ],
+  "tags": [
+    "follow",
+    "suggestions",
+    "people",
+    "carousel",
+    "mutual friends"
+  ],
+  "states": [
+    "follow",
+    "following",
+    "follow back",
+    "removed",
+    "all caught up",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Follow buttons are toggles with aria-pressed and the person's name; removing a card says so in a polite live region and moves focus to the next card's remove button.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1506794778202-cad84cf45f1d",
+      "author": "Albert Dera",
+      "page": "ILip77SbmOE"
+    },
+    {
+      "img": "photo-1607569708758-0270aa4651bd",
+      "author": "Meg Wagener",
+      "page": "M7fbJyBuAag"
+    },
+    {
+      "img": "photo-1531746020798-e6953c6e8e04",
+      "author": "Jimmy Fermin",
+      "page": "bqe0J0b26RQ"
+    },
+    {
+      "img": "photo-1600603406200-5b2a104684ac",
+      "author": "Vicky Hladynets",
+      "page": "_gDoyVv5F4c"
+    },
+    {
+      "img": "photo-1596580817363-a4a8f67d4bc8",
+      "author": "Dorrell Tibbs",
+      "page": "gisFZKWpKQ4"
+    },
+    {
+      "img": "photo-1776781205743-33b4c1106adc",
+      "author": "Dwayne joe",
+      "page": "YGiy_bPfbtM"
+    },
+    {
+      "img": "photo-1534751516642-a1af1ef26a56",
+      "author": "Mathias Huysmans",
+      "page": "U4JDjYmjn1g"
+    },
+    {
+      "img": "photo-1684598273404-2d94d7a7ce2f",
+      "author": "Hugo ROUQUETTE",
+      "page": "RhTXKh0UofQ"
+    },
+    {
+      "img": "photo-1758600587839-56ba05596c69",
+      "author": "Vitaly Gariev",
+      "page": "s3aDHKxHZSc"
+    },
+    {
+      "img": "photo-1712425718137-491250cfde88",
+      "author": "ARTO SURAJ",
+      "page": "a26KbF2Mz1I"
+    }
+  ]
+}

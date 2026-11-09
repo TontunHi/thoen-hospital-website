@@ -32,6 +32,9 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -117,6 +120,15 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
     initialData?.cardFilter ?? 'ALL'
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(() => {
+    if (initialData?.pttypes) {
+      return initialData.pttypes.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    if (initialData?.ucOnly) {
+      return [...UC_ECLAIM_CODES]
+    }
+    return []
+  })
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<CancerFundSortField>(initialData?.sortBy ?? 'vstdate')
@@ -200,13 +212,18 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           search: debouncedSearch,
           sortBy,
           sortOrder,
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          query.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          query.set('ucOnly', 'true')
+        }
 
         if (refresh) query.set('refresh', 'true')
 
@@ -239,7 +256,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Double-fetch guard on mount
@@ -376,20 +393,25 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  // Safe CSV export
-  const handleExportCsv = async () => {
+  // Modern Excel export (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const query = new URLSearchParams({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         search: debouncedSearch,
         sortBy,
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        query.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        query.set('ucOnly', 'true')
+      }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/cancer/adp?${query.toString()}`)
       if (!res.ok) throw new Error('ไม่สามารถดาวน์โหลดข้อมูลเพื่อส่งออกได้')
@@ -407,7 +429,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         'เพศ',
         'อายุ',
         'สิทธิ์การรักษา',
-        'Authen Code',
+        'ClaimCode',
         'แผนก',
         'คลินิก',
         'PDX',
@@ -452,22 +474,17 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           item.invoice_compensated,
           item.status_eclaim,
         ]
-          .map(escapeCsvCell)
-          .join(',')
       })
 
-      const csvContent = '\uFEFF' + [headers.map(escapeCsvCell).join(','), ...rows].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `cancer_fund_adp_${ds1}_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `cancer_fund_adp_${ds1}_${ds2}.xlsx`,
+        title: 'กองทุนมะเร็ง - รายชื่อผู้ป่วย จาก ADP (CANCER)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportItems.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ CSV')
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -495,11 +512,12 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
             <button
               type="button"
               className="cancer-btn cancer-btn-primary"
-              onClick={handleExportCsv}
+              onClick={handleExportExcel}
               disabled={isExporting || items.length === 0}
+              title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
             >
               <Download size={16} />
-              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
             </button>
             <button
               type="button"
@@ -621,7 +639,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
             <input
               type="text"
               className="cancer-search-input"
-              placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, Authen..."
+              placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ClaimCode..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -636,6 +654,16 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
               </button>
             )}
           </div>
+
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
         </div>
       </div>
 
@@ -721,10 +749,10 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         <div
           className={`cancer-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="cancer-card-header">
-            <span className="cancer-card-label">มี Authen Code</span>
+            <span className="cancer-card-label">มี ClaimCode</span>
             <ShieldCheck size={16} className="text-blue-600" />
           </div>
           <div className="cancer-card-value">
@@ -738,10 +766,10 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         <div
           className={`cancer-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('NO_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะรายการที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่ไม่มี ClaimCode"
         >
           <div className="cancer-card-header">
-            <span className="cancer-card-label">ไม่มี Authen</span>
+            <span className="cancer-card-label">ไม่มี ClaimCode</span>
             <AlertTriangle size={16} className="text-amber-600" />
           </div>
           <div className="cancer-card-value">
@@ -808,6 +836,29 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                 onClick={() => setCardFilter('ALL')}
                 className="hover:opacity-75"
                 title="ล้างตัวกรองการ์ด"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
+          {selectedPttypes.length > 0 && (
+            <div className="cancer-active-filter-badge">
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะบัตรทอง (UC)'
+                  : `${selectedPttypes.length} สิทธิ (${selectedPttypes.join(', ')})`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                className="hover:opacity-75"
+                title="ล้างตัวกรองสิทธิ"
               >
                 <X size={12} />
               </button>
@@ -892,7 +943,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                   </button>
                 </th>
                 <th className="col-center">สิทธิ์การรักษา</th>
-                <th className="col-center">Authen Code</th>
+                <th className="col-center">ClaimCode</th>
                 <th className="col-center">
                   <button
                     type="button"
@@ -1129,7 +1180,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                     <span className="cancer-detail-value">{selectedItem.pttypename || '—'}</span>
                   </div>
                   <div className="cancer-detail-item">
-                    <span className="cancer-detail-label">Authen Code</span>
+                    <span className="cancer-detail-label">ClaimCode:</span>
                     <span className="cancer-detail-value font-mono">
                       {selectedItem.authencode || '—'}
                     </span>

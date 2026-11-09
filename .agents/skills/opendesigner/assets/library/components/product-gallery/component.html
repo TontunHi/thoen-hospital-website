@@ -1,0 +1,197 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-product-gallery { box-sizing: border-box; inline-size: 100%; max-inline-size: 72rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-product-gallery *, .odl-product-gallery *::before, .odl-product-gallery *::after { box-sizing: border-box; }
+.odl-product-gallery .odl-wrap { --odl-tap: max(var(--ds-size-target-min), var(--ds-size-control-md)); display: grid; gap: var(--ds-space-stack-lg); }
+@container (max-width: 30rem) { .odl-product-gallery .odl-wrap { --odl-tap: var(--ds-size-target-touch); } }
+@container (min-width: 44rem) { .odl-product-gallery .odl-wrap { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: var(--ds-space-section-sm); align-items: start; } }
+/* Gallery: a scroll-snap track you can swipe, dots under the picture on a phone, thumbnails from tablet up. */
+.odl-product-gallery .odl-gallery { display: grid; gap: var(--ds-space-stack-md); min-inline-size: 0; }
+.odl-product-gallery .odl-stage { position: relative; display: grid; gap: var(--ds-space-stack-sm); min-inline-size: 0; }
+.odl-product-gallery .odl-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; border-radius: var(--ds-radius-container); background: var(--ds-color-surface-sunken); }
+.odl-product-gallery .odl-track::-webkit-scrollbar { display: none; }
+.odl-product-gallery .odl-slide { flex: 0 0 100%; margin: 0; aspect-ratio: 4 / 5; scroll-snap-align: start; }
+.odl-product-gallery .odl-slide img, .odl-product-gallery .odl-thumb img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-product-gallery .odl-dots { display: flex; justify-content: center; }
+.odl-product-gallery .odl-dot { display: grid; place-items: center; inline-size: var(--ds-space-24); block-size: var(--ds-size-target-min); padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--ds-radius-full); }
+.odl-product-gallery .odl-dot::before { content: ""; inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-border-strong);
+  transition: inline-size var(--ds-motion-duration-short) var(--ds-motion-easing-standard), background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-product-gallery .odl-dot[aria-current="true"]::before { inline-size: var(--ds-space-16); background: var(--ds-color-text-primary); }
+.odl-product-gallery .odl-thumbs { display: none; gap: var(--ds-space-inline-sm); }
+.odl-product-gallery .odl-thumb { display: block; padding: 0; aspect-ratio: 4 / 5; border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-nested); overflow: hidden;
+  background: var(--ds-color-surface-sunken); cursor: pointer; transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-product-gallery .odl-thumb:hover { border-color: var(--ds-color-border-strong); }
+.odl-product-gallery .odl-thumb[aria-current="true"] { border-color: var(--ds-color-text-primary); box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-text-primary); }
+/* Tablet: thumbnails in a row under the picture, no dots. Desktop: thumbnails in a column beside it. */
+@container (min-width: 30rem) {
+  .odl-product-gallery .odl-thumbs { display: grid; grid-template-columns: repeat(3, minmax(0, 5rem)); }
+  .odl-product-gallery .odl-dots { display: none; }
+}
+@container (min-width: 56rem) {
+  .odl-product-gallery .odl-gallery { grid-template-columns: 4.5rem minmax(0, 1fr); align-items: start; }
+  .odl-product-gallery .odl-thumbs { grid-template-columns: minmax(0, 1fr); order: -1; }
+}
+/* Details */
+.odl-product-gallery .odl-info { display: grid; gap: var(--ds-space-stack-lg); align-content: start; min-inline-size: 0; }
+@container (min-width: 44rem) { .odl-product-gallery .odl-info { padding-block-start: var(--ds-space-stack-md); } }
+.odl-product-gallery .odl-head { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-product-gallery .odl-eyebrow { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-product-gallery h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-product-gallery .odl-price { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-inline-sm); margin: var(--ds-space-stack-xs) 0 0; font-variant-numeric: tabular-nums; }
+.odl-product-gallery .odl-now { font: var(--ds-text-title-md); }
+.odl-product-gallery .odl-was { color: var(--ds-color-text-tertiary); font: var(--ds-text-body-md); text-decoration: line-through; }
+.odl-product-gallery .odl-save { display: inline-flex; align-items: center; padding: var(--ds-space-2) var(--ds-space-8); border-radius: var(--ds-radius-control-sm); background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); font: var(--ds-text-label-sm); }
+.odl-product-gallery .odl-rating { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); justify-self: start; min-block-size: var(--ds-size-target-min); margin-block: var(--ds-space-stack-xs) 0; padding: 0;
+  border: 0; background: transparent; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); cursor: pointer; border-radius: var(--ds-radius-control-sm); }
+.odl-product-gallery .odl-rating:hover span:last-child { color: var(--ds-color-text-primary); text-decoration: underline; }
+.odl-product-gallery .odl-stars { display: inline-flex; gap: var(--ds-space-2); color: var(--ds-color-text-primary); }
+.odl-product-gallery .odl-stars svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-product-gallery .odl-stars .is-full path { fill: currentColor; }
+.odl-product-gallery .odl-stars .is-half { position: relative; }
+.odl-product-gallery .odl-stars .is-half path { fill: currentColor; }
+.odl-product-gallery .odl-stars .is-half path.is-out { fill: none; }
+.odl-product-gallery .odl-rating b { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-product-gallery fieldset { display: grid; gap: var(--ds-space-stack-sm); margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.odl-product-gallery legend { display: flex; justify-content: space-between; align-items: baseline; gap: var(--ds-space-inline-md); inline-size: 100%; padding: 0; margin-block-end: var(--ds-space-stack-sm); font: var(--ds-text-label-lg); }
+.odl-product-gallery legend span { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-product-gallery .odl-colour legend { justify-content: flex-start; }
+.odl-product-gallery .odl-swatches { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); }
+/* Sizes stay on one row: five equal chips that share the width. */
+.odl-product-gallery .odl-sizes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--ds-space-inline-sm); }
+.odl-product-gallery .odl-sw, .odl-product-gallery .odl-size { position: relative; }
+.odl-product-gallery .odl-sw input, .odl-product-gallery .odl-size input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-product-gallery .odl-sw span { position: relative; display: block; inline-size: var(--odl-tap); block-size: var(--odl-tap); border-radius: var(--ds-radius-full);
+  border: var(--ds-border-width-emphasis) solid transparent; transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-product-gallery .odl-sw span::before { content: ""; position: absolute; inset: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--c);
+  box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-neutral-alpha-light-5); }
+.odl-product-gallery .odl-sw:hover span { border-color: var(--ds-color-border-default); }
+.odl-product-gallery .odl-sw input:checked + span { border-color: var(--ds-color-text-primary); }
+.odl-product-gallery .odl-sw.is-chalk { --c: var(--ds-color-neutral-light-1); } .odl-product-gallery .odl-sw.is-sand { --c: var(--ds-color-warning-light-4); }
+.odl-product-gallery .odl-sw.is-ink { --c: var(--ds-color-neutral-light-12); } .odl-product-gallery .odl-sw.is-moss { --c: var(--ds-color-success-light-9); }
+.odl-product-gallery .odl-cname { display: none; }
+.odl-product-gallery:has(input[value="chalk"]:checked) .odl-cname.is-chalk, .odl-product-gallery:has(input[value="sand"]:checked) .odl-cname.is-sand,
+.odl-product-gallery:has(input[value="ink"]:checked) .odl-cname.is-ink, .odl-product-gallery:has(input[value="moss"]:checked) .odl-cname.is-moss { display: inline; }
+.odl-product-gallery .odl-size span { display: grid; place-items: center; min-inline-size: 0; min-block-size: var(--odl-tap); padding: 0 var(--ds-space-4);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised); font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums;
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-product-gallery .odl-size:hover span { border-color: var(--ds-color-border-strong); }
+.odl-product-gallery .odl-size input:checked + span { border-color: var(--ds-color-text-primary); box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-text-primary); }
+.odl-product-gallery .odl-size input:disabled { cursor: not-allowed; }
+.odl-product-gallery .odl-size input:disabled + span { background: var(--ds-color-surface-sunken); border-color: var(--ds-color-border-subtle); color: var(--ds-color-text-tertiary); text-decoration: line-through; }
+.odl-product-gallery .odl-low { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-product-gallery .odl-buy { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--ds-space-inline-sm); }
+.odl-product-gallery .odl-add, .odl-product-gallery .odl-fav { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-lg); border: 0; border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), transform var(--ds-motion-duration-micro) var(--ds-motion-easing-standard); }
+.odl-product-gallery .odl-add { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-product-gallery .odl-add:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-product-gallery .odl-add:active { background: var(--ds-color-bg-action-primary-pressed); transform: scale(var(--ds-motion-scale-press)); }
+.odl-product-gallery .odl-add svg, .odl-product-gallery .odl-fav svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-product-gallery .odl-add .is-done, .odl-product-gallery .odl-add.is-added .is-bag { display: none; }
+.odl-product-gallery .odl-add.is-added .is-done { display: block; }
+.odl-product-gallery .odl-fav { inline-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: 0; border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-product-gallery .odl-fav:hover { border-color: var(--ds-color-border-strong); }
+.odl-product-gallery .odl-fav[aria-pressed="true"] path { fill: currentColor; }
+.odl-product-gallery .odl-perks { display: grid; gap: var(--ds-space-stack-md); margin: 0; padding: var(--ds-space-stack-lg) 0 0; list-style: none; border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); font: var(--ds-text-body-md); color: var(--ds-color-text-secondary); }
+.odl-product-gallery .odl-perks li { display: flex; align-items: center; gap: var(--ds-space-inline-md); }
+.odl-product-gallery .odl-perks svg { flex: none; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-default); }
+.odl-product-gallery .odl-perks b { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-product-gallery button:focus-visible, .odl-product-gallery .odl-sw:has(input:focus-visible) span, .odl-product-gallery .odl-size:has(input:focus-visible) span, .odl-product-gallery .odl-track:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-product-gallery .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .odl-product-gallery, .odl-product-gallery *, .odl-product-gallery *::before { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+<section class="odl-product-gallery" aria-label="Heavyweight cotton tee">
+  <div class="odl-wrap">
+    <div class="odl-gallery">
+      <div class="odl-stage">
+        <div class="odl-track" tabindex="0" aria-label="Photos, 1 of 3" role="group">
+          <figure class="odl-slide"><img src="https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=1200&h=1500&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=0.62&fp-z=2.2&auto=format&q=70" alt="White crew-neck tee on a hanger, front" width="600" height="750" loading="lazy" decoding="async"></figure>
+          <figure class="odl-slide"><img src="https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=1200&h=1500&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=0.5&fp-z=3.2&auto=format&q=70" alt="Close-up of the ribbed collar and cotton" width="600" height="750" loading="lazy" decoding="async"></figure>
+          <figure class="odl-slide"><img src="https://images.unsplash.com/photo-1651761179569-4ba2aa054997?w=1200&h=1500&fit=crop&auto=format&q=70" alt="White crew-neck tee laid flat" width="600" height="750" loading="lazy" decoding="async"></figure>
+        </div>
+        <div class="odl-dots">
+          <button type="button" class="odl-dot" aria-label="Photo 1: front" aria-current="true"></button>
+          <button type="button" class="odl-dot" aria-label="Photo 2: flat"></button>
+          <button type="button" class="odl-dot" aria-label="Photo 3: close up"></button>
+        </div>
+      </div>
+      <div class="odl-thumbs">
+        <button type="button" class="odl-thumb" aria-label="Show front" aria-current="true"><img src="https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=160&h=200&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=0.62&fp-z=2.2&auto=format&q=70" alt="" width="80" height="100" loading="lazy" decoding="async"></button>
+        <button type="button" class="odl-thumb" aria-label="Show close up"><img src="https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=160&h=200&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=0.5&fp-z=3.2&auto=format&q=70" alt="" width="80" height="100" loading="lazy" decoding="async"></button>
+        <button type="button" class="odl-thumb" aria-label="Show flat"><img src="https://images.unsplash.com/photo-1651761179569-4ba2aa054997?w=160&h=200&fit=crop&auto=format&q=70" alt="" width="80" height="100" loading="lazy" decoding="async"></button>
+      </div>
+    </div>
+    <div class="odl-info">
+      <div class="odl-head">
+        <p class="odl-eyebrow">Workroom line · Men's T-shirts</p>
+        <h3>Heavyweight cotton tee</h3>
+        <p class="odl-price"><span class="odl-now"><span class="odl-sr">Now </span>$28</span><span class="odl-was"><span class="odl-sr">was </span>$40</span><span class="odl-save">Sale · Save 30%</span></p>
+        <button type="button" class="odl-rating" aria-label="Rated 4.7 out of 5 from 212 reviews. Read reviews">
+          <span class="odl-stars" aria-hidden="true">
+            <svg class="is-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+            <svg class="is-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+            <svg class="is-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+            <svg class="is-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>
+            <svg class="is-half" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path class="is-out" d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/><path d="M12 18.338a2.1 2.1 0 0 0-.987.244L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16l2.309-4.679A.53.53 0 0 1 12 2"/></svg>
+          </span>
+          <b aria-hidden="true">4.7</b><span aria-hidden="true">212 reviews</span>
+        </button>
+      </div>
+      <fieldset class="odl-colour">
+        <legend>Colour <span><span class="odl-cname is-chalk">Chalk</span><span class="odl-cname is-sand">Sand</span><span class="odl-cname is-ink">Ink</span><span class="odl-cname is-moss">Moss</span></span></legend>
+        <div class="odl-swatches">
+          <label class="odl-sw is-chalk"><input type="radio" name="odl-product-gallery-colour" value="chalk" checked aria-label="Chalk"><span></span></label>
+          <label class="odl-sw is-sand"><input type="radio" name="odl-product-gallery-colour" value="sand" aria-label="Sand"><span></span></label>
+          <label class="odl-sw is-ink"><input type="radio" name="odl-product-gallery-colour" value="ink" aria-label="Ink"><span></span></label>
+          <label class="odl-sw is-moss"><input type="radio" name="odl-product-gallery-colour" value="moss" aria-label="Moss"><span></span></label>
+        </div>
+      </fieldset>
+      <fieldset class="odl-size-set">
+        <legend>Size <span>Fits true to size</span></legend>
+        <div class="odl-sizes">
+          <label class="odl-size"><input type="radio" name="odl-product-gallery-size" value="S"><span>S</span></label>
+          <label class="odl-size"><input type="radio" name="odl-product-gallery-size" value="M" checked><span>M</span></label>
+          <label class="odl-size"><input type="radio" name="odl-product-gallery-size" value="L"><span>L</span></label>
+          <label class="odl-size"><input type="radio" name="odl-product-gallery-size" value="XL" disabled aria-label="XL, sold out"><span>XL</span></label>
+          <label class="odl-size"><input type="radio" name="odl-product-gallery-size" value="XXL"><span>XXL</span></label>
+        </div>
+        <p class="odl-low">Only 3 left in M</p>
+      </fieldset>
+      <div class="odl-buy">
+        <button type="button" class="odl-add"><svg class="is-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><svg class="is-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="odl-add-label">Add to bag</span></button>
+        <button type="button" class="odl-fav" aria-label="Save to wishlist" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
+      </div>
+      <p class="odl-sr" aria-live="polite"></p>
+      <ul class="odl-perks">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span><b>Free delivery</b> by Thursday, 5 Nov</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg><span><b>Free returns</b> for 30 days</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-product-gallery").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const track = root.querySelector(".odl-track"), dots = [...root.querySelectorAll(".odl-dot")], thumbs = [...root.querySelectorAll(".odl-thumb")];
+  const mark = (i) => { [dots, thumbs].forEach((set) => set.forEach((b, j) => b.setAttribute("aria-current", String(i === j)))); track.setAttribute("aria-label", `Photos, ${i + 1} of ${dots.length}`); };
+  const go = (i) => { track.scrollTo({ left: i * track.clientWidth, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); mark(i); };
+  [dots, thumbs].forEach((set) => set.forEach((b, i) => b.addEventListener("click", () => go(i))));
+  let t; track.addEventListener("scroll", () => { clearTimeout(t); t = setTimeout(() => mark(Math.round(track.scrollLeft / track.clientWidth)), 60); });
+  track.addEventListener("keydown", (e) => {
+    const i = Math.round(track.scrollLeft / track.clientWidth);
+    if (e.key === "ArrowRight") { e.preventDefault(); go(Math.min(i + 1, dots.length - 1)); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); go(Math.max(i - 1, 0)); }
+  });
+  const add = root.querySelector(".odl-add"), label = root.querySelector(".odl-add-label"), live = root.querySelector("[aria-live]");
+  add.addEventListener("click", () => {
+    const c = root.querySelector('.odl-colour input:checked').getAttribute("aria-label"), s = root.querySelector('.odl-size-set input:checked').value;
+    add.classList.add("is-added"); label.textContent = "Added to bag"; live.textContent = `Added to bag: ${c}, size ${s}`;
+    setTimeout(() => { add.classList.remove("is-added"); label.textContent = "Add to bag"; }, 2200);
+  });
+  root.querySelector(".odl-fav").addEventListener("click", (e) => {
+    const b = e.currentTarget, on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", on ? "Saved to wishlist" : "Save to wishlist");
+  });
+});
+</script>

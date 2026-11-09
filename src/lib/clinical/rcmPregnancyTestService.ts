@@ -1,6 +1,8 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Domain Types: 8.1 การทดสอบการตั้งครรภ์ (Pregnancy Test ADP 31101, 30014) ──
 
@@ -37,6 +39,7 @@ export type PregnancyTestSortField =
 
 export interface PregnancyTestReportParams extends FiscalDateRangeParams {
   cardFilter?: PregnancyTestCardFilter
+  pttypes?: string
   ucOnly?: boolean
   searchField?: PregnancyTestSearchField
   search?: string
@@ -76,6 +79,7 @@ export interface PregnancyTestItem {
   maininscl: string
   isUc: boolean
   pttypename: string
+  pttype_eclaim_id?: string | null
   department: string | null
   clinic: string | null
   pdx: string | null
@@ -200,6 +204,26 @@ export class RcmPregnancyTestService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping('31101')
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -269,10 +293,7 @@ export class RcmPregnancyTestService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const [mappingRes, rows] = await Promise.all([
-          RcmPregnancyTestService.checkPregnancyTestAdpMapping(executor),
-          executor(
-            `
+        const sql = `
             SELECT 
               o.vn,
               IFNULL(pt.cid, '') AS cid,
@@ -281,9 +302,10 @@ export class RcmPregnancyTestService {
               IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
               CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
+              ptt.pttype_eclaim_id AS pttype_eclaim_id,
               dep.department AS department,
               spc.name AS clinic,
               v.pdx,
@@ -292,7 +314,7 @@ export class RcmPregnancyTestService {
               dd.labname AS drug_labname,
               dd.name AS listname,
               lo.lab_order_result AS lab_order_result,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
               re.fund,
@@ -316,6 +338,7 @@ export class RcmPregnancyTestService {
               GROUP BY oo.vn
             ) dd ON dd.vn = o.vn
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT 
                 lh.vn,
@@ -330,7 +353,7 @@ export class RcmPregnancyTestService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -338,7 +361,7 @@ export class RcmPregnancyTestService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
@@ -347,7 +370,7 @@ export class RcmPregnancyTestService {
               SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                      GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) re ON re.vn = o.vn
             LEFT JOIN (
@@ -357,19 +380,49 @@ export class RcmPregnancyTestService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
             ORDER BY o.vstdate DESC, o.vsttime DESC;
-            `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
-          ),
-        ])
+        `
+        const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
 
-        return { rawRows: (rows || []) as Record<string, unknown>[], adpMapping: mappingRes }
+        let rows: Record<string, unknown>[] = []
+        let mappingRes: PregnancyTestAdpMappingCheck = {
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmPregnancyTestService.checkPregnancyTestAdpMapping(executor),
+              apiGateway.clinical.getRcmFundData('pregnancy-test', { ds1, ds2 }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows as Record<string, unknown>[]
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmPregnancyTestService.checkPregnancyTestAdpMapping(executor),
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<Record<string, unknown>[]>,
+          ])
+          rows = dbRows || []
+          mappingRes = mRes
+        }
+
+        return { rawRows: rows, adpMapping: mappingRes }
       },
       600 // Cache TTL 10 minutes
     )
@@ -383,7 +436,8 @@ export class RcmPregnancyTestService {
       const drugLabName = r.drug_labname ? String(r.drug_labname).trim() : null
       const listName = r.listname ? String(r.listname).trim() : null
       const maininscl = String(r.maininscl || '').trim()
-      const isUc = maininscl.toUpperCase() === 'UCS'
+      const pttypeEclaimId = r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null
+      const isUc = isUcEclaimCode(pttypeEclaimId) || maininscl.toUpperCase() === 'UCS'
 
       // Mirror FoxPro: asstring(concat_ws('#',dd.labname,lo.lab_order_result)) labname
       const combinedLabName = [drugLabName, labResult].filter(Boolean).join('#')
@@ -401,6 +455,7 @@ export class RcmPregnancyTestService {
         maininscl,
         isUc,
         pttypename: String(r.pttypename || '').trim(),
+        pttype_eclaim_id: pttypeEclaimId,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         pdx: r.pdx ? String(r.pdx).trim() : null,
@@ -420,7 +475,18 @@ export class RcmPregnancyTestService {
       }
     })
 
-    // Compute baseline summary metrics across all visits
+    // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
+    const summaryCohort = allItems.filter((i) => {
+      if (params.pttypes !== undefined) {
+        return matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      }
+      if (ucOnly || cardFilter === 'UC_ONLY') {
+        return i.isUc
+      }
+      return true
+    })
+
+    // Compute baseline summary metrics across summaryCohort
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let uncompensatedVisits = 0
@@ -434,7 +500,7 @@ export class RcmPregnancyTestService {
     let ucCount = 0
     let totalIncome = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniqueHnSet.add(item.hn)
       totalIncome += item.income
 
@@ -461,7 +527,7 @@ export class RcmPregnancyTestService {
       else if (item.labStatus === 'NO_LAB') noLabCount++
     }
 
-    const totalVisits = allItems.length
+    const totalVisits = summaryCohort.length
     const compensationRate = totalVisits > 0 ? Number(((compensatedVisits / totalVisits) * 100).toFixed(1)) : 0
     const authenRate = totalVisits > 0 ? Number(((withAuthenCount / totalVisits) * 100).toFixed(1)) : 0
     const positiveRate = totalVisits > 0 ? Number(((positiveCount / totalVisits) * 100).toFixed(1)) : 0
@@ -493,12 +559,7 @@ export class RcmPregnancyTestService {
     }
 
     // Apply interactive filters
-    let filtered = allItems
-
-    // 1. UC Only filter (via checkbox or cardFilter)
-    if (ucOnly || cardFilter === 'UC_ONLY') {
-      filtered = filtered.filter((i) => i.isUc)
-    }
+    let filtered = summaryCohort
 
     // 2. Card Filter
     if (cardFilter === 'COMPENSATED') {

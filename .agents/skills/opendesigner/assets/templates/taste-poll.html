@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Taste poll</title>
+<!--
+OpenDesigner visual template: Taste poll. The person rates 20 to 30 real screens from shipped products with six gut
+ratings (Cracked, Best, Crazy af, Okay okay, Generic, I hate it). Every screen carries a position on the eight dials
+(expression, brandPresence, density, energy, roundness, depth, colorfulness, warmth), so every rating moves a profile.
+The poll picks each next screen from the reactions so far: it spreads out first, then alternates between the dial it
+knows least and screens close to what the person loved, and it stops showing directions the person has ruled out.
+Build it with scripts/taste.py build (it fills od-data from assets/taste/library.json and copies the images next to
+the page). The results card is made to be screenshotted and kept with the project; "Copy for the chat" produces one
+OD:set taste.poll=<json> line that scripts/taste.py import (or the agent) records.
+No network requests, no dependencies.
+-->
+<style>
+:root{--c-bg:#f4f4f6;--c-surface:#fff;--c-fg:#18181b;--c-muted:#5b5b66;--c-border:#dcdce2;--c-strong:#18181b;--c-on-strong:#fff;--c-dot:#4338ca;--c-band:#e4e3f7;--c-stage:#e6e6eb;
+--cracked:#7c3aed;--best:#15803d;--crazy:#db2777;--okay:#6b7280;--generic:#b45309;--hate:#b91c1c;
+--r:10px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111114;--c-surface:#1a1a1f;--c-fg:#ececf1;--c-muted:#a3a3b0;--c-border:#2f2f38;--c-strong:#ececf1;--c-on-strong:#111114;--c-dot:#a5a0ff;--c-band:#2a2850;--c-stage:#0b0b0e;
+--cracked:#b794f6;--best:#4ade80;--crazy:#f472b6;--okay:#9ca3af;--generic:#f59e0b;--hate:#f87171;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111114;--c-surface:#1a1a1f;--c-fg:#ececf1;--c-muted:#a3a3b0;--c-border:#2f2f38;--c-strong:#ececf1;--c-on-strong:#111114;--c-dot:#a5a0ff;--c-band:#2a2850;--c-stage:#0b0b0e;
+--cracked:#b794f6;--best:#4ade80;--crazy:#f472b6;--okay:#9ca3af;--generic:#f59e0b;--hate:#f87171;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:15px/1.5 var(--font)}
+button{font:inherit;cursor:pointer;color:var(--c-fg)}
+:focus-visible{outline:2px solid var(--c-dot);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:22px 48px}
+.top{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+h1{font-size:28px;line-height:1.1;margin:0;letter-spacing:-.01em}
+.sub{color:var(--c-muted);margin:6px 0 0;max-width:64ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:1fr}}
+.pane{background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;padding:16px;min-width:0}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.q{font-weight:700;font-size:18px}
+.meta{font:12px/1.4 var(--mono);color:var(--c-muted);font-variant-numeric:tabular-nums}
+.prog{height:4px;background:var(--c-border);border-radius:2px;overflow:hidden;margin-bottom:12px}
+.prog span{display:block;height:100%;background:var(--c-dot);transition:width .3s}
+.stage{background:var(--c-stage);border-radius:10px;display:grid;place-items:center;padding:12px;min-height:320px}
+.stage img{display:block;max-width:100%;height:auto;border-radius:6px;box-shadow:0 1px 3px rgb(0 0 0/.2)}
+.stage.tall img{max-height:600px;width:auto}
+.why{font-size:13px;color:var(--c-muted);margin:10px 0 0}
+.why b{color:var(--c-fg)}
+.pad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+@media (max-width:480px){.pad{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rate{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;background:var(--c-surface);border:1.5px solid var(--c-border);border-left:5px solid var(--c);border-radius:var(--r);padding:9px 12px;min-height:44px}
+.rate:hover{border-color:var(--c)}
+.rate .n{font-weight:700;display:flex;gap:8px;align-items:center}
+.rate .k{font:10.5px var(--mono);border:1px solid var(--c-border);border-radius:4px;padding:0 5px;color:var(--c-muted)}
+.rate .d{font-size:12px;color:var(--c-muted);line-height:1.3}
+.under{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.link{background:none;border:0;color:var(--c-muted);text-decoration:underline;text-underline-offset:3px;padding:6px 0;font-size:13px;min-height:32px}
+.btn{min-height:40px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);font-weight:600;font-size:14px}
+.btn.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong)}
+.ready{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;padding:10px 12px;border-radius:var(--r);background:var(--c-band)}
+.hist{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.chip{font-size:12px;padding:3px 9px 3px 7px;border-radius:6px;background:var(--c-bg);border:1px solid var(--c-border);display:inline-flex;gap:6px;align-items:center}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.chip a{color:inherit;text-decoration:none}.chip a:hover{text-decoration:underline}
+h2{font-size:20px;margin:0}
+.dials{display:grid;gap:10px;margin:14px 0 4px}
+.dial{display:grid;grid-template-columns:92px minmax(0,1fr) 30px;gap:10px;align-items:center}
+.dial .nm{font-weight:600;font-size:13.5px}
+.dial .v{font:12.5px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.track{position:relative;height:28px}
+.track .ends{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;font-size:10.5px;color:var(--c-muted)}
+.track .rail{position:absolute;left:0;right:0;top:19px;height:2px;background:var(--c-border)}
+.track .band{position:absolute;top:14px;height:12px;border-radius:6px;background:var(--c-band)}
+.track .dot{position:absolute;top:13px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--c-dot);border:2px solid var(--c-surface);transition:left .35s}
+.dial.low .dot{background:var(--c-muted)}
+.dial.low .nm::after{content:" · unsure";font-weight:500;color:var(--c-muted);font-size:11px}
+.sig{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+@media (max-width:480px){.sig{grid-template-columns:1fr}}
+.sg{border:1px solid var(--c-border);border-radius:var(--r);padding:10px 12px;min-width:0}
+.sg .t{font-size:12px;color:var(--c-muted);font-weight:600}
+.sg .b{font-size:14px;margin-top:2px}
+.meter{height:6px;background:var(--c-border);border-radius:3px;margin-top:8px;position:relative;overflow:hidden}
+.meter span{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.list{margin:4px 0 0;padding:0;list-style:none;font-size:13px}
+.list li{display:flex;justify-content:space-between;gap:8px;padding:1px 0}
+/* results card: made to be screenshotted */
+.shotnote{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r);background:var(--c-band);margin-bottom:14px;font-size:14px}
+.shotnote b{display:block}
+.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px;padding:22px;max-width:880px;margin:0 auto}
+.card .head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;border-bottom:1px solid var(--c-border);padding-bottom:12px}
+.card h2{font-size:24px}
+.cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;margin-top:14px}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}
+.thumbs figure{margin:0;min-width:0}
+.thumbs img{width:100%;aspect-ratio:4/3;object-fit:cover;object-position:top;border-radius:6px;border:1px solid var(--c-border);display:block}
+.thumbs figcaption{font-size:11.5px;color:var(--c-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lab{font-size:12px;font-weight:600;color:var(--c-muted);margin-top:14px;text-transform:uppercase;letter-spacing:.05em}
+.summary{font-size:15px;margin:10px 0 0;max-width:70ch}
+.actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+textarea.out{width:100%;min-height:70px;margin-top:10px;font:11.5px/1.45 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg)}
+.empty{padding:40px 16px;text-align:center;color:var(--c-muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="title">Taste poll</h1>
+      <p class="sub">Rate real screens from shipped products. Go with your gut. Each rating moves your profile on eight dials, and the next screen is picked from your answers so far.</p>
+    </div>
+    <button class="link" id="restart" type="button">Start over</button>
+  </header>
+
+  <div id="poll" class="grid">
+    <section class="pane" aria-label="Poll">
+      <div class="bar"><div class="q">How does this one land?</div><div class="meta" id="count"></div></div>
+      <div class="prog"><span id="progbar"></span></div>
+      <div id="stage"></div>
+      <p class="why" id="why"></p>
+      <div class="pad" id="pad"></div>
+      <div class="ready" id="ready" hidden><span id="readytext"></span><button class="btn primary" id="finish" type="button">See my profile</button></div>
+      <div class="under"><button class="link" id="skip" type="button">Skip this one</button><button class="link" id="undo" type="button">Undo last</button></div>
+      <div class="hist" id="hist" aria-label="Your ratings"></div>
+    </section>
+    <aside class="pane" aria-label="Taste profile so far">
+      <div class="bar"><h2>Your profile so far</h2><span class="meta" id="sure"></span></div>
+      <div id="profile"></div>
+    </aside>
+  </div>
+
+  <div id="results" hidden>
+    <div class="shotnote" role="note"><div><b>Take a screenshot of the card below and keep it with your project.</b>It is your record of this poll: save it next to the project (for example in the opendesigner folder) so you and your AI can look back at it. Then copy the line for the chat so the profile is recorded.</div></div>
+    <div class="card" id="card"></div>
+    <div class="actions">
+      <button class="btn primary" id="copy" type="button">Copy for the chat</button>
+      <button class="btn" id="save" type="button">Save profile file</button>
+      <button class="btn" id="more" type="button">Rate more screens</button>
+    </div>
+    <textarea class="out" id="out" readonly aria-label="Line to paste into the chat"></textarea>
+  </div>
+</div>
+
+<script type="application/json" id="od-data">
+{
+ "project": "Sample project",
+ "min": 20,
+ "max": 30,
+ "screens": [
+  {"id":"hero-sample","app":"Sample app","kind":"hero","platform":"web","mobbin_url":"","src":"img/hero-sample.jpg","d":[50,50,50,50,50,50,50,50],"tags":["minimal"],"common":false}
+ ]
+}
+</script>
+<script>
+(function(){
+const D=window.OD_DATA||(location.hash.startsWith('#data=')?JSON.parse(decodeURIComponent(location.hash.slice(6))):JSON.parse(document.getElementById('od-data').textContent));
+const S=(D.screens||[]).filter(s=>Array.isArray(s.d)&&s.d.length===8);
+const MIN=Math.min(D.min||20,S.length);let MAX=Math.min(D.max||30,S.length);
+const BY=Object.fromEntries(S.map(s=>[s.id,s]));
+const DIALS=[
+ {id:'expression',nm:'Expression',l:'productive',r:'expressive'},
+ {id:'brandPresence',nm:'Brand',l:'native',r:'brand-led'},
+ {id:'density',nm:'Density',l:'spacious',r:'compact'},
+ {id:'energy',nm:'Energy',l:'calm',r:'energetic'},
+ {id:'roundness',nm:'Roundness',l:'sharp',r:'soft'},
+ {id:'depth',nm:'Depth',l:'flat',r:'deep'},
+ {id:'colorfulness',nm:'Colour',l:'mono',r:'vivid'},
+ {id:'warmth',nm:'Warmth',l:'cool',r:'warm'}];
+const RATINGS=[
+ {k:'cracked',n:'Cracked',d:'Exceptionally good',w:3,c:'--cracked',key:'1'},
+ {k:'best',n:'Best',d:'Really good, would use',w:2,c:'--best',key:'2'},
+ {k:'crazy',n:'Crazy af',d:'Wild, love the energy',w:1,c:'--crazy',key:'3'},
+ {k:'okay',n:'Okay okay',d:'Fine, nothing more',w:0.25,c:'--okay',key:'4'},
+ {k:'generic',n:'Generic',d:'Seen it a thousand times',w:-1,c:'--generic',key:'5'},
+ {k:'hate',n:'I hate it',d:'Please never',w:-3,c:'--hate',key:'6'}];
+const RW=Object.fromEntries(RATINGS.map(r=>[r.k,r]));
+const KEY='od-taste-poll:'+(D.project||'')+':'+S.length;
+const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- model ---------- */
+const SIG=18, K=x=>Math.exp(-(x*x)/(2*SIG*SIG));
+const dist=(a,b)=>Math.sqrt(a.d.reduce((t,x,i)=>t+(x-b.d[i])**2,0))/Math.sqrt(8);   // 0..100
+const near=(a,b,s=22)=>Math.exp(-(dist(a,b)**2)/(2*s*s));
+const ext=s=>s.d.reduce((a,x)=>a+Math.abs(x-50),0)/(8*50);
+function profile(R){
+  const rated=R.map(([id,k])=>({s:BY[id],r:RW[k]})).filter(x=>x.s&&x.r);
+  const mass=rated.reduce((a,{r})=>a+Math.max(r.w,0)+.3*Math.max(-r.w,0),0);
+  const liked=rated.reduce((a,{r})=>a+(r.w>=1?r.w:0),0);   // nothing liked yet means nothing is known yet
+  const loved=rated.filter(x=>x.r.w>=2);
+  const dials=DIALS.map((D0,i)=>{
+    const f=[];for(let v=0;v<=100;v++){let t=.5*K(v-50);for(const {s,r} of rated)t+=r.w*K(v-s.d[i]);f.push(t)}
+    let best=50,max=-Infinity;f.forEach((t,v)=>{if(t>max){max=t;best=v}});
+    const min=Math.min(...f),mean=f.reduce((a,b)=>a+b,0)/f.length;
+    const peak=max-min>1e-6?(max-mean)/(max-min):0;
+    // agreement: loved screens that disagree on this dial lower confidence
+    let agree=1;if(loved.length>1){const W=loved.reduce((a,x)=>a+x.r.w,0),m=loved.reduce((a,x)=>a+x.r.w*x.s.d[i],0)/W;
+      const sd=Math.sqrt(loved.reduce((a,x)=>a+x.r.w*(x.s.d[i]-m)**2,0)/W);agree=1-Math.min(.6,sd/50)}
+    const conf=rated.length?Math.max(0,Math.min(.9,(mass/22)*(.4+.6*peak)*agree*Math.min(1,liked/8))):0;
+    return {...D0,v:rated.length?best:50,conf};
+  });
+  const pick=ks=>rated.filter(x=>ks.includes(x.r.k));
+  const wavg=a=>a.length?a.reduce((t,x)=>t+ext(x.s)*Math.abs(x.r.w),0)/a.reduce((t,x)=>t+Math.abs(x.r.w),0):null;
+  const everyday=wavg(pick(['cracked','best']));
+  const heroL=pick(['crazy','cracked']);const hero=heroL.length?Math.max(...heroL.map(x=>ext(x.s))):null;
+  const common=rated.filter(x=>x.s.common);
+  const genericCount=pick(['generic']).length;
+  const allergy=rated.length?Math.min(1,(genericCount*1.5+common.filter(x=>x.r.w<0).length*.5)/Math.max(3,rated.length*.6)):0;
+  const familiarOk=common.filter(x=>x.r.w>=2).length;
+  const aff={};for(const {s,r} of rated)for(const t of (s.tags||[]))aff[t]=(aff[t]||0)+r.w;
+  const red=[];for(const {s} of pick(['hate']))s.d.forEach((x,i)=>{if(Math.abs(x-dials[i].v)>=30&&Math.abs(x-50)>=30&&!red.some(z=>z.d.id===DIALS[i].id))red.push({d:DIALS[i],x,side:x>50?DIALS[i].r:DIALS[i].l,from:s.app})});
+  const overall=Math.min(.9,dials.reduce((a,d)=>a+d.conf,0)/dials.length);
+  return {dials,everyday,hero,allergy,familiarOk,aff,red,overall,liked,n:rated.length,rated};
+}
+
+/* ---------- adaptive picking ---------- */
+// how many library screens sit near each screen: a search that has found nothing looks where screens cluster
+const DENS=Object.fromEntries(S.map(s=>[s.id,S.reduce((a,o)=>a+near(s,o,15),0)]));const DMAX=Math.max(1,...Object.values(DENS));
+let seed=0;function rnd(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff}
+function next(R,skipped,P){
+  const done=new Set(R.map(r=>r[0]).concat(skipped));
+  const shown=R.map(r=>BY[r[0]]).filter(Boolean);
+  const lastKinds=shown.slice(-2).map(s=>s.kind), lastPlat=shown.slice(-3).map(s=>s.platform);
+  const loved=P.rated.filter(x=>x.r.w>=2).map(x=>x.s), hated=P.rated.filter(x=>x.r.w<=-3).map(x=>x.s);
+  const n=R.length, phase=(n<6||P.liked<2)?'spread':(n%3===2&&loved.length?'refine':'explore');
+  let best=null;
+  for(const s of S){ if(done.has(s.id))continue;
+    let score,top=null,topv=-1;
+    if(phase==='spread'){
+      if(n<6)score=shown.length?Math.min(...shown.map(o=>dist(s,o)))/100:1;
+      else{const no=P.rated.filter(x=>x.r.w<1).map(x=>x.s);score=(no.length?Math.min(...no.map(o=>dist(s,o)))/100:1)*.6+DENS[s.id]/DMAX*.4}
+    }
+    else{
+      let ex=0;s.d.forEach((x,i)=>{const d=P.dials[i];const g=(1-d.conf)*(1-K(x-d.v));ex+=g;if(g>topv){topv=g;top=d}});ex/=8;
+      const nl=loved.length?Math.max(...loved.map(o=>near(s,o))):0;
+      score=phase==='refine'?nl*.8+ex*.4:ex+nl*.15;
+      const nh=hated.length?Math.max(...hated.map(o=>near(s,o))):0;
+      score*=1-.7*nh;   // stop showing directions already ruled out
+    }
+    if(lastKinds.includes(s.kind))score*=.6;
+    if(lastPlat.length===3&&lastPlat.every(p=>p===s.platform))score*=.85;
+    score*=.9+.2*rnd();
+    if(!best||score>best.score)best={s,score,top,phase};
+  }
+  return best;
+}
+
+/* ---------- state ---------- */
+let R=[],skipped=[],cur=null,view='poll';
+function save(){try{localStorage.setItem(KEY,JSON.stringify({R,skipped,view,MAX}))}catch(e){}}
+try{const j=JSON.parse(localStorage.getItem(KEY)||'null');if(j&&Array.isArray(j.R)){R=j.R.filter(r=>BY[r[0]]&&RW[r[1]]);skipped=j.skipped||[];view=j.view==='results'?'results':'poll';if(j.MAX>MAX)MAX=Math.min(S.length,j.MAX)}}catch(e){}
+
+/* ---------- render ---------- */
+const pct=x=>x==null?'–':Math.round(x*100);
+function dialsHTML(P){
+  return '<div class="dials">'+P.dials.map(d=>{const half=Math.round((1-d.conf)*35),lo=Math.max(0,d.v-half),hi=Math.min(100,d.v+half);
+    return `<div class="dial${d.conf<.45?' low':''}"><div class="nm">${d.nm}</div><div class="track" title="${Math.round(d.conf*100)}% sure"><div class="ends"><span>${d.l}</span><span>${d.r}</span></div><div class="rail"></div><div class="band" style="left:${lo}%;width:${hi-lo}%"></div><div class="dot" style="left:${d.v}%"></div></div><div class="v">${P.n?d.v:'–'}</div></div>`}).join('')+'</div>';
+}
+function allergyText(P){
+  if(!P.n)return '–';
+  if(P.allergy>.5)return P.familiarOk?'High, with a few exceptions you liked':'High: avoid safe defaults';
+  if(P.allergy>.2)return 'Some: add one signature move';
+  return 'Low: familiar is fine';
+}
+function signalsHTML(P){
+  const affs=Object.entries(P.aff).sort((a,b)=>b[1]-a[1]);
+  const likes=affs.filter(a=>a[1]>0).slice(0,5), dis=affs.filter(a=>a[1]<0).sort((a,b)=>a[1]-b[1]).slice(0,4);
+  return `<div class="sig">
+   <div class="sg"><div class="t">Boldness</div><div class="b">Everyday ${pct(P.everyday)} · big moments ${pct(P.hero)}</div>
+    <div class="meter"><span style="width:${P.hero==null?0:pct(P.hero)}%;background:var(--crazy);opacity:.35"></span><span style="width:${P.everyday==null?0:pct(P.everyday)}%;background:var(--cracked)"></span></div></div>
+   <div class="sg"><div class="t">Generic allergy</div><div class="b">${allergyText(P)}</div><div class="meter"><span style="width:${Math.round(P.allergy*100)}%;background:var(--generic)"></span></div></div>
+   <div class="sg"><div class="t">Traits you lean to</div><ul class="list">${likes.length?likes.map(([t,w])=>`<li><span>${esc(t)}</span><span class="meta">+${w}</span></li>`).join(''):'<li>–</li>'}</ul></div>
+   <div class="sg"><div class="t">Traits you push away</div><ul class="list">${dis.length?dis.map(([t,w])=>`<li><span>${esc(t)}</span><span class="meta">${w}</span></li>`).join(''):'<li>None yet</li>'}</ul></div>
+  </div>`;
+}
+function summary(P){
+  const strong=P.dials.filter(d=>d.conf>=.45&&Math.abs(d.v-50)>=15).map(d=>(Math.abs(d.v-50)>=30?'very ':'')+(d.v>50?d.r:d.l));
+  const likes=Object.entries(P.aff).filter(a=>a[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,3).map(a=>a[0]);
+  if(P.liked<3)return 'Few of these screens landed for you, so this profile is a weak guess. Describe what you like in words, or share a site you love.';
+  let t=strong.length?'You lean '+strong.join(', ')+'.':'Your taste sits near the middle on most dials.';
+  if(likes.length)t+=' You respond to '+likes.join(', ')+'.';
+  if(P.red.length)t+=' Avoid '+P.red.map(r=>r.side+' '+r.d.nm.toLowerCase()).join(' and ')+'.';
+  return t;
+}
+function record(P){
+  const o={v:1,n:P.n,date:new Date().toISOString().slice(0,10),
+    dials:Object.fromEntries(P.dials.map(d=>[d.id,{value:d.v,conf:+d.conf.toFixed(2)}])),
+    everyday:P.everyday==null?null:+P.everyday.toFixed(2),hero:P.hero==null?null:+P.hero.toFixed(2),
+    genericAllergy:+P.allergy.toFixed(2),
+    likes:Object.entries(P.aff).filter(a=>a[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,6).map(a=>a[0]),
+    dislikes:Object.entries(P.aff).filter(a=>a[1]<0).sort((a,b)=>a[1]-b[1]).slice(0,6).map(a=>a[0]),
+    redLines:P.red.map(r=>({dial:r.d.id,side:r.x>50?'high':'low',value:r.x})),
+    ratings:R.map(([id,k])=>[id,k])};
+  return o;
+}
+function render(){
+  const P=profile(R);
+  if(!S.length){$('poll').innerHTML='<div class="pane empty">No screens yet. Build the poll with scripts/taste.py build.</div>';return}
+  $('count').textContent=`${R.length} rated · ${MIN} to ${MAX}`;
+  $('progbar').style.width=Math.min(100,R.length/MAX*100)+'%';
+  $('sure').textContent=P.n?`${Math.round(P.overall*100)}% sure`:'';
+  $('profile').innerHTML=dialsHTML(P)+signalsHTML(P);
+  $('hist').innerHTML=R.map(([id,k])=>{const s=BY[id];return `<span class="chip" style="--c:var(${RW[k].c})"><i></i>${s.mobbin_url?`<a href="${esc(s.mobbin_url)}" target="_blank" rel="noopener">${esc(s.app)}</a>`:esc(s.app)} · ${RW[k].n}</span>`}).join('');
+  $('ready').hidden=R.length<MIN;
+  $('readytext').textContent=R.length>=MAX?'That is the full poll.':`You can finish now, or rate up to ${MAX-R.length} more to sharpen it.`;
+  if(view==='results'||R.length>=MAX){showResults(P);return}
+  $('poll').hidden=false;$('results').hidden=true;
+  seed=R.length*7919+skipped.length*31+S.length;
+  cur=next(R,skipped,P);
+  if(!cur){$('stage').innerHTML='<div class="empty">You have seen every screen.</div>';$('pad').hidden=true;$('why').textContent='';return}
+  $('pad').hidden=false;
+  $('stage').innerHTML=`<div class="stage${cur.s.platform==='ios'?' tall':''}"><img src="${esc(cur.s.src)}" alt="A ${esc(cur.s.kind)} screen from a shipped product"></div>`;
+  $('why').innerHTML=cur.phase==='spread'?(R.length>=6?'Nothing has really landed yet, so this one is from somewhere new. The product name shows after you rate.':'Getting a feel for your range first. The product name shows after you rate.')
+    :cur.phase==='refine'?'Close to screens you loved, to find out what exactly you love about them.'
+    :`Testing <b>${cur.top.nm.toLowerCase()}</b>, the dial we know least about (${Math.round(cur.top.conf*100)}% sure).`;
+}
+function showResults(P){
+  view='results';save();
+  $('poll').hidden=true;$('results').hidden=false;
+  const top=P.rated.filter(x=>x.r.w>=2).sort((a,b)=>b.r.w-a.r.w).slice(0,4);
+  const hated=P.rated.filter(x=>x.r.w<=-1).sort((a,b)=>a.r.w-b.r.w).slice(0,4);
+  const th=l=>l.length?'<div class="thumbs">'+l.map(({s,r})=>`<figure><img src="${esc(s.src)}" alt=""><figcaption>${esc(s.app)} · ${r.n}</figcaption></figure>`).join('')+'</div>':'<p class="meta">None</p>';
+  $('card').innerHTML=`<div class="head"><h2>Taste profile${D.project?' · '+esc(D.project):''}</h2><span class="meta">${new Date().toISOString().slice(0,10)} · ${P.n} screens rated · ${Math.round(P.overall*100)}% sure</span></div>
+   <p class="summary">${esc(summary(P))}</p>
+   <div class="cols"><div>${dialsHTML(P)}</div><div>${signalsHTML(P)}</div></div>
+   <div class="lab">Screens you loved</div>${th(top)}
+   <div class="lab">Screens you pushed away</div>${th(hated)}`;
+  $('more').hidden=R.length>=S.length;
+  $('out').value='OD:set taste.poll='+JSON.stringify(record(P));
+}
+function rate(k){if(!cur||view!=='poll')return;R.push([cur.s.id,k]);save();render()}
+$('pad').innerHTML=RATINGS.map(r=>`<button class="rate" type="button" data-k="${r.k}" style="--c:var(${r.c})"><span class="n">${r.n}<span class="k">${r.key}</span></span><span class="d">${r.d}</span></button>`).join('');
+$('pad').addEventListener('click',e=>{const b=e.target.closest('.rate');if(b)rate(b.dataset.k)});
+document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey||view!=='poll')return;const r=RATINGS.find(x=>x.key===e.key);if(r)rate(r.k)});
+$('skip').onclick=()=>{if(cur){skipped.push(cur.s.id);save();render()}};
+$('undo').onclick=()=>{R.pop();save();render()};
+$('finish').onclick=()=>{view='results';save();render()};
+$('more').onclick=()=>{view='poll';if(R.length>=MAX)MAX=Math.min(S.length,R.length+10);save();render()};
+$('restart').onclick=()=>{R=[];skipped=[];view='poll';save();render()};
+$('copy').onclick=async()=>{const t=$('out').value;try{await navigator.clipboard.writeText(t);$('copy').textContent='Copied'}catch(e){$('out').select();$('copy').textContent='Selected, press copy'}setTimeout(()=>$('copy').textContent='Copy for the chat',1800)};
+$('save').onclick=()=>{try{const blob=new Blob([JSON.stringify(record(profile(R)),null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='taste-profile.json';document.body.appendChild(a);a.click();a.remove()}catch(e){}$('save').textContent='If nothing downloaded, use Copy';setTimeout(()=>$('save').textContent='Save profile file',2400)};
+if(D.project)$('title').textContent='Taste poll · '+D.project;
+render();
+})();
+</script>
+</body>
+</html>

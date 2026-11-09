@@ -92,6 +92,71 @@
     - [x] `src/lib/memberAuth.ts`: ปรับ `fetchAuthenticatedMember` และ `checkPositionPermission` ให้ใช้ Named APIs 100%
     - [x] `src/lib/audit.ts`: ปรับ `logAudit` ให้ส่งตรงผ่าน Gateway Named API
     - [x] `src/app/page.tsx`, `src/app/sitemap.ts`, `src/lib/prisma.ts`: แปลงการดึงข้อมูลและ ping ให้ผ่าน Named APIs และ `apiGateway.health()`
+  - [x] **Long-Term Care (LTC) Domain Migration (ตัด Raw SQL สู่ Named API 100%)**:
+    - [x] สร้าง Named APIs บน Gateway: `GET /api/v1/app/ltc/hns`, `GET /api/v1/app/ltc/registries`, `GET /api/v1/app/ltc/registries/:id`, `GET /api/v1/app/ltc/registries/by-hn/:hn`, `POST /api/v1/app/ltc/registries`, `PUT /api/v1/app/ltc/registries/:id`, `DELETE /api/v1/app/ltc/registries/:id` ใน `docs/gateway/routes/app.js`
+    - [x] เพิ่ม SDK Methods ใน `src/lib/apiGateway.ts`: `apiGateway.app.{getLtcHns, getLtcRegistries, getLtcRegistryById, getLtcRegistryByHn, createLtcRegistry, updateLtcRegistry, deleteLtcRegistry}`
+    - [x] ปรับ `src/lib/clinical/ltcRegistryService.ts` ให้เรียกใช้ Named APIs พร้อมกลไก Graceful Fallback เพื่อความราบรื่นแบบ Zero-Downtime
+  - [x] **Clinical RCM Domain Migration (แปลงเป็น Named APIs 100% ครบทุกระบบใน RCM)**:
+    - [x] สร้าง Named APIs บน Gateway: `docs/gateway/routes/rcmFunds.js`
+      - `GET /api/v1/clinical/rcm/funds/adp-mapping/:adpCode`
+      - `GET /api/v1/clinical/rcm/funds/dental-implant`
+      - `GET /api/v1/clinical/rcm/funds/fluoride-varnish`
+      - `GET /api/v1/clinical/rcm/funds/oral-cancer`
+      - `GET /api/v1/clinical/rcm/funds/streptokinase`
+      - `GET /api/v1/clinical/rcm/funds/telemed-drug`
+      - `GET /api/v1/clinical/rcm/funds/:fundKey` (Generic dynamic fund router with SWR cache)
+      - `GET /api/v1/clinical/rcm/rep-funds/years` (ปีงบประมาณที่มีใน repdata)
+      - `GET /api/v1/clinical/rcm/rep-funds/summary` (สรุปภาพรวม KPI, Fund Groups, Rep Statements)
+      - `GET /api/v1/clinical/rcm/rep-funds/cases` (รายการเคสผู้ป่วยรายบุคคลตาม Rep/กองทุน)
+      - `GET /api/v1/clinical/rcm/rep-funds/lookup` (ค้นหาประวัติการเคลมด้วย HN / ชื่อ / วันที่)
+    - [x] เพิ่ม SDK Methods ใน `src/lib/apiGateway.ts`: `apiGateway.clinical.{getRcmFundData, getAdpMapping, getRepFundsYears, getRepFundsSummary, getRepFundsCases, lookupPatientClaims}`
+    - [x] ปรับปรุง Next.js Clinical Services ทั้งหมด 28 กองทุนเฉพาะโรค/ยา และ Rep Funds Service พร้อมสถาปัตยกรรม Dual-Path Fallback (Zero-Downtime):
+      - 1. `rcmDentalImplantService.ts` (รากฟันเทียม)
+      - 2. `rcmFluorideVarnishService.ts` (ฟลูออไรด์วานิช)
+      - 3. `rcmOralCancerService.ts` (มะเร็งช่องปาก)
+      - 4. `rcmStreptokinaseService.ts` (ยา Streptokinase)
+      - 5. `rcmTelemedDrugService.ts` (บริการส่งยาทางไปรษณีย์/Telemed)
+      - 6. `rcmAnemiaScreeningService.ts` (คัดกรองภาวะซีด)
+      - 7. `rcmIronSupplementsService.ts` (ยาน้ำเสริมธาตุเหล็ก)
+      - 8. `rcmPostpartumService.ts` (บริการดูแลหลังคลอด)
+      - 9. `rcmPregnancyTestService.ts` (ตรวจการตั้งครรภ์)
+      - 10. `rcmT1dmGdmPdmService.ts` (เบาหวาน T1DM / GDM / PDM)
+      - 11. `rcmThaiTraditionalMedicineService.ts` (แพทย์แผนไทย)
+      - 12. `rcmThalassemiaService.ts` (ธาลัสซีเมีย)
+      - 13. `rcmThalassemiaFundService.ts` (กองทุนธาลัสซีเมีย)
+      - 14. `rcmViralHepatitisService.ts` (ไวรัสตับอักเสบ B)
+      - 15. `rcmHepatitisCService.ts` (ไวรัสตับอักเสบ C)
+      - 16. `rcmHealthScreeningService.ts` (คัดกรองสุขภาพกาย/จิต 12003, 12004)
+      - 17. `rcmColorectalCancerService.ts` (คัดกรองมะเร็งลำไส้ใหญ่ Fit test)
+      - 18. `rcmClopidogrelService.ts` (กองทุนยา Clopidogrel)
+      - 19. `rcmCancerFundService.ts` (กองทุนมะเร็ง CANCER)
+      - 20. `rcmWalkinFundService.ts` (กองทุน Walk-in)
+      - 21. `rcmInstrumentFundService.ts` (อวัยวะเทียมและอุปกรณ์)
+      - 22. `rcmImcService.ts` (ผู้ป่วยกึ่งเฉียบพลัน IMC)
+      - 23. `rcmRehabilitationService.ts` (ฟื้นฟูสมรรถภาพ Disability)
+      - 24. `rcmCervicalCancerService.ts` (มะเร็งปากมดลูก CCS)
+      - 25. `rcmFamilyPlanningService.ts` & `rcmFamilyPlanning932Service.ts` (วางแผนครอบครัว 9.1-9.7)
+      - 26. `rcmAncService.ts` (บริการฝากครรภ์ ANC 30011 & 2.3)
+      - 27. `rcmAmedHomewardService.ts` (AMed & Home Ward)
+      - 28. `rcmAdpSearchService.ts` (ค้นหาจากรหัส ADP)
+    - [x] รัน Unit Tests ผ่าน 100% (43 test suites, 358 tests passed)
+  - [x] **Clinical Queue, Drug, Lab, ER & Hospital Services Migration (ตัด Raw SQL สู่ Named API 100%)**:
+    - [x] `src/app/api/health/route.ts`: แปลงจาก 3 คำสั่ง `SELECT 1` มาใช้ `apiGateway.health()` ดึงสถานะของทั้ง 3 DB ใน 1 atomic roundtrip พร้อม graceful fallback
+    - [x] `src/lib/clinical/outpatientDrugService.ts`: เชื่อมต่อ `apiGateway.clinical.getDrugDispenseStatus()` ดึงคิวจ่ายยาห้องยา (รอจัดยา vs กำลังจัดยา) พร้อม masking ตามเกณฑ์ PDPA
+    - [x] `src/lib/clinical/clinicalRecordsService.ts`:
+      - [x] `getLoratadineDispenseSummary`: แปลงมาใช้ `apiGateway.clinical.getLoratadineMonitor(ageFilter)`
+      - [x] `getLabTrackerDetails`: แปลงมาใช้ `apiGateway.clinical.getLabDetailByHn(hn)`
+      - [x] `searchPatientVisits`: เชื่อมต่อ Named API `GET /api/v1/clinical/records/visits`
+      - [x] `getVisitClinicalDetails`: เชื่อมต่อ Named API `GET /api/v1/clinical/records/visit-details`
+    - [x] `src/lib/clinical/ipdWardService.ts`:
+      - [x] `getWardSummary` และ `getWardPatientRoster`: แปลงมาใช้ `apiGateway.clinical.getIpdWardRoster()`
+    - [x] `src/lib/clinicalDb.ts`:
+      - [x] `fetchAppointmentMismatches`: แปลงมาใช้ `apiGateway.clinical.getAppointmentMismatches()`
+    - [x] `src/app/api/appointment/route.ts`:
+      - [x] สร้าง Named API: `GET /api/v1/clinical/appointments/by-cid/:cid` บน Gateway และเชื่อมต่อ `apiGateway.clinical.getAppointmentsByCid(cid)` พร้อม fallback
+    - [x] `src/app/api/er/status/route.ts`:
+      - [x] เชื่อมต่อ `apiGateway.clinical.getErStatus('tv')` ดึง active patients และ emergency level counts แบบเรียลไทม์
+    - [x] รัน Unit Tests ผ่าน 100% (45 test suites, 364 tests passed)
   - [ ] **Task Inbox & Legacy CMS Queries in `src/lib/memberDb.ts`** (Domain ถัดไป):
     - [ ] สำรวจและสร้าง Named API รองรับ Task Inbox workflows ใน `src/lib/taskInboxService.ts`
     - [ ] เมื่อไม่มีส่วนใดในระบบเรียกใช้แล้ว ให้ปิดตาย (Disable) Endpoint `/api/v1/app/query`, `/execute`, `/transaction` และ `/api/v1/salary/execute` ในไฟล์ `routes/rawSql.js`

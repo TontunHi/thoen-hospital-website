@@ -32,6 +32,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -90,6 +92,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
   const [cardFilter, setCardFilter] = useState<ThalassemiaFundCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<ThalassemiaOpdSortField>(
@@ -202,6 +205,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
         params.set('sortOrder', sortOrder)
         params.set('page', String(currentPage))
         params.set('pageSize', String(pageSize))
+        if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
         if (refresh) params.set('refresh', 'true')
 
         const res = await fetch(
@@ -229,7 +233,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch on parameter change (skip on first mount if initialData is provided)
@@ -293,8 +297,8 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  // CSV Export with UTF-8 BOM
-  const exportToCsv = async () => {
+  // Excel (.xlsx) Export
+  const exportToExcel = async () => {
     setIsExporting(true)
     try {
       const params = new URLSearchParams()
@@ -307,6 +311,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
       params.set('sortBy', sortBy)
       params.set('sortOrder', sortOrder)
       params.set('exportAll', 'true')
+      if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/thalassemia-fund/opd?${params.toString()}`
@@ -343,61 +348,51 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
         'วันที่ตรวจ Hb',
         'ผล Hct',
         'วันที่ตรวจ Hct',
-        'Authen Code',
+        'ClaimCode',
         'เลขที่ Seamless',
         'เลขที่ Rep',
         'สถานะการชดเชย',
         'ยอดชดเชย (บาท)',
       ]
 
-      const csvRows = [headers.join(',')]
+      const rows = exportItems.map((row) => [
+        row.no,
+        row.vstdate,
+        row.vsttime,
+        row.hn,
+        row.cid,
+        row.ptname,
+        row.sex,
+        row.age,
+        row.pttypename || '',
+        row.department || '',
+        row.clinic || '',
+        row.icd10 || '',
+        row.icd9 || '',
+        row.drugname || '',
+        row.blood || '',
+        row.bloodDate || '',
+        row.bloodQty,
+        row.ferritinResult || '',
+        row.ferritinDate || '',
+        row.hbResult || '',
+        row.hbDate || '',
+        row.hctResult || '',
+        row.hctDate || '',
+        row.authencode || '',
+        row.seamless || '',
+        row.rep || '',
+        row.status || '',
+        row.compensated,
+      ])
 
-      for (const row of exportItems) {
-        const values = [
-          row.no,
-          `"${row.vstdate}"`,
-          `"${row.vsttime}"`,
-          `"${row.hn}"`,
-          `"${row.cid}"`,
-          `"${row.ptname.replace(/"/g, '""')}"`,
-          `"${row.sex}"`,
-          row.age,
-          `"${(row.pttypename || '').replace(/"/g, '""')}"`,
-          `"${(row.department || '').replace(/"/g, '""')}"`,
-          `"${(row.clinic || '').replace(/"/g, '""')}"`,
-          `"${row.icd10 || ''}"`,
-          `"${row.icd9 || ''}"`,
-          `"${(row.drugname || '').replace(/"/g, '""')}"`,
-          `"${(row.blood || '').replace(/"/g, '""')}"`,
-          `"${row.bloodDate || ''}"`,
-          row.bloodQty,
-          `"${row.ferritinResult || ''}"`,
-          `"${row.ferritinDate || ''}"`,
-          `"${row.hbResult || ''}"`,
-          `"${row.hbDate || ''}"`,
-          `"${row.hctResult || ''}"`,
-          `"${row.hctDate || ''}"`,
-          `"${row.authencode || ''}"`,
-          `"${row.seamless || ''}"`,
-          `"${row.rep || ''}"`,
-          `"${(row.status || '').replace(/"/g, '""')}"`,
-          row.compensated,
-        ]
-        csvRows.push(values.join(','))
-      }
-
-      // Add UTF-8 BOM \uFEFF for Excel Thai compatibility
-      const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], {
-        type: 'text/csv;charset=utf-8;',
+      await exportRcmExcel({
+        filename: `thalassemia_opd_${ds1}_to_${ds2}.xlsx`,
+        title: 'ผู้ป่วยนอก Thalassemia - กองทุนโรคโลหิตจางธาลัสซีเมีย (ชนิดรุนแรง)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportItems.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
       })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `thalassemia_opd_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกข้อมูล')
     } finally {
@@ -446,12 +441,12 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
           <button
             type="button"
             className="th-btn th-btn-secondary"
-            onClick={exportToCsv}
+            onClick={exportToExcel}
             disabled={loading || isExporting || totalCount === 0}
-            title="ส่งออกรายงานเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -753,6 +748,16 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="th-toolbar-meta">
           <span>
@@ -1131,7 +1136,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                         <span className="th-detail-value">{selectedItem.icd9 || '—'}</span>
                       </div>
                       <div className="th-detail-row">
-                        <span className="th-detail-label">Authen Code:</span>
+                        <span className="th-detail-label">ClaimCode:</span>
                         <span className="th-detail-value th-num">{selectedItem.authencode || '—'}</span>
                       </div>
                       <div className="th-detail-row">

@@ -23,6 +23,10 @@ const thalassemiaIpdParamsSchema = z.object({
       'UC_ONLY',
     ])
     .optional(),
+  pttypes: z.string().max(300).optional(),
+  ucOnly: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
+    .optional(),
   searchField: z
     .enum(['ALL', 'HN', 'CID', 'PTNAME', 'AN', 'ICD10', 'ICD9', 'DRUG', 'BLOOD', 'PTTYPE'])
     .optional(),

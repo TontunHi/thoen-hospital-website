@@ -545,35 +545,19 @@ button.anc4-summary-card[aria-pressed='true'] {
   text-align: left;
 }
 
-/* Merged Table Headers */
-.anc4-table thead tr:first-child th {
+/* Single-tier Centered Table Headers */
+.anc4-table th {
   background-color: var(--anc-surface-2);
   color: var(--anc-ink);
-  font-weight: 700;
+  font-weight: 600;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--anc-hairline);
-  border-right: 1px solid var(--anc-hairline-soft);
+  border-bottom: 2px solid var(--anc-hairline);
   white-space: nowrap;
   font-size: var(--anc-text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.anc4-table thead tr:last-child th {
-  background-color: var(--anc-surface-2);
-  color: var(--anc-muted);
-  font-weight: 600;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--anc-hairline);
-  border-right: 1px solid var(--anc-hairline-soft);
-  white-space: nowrap;
-  font-size: 11px;
-}
-
-.anc4-th-group {
   text-align: center;
-  background-color: color-mix(in srgb, var(--anc-accent) 8%, var(--anc-surface-2)) !important;
-  color: var(--anc-accent-dark) !important;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .anc4-th-sortable {

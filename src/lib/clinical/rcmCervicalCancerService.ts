@@ -1,6 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. PP Special Screening Classification Helper ──────────────────────
 
@@ -263,6 +264,8 @@ export interface CcsScreenedRecipientsParams extends FiscalDateRangeParams {
   okFilter?: CcsOkFilter
   resultStatusFilter?: CcsResultStatusFilter
   compensationFilter?: CcsCompensationFilter
+  pttypes?: string
+  ucOnly?: boolean
   searchField?: CcsScreenedSearchField
   search?: string
   sortBy?: CcsScreenedSortField
@@ -286,6 +289,8 @@ export interface CcsScreenedRecipientItem {
   authencode: string | null
   pttypename_patient: string | null
   pttypename_visit: string | null
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   department: string | null
   clinic: string | null
   pdx: string | null
@@ -395,6 +400,8 @@ export interface CcsService1B004NItem {
   vsttime: string
   authencode: string | null
   pttypename: string | null
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   department: string | null
   clinic: string | null
   pdx: string | null
@@ -635,6 +642,8 @@ export type CcsService1B005SortField =
 
 export interface CcsService1B005Params extends FiscalDateRangeParams {
   compensationFilter?: CcsService1B005CompensationFilter
+  pttypes?: string
+  ucOnly?: boolean
   searchField?: CcsService1B005SearchField
   search?: string
   sortBy?: CcsService1B005SortField
@@ -925,7 +934,7 @@ export class RcmCervicalCancerService {
               Note AS note
             FROM rcmdb.seamless
             WHERE Rep REGEXP 'CCS'
-              AND AdmDate BETWEEN ? AND ?
+              AND AdmDate >= ? AND AdmDate < DATE_ADD(?, INTERVAL 1 DAY)
               AND IFNULL(Compensated, 0) > 0
             `,
             [ds1, ds2],
@@ -940,7 +949,7 @@ export class RcmCervicalCancerService {
               Rep AS rep,
               IFNULL(Compensated, 0) AS compensated
             FROM rcmdb.repeclaim
-            WHERE AdmDate BETWEEN ? AND ?
+            WHERE AdmDate >= ? AND AdmDate < DATE_ADD(?, INTERVAL 1 DAY)
               AND FileName REGEXP 'HPV'
             `,
             [ds1, ds2],
@@ -1509,9 +1518,10 @@ export class RcmCervicalCancerService {
             IFNULL(nat.name, pt.nationality) AS nation,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             ptt_pt.name AS pttypename_patient,
             ptt_o.name AS pttypename_visit,
+            ptt_o.pttype_eclaim_id AS pttype_eclaim_id,
             dep.department,
             spc.name AS clinic,
             v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
@@ -1547,11 +1557,12 @@ export class RcmCervicalCancerService {
           LEFT JOIN rcmdb.seamless sm ON sm.vn = o.vn AND sm.rep REGEXP 'CCS'
           LEFT JOIN rcmdb.repeclaim rr ON rr.vn = o.vn AND rr.filename REGEXP 'HPV'
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -1559,7 +1570,7 @@ export class RcmCervicalCancerService {
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'Rep :: มี Rep แล้ว' AS statusname
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
@@ -1571,7 +1582,7 @@ export class RcmCervicalCancerService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           LEFT JOIN (
@@ -1602,7 +1613,7 @@ export class RcmCervicalCancerService {
         `
         return (await executor(
           sql,
-          [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
+          [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
           { timeoutMs: 60000 }
         )) as Record<string, unknown>[]
       },
@@ -1635,6 +1646,8 @@ export class RcmCervicalCancerService {
         authencode: r.authencode ? String(r.authencode).trim() : null,
         pttypename_patient: r.pttypename_patient ? String(r.pttypename_patient).trim() : null,
         pttypename_visit: r.pttypename_visit ? String(r.pttypename_visit).trim() : null,
+        pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null,
+        isUc: isUcEclaimCode(r.pttype_eclaim_id ? String(r.pttype_eclaim_id) : null),
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         pdx: r.pdx ? String(r.pdx).trim() : null,
@@ -1667,19 +1680,30 @@ export class RcmCervicalCancerService {
       }
     })
 
-    // Compute Summary across ALL items before filtering
-    const totalVisits = items.length
-    const uniqueHns = new Set(items.map((i) => i.hn).filter(Boolean))
+    // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
+    const summaryCohort = items.filter((i) => {
+      if (params.pttypes !== undefined) {
+        return matchesPttypeFilter((i as any).pttypename || i.pttypename_visit || i.pttypename_patient || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      }
+      if (params.ucOnly) {
+        return i.isUc ?? false
+      }
+      return true
+    })
+
+    // Compute Summary across summaryCohort
+    const totalVisits = summaryCohort.length
+    const uniqueHns = new Set(summaryCohort.map((i) => i.hn).filter(Boolean))
     const uniquePatients = uniqueHns.size
-    const okCount = items.filter((i) => i.ok === 'Y').length
-    const notOkCount = items.filter((i) => i.ok !== 'Y').length
-    const papCount = items.filter((i) => Boolean(i.papsmear)).length
-    const viaCount = items.filter((i) => Boolean(i.via)).length
-    const hpvCount = items.filter((i) => Boolean(i.hpv)).length
-    const colposcopyCount = items.filter((i) => i.colposcopy === 'Y').length
-    const abnormalCount = items.filter((i) => i.hasAbnormalResult).length
-    const totalSeamlessCompensated = items.reduce((acc, i) => acc + i.compensated, 0)
-    const totalNhsoCompensated = items.reduce((acc, i) => acc + i.nhso, 0)
+    const okCount = summaryCohort.filter((i) => i.ok === 'Y').length
+    const notOkCount = summaryCohort.filter((i) => i.ok !== 'Y').length
+    const papCount = summaryCohort.filter((i) => Boolean(i.papsmear)).length
+    const viaCount = summaryCohort.filter((i) => Boolean(i.via)).length
+    const hpvCount = summaryCohort.filter((i) => Boolean(i.hpv)).length
+    const colposcopyCount = summaryCohort.filter((i) => i.colposcopy === 'Y').length
+    const abnormalCount = summaryCohort.filter((i) => i.hasAbnormalResult).length
+    const totalSeamlessCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
+    const totalNhsoCompensated = summaryCohort.reduce((acc, i) => acc + i.nhso, 0)
 
     const summary: CcsScreenedRecipientsSummary = {
       totalVisits,
@@ -1696,7 +1720,7 @@ export class RcmCervicalCancerService {
     }
 
     // Filter by screening method (FoxPro cshow: ทั้งหมด, PapSmear, VIA, HPV, ColpoScopy)
-    let filtered = items
+    let filtered = summaryCohort
     if (methodFilter === 'PapSmear') {
       filtered = filtered.filter((i) => Boolean(i.papsmear))
     } else if (methodFilter === 'VIA') {
@@ -1874,7 +1898,7 @@ export class RcmCervicalCancerService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               ptt.name AS pttypename,
               dep.department,
               spc.name AS clinic,
@@ -1892,6 +1916,7 @@ export class RcmCervicalCancerService {
             LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
             LEFT JOIN spclty spc ON spc.spclty = o.spclty
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             JOIN (
               SELECT 
                 oo.vn, 
@@ -1907,7 +1932,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -1915,7 +1940,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
@@ -1927,14 +1952,14 @@ export class RcmCervicalCancerService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
             ORDER BY o.hn ASC, o.vn ASC
             `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
+            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
             { timeoutMs: 90000 }
           ),
         ])
@@ -2193,7 +2218,7 @@ export class RcmCervicalCancerService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               ptt.name AS pttypename,
               dep.department,
               spc.name AS clinic,
@@ -2211,6 +2236,7 @@ export class RcmCervicalCancerService {
             LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
             LEFT JOIN spclty spc ON spc.spclty = o.spclty
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             JOIN (
               SELECT 
                 oo.vn, 
@@ -2226,7 +2252,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -2234,7 +2260,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
@@ -2246,14 +2272,14 @@ export class RcmCervicalCancerService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
             ORDER BY o.hn ASC, o.vn ASC
             `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
+            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
             { timeoutMs: 90000 }
           ),
         ])
@@ -2562,7 +2588,7 @@ export class RcmCervicalCancerService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               ptt.name AS pttypename,
               dep.department,
               spc.name AS clinic,
@@ -2580,6 +2606,7 @@ export class RcmCervicalCancerService {
             LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
             LEFT JOIN spclty spc ON spc.spclty = o.spclty
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             JOIN (
               SELECT 
                 oo.vn, 
@@ -2595,7 +2622,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -2603,7 +2630,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
@@ -2615,14 +2642,14 @@ export class RcmCervicalCancerService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
             ORDER BY o.hn ASC, o.vn ASC
             `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
+            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
             { timeoutMs: 90000 }
           ),
         ])
@@ -2881,8 +2908,9 @@ export class RcmCervicalCancerService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               ptt.name AS pttypename,
+              ptt.pttype_eclaim_id AS pttype_eclaim_id,
               dep.department,
               spc.name AS clinic,
               v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
@@ -2899,6 +2927,7 @@ export class RcmCervicalCancerService {
             LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
             LEFT JOIN spclty spc ON spc.spclty = o.spclty
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             JOIN (
               SELECT 
                 oo.vn, 
@@ -2914,7 +2943,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -2922,7 +2951,7 @@ export class RcmCervicalCancerService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
@@ -2934,14 +2963,14 @@ export class RcmCervicalCancerService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
             ORDER BY o.hn ASC, o.vn ASC
             `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
+            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
             { timeoutMs: 90000 }
           ),
         ])
@@ -2965,6 +2994,8 @@ export class RcmCervicalCancerService {
         vsttime: String(row.vsttime || ''),
         authencode: row.authencode ? String(row.authencode) : null,
         pttypename: row.pttypename ? String(row.pttypename) : null,
+        pttype_eclaim_id: row.pttype_eclaim_id ? String(row.pttype_eclaim_id).trim() : null,
+        isUc: isUcEclaimCode(row.pttype_eclaim_id ? String(row.pttype_eclaim_id) : null),
         department: row.department ? String(row.department) : null,
         clinic: row.clinic ? String(row.clinic) : null,
         pdx: row.pdx ? String(row.pdx) : null,
@@ -2988,7 +3019,18 @@ export class RcmCervicalCancerService {
       }
     })
 
-    const totalVisits = allMappedItems.length
+    // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
+    const summaryCohort = allMappedItems.filter((i) => {
+      if (params.pttypes !== undefined) {
+        return matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      }
+      if (params.ucOnly) {
+        return i.isUc ?? false
+      }
+      return true
+    })
+
+    const totalVisits = summaryCohort.length
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -2996,7 +3038,7 @@ export class RcmCervicalCancerService {
     let withPdxCount = 0
     let withOpCount = 0
 
-    for (const item of allMappedItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniqueHnSet.add(item.hn)
       if (item.isCompensated) {
         compensatedVisits += 1
@@ -3038,7 +3080,7 @@ export class RcmCervicalCancerService {
       withOpCount,
     }
 
-    let filtered = allMappedItems
+    let filtered = summaryCohort
 
     if (compensationFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)

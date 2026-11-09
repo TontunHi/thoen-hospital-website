@@ -1,0 +1,13 @@
+{
+  "name": "Toast stack",
+  "summary": "Short notices that stack in a corner: done with an undo, in progress with a bar, and failed with a retry that keeps the person's work.",
+  "use": "for short confirmations and background progress",
+  "type": "feedback",
+  "style": "quiet",
+  "industries": ["any"],
+  "tags": ["toast", "notification", "undo", "progress", "error"],
+  "states": ["success with undo", "in progress", "error with retry", "dismissed", "enter motion"],
+  "source": "brand/showcase/components/05-toast-stack",
+  "a11y": "Success and progress are status regions and the error is an alert; dismiss buttons have names; the entry motion uses the engine's toast tokens, which turn off under reduced motion.",
+  "width": "narrow"
+}

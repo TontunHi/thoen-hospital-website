@@ -308,5 +308,27 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
       expect(resLab.totalCount).toBe(1)
       expect(resLab.items[0].hn).toBe('0001234')
     })
+
+    it('filters items and recomputes summary KPIs when pttypes is specified', async () => {
+      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) return Promise.resolve([])
+        return Promise.resolve(mockDbRows)
+      })
+
+      // mockDbRows has 3 items:
+      // Item 1: UCS / บัตรทอง (UC) -> compensated: 150
+      // Item 2: OFC / ข้าราชการ (non-UC)
+      // Item 3: UCS / บัตรทอง (UC) -> compensated: 0
+      const res = await RcmColorectalCancerService.getColorectalCancerReport(
+        { pttypes: '01,02,03,04,05,06,07,08,09', refresh: true },
+        mockExecutor
+      )
+
+      expect(res.totalCount).toBe(2)
+      expect(res.summary.totalVisits).toBe(2)
+      expect(res.items.every((it) => it.isUc)).toBe(true)
+      expect(res.pttypes).toBe('01,02,03,04,05,06,07,08,09')
+    })
   })
 })
+

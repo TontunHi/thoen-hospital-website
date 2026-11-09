@@ -1,152 +1,144 @@
-/* Thoen Hospital Staff Login — Loy Krathong Edition (Pure Unslop)
- * Unslop by Damir Sokolovsky (@heydamir), CC BY 4.0
- * Ramp: Ink Dark (#0a0d14 -> #11141c -> #1a1e28) | Text: #eef0f5 / #a3a9b8 / #7a8296
- * Primary CTA: #eef0f5 off-white with #0a0d14 ink | World accent: #f59e0b candle amber
- */
+/* ==========================================================================
+   Thoen Hospital Staff Portal — Member Login (Loy Krathong Festival Edition)
+   Festive Night Sky & Candlelit River Atmosphere (ประเพณีลอยกระทงและยี่เป็ง)
+   Tokens harmonized with Thoen Hospital Design System & OpenDesigner standards
+   ========================================================================== */
 
 .memberLoginContainer {
-  --ink-bg: #0a0d14;
-  --ink-card: #11141c;
-  --ink-raised: #1a1e28;
-  --ink-raised-hover: #212633;
-  --ink-hairline: rgba(238, 240, 245, 0.08);
-  --ink-hairline-hover: rgba(238, 240, 245, 0.14);
-  --ink-text-primary: #eef0f5;
-  --ink-text-secondary: #a3a9b8;
-  --ink-text-muted: #7a8296;
-  --candle-accent: #f59e0b;
-  --candle-accent-text: #fbbf24;
-  --unslop-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --unslop-fast: 150ms;
-  --unslop-enter: 360ms;
+  /* Festive Loy Krathong Seasonal Palette */
+  --lk-night-sky: #070B14;
+  --lk-card-surface: rgba(14, 20, 36, 0.88);
+  --lk-raised-surface: rgba(22, 32, 54, 0.85);
+  --lk-raised-hover: rgba(30, 44, 72, 0.9);
+  
+  /* Hairline Borders with Subtle Amber Shimmer */
+  --lk-hairline: rgba(255, 255, 255, 0.12);
+  --lk-hairline-hover: rgba(245, 158, 11, 0.35);
+  --lk-border-active: rgba(245, 158, 11, 0.65);
+
+  /* Typography & High-Contrast Night Ink */
+  --lk-text-primary: #F8FAFC;
+  --lk-text-secondary: #CBD5E1;
+  --lk-text-muted: #94A3B8;
+
+  /* Candlelight & Lantern Accents (แสงประทีปและโคมยี่เป็ง) */
+  --lk-candle-gold: #F59E0B;
+  --lk-candle-glow: #FBBF24;
+  --lk-candle-warm: #D97706;
+  --lk-candle-subtle: rgba(245, 158, 11, 0.12);
+  --lk-focus-ring: rgba(245, 158, 11, 0.32);
+
+  /* Thoen Forest Green Accent (ผสานสีมงคลใบตองและเอกลักษณ์ รพ.) */
+  --lk-emerald: #10B981;
+  --lk-emerald-dark: #0D7446;
+  --lk-emerald-subtle: rgba(16, 185, 129, 0.14);
+
+  /* Radii & Motion */
+  --lk-radius-sm: 0.375rem; /* 6px */
+  --lk-radius-md: 0.5rem;   /* 8px */
+  --lk-radius-lg: 1rem;     /* 16px */
+  --lk-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --lk-dur: 150ms;
+
+  /* Shadows with Candle Glow Tint */
+  --lk-shadow-card: 0 16px 44px -8px rgba(0, 0, 0, 0.65), 0 0 28px rgba(245, 158, 11, 0.08);
+  --lk-shadow-modal: 0 24px 56px -10px rgba(0, 0, 0, 0.8), 0 0 36px rgba(245, 158, 11, 0.12);
 
   position: relative;
   min-height: calc(100vh - var(--navbar-height, 72px));
   min-height: calc(100dvh - var(--navbar-height, 72px));
-  background-color: var(--ink-bg);
-  color: var(--ink-text-primary);
+  background-color: var(--lk-night-sky);
+  color: var(--lk-text-primary);
   font-family: var(--font-family);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   overflow-x: hidden;
-  padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: max(1.25rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   -webkit-tap-highlight-color: transparent;
-}
-
-@media (min-width: 400px) {
-  .memberLoginContainer {
-    padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  }
 }
 
 @media (min-width: 480px) {
   .memberLoginContainer {
-    padding: 24px 20px;
+    padding: 2rem 1.5rem;
   }
 }
 
 @media (min-width: 960px) {
   .memberLoginContainer {
-    padding: 40px 48px;
-    align-items: stretch;
+    padding: 3rem;
+    align-items: center;
   }
 }
-
-
 
 /* Stage Centered Layout */
 .memberLoginStage {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 440px;
+  max-width: 460px;
   margin: auto auto;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-@media (min-width: 960px) {
-  .memberLoginStage {
-    min-height: calc(100vh - var(--navbar-height, 72px));
-    padding: 32px 0;
-  }
-}
-
 .memberAuthColumn {
   width: 100%;
-  max-width: 440px;
+  max-width: 460px;
   margin: 0 auto;
 }
 
-@media (min-width: 960px) {
-  .memberAuthColumn {
-    margin: 0;
-  }
-}
-
-/* Refined Twilight Surface Card */
+/* Card: Frosted Twilight Glass with Candlelight Glow */
 .memberLoginCard {
   width: 100%;
-  background-color: rgba(18, 22, 38, 0.92);
+  background-color: var(--lk-card-surface);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(238, 240, 245, 0.14);
-  border-radius: 16px;
-  padding: 18px 14px;
-  box-shadow: 0 16px 40px rgba(8, 12, 24, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  animation: loginPanelEnter var(--unslop-enter) var(--unslop-ease);
-}
-
-@media (min-width: 380px) {
-  .memberLoginCard {
-    padding: 22px 18px;
-  }
+  border: 1px solid var(--lk-hairline);
+  border-top-color: rgba(245, 158, 11, 0.3);
+  border-radius: var(--lk-radius-lg);
+  padding: 1.5rem 1.25rem;
+  box-shadow: var(--lk-shadow-card);
+  animation: loginPanelEnter var(--lk-dur) var(--lk-ease);
 }
 
 @media (min-width: 480px) {
   .memberLoginCard {
-    padding: 32px;
+    padding: 2rem 1.75rem;
   }
 }
 
 .memberLoginSkeleton .skeletonLabel {
   text-align: center;
-  color: var(--ink-text-muted);
+  color: var(--lk-text-muted);
   font-size: 0.875rem;
-  padding: 32px 0;
+  padding: 2rem 0;
   margin: 0;
 }
 
-/* Header */
+/* Header with Soft Lantern Ambiance */
 .memberLoginHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 0.875rem;
+  margin-bottom: 1.5rem;
 }
 
 @media (min-width: 480px) {
   .memberLoginHeader {
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
   }
 }
 
 .memberLoginCrest {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   flex-shrink: 0;
-}
-
-@media (min-width: 380px) {
-  .memberLoginCrest {
-    width: 48px;
-    height: 48px;
-  }
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.35));
 }
 
 @media (min-width: 480px) {
@@ -159,37 +151,40 @@
 .memberLoginTitleGroup {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.125rem;
   min-width: 0;
 }
 
 .memberLoginTitleGroup h1 {
-  font-size: 1.1875rem; /* 19px on small mobile */
-  line-height: 1.3;
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.35;
   font-weight: 600;
-  color: var(--ink-text-primary);
+  color: var(--lk-text-primary);
   margin: 0;
-}
-
-@media (min-width: 380px) {
-  .memberLoginTitleGroup h1 {
-    font-size: 1.25rem; /* 20px */
-  }
+  letter-spacing: -0.01em;
 }
 
 @media (min-width: 480px) {
   .memberLoginTitleGroup h1 {
-    font-size: 1.5rem; /* 24px */
-    font-weight: 500;
+    font-size: 1.375rem; /* 22px */
   }
 }
 
 .memberLoginTitleGroup p {
-  font-size: 0.8125rem; /* 13px on mobile */
-  line-height: 1.45;
+  font-size: 0.84375rem; /* ~13.5px */
+  line-height: 1.5;
   font-weight: 400;
-  color: var(--ink-text-secondary);
+  color: var(--lk-candle-glow);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.memberLoginTitleGroup p::after {
+  content: '· ประเพณีลอยกระทง ๒๕๖๙';
+  font-size: 0.78125rem;
+  color: var(--lk-text-muted);
 }
 
 @media (min-width: 480px) {
@@ -198,75 +193,71 @@
   }
 }
 
-/* Semantic Alerts (Toned for Dark Ink Ramp) */
+/* Semantic Alerts (Tuned for Dark Twilight Backdrop) */
 .memberAlert {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  margin-bottom: 20px;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--lk-radius-md);
+  margin-bottom: 1.25rem;
   font-size: 0.875rem;
-  line-height: 1.5;
+  line-height: 1.55;
   font-weight: 400;
 }
 
 .memberAlert .alertIcon {
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 0.125rem;
 }
 
 .alertDanger {
-  background-color: rgba(229, 72, 77, 0.12);
-  border: 1px solid rgba(229, 72, 77, 0.28);
-  color: #f8b4b4;
+  background-color: rgba(220, 38, 38, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  color: #FCA5A5;
 }
 
 .alertSuccess {
-  background-color: rgba(76, 195, 138, 0.12);
-  border: 1px solid rgba(76, 195, 138, 0.28);
-  color: #9ce2c1;
+  background-color: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(52, 211, 153, 0.32);
+  color: #6EE7B7;
 }
 
-/* Digital ID Section — Quiet Chrome Surface Steps */
+/* Digital ID Fast-Paths */
 .digitalIdSection {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.625rem;
 }
 
 .thaidLoginBtn,
 .mophIdBtn {
   width: 100%;
-  background-color: var(--ink-raised);
-  border: 1px solid var(--ink-hairline);
-  border-radius: 10px;
-  color: var(--ink-text-primary);
+  background-color: var(--lk-raised-surface);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-md);
+  color: var(--lk-text-primary);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition:
-    background-color var(--unslop-fast) var(--unslop-ease),
-    border-color var(--unslop-fast) var(--unslop-ease),
-    transform var(--unslop-fast) var(--unslop-ease);
+    background-color var(--lk-dur) var(--lk-ease),
+    border-color var(--lk-dur) var(--lk-ease),
+    box-shadow var(--lk-dur) var(--lk-ease);
 }
 
 .thaidLoginBtn:hover:not(:disabled),
 .mophIdBtn:hover:not(:disabled) {
-  background-color: var(--ink-raised-hover);
-  border-color: var(--ink-hairline-hover);
-}
-
-.thaidLoginBtn:active:not(:disabled),
-.mophIdBtn:active:not(:disabled) {
-  transform: scale(0.98);
+  background-color: var(--lk-raised-hover);
+  border-color: var(--lk-hairline-hover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .thaidLoginBtn:focus-visible,
 .mophIdBtn:focus-visible {
-  outline: 2px solid var(--candle-accent-text);
+  outline: 3px solid var(--lk-candle-gold);
   outline-offset: 2px;
 }
 
@@ -276,44 +267,45 @@
   cursor: not-allowed;
 }
 
-/* ThaID Row */
+/* ThaID Button — Official Identity Card in Twilight */
 .thaidLoginBtn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 54px;
-  padding: 10px 14px;
+  gap: 0.875rem;
+  min-height: 56px;
+  padding: 0.75rem 1rem;
+  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, rgba(24, 34, 58, 0.95) 0%, rgba(18, 26, 46, 0.95) 100%);
 }
 
-@media (min-width: 480px) {
-  .thaidLoginBtn {
-    min-height: 60px;
-    padding: 12px 16px;
-  }
+.thaidLoginBtn:hover:not(:disabled) {
+  border-color: rgba(96, 165, 250, 0.6);
+  background: linear-gradient(135deg, rgba(28, 40, 70, 0.98) 0%, rgba(22, 32, 56, 0.98) 100%);
 }
 
 .thaidIconFrame {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
   flex-shrink: 0;
-  border: 1px solid var(--ink-hairline);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: #FFFFFF;
 }
 
 .thaidLogoImg {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .digitalIdTextGroup {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.125rem;
   flex: 1;
   min-width: 0;
 }
@@ -321,36 +313,36 @@
 .digitalIdTitle {
   font-size: 0.9375rem; /* 15px */
   line-height: 1.4;
-  font-weight: 500;
-  color: var(--ink-text-primary);
+  font-weight: 600;
+  color: #93C5FD; /* Luminous Blue */
 }
 
 .digitalIdSubtitle {
   font-size: 0.8125rem; /* 13px */
   line-height: 1.4;
   font-weight: 400;
-  color: var(--ink-text-muted);
+  color: var(--lk-text-muted);
 }
 
 .digitalIdChevron {
-  color: var(--ink-text-muted);
+  color: var(--lk-text-muted);
   flex-shrink: 0;
   transition:
-    transform var(--unslop-fast) var(--unslop-ease),
-    color var(--unslop-fast) var(--unslop-ease);
+    transform var(--lk-dur) var(--lk-ease),
+    color var(--lk-dur) var(--lk-ease);
 }
 
 .thaidLoginBtn:hover:not(:disabled) .digitalIdChevron,
 .mophIdBtn:hover:not(:disabled) .digitalIdChevron {
-  color: var(--ink-text-secondary);
+  color: var(--lk-text-secondary);
   transform: translateX(2px);
 }
 
-/* Health ID & Provider ID Grid */
+/* MOPH Digital IDs: Health ID & Provider ID */
 .mophIdRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 @media (max-width: 359px) {
@@ -363,16 +355,16 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 8px;
+  gap: 0.5rem;
   min-height: 76px;
-  padding: 10px 10px;
+  padding: 0.625rem 0.75rem;
 }
 
 @media (min-width: 480px) {
   .mophIdBtn {
-    gap: 12px;
-    min-height: 84px;
-    padding: 12px 16px;
+    gap: 0.625rem;
+    min-height: 80px;
+    padding: 0.75rem 0.875rem;
   }
 }
 
@@ -380,7 +372,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 0.375rem;
   width: 100%;
 }
 
@@ -388,23 +380,22 @@
   display: inline-flex;
   align-items: center;
   height: 24px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background-color: var(--ink-text-primary);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  background-color: #FFFFFF;
   flex-shrink: 0;
 }
 
 @media (min-width: 480px) {
   .mophLogoPlate {
-    height: 28px;
-    padding: 4px 8px;
+    height: 26px;
   }
 }
 
 .mophWordmarkImg {
-  height: 16px;
+  height: 18px;
   width: auto;
-  max-width: 72px;
+  max-width: 80px;
   object-fit: contain;
   object-position: left center;
 }
@@ -412,22 +403,22 @@
 @media (min-width: 480px) {
   .mophWordmarkImg {
     height: 20px;
-    max-width: 96px;
+    max-width: 90px;
   }
 }
 
 .mophCaptionGroup {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0.0625rem;
   min-width: 0;
 }
 
 .mophBtnTitle {
   font-size: 0.8125rem; /* 13px */
   line-height: 1.35;
-  font-weight: 500;
-  color: var(--ink-text-primary);
+  font-weight: 600;
+  color: var(--lk-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -444,30 +435,23 @@
   font-size: 0.75rem; /* 12px */
   line-height: 1.3;
   font-weight: 400;
-  color: var(--ink-text-muted);
+  color: var(--lk-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-@media (min-width: 480px) {
-  .mophBtnSubtitle {
-    font-size: 0.8125rem; /* 13px */
-    line-height: 1.4;
-  }
 }
 
 /* Hairline Divider */
 .loginDivider {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 18px 0;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
 }
 
 @media (min-width: 480px) {
   .loginDivider {
-    margin: 24px 0;
+    margin: 1.5rem 0;
   }
 }
 
@@ -475,90 +459,80 @@
 .loginDivider::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid var(--ink-hairline);
+  border-bottom: 1px solid var(--lk-hairline);
 }
 
 .loginDivider span {
-  color: var(--ink-text-muted);
+  color: var(--lk-text-muted);
   font-size: 0.8125rem; /* 13px */
   line-height: 1.4;
   font-weight: 400;
   white-space: nowrap;
 }
 
-/* Email OTP Form */
+/* Email & CID Form */
 .memberLoginForm {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0.875rem;
 }
 
 @media (min-width: 480px) {
   .memberLoginForm {
-    gap: 16px;
+    gap: 1rem;
   }
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-@media (min-width: 480px) {
-  .formGroup {
-    gap: 8px;
-  }
+  gap: 0.375rem;
 }
 
 .formGroup label {
-  color: var(--ink-text-secondary);
-  font-size: 0.84375rem; /* 13.5px */
+  color: var(--lk-text-secondary);
+  font-size: 0.875rem; /* 14px */
   line-height: 1.4;
-  font-weight: 400;
-}
-
-@media (min-width: 480px) {
-  .formGroup label {
-    font-size: 0.875rem; /* 14px */
-  }
+  font-weight: 500;
 }
 
 .formInput {
-  height: 44px;
-  background-color: var(--ink-raised);
-  border: 1px solid var(--ink-hairline);
-  border-radius: 10px;
-  padding: 8px 12px;
-  color: var(--ink-text-primary);
-  font-size: 16px; /* 16px prevents iOS Safari auto-zoom on focus */
-  line-height: 1.4;
+  height: 46px;
+  min-height: 44px;
+  background-color: rgba(10, 16, 30, 0.9);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-md);
+  padding: 0.625rem 0.875rem;
+  color: var(--lk-text-primary);
+  font-size: 16px; /* Prevents iOS Safari auto-zoom */
+  line-height: 1.5;
   font-family: inherit;
   -webkit-appearance: none;
   appearance: none;
   transition:
-    border-color var(--unslop-fast) var(--unslop-ease),
-    background-color var(--unslop-fast) var(--unslop-ease),
-    box-shadow var(--unslop-fast) var(--unslop-ease);
+    border-color var(--lk-dur) var(--lk-ease),
+    background-color var(--lk-dur) var(--lk-ease),
+    box-shadow var(--lk-dur) var(--lk-ease);
 }
 
 .formInput::placeholder {
-  color: var(--ink-text-muted);
+  color: #64748B;
 }
 
 .formInput:hover:not(:disabled):not(:focus) {
-  border-color: var(--ink-hairline-hover);
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
 .formInput:focus {
   outline: none;
-  background-color: var(--ink-raised-hover);
-  border-color: rgba(245, 158, 11, 0.65);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
+  border-color: var(--lk-candle-gold);
+  box-shadow: 0 0 0 3px var(--lk-focus-ring);
+  background-color: rgba(14, 22, 40, 0.95);
 }
 
 .formInput:disabled {
-  opacity: 0.55;
+  background-color: rgba(10, 15, 26, 0.6);
+  color: var(--lk-text-muted);
   cursor: not-allowed;
 }
 
@@ -566,202 +540,72 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Step 2: Recipient Summary & 6-Digit OTP Input */
-.otpStepPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.otpRecipientSummary {
+/* Primary Submit Button: Warm Candle Amber & Lantern Glow */
+.memberSubmitBtn {
+  min-height: 46px;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  border: 1px solid rgba(254, 240, 138, 0.4);
+  border-radius: var(--lk-radius-md);
+  color: #111827; /* Rich Dark Contrast Text */
+  font-size: 0.9375rem; /* 15px */
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  background-color: var(--ink-raised);
-  border: 1px solid var(--ink-hairline);
-  border-radius: 10px;
-}
-
-.otpRecipientText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.otpRecipientLabel {
-  font-size: 0.8125rem; /* 13px */
-  line-height: 1.4;
-  color: var(--ink-text-muted);
-}
-
-.otpRecipientValue {
-  font-size: 0.875rem; /* 14px */
-  line-height: 1.4;
-  font-weight: 500;
-  color: var(--ink-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.editInfoBtn {
-  min-height: 36px;
-  padding: 8px 12px;
-  background-color: transparent;
-  border: 1px solid var(--ink-hairline);
-  border-radius: 6px;
-  color: var(--ink-text-secondary);
-  font-size: 0.8125rem; /* 13px */
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  flex-shrink: 0;
-  touch-action: manipulation;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
   transition:
-    background-color var(--unslop-fast) var(--unslop-ease),
-    border-color var(--unslop-fast) var(--unslop-ease),
-    color var(--unslop-fast) var(--unslop-ease);
-}
-
-.editInfoBtn:hover:not(:disabled) {
-  background-color: var(--ink-raised-hover);
-  border-color: var(--ink-hairline-hover);
-  color: var(--ink-text-primary);
-}
-
-.editInfoBtn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.otpInput {
-  height: 50px;
-  text-align: center;
-  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
-  font-size: 1.375rem; /* 22px */
-  font-weight: 500;
-  letter-spacing: 0.28em;
-  padding-left: calc(8px + 0.28em);
-}
-
-@media (min-width: 400px) {
-  .otpInput {
-    height: 52px;
-    font-size: 1.5rem; /* 24px */
-    letter-spacing: 0.35em;
-    padding-left: calc(12px + 0.35em);
-  }
-}
-
-.otpInput::placeholder {
-  letter-spacing: 0.28em;
-  color: var(--ink-text-muted);
-  opacity: 0.45;
-}
-
-@media (min-width: 400px) {
-  .otpInput::placeholder {
-    letter-spacing: 0.35em;
-  }
-}
-
-/* Primary Button — Off-White from Ramp with Dark Ink Text (Unslop Dark Primary) */
-.memberSubmitBtn {
-  min-height: 44px;
-  padding: 12px 20px;
-  background-color: var(--ink-text-primary);
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: var(--ink-bg);
-  font-size: 0.9375rem; /* 15px */
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  transition:
-    background-color var(--unslop-fast) var(--unslop-ease),
-    transform var(--unslop-fast) var(--unslop-ease),
-    opacity var(--unslop-fast) var(--unslop-ease);
+    background var(--lk-dur) var(--lk-ease),
+    box-shadow var(--lk-dur) var(--lk-ease),
+    transform var(--lk-dur) var(--lk-ease),
+    opacity var(--lk-dur) var(--lk-ease);
 }
 
 .memberSubmitBtn:hover:not(:disabled) {
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
+  transform: translateY(-1px);
 }
 
 .memberSubmitBtn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.3);
 }
 
 .memberSubmitBtn:focus-visible {
-  outline: 2px solid var(--candle-accent-text);
+  outline: 3px solid var(--lk-candle-glow);
   outline-offset: 2px;
 }
 
 .memberSubmitBtn:disabled {
-  background-color: var(--ink-raised);
-  color: var(--ink-text-muted);
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--lk-text-muted);
   box-shadow: none;
   cursor: not-allowed;
+  transform: none;
 }
 
-/* Resend OTP Row */
-.otpResendRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  margin-top: 4px;
-}
-
-.otpResendHint {
-  font-size: 0.8125rem;
-  color: var(--ink-text-muted);
-}
-
-.resendBtn {
-  min-height: 38px;
-  padding: 6px 10px;
-  background: none;
-  border: none;
-  color: var(--candle-accent-text);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: color var(--unslop-fast) var(--unslop-ease);
-}
-
-.resendBtn:hover:not(:disabled) {
-  color: #fde68a;
-  text-decoration: underline;
-}
-
-.resendBtn:disabled {
-  color: var(--ink-text-muted);
-  cursor: not-allowed;
-}
-
-/* OTP Popup Modal */
+/* OTP Modal Panel (Night Ambiance) */
 .otpModalBackdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(6, 8, 16, 0.78);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background-color: rgba(3, 7, 16, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 999;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: max(1rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  animation: modalFadeIn var(--unslop-fast) var(--unslop-ease);
+  animation: modalFadeIn var(--lk-dur) var(--lk-ease);
 }
 
 .otpModalPanel {
@@ -772,17 +616,17 @@
   max-height: calc(100vh - 32px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background-color: rgba(18, 22, 38, 0.98);
-  border: 1px solid rgba(238, 240, 245, 0.16);
-  border-radius: 16px;
-  padding: 20px 16px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  animation: modalScaleUp var(--unslop-fast) var(--unslop-ease);
+  background-color: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--lk-radius-lg);
+  padding: 1.5rem 1.25rem;
+  box-shadow: var(--lk-shadow-modal);
+  animation: modalScaleUp var(--lk-dur) var(--lk-ease);
 }
 
 @media (min-width: 480px) {
   .otpModalPanel {
-    padding: 28px;
+    padding: 2rem 1.75rem;
   }
 }
 
@@ -790,47 +634,34 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-@media (min-width: 480px) {
-  .otpModalHeader {
-    gap: 16px;
-    margin-bottom: 20px;
-  }
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .otpModalTitleWrap {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
 }
 
 .otpModalTitleWrap h2 {
-  font-size: 1.1875rem; /* 19px */
-  line-height: 1.3;
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.35;
   font-weight: 600;
-  color: var(--ink-text-primary);
+  color: var(--lk-text-primary);
   margin: 0;
 }
 
-@media (min-width: 480px) {
-  .otpModalTitleWrap h2 {
-    font-size: 1.25rem; /* 20px */
-  }
-}
-
 .otpModalSubtitle {
-  font-size: 0.8125rem; /* 13px */
-  line-height: 1.45;
-  color: var(--ink-text-secondary);
+  font-size: 0.84375rem; /* ~13.5px */
+  line-height: 1.5;
+  color: var(--lk-text-secondary);
   margin: 0;
 }
 
 .otpModalSubtitle strong {
-  color: var(--candle-accent-text);
-  font-weight: 500;
+  color: var(--lk-candle-glow);
+  font-weight: 600;
   word-break: break-all;
 }
 
@@ -842,31 +673,188 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--ink-raised);
-  border: 1px solid var(--ink-hairline);
-  border-radius: 8px;
-  color: var(--ink-text-secondary);
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--lk-hairline);
+  border-radius: var(--lk-radius-sm);
+  color: var(--lk-text-muted);
   cursor: pointer;
   flex-shrink: 0;
   touch-action: manipulation;
   transition:
-    background-color var(--unslop-fast) var(--unslop-ease),
-    color var(--unslop-fast) var(--unslop-ease);
+    background-color var(--lk-dur) var(--lk-ease),
+    color var(--lk-dur) var(--lk-ease);
 }
 
 .otpModalCloseBtn:hover {
-  background-color: var(--ink-raised-hover);
-  color: var(--ink-text-primary);
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--lk-text-primary);
+}
+
+.otpModalCloseBtn:focus-visible {
+  outline: 3px solid var(--lk-candle-gold);
+  outline-offset: 2px;
 }
 
 .otpModalForm {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1rem;
+}
+
+.otpInput {
+  height: 52px;
+  text-align: center;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 1.5rem; /* 24px */
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  padding-left: calc(0.625rem + 0.32em);
+  color: #FEF08A; /* Warm Candlelight Text */
+  background-color: rgba(10, 16, 30, 0.95);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.otpInput::placeholder {
+  letter-spacing: 0.32em;
+  color: #64748B;
+  opacity: 0.6;
 }
 
 .otpModalSubmitBtn {
-  margin-top: 4px;
+  margin-top: 0.25rem;
+}
+
+/* Resend OTP Row */
+.otpResendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.375rem;
+}
+
+.otpResendHint {
+  font-size: 0.8125rem;
+  color: var(--lk-text-muted);
+}
+
+.resendBtn {
+  min-height: 38px;
+  padding: 0.375rem 0.625rem;
+  background: none;
+  border: none;
+  color: var(--lk-candle-glow);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--lk-dur) var(--lk-ease);
+}
+
+.resendBtn:hover:not(:disabled) {
+  color: #FEF08A;
+  text-decoration: underline;
+}
+
+.resendBtn:disabled {
+  color: var(--lk-text-muted);
+  cursor: not-allowed;
+}
+
+/* Footer & Legal Links */
+.memberLoginFooter {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--lk-hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 480px) {
+  .memberLoginFooter {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    gap: 0.375rem;
+  }
+}
+
+.backHomeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--lk-radius-md);
+  color: var(--lk-text-secondary);
+  font-size: 0.84375rem;
+  font-weight: 500;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition:
+    color var(--lk-dur) var(--lk-ease),
+    background-color var(--lk-dur) var(--lk-ease);
+}
+
+.backHomeLink:hover {
+  color: var(--lk-candle-glow);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.backHomeLink:focus-visible {
+  outline: 3px solid var(--lk-candle-gold);
+  outline-offset: 2px;
+}
+
+.legalLinks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.625rem;
+}
+
+.legalLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0.25rem 0.375rem;
+  color: var(--lk-text-muted);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: color var(--lk-dur) var(--lk-ease);
+}
+
+.legalLinks a:hover {
+  color: var(--lk-text-primary);
+  text-decoration: underline;
+}
+
+.legalLinks a:focus-visible {
+  outline: 2px solid var(--lk-candle-gold);
+  outline-offset: 2px;
+}
+
+.legalDot {
+  color: var(--lk-hairline);
+  font-size: 0.8125rem;
+}
+
+/* Animations */
+@keyframes loginPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes modalFadeIn {
@@ -881,7 +869,7 @@
 @keyframes modalScaleUp {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(8px);
+    transform: scale(0.97) translateY(6px);
   }
   to {
     opacity: 1;
@@ -889,101 +877,11 @@
   }
 }
 
-/* Footer Links */
-.memberLoginFooter {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--ink-hairline);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-@media (min-width: 480px) {
-  .memberLoginFooter {
-    margin-top: 24px;
-    padding-top: 16px;
-    gap: 4px;
-  }
-}
-
-.backHomeLink {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  color: var(--ink-text-secondary);
-  font-size: 0.8125rem;
-  font-weight: 400;
-  text-decoration: none;
-  touch-action: manipulation;
-  transition:
-    color var(--unslop-fast) var(--unslop-ease),
-    background-color var(--unslop-fast) var(--unslop-ease);
-}
-
-@media (min-width: 480px) {
-  .backHomeLink {
-    font-size: 0.875rem;
-  }
-}
-
-.backHomeLink:hover {
-  color: var(--ink-text-primary);
-  background-color: var(--ink-raised);
-}
-
-.legalLinks {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-}
-
-.legalLinks a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 4px 6px;
-  color: var(--ink-text-muted);
-  font-size: 0.8125rem;
-  text-decoration: none;
-  touch-action: manipulation;
-  transition: color var(--unslop-fast) var(--unslop-ease);
-}
-
-.legalLinks a:hover {
-  color: var(--ink-text-secondary);
-  text-decoration: underline;
-}
-
-.legalDot {
-  color: var(--ink-text-muted);
-  font-size: 0.8125rem;
-}
-
-@keyframes loginPanelEnter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-
-
+/* Reduced Motion Override */
 @media (prefers-reduced-motion: reduce) {
-  /* Seasonal components handle reduced motion internally */
-
-  .memberLoginCard {
+  .memberLoginCard,
+  .otpModalBackdrop,
+  .otpModalPanel {
     animation: none;
   }
 
@@ -991,11 +889,11 @@
   .mophIdBtn,
   .digitalIdChevron,
   .formInput,
-  .editInfoBtn,
   .memberSubmitBtn,
   .resendBtn,
   .backHomeLink,
-  .legalLinks a {
+  .legalLinks a,
+  .otpModalCloseBtn {
     transition: none;
   }
 }

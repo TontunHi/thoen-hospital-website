@@ -52,6 +52,7 @@ const t1dmRecipientParamsSchema = z.object({
   refresh: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),
+  pttypes: z.string().max(300).optional(),
 })
 
 export async function GET(request: Request) {

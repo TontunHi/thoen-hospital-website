@@ -1,0 +1,17 @@
+{
+  "name": "Calendar day agenda",
+  "summary": "One day's schedule: a date header with previous, today and next, an all-day event, and timed events on an hour rail with overlaps side by side and a now line.",
+  "use": "for one day's events in a scheduling or CRM tool",
+  "type": "data",
+  "style": "quiet",
+  "industries": ["productivity", "saas", "any"],
+  "tags": ["calendar", "agenda", "schedule", "day view", "events"],
+  "states": ["hover", "focus", "past", "now", "overlapping", "all day"],
+  "source": null,
+  "a11y": "Events are links in a labelled list with the title, time and place in their text; the hour rail is hidden from screen readers and the now line has a text label.",
+  "width": "medium",
+  "photos": [
+    {"img": "photo-1438761681033-6461ffad8d80", "author": "Christopher Campbell", "page": "rDEOVtE7vOs"},
+    {"img": "photo-1522529599102-193c0d76b5b6", "author": "Elizeu Dias", "page": "2EGNqazbAMk"}
+  ]
+}

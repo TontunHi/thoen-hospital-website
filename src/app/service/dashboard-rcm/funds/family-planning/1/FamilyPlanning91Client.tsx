@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -36,6 +37,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -99,6 +101,7 @@ export default function FamilyPlanning91Client({
 
   // Filter States
   const [format, setFormat] = useState<FamilyPlanningFormat>('NEW_ECLAIM')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [serviceOnly, setServiceOnly] = useState<boolean>(false)
   const [status, setStatus] = useState<string>('ALL')
   const [errorFilter, setErrorFilter] = useState<string>('ALL')
@@ -219,6 +222,10 @@ export default function FamilyPlanning91Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           q.set('refresh', 'true')
         }
@@ -256,6 +263,7 @@ export default function FamilyPlanning91Client({
       ds1,
       ds2,
       format,
+      pttypes,
       serviceOnly,
       status,
       cardFilter,
@@ -366,6 +374,10 @@ export default function FamilyPlanning91Client({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/family-planning/service-9-1?${q.toString()}`
       )
@@ -388,7 +400,7 @@ export default function FamilyPlanning91Client({
         'วันที่รับบริการ',
         'เวลา',
         'อาการสำคัญ (CC)',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'PDX',
         'การวินิจฉัยทั้งหมด (Dx)',
@@ -405,56 +417,45 @@ export default function FamilyPlanning91Client({
         'กองทุนย่อย',
       ]
 
-      const csvRows: string[] = []
-      csvRows.push(headers.join(','))
+      const exportRows = rows.map((r) => [
+        r.no,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.sex,
+        r.age ?? '',
+        r.nation || '',
+        r.vstdate,
+        r.vsttime,
+        r.cc || '',
+        r.authencode || '',
+        r.pttypename || '',
+        r.pdx || '',
+        r.diag || '',
+        r.oper || r.op || '',
+        r.income,
+        r.doctorname || '',
+        r.listname || '',
+        r.drugname || '',
+        r.status || '',
+        r.rep || '',
+        r.compensated,
+        r.errorname || '',
+        r.fund || '',
+        r.subfund || '',
+      ])
 
-      for (const r of rows) {
-        const line = [
-          r.no,
-          `"${r.vn}"`,
-          `"${r.hn}"`,
-          `"${r.cid}"`,
-          `"${r.ptname.replace(/"/g, '""')}"`,
-          `"${r.sex}"`,
-          r.age ?? '',
-          `"${r.nation || ''}"`,
-          `"${r.vstdate}"`,
-          `"${r.vsttime}"`,
-          `"${(r.cc || '').replace(/"/g, '""')}"`,
-          `"${r.authencode || ''}"`,
-          `"${(r.pttypename || '').replace(/"/g, '""')}"`,
-          `"${r.pdx || ''}"`,
-          `"${(r.diag || '').replace(/"/g, '""')}"`,
-          `"${(r.oper || r.op || '').replace(/"/g, '""')}"`,
-          r.income,
-          `"${(r.doctorname || '').replace(/"/g, '""')}"`,
-          `"${(r.listname || '').replace(/"/g, '""')}"`,
-          `"${(r.drugname || '').replace(/"/g, '""')}"`,
-          `"${(r.status || '').replace(/"/g, '""')}"`,
-          `"${r.rep || ''}"`,
-          r.compensated,
-          `"${(r.errorname || '').replace(/"/g, '""')}"`,
-          `"${r.fund || ''}"`,
-          `"${r.subfund || ''}"`,
-        ]
-        csvRows.push(line.join(','))
-      }
-
-      // UTF-8 BOM
-      const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], {
-        type: 'text/csv;charset=utf-8;',
+      await exportRcmExcel({
+        filename: `rcm-family-planning-9-1-${ds1}-to-${ds2}.xlsx`,
+        title: 'วางแผนครอบครัวและการป้องกันการตั้งครรภ์ (9.1)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: exportRows,
       })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `rcm-family-planning-9-1-${ds1}-to-${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
     } catch (err: unknown) {
       const e = err as Error
-      alert(e.message || 'ส่งออกไฟล์ CSV ไม่สำเร็จ')
+      alert(e.message || 'ส่งออกไฟล์ Excel ไม่สำเร็จ')
     } finally {
       setIsExporting(false)
     }
@@ -494,10 +495,10 @@ export default function FamilyPlanning91Client({
             onClick={handleExportCsv}
             disabled={loading || isExporting || totalCount === 0}
             aria-busy={isExporting}
-            title="ส่งออกรายงานทั้งหมดเป็นไฟล์ CSV"
+            title="ส่งออกรายงานทั้งหมดเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} aria-hidden="true" />
-            {isExporting ? 'กำลังส่งออก...' : 'ส่งออกข้อมูล CSV'}
+            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}
           </button>
         </div>
       </header>
@@ -635,22 +636,22 @@ export default function FamilyPlanning91Client({
           <span className="fp91-card-sub text-danger">Dx/หัตถการ/บริการไม่สอดคล้อง</span>
         </button>
 
-        {/* Card 6: ไม่มี Authen Code */}
+        {/* Card 6: ไม่มี ClaimCode */}
         <button
           type="button"
           className="fp91-summary-card"
           aria-pressed={cardFilter === 'NO_AUTHEN'}
           onClick={() => handleCardClick('NO_AUTHEN')}
-          title="กรองเคสที่ยังไม่มีรหัส Authen"
+          title="กรองเคสที่ยังไม่มีรหัส ClaimCode"
         >
           <div className="fp91-card-header">
-            <span className="fp91-card-label">ไม่มี Authen Code</span>
+            <span className="fp91-card-label">ไม่มี ClaimCode</span>
             <ShieldCheck size={16} className="text-muted" aria-hidden="true" />
           </div>
           <span className="fp91-card-val font-tabular">
             {summary.noAuthenCount.toLocaleString()}
           </span>
-          <span className="fp91-card-sub text-muted">มี Authen {summary.authenCount.toLocaleString()} ราย</span>
+          <span className="fp91-card-sub text-muted">มี ClaimCode {summary.authenCount.toLocaleString()} ราย</span>
         </button>
       </section>
 
@@ -772,6 +773,16 @@ export default function FamilyPlanning91Client({
             <option value="NEW_ECLAIM">New EClaim (FP001, FP002, FP003_1-4)</option>
             <option value="KRUNGTHAI">KrungThai Health Platform (20001 - 20004)</option>
           </select>
+
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
 
           {/* Service Only Checkbox (เหมือน chkService ใน FoxPro) */}
           <label className="fp91-checkbox-label" title="แสดงเฉพาะเคสที่บันทึกรหัสบริการ ADP">
@@ -965,7 +976,9 @@ export default function FamilyPlanning91Client({
                   </span>
                 </th>
                 <th style={{ minWidth: '160px' }}>สิทธิการรักษา</th>
-                <th style={{ width: '130px' }}>Authen Code</th>
+                <th style={{ width: '130px' }}>
+                    ClaimCode
+                  </th>
                 <th style={{ minWidth: '130px' }}>การวินิจฉัย (Dx)</th>
                 <th style={{ minWidth: '110px' }}>หัตถการ (Op)</th>
                 <th
@@ -1070,7 +1083,7 @@ export default function FamilyPlanning91Client({
               ) : (
                 items.map((item) => {
                   const hasErr = item.hasError
-                  const isMissingDx = !item.icd10 && item.hasService
+                  const isMissingDx = !item.icd10 && (item.hasService || Boolean(item.drugname))
 
                   return (
                     <tr
@@ -1132,12 +1145,12 @@ export default function FamilyPlanning91Client({
                         )}
                       </td>
                       <td>
-                        {item.pdx || item.icd10 ? (
+                        {item.icd10 ? (
                           <div>
                             <span className="fp91-badge fp91-badge-blue font-tabular">
-                              {item.pdx || item.icd10}
+                              {item.icd10}
                             </span>
-                            {item.diag && item.diag !== item.pdx && (
+                            {item.diag && item.diag !== item.icd10 && (
                               <div
                                 className="text-muted"
                                 style={{ fontSize: '11.5px', marginTop: '2px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis' }}
@@ -1148,7 +1161,11 @@ export default function FamilyPlanning91Client({
                             )}
                           </div>
                         ) : isMissingDx ? (
-                          <span className="fp91-badge fp91-badge-danger">ไม่พบ Dx</span>
+                          <span className="fp91-badge fp91-badge-danger">ไม่พบ Dx Z30</span>
+                        ) : item.pdx ? (
+                          <span className="fp91-badge fp91-badge-neutral font-tabular" title="PDX ไม่ใช่ Z30">
+                            {item.pdx}
+                          </span>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
@@ -1323,7 +1340,7 @@ export default function FamilyPlanning91Client({
                     </div>
 
                     <div className="fp91-field-card">
-                      <div className="fp91-field-label">รหัส Authen Code</div>
+                      <div className="fp91-field-label">รหัส ClaimCode</div>
                       <div className="fp91-field-value font-tabular">
                         {selectedItem.authencode || 'ไม่มี Authen Code'}
                       </div>

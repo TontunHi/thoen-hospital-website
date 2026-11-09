@@ -34,6 +34,8 @@ import type {
 } from '@/lib/clinical/rcmRehabilitationService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -94,6 +96,7 @@ export default function DisabilityServicesClient({
   const [cardFilter, setCardFilter] = useState<RehabCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<RehabSortField>(
@@ -181,6 +184,7 @@ export default function DisabilityServicesClient({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -210,7 +214,7 @@ export default function DisabilityServicesClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch when filters or pagination changes (skip first paint if initialData provided)
@@ -298,6 +302,8 @@ export default function DisabilityServicesClient({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/rehabilitation/disability-services?${queryParams.toString()}`
       )
@@ -317,7 +323,7 @@ export default function DisabilityServicesClient({
         'ชื่อ-สกุล',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิหลัก',
         'สิทธิการรักษา',
         'แผนก',
@@ -350,65 +356,55 @@ export default function DisabilityServicesClient({
         'ชื่อไฟล์นำเข้า',
       ]
 
-      const csvRows = [headers.join(',')]
+      const rows = exportItems.map((row) => [
+        row.no,
+        row.vn || '',
+        row.an || '',
+        row.hn || '',
+        row.cid || '',
+        row.ptname || '',
+        row.vstdate,
+        row.vsttime,
+        row.authencode || '',
+        row.maininscl || '',
+        row.pttypename || '',
+        row.department || '',
+        row.clinic || '',
+        row.income,
+        row.rehab_name || '',
+        row.rehab_code || '',
+        row.match_status,
+        row.filetype,
+        row.status || '',
+        row.rep || '',
+        row.compensated,
+        row.rep_seamless || '',
+        row.payno || '',
+        row.compensated_seamless,
+        row.noCompensated || '',
+        row.diag || '',
+        row.oper || '',
+        row.doctorname || '',
+        row.targetgroup || '',
+        row.deformed_type || '',
+        row.adl || '',
+        row.startservice || '',
+        row.endservice || '',
+        row.unitprice ?? '',
+        row.realprice ?? '',
+        row.staff || '',
+        row.serialno || '',
+        row.web_status || '',
+        row.filename || '',
+      ])
 
-      for (const row of exportItems) {
-        const values = [
-          row.no,
-          `"${row.vn || ''}"`,
-          `"${row.an || ''}"`,
-          `"${row.hn || ''}"`,
-          `"${row.cid || ''}"`,
-          `"${(row.ptname || '').replace(/"/g, '""')}"`,
-          `"${row.vstdate}"`,
-          `"${row.vsttime}"`,
-          `"${row.authencode || ''}"`,
-          `"${row.maininscl || ''}"`,
-          `"${(row.pttypename || '').replace(/"/g, '""')}"`,
-          `"${(row.department || '').replace(/"/g, '""')}"`,
-          `"${(row.clinic || '').replace(/"/g, '""')}"`,
-          row.income,
-          `"${(row.rehab_name || '').replace(/"/g, '""')}"`,
-          `"${row.rehab_code || ''}"`,
-          `"${row.match_status}"`,
-          `"${row.filetype}"`,
-          `"${(row.status || '').replace(/"/g, '""')}"`,
-          `"${row.rep || ''}"`,
-          row.compensated,
-          `"${row.rep_seamless || ''}"`,
-          `"${row.payno || ''}"`,
-          row.compensated_seamless,
-          `"${(row.noCompensated || '').replace(/"/g, '""')}"`,
-          `"${(row.diag || '').replace(/"/g, '""')}"`,
-          `"${(row.oper || '').replace(/"/g, '""')}"`,
-          `"${(row.doctorname || '').replace(/"/g, '""')}"`,
-          `"${(row.targetgroup || '').replace(/"/g, '""')}"`,
-          `"${(row.deformed_type || '').replace(/"/g, '""')}"`,
-          `"${(row.adl || '').replace(/"/g, '""')}"`,
-          `"${row.startservice || ''}"`,
-          `"${row.endservice || ''}"`,
-          row.unitprice ?? '',
-          row.realprice ?? '',
-          `"${(row.staff || '').replace(/"/g, '""')}"`,
-          `"${row.serialno || ''}"`,
-          `"${row.web_status || ''}"`,
-          `"${row.filename || ''}"`,
-        ]
-        csvRows.push(values.join(','))
-      }
-
-      // Add UTF-8 BOM \uFEFF for Windows Excel compatibility
-      const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], {
-        type: 'text/csv;charset=utf-8;',
+      await exportRcmExcel({
+        filename: `rehab_disability_services_${ds1}_to_${ds2}.xlsx`,
+        title: 'รายงานการให้บริการฟื้นฟูสมรรถภาพคนพิการ',
+        subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
       })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rehab_disability_services_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกข้อมูล')
     } finally {
@@ -490,10 +486,10 @@ export default function DisabilityServicesClient({
             className="rehab-btn rehab-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกไฟล์ CSV พร้อม UTF-8 BOM"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} className={isExporting ? 'rehab-spin' : ''} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -795,17 +791,17 @@ export default function DisabilityServicesClient({
           </div>
         </div>
 
-        {/* Card 7: มี Authen Code (WITH_AUTHEN) */}
+        {/* Card 7: มี ClaimCode (WITH_AUTHEN) */}
         <div
           role="button"
           tabIndex={0}
           className={`rehab-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardClick('WITH_AUTHEN')}
           onKeyDown={(e) => e.key === 'Enter' && handleCardClick('WITH_AUTHEN')}
-          title="คลิกเพื่อกรอง: มีรหัสยืนยันตัวตน Authen Code"
+          title="คลิกเพื่อกรอง: มีรหัสยืนยันตัวตน ClaimCode"
         >
           <div className="rehab-card-header">
-            <span className="rehab-card-title">มี Authen Code</span>
+            <span className="rehab-card-title">มี ClaimCode</span>
             <div className="rehab-card-icon is-primary">
               <KeyRound size={18} />
             </div>
@@ -867,6 +863,16 @@ export default function DisabilityServicesClient({
           )}
         </div>
 
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
+
         {cardFilter !== 'ALL' && (
           <div className="rehab-active-chip">
             <span>
@@ -884,9 +890,9 @@ export default function DisabilityServicesClient({
                 : cardFilter === 'UNCOMPENSATED'
                 ? 'ยังไม่ชดเชย'
                 : cardFilter === 'WITH_AUTHEN'
-                ? 'มี Authen Code'
+                ? 'มี ClaimCode'
                 : cardFilter === 'NO_AUTHEN'
-                ? 'ไม่มี Authen Code'
+                ? 'ไม่มี ClaimCode'
                 : 'สิทธิบัตรทอง'}
             </span>
             <button
@@ -1321,7 +1327,7 @@ export default function DisabilityServicesClient({
                   </div>
 
                   <div className="rehab-field-group">
-                    <span className="rehab-field-label">Authen Code</span>
+                    <span className="rehab-field-label">ClaimCode:</span>
                     <span className="rehab-field-value tabular font-mono">
                       {selectedItem.authencode || '—'}
                     </span>

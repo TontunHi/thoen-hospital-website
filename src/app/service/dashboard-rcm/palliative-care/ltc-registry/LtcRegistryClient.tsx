@@ -17,6 +17,7 @@ import {
   Check,
 } from 'lucide-react'
 import type { LongTermCareRecord } from '@/lib/clinical/ltcRegistryService'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 interface SheetInputProps {
@@ -550,7 +551,7 @@ export default function LtcRegistryClient({
     }
   }
 
-  // Export CSV
+  // Modern Excel (.xlsx) Export
   const handleExportCsv = async () => {
     try {
       const q = new URLSearchParams()
@@ -581,42 +582,37 @@ export default function LtcRegistryClient({
         'ผู้บันทึก',
       ]
 
-      const csvContent = [
-        headers.join(','),
-        ...rows.map((r, idx) => {
-          let adlGroup = '-'
-          if (r.adlScore !== null && r.adlScore !== undefined) {
-            const s = Number(r.adlScore)
-            if (s <= 4) adlGroup = 'ติดเตียง (0-4)'
-            else if (s <= 11) adlGroup = 'ติดบ้าน (5-11)'
-            else adlGroup = 'ติดสังคม (12-20)'
-          }
-          return [
-            idx + 1,
-            `"${r.hn || ''}"`,
-            `"${r.cid || ''}"`,
-            `"${r.patientName || ''}"`,
-            `"${r.address || ''}"`,
-            `"${r.moo || ''}"`,
-            `"${r.tambon || ''}"`,
-            r.age ?? '',
-            r.adlScore ?? '',
-            `"${adlGroup}"`,
-            `"${r.areaZone || ''}"`,
-            `"${r.createdBy || ''}"`,
-          ].join(',')
-        }),
-      ].join('\r\n')
+      const formattedRows = rows.map((r, idx) => {
+        let adlGroup = '-'
+        if (r.adlScore !== null && r.adlScore !== undefined) {
+          const s = Number(r.adlScore)
+          if (s <= 4) adlGroup = 'ติดเตียง (0-4)'
+          else if (s <= 11) adlGroup = 'ติดบ้าน (5-11)'
+          else adlGroup = 'ติดสังคม (12-20)'
+        }
+        return [
+          idx + 1,
+          r.hn || '',
+          r.cid || '',
+          r.patientName || '',
+          r.address || '',
+          r.moo || '',
+          r.tambon || '',
+          r.age ?? '',
+          r.adlScore ?? '',
+          adlGroup,
+          r.areaZone || '',
+          r.createdBy || '',
+        ]
+      })
 
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `ทะเบียน_Long_Term_Care_${new Date().toISOString().slice(0, 10)}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `ทะเบียน_Long_Term_Care_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        title: 'ทะเบียนผู้ป่วย Long Term Care (LTC)',
+        subtitle: `โรงพยาบาลเถิน | วันที่ส่งออก: ${new Date().toLocaleDateString('th-TH')}`,
+        headers,
+        rows: formattedRows,
+      })
     } catch (err: any) {
       alert('เกิดข้อผิดพลาดในการส่งออกข้อมูล: ' + err.message)
     }
@@ -698,10 +694,10 @@ export default function LtcRegistryClient({
             type="button"
             className="ltc-btn ltc-btn-secondary"
             onClick={handleExportCsv}
-            title="ส่งออกข้อมูลเป็น CSV / Excel"
+            title="ส่งออกข้อมูลเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={14} />
-            ส่งออก CSV
+            ส่งออก Excel
           </button>
           <button
             type="button"

@@ -12,6 +12,10 @@ const baseParamsSchema = z.object({
   okFilter: z.enum(['ALL', 'OK', 'NOT_OK']).optional(),
   resultStatusFilter: z.enum(['ALL', 'NORMAL', 'ABNORMAL']).optional(),
   compensationFilter: z.enum(['ALL', 'COMPENSATED', 'UNCOMPENSATED']).optional(),
+  pttypes: z.string().max(300).optional(),
+  ucOnly: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
+    .optional(),
   searchField: z.enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN']).optional(),
   search: z.string().max(120).optional(),
   sortBy: z.enum(['vstdate', 'hn', 'cid', 'ptname', 'age', 'compensated', 'nhso']).optional(),

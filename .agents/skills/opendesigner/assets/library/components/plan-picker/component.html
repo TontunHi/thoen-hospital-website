@@ -1,0 +1,74 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-plan-picker { box-sizing: border-box; inline-size: 100%; max-inline-size: 960px; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-plan-picker *, .odl-plan-picker *::before { box-sizing: border-box; }
+.odl-plan-picker fieldset { margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.odl-plan-picker .odl-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-stack-md) var(--ds-space-inline-md); margin-block-end: var(--ds-space-stack-xl); }
+.odl-plan-picker h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-plan-picker .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.odl-plan-picker .odl-period { display: flex; }
+.odl-plan-picker .odl-period div { display: inline-flex; padding: var(--ds-space-2); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-sunken); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-plan-picker .odl-period label { position: relative; }
+.odl-plan-picker .odl-period input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-plan-picker .odl-period span { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md);
+  border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); white-space: nowrap; }
+.odl-plan-picker .odl-period small { color: var(--ds-color-text-success); font: var(--ds-text-label-md); }
+.odl-plan-picker .odl-period input:checked + span { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); box-shadow: var(--ds-elevation-raised); }
+.odl-plan-picker .odl-plans { display: grid; gap: var(--ds-space-stack-md); }
+@container (min-width: 52rem) { .odl-plan-picker .odl-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--ds-space-inline-md); row-gap: var(--ds-space-stack-sm); }
+  .odl-plan-picker .odl-plan { grid-row: span 4; grid-template-rows: subgrid; } }
+.odl-plan-picker .odl-plan { position: relative; display: grid; align-content: start; gap: var(--ds-space-stack-sm); padding: var(--ds-space-inset-xl); cursor: pointer;
+  background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised);
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), box-shadow var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-plan-picker .odl-plan:hover { border-color: var(--ds-color-border-strong); }
+/* Selected: the accent is only the ring and the radio; the card stays neutral. */
+.odl-plan-picker .odl-plan:has(input:checked) { border-color: var(--ds-color-border-accent); box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-accent), var(--ds-elevation-floating); }
+.odl-plan-picker .odl-plan:has(input:focus-visible) { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-plan-picker .odl-plan input { position: absolute; inset-block-start: var(--ds-space-inset-xl); inset-inline-end: var(--ds-space-inset-xl); inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md);
+  margin: 0; appearance: none; -webkit-appearance: none; border: var(--ds-border-width-emphasis) solid var(--ds-color-border-default); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-raised); cursor: pointer; transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-plan-picker .odl-plan:hover input:not(:checked) { border-color: var(--ds-color-border-strong); }
+.odl-plan-picker .odl-plan input:checked { border-color: var(--ds-color-bg-action-primary); background: var(--ds-color-bg-action-primary); box-shadow: inset 0 0 0 var(--ds-space-4) var(--ds-color-surface-raised); }
+.odl-plan-picker .odl-name { display: flex; flex-wrap: wrap; align-items: center; align-content: start; gap: var(--ds-space-stack-xs) var(--ds-space-inline-sm); font: var(--ds-text-title-md); padding-inline-end: var(--ds-space-32); }
+.odl-plan-picker .odl-tag { white-space: nowrap; padding: var(--ds-space-2) var(--ds-space-inset-xs); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle);
+  color: var(--ds-color-text-primary); font: var(--ds-text-label-md); }
+.odl-plan-picker .odl-price { margin-block-start: var(--ds-space-stack-xs); display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-inline-sm); font: var(--ds-text-headline-sm); font-variant-numeric: tabular-nums; }
+.odl-plan-picker .odl-price small { color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); }
+.odl-plan-picker .odl-price .odl-billed { flex-basis: 100%; color: var(--ds-color-text-tertiary); font: var(--ds-text-body-sm); }
+.odl-plan-picker:has(input[value="year"]:checked) .odl-m, .odl-plan-picker:not(:has(input[value="year"]:checked)) .odl-y { display: none; }
+.odl-plan-picker .odl-for { color: var(--ds-color-text-secondary); text-wrap: pretty; }
+.odl-plan-picker ul { margin: var(--ds-space-stack-xs) 0 0; padding: var(--ds-space-stack-md) 0 0; border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  list-style: none; display: grid; align-content: start; gap: var(--ds-space-stack-sm); }
+.odl-plan-picker li { display: flex; align-items: start; gap: var(--ds-space-inline-sm); }
+.odl-plan-picker li svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin-block-start: calc((1lh - var(--ds-size-icon-sm)) / 2); color: var(--ds-color-icon-default); stroke-width: var(--ds-icon-stroke-md); }
+.odl-plan-picker .odl-period input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 30rem) {
+  .odl-plan-picker .odl-plan { padding: var(--ds-space-inset-lg); }
+  .odl-plan-picker .odl-plan input { inset-block-start: var(--ds-space-inset-lg); inset-inline-end: var(--ds-space-inset-lg); }
+  .odl-plan-picker .odl-period, .odl-plan-picker .odl-period div { inline-size: 100%; }
+  .odl-plan-picker .odl-period label { flex: 1 1 0; }
+  .odl-plan-picker .odl-period span { inline-size: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-plan-picker, .odl-plan-picker *, .odl-plan-picker *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-plan-picker">
+  <div class="odl-top"><h3 id="odl-pp-title">Choose a plan</h3>
+  <fieldset class="odl-period"><legend class="odl-sr">Billing period</legend><div>
+    <label><input type="radio" name="odl-plan-picker-period" value="month"><span>Monthly</span></label>
+    <label><input type="radio" name="odl-plan-picker-period" value="year" checked><span>Yearly <small>2 months free</small></span></label>
+  </div></fieldset></div>
+  <fieldset>
+    <legend class="odl-sr">Choose a plan</legend>
+    <div class="odl-plans">
+      <label class="odl-plan"><input type="radio" name="odl-plan-picker-plan" value="starter"><span class="odl-name">Starter</span>
+        <span class="odl-price">$0 <small>for up to 3 people</small></span><span class="odl-for">For trying it with a small team.</span>
+        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Unlimited projects</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>7 days of history</li></ul></label>
+      <label class="odl-plan"><input type="radio" name="odl-plan-picker-plan" value="team" checked><span class="odl-name">Team <span class="odl-tag">Most teams pick this</span></span>
+        <span class="odl-price"><span class="odl-y">$10</span><span class="odl-m">$12</span> <small>per person a month</small><span class="odl-billed odl-y">$120 a person, billed yearly</span></span><span class="odl-for">For teams who ship every week.</span>
+        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Everything in Starter</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Single sign-on</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>1 year of history</li></ul></label>
+      <label class="odl-plan"><input type="radio" name="odl-plan-picker-plan" value="business"><span class="odl-name">Business</span>
+        <span class="odl-price"><span class="odl-y">$20</span><span class="odl-m">$24</span> <small>per person a month</small><span class="odl-billed odl-y">$240 a person, billed yearly</span></span><span class="odl-for">For companies with audits to pass.</span>
+        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Everything in Team</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Audit log and SCIM</li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Unlimited history</li></ul></label>
+    </div>
+  </fieldset>
+</div>

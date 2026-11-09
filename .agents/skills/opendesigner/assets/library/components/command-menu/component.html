@@ -1,0 +1,80 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-command-menu { box-sizing: border-box; inline-size: 100%; max-inline-size: 40rem; margin-inline: auto; background: var(--ds-color-surface-overlay); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay); font: var(--ds-text-body-md); overflow: hidden; text-wrap: pretty; }
+.odl-command-menu *, .odl-command-menu *::before { box-sizing: border-box; }
+.odl-command-menu svg { flex: none; fill: none; stroke: currentColor; stroke-width: var(--ds-icon-stroke-md); }
+.odl-command-menu .odl-search { display: flex; align-items: center; gap: var(--ds-space-inline-md); padding: var(--ds-space-inset-xs) var(--ds-space-inset-lg); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-command-menu .odl-search > svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); color: var(--ds-color-icon-subtle); }
+.odl-command-menu input { flex: 1; min-inline-size: 0; block-size: var(--ds-size-control-lg); border: 0; background: transparent; color: inherit; font: var(--ds-text-body-lg); outline: none; }
+.odl-command-menu input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-command-menu .odl-search:has(input:focus-visible) { box-shadow: inset 0 calc(-1 * var(--ds-border-width-emphasis)) 0 var(--ds-color-border-focus); }
+.odl-command-menu kbd { display: inline-grid; place-items: center; flex: none; min-inline-size: var(--ds-size-icon-md); padding: 0 var(--ds-space-4); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-detail); background: var(--ds-color-surface-sunken); color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); font-family: var(--ds-font-family-text); }
+.odl-command-menu [role="listbox"] { max-block-size: calc(max(var(--ds-size-control-md), var(--ds-size-target-min)) * 9); overflow-y: auto; padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm) var(--ds-space-inset-sm); }
+.odl-command-menu .odl-group { padding: var(--ds-space-stack-md) var(--ds-space-inset-sm) var(--ds-space-stack-xs); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-command-menu .odl-group:first-child { padding-block-start: var(--ds-space-stack-xs); }
+.odl-command-menu [role="option"] { display: flex; align-items: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm);
+  border-radius: var(--ds-radius-nested); cursor: pointer; }
+.odl-command-menu [role="option"] > svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); color: var(--ds-color-icon-subtle); }
+.odl-command-menu [role="option"] > span { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-command-menu [role="option"] small { margin-inline-start: var(--ds-space-inline-sm); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-command-menu [role="option"]:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-command-menu [role="option"][aria-selected="true"] { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-command-menu [role="option"][aria-selected="true"] > svg { color: var(--ds-color-icon-default); }
+.odl-command-menu [hidden] { display: none; }
+.odl-command-menu .odl-empty { margin: 0; padding: var(--ds-space-inset-xl) var(--ds-space-inset-lg); text-align: center; color: var(--ds-color-text-secondary); }
+.odl-command-menu footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ds-space-stack-xs) var(--ds-space-inset-md); padding: var(--ds-space-inset-sm) var(--ds-space-inset-lg);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-sunken); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-command-menu footer span { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); }
+.odl-command-menu footer kbd { background: var(--ds-color-surface-raised); }
+.odl-command-menu [role="option"] kbd:has(span) { display: inline-flex; gap: var(--ds-space-2); padding: 0; border: 0; background: transparent; }
+.odl-command-menu [role="option"] kbd span { display: inline-grid; place-items: center; min-inline-size: var(--ds-size-icon-md); padding: 0 var(--ds-space-4);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-detail); background: var(--ds-color-surface-sunken); font: var(--ds-text-label-md); font-family: var(--ds-font-family-text); }
+.odl-command-menu footer kbd svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+</style>
+<div class="odl-command-menu" role="dialog" aria-label="Command menu">
+  <div class="odl-search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="text" role="combobox" aria-expanded="true" aria-controls="odl-command-menu-list" aria-autocomplete="list" aria-label="Search commands" placeholder="Type a command or search" autocomplete="off">
+    <kbd>Esc</kbd>
+  </div>
+  <div role="listbox" id="odl-command-menu-list" aria-label="Commands">
+    <div class="odl-group" role="presentation">Actions</div>
+    <div role="option" id="odl-cm-1" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg><span>New invoice</span><kbd>N</kbd></div>
+    <div role="option" id="odl-cm-2" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg><span>Record a receipt</span><kbd>R</kbd></div>
+    <div role="option" id="odl-cm-3" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg><span>Export ledger as CSV</span></div>
+    <div class="odl-group" role="presentation">Go to</div>
+    <div role="option" id="odl-cm-4" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span>Receipts<small>192 to match</small></span></div>
+    <div role="option" id="odl-cm-5" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Customers</span></div>
+    <div role="option" id="odl-cm-6" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>Settings</span><kbd><span>⌘</span><span>,</span></kbd></div>
+    <p class="odl-empty" hidden>No commands match. Try a shorter word.</p>
+  </div>
+  <footer><span><kbd><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg></kbd><kbd><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></kbd> Move</span><span><kbd><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg></kbd> Open</span><span><kbd>Esc</kbd> Close</span></footer>
+</div>
+<script>
+document.querySelectorAll(".odl-command-menu").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const list = root.querySelector('[role="listbox"]');
+  const keepInView = (o) => { // scroll the list only, never the page
+    const top = o.offsetTop - list.offsetTop, bottom = top + o.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top; else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+  };
+  const input = root.querySelector("input"), opts = [...root.querySelectorAll('[role="option"]')], empty = root.querySelector(".odl-empty");
+  const visible = () => opts.filter((o) => !o.hidden);
+  const pick = (o, scroll) => { opts.forEach((x) => x.setAttribute("aria-selected", x === o ? "true" : "false")); if (o) { input.setAttribute("aria-activedescendant", o.id); if (scroll) keepInView(o); } };
+  pick(opts[0]);
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    opts.forEach((o) => { o.hidden = !!q && !o.textContent.toLowerCase().includes(q); });
+    root.querySelectorAll(".odl-group").forEach((g) => { let n = g.nextElementSibling, any = false; while (n && !n.classList.contains("odl-group")) { if (n.getAttribute("role") === "option" && !n.hidden) any = true; n = n.nextElementSibling; } g.hidden = !any; });
+    empty.hidden = visible().length > 0; pick(visible()[0]);
+  });
+  input.addEventListener("keydown", (e) => {
+    const v = visible(), i = v.findIndex((o) => o.getAttribute("aria-selected") === "true");
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); pick(v[(i + (e.key === "ArrowDown" ? 1 : v.length - 1)) % v.length], true); }
+  });
+  opts.forEach((o) => o.addEventListener("mousemove", () => pick(o)));
+});
+</script>

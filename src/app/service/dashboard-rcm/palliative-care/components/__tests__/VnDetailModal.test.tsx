@@ -280,8 +280,8 @@ describe('VnDetailModal', () => {
     fireEvent.click(okBtn)
 
     expect(screen.queryByText('ลงทะเบียนสำเร็จ')).not.toBeInTheDocument()
-    // Button state should be updated to "ลงทะเบียนแล้ว ✓" and disabled
-    expect(screen.getByText(/ลงทะเบียนแล้ว ✓/i)).toBeInTheDocument()
+    // Button state should be updated to "ลงทะเบียนแล้ว" (มีไอคอนยืนยัน) และถูกปิดการใช้งาน
+    expect(screen.getByText('ลงทะเบียนแล้ว')).toBeInTheDocument()
   })
 
   it('shows duplicate warning popup if patient is already in registry', async () => {

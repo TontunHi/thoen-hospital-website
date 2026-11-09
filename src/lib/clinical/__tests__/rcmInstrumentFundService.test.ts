@@ -326,5 +326,82 @@ describe('RcmInstrumentFundService', () => {
       expect(result.items[0].dchdate).toBe('2026-10-15')
       expect(result.summary.totalCases).toBe(1)
     })
+
+    it('filters items correctly with pttypes and recalculates summary', async () => {
+      const mixedRows = [
+        {
+          ...mockIpdRows[0],
+          an: '690001',
+          pttype_eclaim_id: '01',
+          instrument: 10000,
+        },
+        {
+          ...mockIpdRows[0],
+          an: '690002',
+          pttype_eclaim_id: '30',
+          inscl: 'SSS',
+          pttypename: 'ประกันสังคม',
+          instrument: 5000,
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce(mixedRows)
+        .mockResolvedValueOnce([])
+
+      const result = await RcmInstrumentFundService.getReportData(
+        {
+          ds1: '2026-10-01',
+          ds2: '2027-09-30',
+          patientType: 'IPD',
+          pttypes: '01,02',
+        },
+        mockExecutor
+      )
+
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0].an).toBe('690001')
+      expect(result.summary.totalCases).toBe(1)
+      expect(result.summary.totalInstrumentHosp).toBe(10000)
+    })
+
+    it('falls back to ucOnly when pttypes is omitted', async () => {
+      const mixedRows = [
+        {
+          ...mockIpdRows[0],
+          an: '690001',
+          pttype_eclaim_id: '01',
+          instrument: 10000,
+        },
+        {
+          ...mockIpdRows[0],
+          an: '690002',
+          pttype_eclaim_id: '30',
+          inscl: 'SSS',
+          pttypename: 'ประกันสังคม',
+          instrument: 5000,
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce(mixedRows)
+        .mockResolvedValueOnce([])
+
+      const result = await RcmInstrumentFundService.getReportData(
+        {
+          ds1: '2026-10-01',
+          ds2: '2027-09-30',
+          patientType: 'IPD',
+          ucOnly: true,
+        },
+        mockExecutor
+      )
+
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0].an).toBe('690001')
+      expect(result.summary.totalCases).toBe(1)
+    })
   })
 })

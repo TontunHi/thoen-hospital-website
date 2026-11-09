@@ -1,5 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
+import { matchesPttypeFilter } from './pttypeConstants'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
@@ -44,6 +46,7 @@ export type AnemiaScreeningSortField =
 export interface AnemiaScreeningReportParams extends FiscalDateRangeParams {
   cardFilter?: AnemiaScreeningCardFilter
   ucOnly?: boolean
+  pttypes?: string
   targetAgeOnly?: boolean
   searchField?: AnemiaScreeningSearchField
   search?: string
@@ -84,6 +87,7 @@ export interface AnemiaScreeningItem {
   authencode: string | null
   maininscl: string
   isUc: boolean
+  pttype_eclaim_id: string
   pttypename: string
   department: string | null
   clinic: string | null
@@ -147,6 +151,7 @@ export interface AnemiaScreeningReportResult {
   adpMapping: AnemiaScreeningAdpMappingCheck
   cardFilter: AnemiaScreeningCardFilter
   ucOnly: boolean
+  pttypes?: string
   targetAgeOnly: boolean
   searchField: AnemiaScreeningSearchField
   search: string
@@ -212,6 +217,27 @@ export class RcmAnemiaScreeningService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode: gwRes.adpCode || adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -298,8 +324,9 @@ export class RcmAnemiaScreeningService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
+              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
               ptt.name AS pttypename,
               dep.department AS department,
               spc.name AS clinic,
@@ -310,7 +337,7 @@ export class RcmAnemiaScreeningService {
               dd.name AS listname,
               nd.listname1 AS listname1,
               GROUP_CONCAT(DISTINCT DATE_FORMAT(prev_claim.camedate, '%Y-%m-%d') ORDER BY prev_claim.camedate SEPARATOR ', ') AS camedate,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
               rep.agency,
@@ -365,11 +392,12 @@ export class RcmAnemiaScreeningService {
                 AND TRIM(d2.nhso_adp_code) = ?
             ) prev_claim ON prev_claim.hn = o.hn AND prev_claim.camedate < o.vstdate
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -384,7 +412,7 @@ export class RcmAnemiaScreeningService {
                      GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
                      GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
             LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -395,7 +423,7 @@ export class RcmAnemiaScreeningService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
@@ -414,14 +442,42 @@ export class RcmAnemiaScreeningService {
           fiscalStartYear, ds2, fiscalStartYear, ds2, adpCode, // prev_claim
           ds1, ds2, // nhso
           ds1, ds2, // rep
-          ds1, ds2, // m
           ds1, ds2, // main ovst o
         ]
 
-        const [mappingRes, rows] = await Promise.all([
-          RcmAnemiaScreeningService.checkAdpMapping(executor, Boolean(params.refresh)),
-          executor(sql, sqlParams, { timeoutMs: 90000 }),
-        ])
+        let rows: any[] = []
+        let mappingRes: AnemiaScreeningAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmAnemiaScreeningService.checkAdpMapping(executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('anemia-screening', { ds1, ds2, adpCode }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmAnemiaScreeningService.checkAdpMapping(executor, Boolean(params.refresh)),
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+          ])
+          rows = dbRows || []
+          mappingRes = mRes
+        }
 
         return {
           rawRows: rows || [],
@@ -467,6 +523,7 @@ export class RcmAnemiaScreeningService {
         authencode: authencode || null,
         maininscl,
         isUc,
+        pttype_eclaim_id: String(r.pttype_eclaim_id || '').trim(),
         pttypename,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
@@ -502,7 +559,15 @@ export class RcmAnemiaScreeningService {
       }
     })
 
-    // Calculate Summary Aggregates
+    const pttypes = (params.pttypes || '').trim()
+    const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
+
+    // Cohort for summary KPIs (Full page filter Q2: A)
+    const summaryCohort = selectedPttypesList.length > 0
+      ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
+      : allItems
+
+    // Calculate Summary Aggregates across summaryCohort
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -512,7 +577,7 @@ export class RcmAnemiaScreeningService {
     let targetAgeCount = 0
     let totalIncome = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniqueHnSet.add(item.hn)
       if (item.isCompensated) {
         compensatedVisits++
@@ -525,7 +590,7 @@ export class RcmAnemiaScreeningService {
       totalIncome += item.income
     }
 
-    const totalVisits = allItems.length
+    const totalVisits = summaryCohort.length
     const uncompensatedVisits = totalVisits - compensatedVisits
     const withoutAuthenCount = totalVisits - withAuthenCount
     const compensationRate = totalVisits > 0 ? (compensatedVisits / totalVisits) * 100 : 0
@@ -556,7 +621,7 @@ export class RcmAnemiaScreeningService {
     }
 
     // Apply Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)
     } else if (cardFilter === 'UNCOMPENSATED') {
@@ -573,8 +638,8 @@ export class RcmAnemiaScreeningService {
       filtered = filtered.filter((i) => i.isUc)
     }
 
-    // Secondary filters: ucOnly & targetAgeOnly
-    if (ucOnly && cardFilter !== 'UC_ONLY') {
+    // Secondary filters: ucOnly & targetAgeOnly (fallback when pttypes is empty)
+    if (selectedPttypesList.length === 0 && ucOnly && cardFilter !== 'UC_ONLY') {
       filtered = filtered.filter((i) => i.isUc)
     }
     if (targetAgeOnly && cardFilter !== 'TARGET_AGE') {
@@ -675,6 +740,7 @@ export class RcmAnemiaScreeningService {
       adpMapping,
       cardFilter,
       ucOnly,
+      pttypes,
       targetAgeOnly,
       searchField,
       search,

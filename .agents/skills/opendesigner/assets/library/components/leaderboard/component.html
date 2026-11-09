@@ -1,0 +1,112 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-leaderboard { box-sizing: border-box; inline-size: 100%; max-inline-size: 36rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-leaderboard *, .odl-leaderboard *::before, .odl-leaderboard *::after { box-sizing: border-box; }
+.odl-leaderboard .odl-card { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-leaderboard .odl-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-stack-md) var(--ds-space-inline-md); }
+.odl-leaderboard .odl-head { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-leaderboard .odl-eyebrow { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-leaderboard h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-leaderboard fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.odl-leaderboard .odl-seg { display: inline-flex; gap: var(--ds-space-2); padding: var(--ds-space-4); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: calc(var(--ds-radius-control) + var(--ds-space-4)); background: var(--ds-color-surface-raised); }
+.odl-leaderboard .odl-seg label { position: relative; }
+.odl-leaderboard .odl-seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-leaderboard .odl-seg span { display: inline-flex; align-items: center; min-block-size: max(var(--ds-size-control-sm), calc(var(--ds-size-target-min) - var(--ds-space-4))); padding: 0 var(--ds-space-inset-md);
+  border-radius: var(--ds-radius-control); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); white-space: nowrap; cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-leaderboard .odl-seg input:hover + span { color: var(--ds-color-text-primary); }
+.odl-leaderboard .odl-seg input:not(:checked):hover + span { background: var(--ds-color-surface-sunken); }
+.odl-leaderboard .odl-seg input:checked + span { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-leaderboard .odl-seg input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-leaderboard:has(input[value="all"]:checked) .odl-week, .odl-leaderboard:not(:has(input[value="all"]:checked)) .odl-all { display: none; }
+.odl-leaderboard .odl-panel { display: grid; gap: var(--ds-space-stack-lg); }
+.odl-leaderboard ol { margin: 0; padding: 0; list-style: none; }
+/* podium: photos, a small rank badge and the score; first sits higher and larger. No coloured blocks. */
+.odl-leaderboard .odl-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: var(--ds-space-inline-md); padding: var(--ds-space-stack-lg) 0 var(--ds-space-stack-md);
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-leaderboard .odl-p { display: grid; justify-items: center; gap: var(--ds-space-stack-xs); min-inline-size: 0; text-align: center; }
+.odl-leaderboard .odl-p1 { order: 2; padding-block-end: var(--ds-space-stack-lg); } .odl-leaderboard .odl-p2 { order: 1; } .odl-leaderboard .odl-p3 { order: 3; }
+/* the rank badge sits centred on the ring's bottom edge, below the chin; the name starts a stack gap under the badge */
+.odl-leaderboard .odl-ph { position: relative; display: grid; justify-items: center; margin-block-end: calc(var(--ds-size-control-sm) / 2 + var(--ds-space-stack-sm)); }
+.odl-leaderboard .odl-pav { display: block; inline-size: calc(var(--ds-size-control-lg) * 1.5); block-size: calc(var(--ds-size-control-lg) * 1.5); border-radius: var(--ds-radius-person); object-fit: cover;
+  background: var(--ds-color-bg-neutral-subtle); box-shadow: 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-surface-raised), 0 0 0 calc(var(--ds-border-width-emphasis) * 2) var(--ds-color-border-subtle); }
+.odl-leaderboard .odl-p1 .odl-pav { inline-size: calc(var(--ds-size-control-lg) * 2); block-size: calc(var(--ds-size-control-lg) * 2); }
+.odl-leaderboard .odl-badge { position: absolute; inset-block-end: calc(-1 * var(--ds-size-control-sm) / 2 - var(--ds-border-width-emphasis) * 2); display: grid; place-items: center; min-inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm);
+  padding-inline: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  color: var(--ds-color-text-primary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; box-shadow: var(--ds-elevation-raised); }
+.odl-leaderboard .odl-crown { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); margin-block-end: var(--ds-space-stack-xs); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-text-primary); }
+.odl-leaderboard .odl-pn { max-inline-size: 100%; font: var(--ds-text-label-lg); text-wrap: balance; overflow-wrap: break-word; }
+.odl-leaderboard .odl-pp { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* ranked rows: rank, photo, name over its movement, score */
+.odl-leaderboard .odl-list { display: grid; }
+.odl-leaderboard .odl-row { display: grid; grid-template-columns: var(--ds-space-32) auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md);
+  min-block-size: max(var(--ds-size-row-two-line), var(--ds-size-target-min)); padding: var(--ds-space-inset-sm); border-radius: var(--ds-radius-nested); }
+.odl-leaderboard .odl-row + .odl-row:not(.is-you) { box-shadow: inset 0 var(--ds-border-width-default) 0 var(--ds-color-border-separator); }
+.odl-leaderboard .odl-rank { color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; text-align: center; }
+.odl-leaderboard .odl-av { display: block; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-leaderboard .odl-who { display: grid; gap: var(--ds-space-2); min-inline-size: 0; }
+.odl-leaderboard .odl-name { display: flex; align-items: center; gap: var(--ds-space-inline-sm); min-inline-size: 0; overflow: hidden; font: var(--ds-text-label-lg); text-overflow: ellipsis; white-space: nowrap; }
+.odl-leaderboard .odl-nm { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.odl-leaderboard .odl-chg { display: inline-flex; align-items: center; gap: var(--ds-space-2); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+.odl-leaderboard .odl-ic { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-leaderboard .odl-chg.is-up { color: var(--ds-color-text-success); }
+.odl-leaderboard .odl-chg.is-down { color: var(--ds-color-text-danger); }
+.odl-leaderboard .odl-chg.is-same { color: var(--ds-color-text-tertiary); }
+.odl-leaderboard .odl-pts { font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; text-align: end; }
+.odl-leaderboard .odl-gap { display: flex; justify-content: center; gap: var(--ds-space-4); padding-block: var(--ds-space-stack-sm); }
+.odl-leaderboard .odl-gap span { inline-size: var(--ds-space-4); block-size: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-border-default); }
+.odl-leaderboard .odl-row.is-you { background: var(--ds-color-bg-accent-subtle); }
+.odl-leaderboard .odl-you { flex: none; color: var(--ds-color-text-accent); font: var(--ds-text-label-sm); }
+.odl-leaderboard .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (max-width: 30rem) {
+  .odl-leaderboard .odl-card { padding: var(--ds-space-inset-lg); }
+  .odl-leaderboard .odl-podium { gap: var(--ds-space-inline-sm); }
+  .odl-leaderboard .odl-pav { inline-size: calc(var(--ds-size-control-lg) * 1.25); block-size: calc(var(--ds-size-control-lg) * 1.25); }
+  .odl-leaderboard .odl-p1 .odl-pav { inline-size: calc(var(--ds-size-control-lg) * 1.6); block-size: calc(var(--ds-size-control-lg) * 1.6); }
+  .odl-leaderboard .odl-row { grid-template-columns: var(--ds-space-24) auto minmax(0, 1fr) auto; gap: var(--ds-space-inline-sm); padding-inline: var(--ds-space-inset-xs); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-leaderboard, .odl-leaderboard *, .odl-leaderboard *::before, .odl-leaderboard *::after { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-leaderboard" aria-labelledby="odl-lb-title">
+  <div class="odl-card">
+    <div class="odl-top">
+      <div class="odl-head"><p class="odl-eyebrow">Puzzle league · ends in 2 d 14 h</p><h3 id="odl-lb-title">Leaderboard</h3></div>
+      <fieldset><legend class="odl-sr">Period</legend><div class="odl-seg">
+        <label><input type="radio" name="odl-lb-period" value="week" checked><span>This week</span></label>
+        <label><input type="radio" name="odl-lb-period" value="all"><span>All time</span></label>
+      </div></fieldset>
+    </div>
+    <div class="odl-panel odl-week">
+      <ol class="odl-podium" aria-label="Top three, this week">
+        <li class="odl-p odl-p1"><span class="odl-ph"><svg class="odl-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg><img class="odl-pav" src="https://images.unsplash.com/photo-1632765854612-9b02b6ec2b15?w=176&h=176&fit=crop&crop=faces&auto=format&q=70" alt="" width="88" height="88" loading="lazy" decoding="async"><span class="odl-badge" aria-hidden="true">1</span></span><span class="odl-pn">Akosua Mensimah</span><span class="odl-pp">2,840 pts<span class="odl-sr">, place 1</span></span></li>
+        <li class="odl-p odl-p2"><span class="odl-ph"><img class="odl-pav" src="https://images.unsplash.com/photo-1544168190-79c17527004f?w=128&h=128&fit=crop&crop=faces&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><span class="odl-badge" aria-hidden="true">2</span></span><span class="odl-pn">Ryota Ishikawa</span><span class="odl-pp">2,615 pts<span class="odl-sr">, place 2</span></span></li>
+        <li class="odl-p odl-p3"><span class="odl-ph"><img class="odl-pav" src="https://images.unsplash.com/photo-1607503873903-c5e95f80d7b9?w=128&h=128&fit=crop&crop=faces&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><span class="odl-badge" aria-hidden="true">3</span></span><span class="odl-pn">Lucía Ferreyra</span><span class="odl-pp">2,590 pts<span class="odl-sr">, place 3</span></span></li>
+      </ol>
+      <ol class="odl-list" aria-label="Ranks 4 and below, this week">
+        <li class="odl-row"><span class="odl-rank">4</span><img class="odl-av" src="https://images.unsplash.com/photo-1605988941502-372407d1dac5?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Devika Nair</span><span class="odl-chg is-up"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>3<span class="odl-sr"> places up</span></span></span><span class="odl-pts">2,310<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">5</span><img class="odl-av" src="https://images.unsplash.com/photo-1770096951056-c94a812e9fd4?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Emre Kaplan</span><span class="odl-chg is-down"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>1<span class="odl-sr"> place down</span></span></span><span class="odl-pts">2,205<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">6</span><img class="odl-av" src="https://images.unsplash.com/photo-1637325262485-5cf1abb98c05?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Élodie Marchand</span><span class="odl-chg is-up"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>1<span class="odl-sr"> place up</span></span></span><span class="odl-pts">2,140<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">7</span><img class="odl-av" src="https://images.unsplash.com/photo-1784651989032-b55410f21e52?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Chidi Nwosu</span><span class="odl-chg is-same"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg><span class="odl-sr">no change</span></span></span><span class="odl-pts">1,980<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">8</span><img class="odl-av" src="https://images.unsplash.com/photo-1541823709867-1b206113eafd?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Mei Aoyama</span><span class="odl-chg is-down"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>2<span class="odl-sr"> places down</span></span></span><span class="odl-pts">1,925<span class="odl-sr"> points</span></span></li>
+        <li class="odl-gap" aria-hidden="true"><span></span><span></span><span></span></li>
+        <li class="odl-row is-you" aria-current="true"><span class="odl-rank">14</span><img class="odl-av" src="https://images.unsplash.com/photo-1596075700978-ecba72d16eb0?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name"><span class="odl-nm">Wynn Castellane</span><span class="odl-you">You</span></span><span class="odl-chg is-up"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>5<span class="odl-sr"> places up</span></span></span><span class="odl-pts">1,410<span class="odl-sr"> points</span></span></li>
+      </ol>
+    </div>
+    <div class="odl-panel odl-all">
+      <ol class="odl-podium" aria-label="Top three, all time">
+        <li class="odl-p odl-p1"><span class="odl-ph"><svg class="odl-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg><img class="odl-pav" src="https://images.unsplash.com/photo-1544168190-79c17527004f?w=176&h=176&fit=crop&crop=faces&auto=format&q=70" alt="" width="88" height="88" loading="lazy" decoding="async"><span class="odl-badge" aria-hidden="true">1</span></span><span class="odl-pn">Ryota Ishikawa</span><span class="odl-pp">148,200 pts<span class="odl-sr">, place 1</span></span></li>
+        <li class="odl-p odl-p2"><span class="odl-ph"><img class="odl-pav" src="https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=128&h=128&fit=crop&crop=faces&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><span class="odl-badge" aria-hidden="true">2</span></span><span class="odl-pn">Astrid Holmqvist</span><span class="odl-pp">141,950 pts<span class="odl-sr">, place 2</span></span></li>
+        <li class="odl-p odl-p3"><span class="odl-ph"><img class="odl-pav" src="https://images.unsplash.com/photo-1632765854612-9b02b6ec2b15?w=128&h=128&fit=crop&crop=faces&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><span class="odl-badge" aria-hidden="true">3</span></span><span class="odl-pn">Akosua Mensimah</span><span class="odl-pp">139,400 pts<span class="odl-sr">, place 3</span></span></li>
+      </ol>
+      <ol class="odl-list" aria-label="Ranks 4 and below, all time">
+        <li class="odl-row"><span class="odl-rank">4</span><img class="odl-av" src="https://images.unsplash.com/photo-1565884280295-98eb83e41c65?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Kwabena Asare</span><span class="odl-chg is-up"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>1<span class="odl-sr"> place up</span></span></span><span class="odl-pts">120,300<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">5</span><img class="odl-av" src="https://images.unsplash.com/photo-1607503873903-c5e95f80d7b9?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Lucía Ferreyra</span><span class="odl-chg is-down"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>1<span class="odl-sr"> place down</span></span></span><span class="odl-pts">118,750<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">6</span><img class="odl-av" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Bartek Zielony</span><span class="odl-chg is-same"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg><span class="odl-sr">no change</span></span></span><span class="odl-pts">102,480<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">7</span><img class="odl-av" src="https://images.unsplash.com/photo-1605988941502-372407d1dac5?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Devika Nair</span><span class="odl-chg is-up"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>2<span class="odl-sr"> places up</span></span></span><span class="odl-pts">99,310<span class="odl-sr"> points</span></span></li>
+        <li class="odl-row"><span class="odl-rank">8</span><img class="odl-av" src="https://images.unsplash.com/photo-1770096951056-c94a812e9fd4?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name">Emre Kaplan</span><span class="odl-chg is-down"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>1<span class="odl-sr"> place down</span></span></span><span class="odl-pts">97,040<span class="odl-sr"> points</span></span></li>
+        <li class="odl-gap" aria-hidden="true"><span></span><span></span><span></span></li>
+        <li class="odl-row is-you" aria-current="true"><span class="odl-rank">211</span><img class="odl-av" src="https://images.unsplash.com/photo-1596075700978-ecba72d16eb0?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-who"><span class="odl-name"><span class="odl-nm">Wynn Castellane</span><span class="odl-you">You</span></span><span class="odl-chg is-up"><svg class="odl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>12<span class="odl-sr"> places up</span></span></span><span class="odl-pts">21,630<span class="odl-sr"> points</span></span></li>
+      </ol>
+    </div>
+  </div>
+</section>

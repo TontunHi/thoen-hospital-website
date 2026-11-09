@@ -1,0 +1,31 @@
+{
+  "name": "Filter bar",
+  "summary": "The row above a table: search, filter chips with one applied and removable, add a filter, a sort button and the number of results; on a phone the search goes full width and the chips wrap onto rows at their natural width.",
+  "use": "above a table people search, filter and sort",
+  "type": "form",
+  "style": "dense",
+  "industries": [
+    "finance",
+    "saas",
+    "crm",
+    "any"
+  ],
+  "tags": [
+    "filter",
+    "search",
+    "chips",
+    "sort",
+    "toolbar",
+    "table"
+  ],
+  "states": [
+    "hover",
+    "focus",
+    "filter applied",
+    "filter empty",
+    "removed"
+  ],
+  "source": "brand/showcase/product/01-quoin-payments",
+  "a11y": "The bar is a labelled search landmark; every chip and the sort control are buttons that say they open a popup, the remove button names the filter it clears, and the result count is a polite live region.",
+  "width": "wide"
+}

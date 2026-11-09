@@ -1,0 +1,35 @@
+{
+  "name": "Music player",
+  "summary": "A compact player card: album art, title and artist, a waveform you can seek, elapsed and total time, previous, play and next, and volume.",
+  "use": "in a media or podcast app",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "any"
+  ],
+  "tags": [
+    "audio",
+    "player",
+    "waveform",
+    "media",
+    "playback"
+  ],
+  "states": [
+    "paused",
+    "playing",
+    "seeking",
+    "liked",
+    "hover",
+    "focus"
+  ],
+  "source": "brand/showcase/components/08-music-player",
+  "a11y": "Seek and volume are native range inputs with names, and seek reads its time as \"1:47 of 3:53\"; play changes its name to Pause while playing, and the album art is decorative.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1708778002531-5bb1c27c4ea3",
+      "author": "Pawel Czerwinski",
+      "page": "H8kzolaZjIM"
+    }
+  ]
+}

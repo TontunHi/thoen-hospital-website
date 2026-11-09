@@ -1,0 +1,52 @@
+<style>
+.odl-budget-meters { box-sizing: border-box; inline-size: 100%; max-inline-size: 1120px; margin-inline: auto; container-type: inline-size; text-wrap: pretty; }
+.odl-budget-meters .odl-grid { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0;
+  padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); }
+.odl-budget-meters section { min-inline-size: 0; display: grid; gap: var(--ds-space-stack-sm); align-content: start; }
+.odl-budget-meters section + section { margin-block-start: var(--ds-space-stack-lg); padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-budget-meters .odl-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; align-content: flex-start; gap: var(--ds-space-stack-xs) var(--ds-space-inline-sm); min-block-size: var(--ds-size-control-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); }
+.odl-budget-meters .odl-top span:last-child { font-variant-numeric: tabular-nums; }
+.odl-budget-meters .odl-top b { display: inline-flex; align-items: center; gap: var(--ds-space-4); padding: var(--ds-space-2) var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-warning); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.odl-budget-meters h4 { margin: 0; font: var(--ds-text-body-md); font-variant-numeric: tabular-nums; }
+.odl-budget-meters h4 strong { font: var(--ds-text-title-md); }
+.odl-budget-meters .odl-bar { position: relative; block-size: var(--ds-space-8); margin-block: var(--ds-space-stack-sm); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-neutral-subtle); }
+.odl-budget-meters .odl-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: var(--odl-used); background: var(--ds-color-bg-inverse); border-radius: inherit; }
+/* Forecast: a lighter solid run past what is used, so it reads as "where this is heading", not as loading. */
+.odl-budget-meters .odl-bar .odl-forecast { inline-size: var(--odl-forecast); background: var(--ds-color-border-default); }
+/* At 90% or more the bar turns to the warning colour. */
+.odl-budget-meters .odl-bar .is-high { background: var(--ds-color-bg-warning-bold); }
+.odl-budget-meters .odl-top .is-high { color: var(--ds-color-text-warning); font-weight: var(--ds-font-weight-label); }
+/* Alert thresholds: a tick that stands above and below the bar, outlined so it shows on the fill and on the track. */
+.odl-budget-meters .odl-bar u { position: absolute; z-index: 1; inset-block: calc(-1 * var(--ds-space-4)); inset-inline-start: var(--odl-at); inline-size: var(--ds-border-width-emphasis); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-text-primary); box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-surface-raised); }
+.odl-budget-meters p { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+@container (min-width: 56rem) { .odl-budget-meters .odl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--ds-space-inset-xl); row-gap: 0; }
+  .odl-budget-meters section { grid-row: span 4; grid-template-rows: subgrid; row-gap: var(--ds-space-stack-sm); }
+  .odl-budget-meters section + section { margin-block-start: 0; padding-block-start: 0; padding-inline-start: var(--ds-space-inset-xl);
+    border-block-start: 0; border-inline-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); } }
+@container (max-width: 30rem) { .odl-budget-meters .odl-grid { padding: var(--ds-space-inset-lg); } }
+</style>
+<div class="odl-budget-meters"><div class="odl-grid" role="group" aria-label="Plan usage this month">
+  <section>
+    <div class="odl-top"><span>Monthly budget</span><b>Forecast 129% by Oct 31</b></div>
+    <h4><strong>53%</strong> of $12,000.00</h4>
+    <div class="odl-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="53" aria-label="Budget used">
+      <i class="odl-forecast" style="--odl-forecast: 100%"></i><i style="--odl-used: 53%"></i><u style="--odl-at: 50%"></u><u style="--odl-at: 90%"></u></div>
+    <p>Alerts at 50% (sent Oct 14) and 90%. Nothing pauses at 100%.</p>
+  </section>
+  <section>
+    <div class="odl-top"><span>Seats</span><span>80% used</span></div>
+    <h4><strong>8</strong> of 10 seats</h4>
+    <div class="odl-bar" role="meter" aria-valuemin="0" aria-valuemax="10" aria-valuenow="8" aria-label="Seats used"><i style="--odl-used: 80%"></i></div>
+    <p>2 seats free. Extra seats are $48.00 a month each.</p>
+  </section>
+  <section>
+    <div class="odl-top"><span>Included credit</span><span class="is-high">100% used</span></div>
+    <h4><strong>$1,000.00</strong> of $1,000.00</h4>
+    <div class="odl-bar" role="meter" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="1000" aria-label="Credit used"><i class="is-high" style="--odl-used: 100%"></i></div>
+    <p>Used up on Oct 2. Resets Nov 1.</p>
+  </section>
+</div></div>

@@ -1,0 +1,13 @@
+{
+  "name": "Answer with citations",
+  "summary": "One assistant turn: the question, an answer still being written with numbered citations, the sources it cites with page numbers, and copy, retry and rating actions.",
+  "use": "for an assistant's answer that cites its sources",
+  "type": "ai",
+  "style": "editorial",
+  "industries": ["productivity", "education", "saas"],
+  "tags": ["ai", "chat", "citations", "sources", "streaming"],
+  "states": ["streaming", "citation focused", "copied", "rated up", "rated down", "hover", "focus"],
+  "source": "brand/showcase/components/07-ai-composer",
+  "a11y": "The turn is aria-busy while writing and says so in a status; each citation link names its source and page and moves focus to it; every action button has a name and the ratings use aria-pressed.",
+  "width": "medium"
+}

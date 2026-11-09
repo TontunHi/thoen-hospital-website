@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- A page with known defects, for testing the review probe. Every defect is listed in test_review.py.
+     Not a design to copy. No network requests: the image points at a file that does not exist on purpose. -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Broken fixture</title>
+<style>
+  body { margin: 0; font-family: "Nonexistent Brand Font", system-ui, sans-serif; font-size: 15px; line-height: 1.2; color: #222; background: #fff; }
+  header { position: sticky; top: 0; height: 120px; background: #123; color: #fff; padding: 13px; }
+  main { padding: 13px 22px; }
+  .low { color: #aaa; font-size: 13px; }                 /* about 2.3:1 on white */
+  .wide { width: 900px; height: 20px; background: #ddd; } /* wider than a phone */
+  .tiny { width: 16px; height: 16px; padding: 0; border: 0; background: #06c; margin: 0 2px; }
+  .tiny + .tiny { margin-left: 0; }
+  button.plain { border: 1px solid #06c; background: #fff; padding: 6px 11px; border-radius: 7px; }
+  button:focus { outline: none; }                        /* focus ring removed, nothing replaces it */
+  .fade { transition: all 600ms ease-in; }
+  .grow { transition: width 300ms; width: 40px; height: 10px; background: #06c; }
+  .pulse { animation: pulse 1s infinite; width: 20px; height: 20px; background: #c60; }
+  @keyframes pulse { 0% { opacity: 1 } 50% { opacity: .3 } 100% { opacity: 1 } }
+  .clip { width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scroller { height: 60px; overflow: auto; border: 1px solid #ccc; }
+  .scroller div { height: 200px; }
+  .prose { max-width: none; font-size: 15px; }
+  .card { border-radius: 9px; box-shadow: 0 1px 2px rgba(0,0,0,.2); padding: 18px; margin: 7px 0; }
+</style>
+</head>
+<body>
+<header><h1 style="margin:0;font-size:20px">Broken fixture</h1></header>
+<main>
+  <h3>Skipped a heading level</h3>
+  <p class="low">Low contrast text that a screenshot makes look fine.</p>
+  <div class="wide">This box is 900px wide</div>
+  <p>
+    <button class="tiny" aria-label="a"></button><button class="tiny" aria-label="b"></button>
+    <button class="plain fade">Save</button>
+    <button class="plain"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#06c"/></svg></button>
+  </p>
+  <p><a href="#x">A link</a> and <input placeholder="Search"> with no label.</p>
+  <div class="grow fade"></div>
+  <div class="pulse"></div>
+  <p class="clip">This sentence is far too long to fit into the box it was put in, so it is cut off.</p>
+  <div class="scroller"><div>Scrolls inside the page</div></div>
+  <p class="prose">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+  <img src="missing-file.png" width="80" height="40">
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3C/svg%3E" width="80" height="40" alt="">
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='150'%3E%3Crect width='300' height='150' fill='%23ccd'/%3E%3C/svg%3E" width="150" height="75">
+  <p>Total: NaN items <button class="plain" style="opacity:0">Ghost</button></p>
+  <div class="card">Card with 18px padding and a 9px radius</div>
+  <div style="height:1400px"></div>
+</main>
+</body>
+</html>

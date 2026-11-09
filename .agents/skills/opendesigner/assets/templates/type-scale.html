@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Type scale</title>
+<!--
+OpenDesigner visual template: Type scale. A live type ladder from a base size and a ratio (stages 10-11).
+Three voices: an option's "label" and "note" are plain; optional "short" shows the one-line
+"Designers: X · Code: Y" pointer, and optional "more" holds the full designer and engineer notes (tooltip).
+Feed it JSON in one of three ways: replace the contents of <script id="od-data">, set window.OD_DATA before the
+last script runs, or open the file with #data=<url-encoded JSON>. The sample payload below documents every field.
+"Copy my choice" produces OD: lines (grammar in references/rules.md): OD:<action> <target>=<value> <status>.
+No network requests, no dependencies. The shared chrome is repeated in every template on purpose so each file stands alone.
+-->
+<style>:root{--c-bg:#f6f6f7;--c-surface:#fff;--c-fg:#18181b;--c-muted:#585862;--c-border:#dcdce1;--c-strong:#18181b;--c-on-strong:#fff;--c-ok:#166534;--c-bad:#b42318;--r:8px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--font)}
+h1{font-size:16px;margin:0;font-weight:600}h2{font-size:13px;margin:0 0 8px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em}
+.od-h{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
+.sub{color:var(--c-muted);font-size:13px;margin:4px 0 0;max-width:72ch}
+main{max-width:1120px;margin:0 auto;padding:20px;display:grid;gap:24px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;border:0;padding:0;margin:0;min-width:0}
+.opt{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);padding:12px;cursor:pointer;min-height:44px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt:has(input:checked){border-color:var(--c-strong);box-shadow:inset 0 0 0 1px var(--c-strong)}
+.opt:has(input:focus-visible){outline:2px solid var(--c-strong);outline-offset:2px}
+.opt-t{font-weight:600}.opt-n{color:var(--c-muted);font-size:13px}
+.rec{display:inline-block;margin-left:6px;font:600 11px var(--font);padding:1px 6px;border:1px solid var(--c-border);border-radius:99px;color:var(--c-muted);vertical-align:1px}
+.specimen{position:relative;border:1px solid var(--c-border);border-radius:var(--r);background:var(--s-bg,var(--c-surface));color:var(--s-fg,var(--c-fg));padding:30px 16px 16px;overflow-x:auto}
+.specimen::before{content:attr(data-label);position:absolute;top:8px;left:12px;font:11px var(--mono);color:inherit;opacity:.6}
+.kv{font:12px/1.4 var(--mono);color:var(--c-muted)}.num{font-family:var(--mono);text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.lbl{min-width:84px;color:var(--c-muted);font-size:13px}
+button{font:inherit;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);cursor:pointer}
+button.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong);font-weight:600}
+:focus-visible{outline:2px solid var(--c-strong);outline-offset:2px}
+input[type=text],input[type=number]{font:inherit;min-height:44px;padding:0 10px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-fg)}
+input[type=range]{min-height:44px;accent-color:var(--c-strong);flex:1 1 120px;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--c-border);border-radius:var(--r);overflow:hidden;background:var(--c-surface)}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--c-border)}.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--c-strong);color:var(--c-on-strong)}
+.tbl{border-collapse:collapse;width:100%;font-size:13px}.tbl th,.tbl td{border-bottom:1px solid var(--c-border);padding:8px;text-align:left}.tbl th{color:var(--c-muted);font-weight:600}
+.ok{color:var(--c-ok);font-weight:600}.bad{color:var(--c-bad);font-weight:600}
+.od-f{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--c-surface);border-top:1px solid var(--c-border)}
+.od-f label{display:inline-flex;gap:6px;align-items:center;min-height:44px}
+.od-out{flex:1 1 320px;min-height:44px;font:12px/1.4 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg);resize:vertical}
+input[type=radio],input[type=checkbox]{accent-color:var(--c-strong);width:18px;height:18px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.lad{display:grid;gap:10px}.step{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:baseline;border-bottom:1px dashed rgba(128,128,128,.3);padding-bottom:8px}
+.step .kv{color:inherit;opacity:.7}.txt{overflow-wrap:anywhere}
+.para{max-width:66ch;margin-top:16px}
+@media (max-width:640px){.step{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="od-h"><div><h1 id="t"></h1><p class="sub" id="st"></p></div><div class="seg" id="theme" role="group" aria-label="Color mode"></div></header>
+<main>
+<fieldset class="opts" id="opts"></fieldset>
+<section aria-label="Adjust"><div class="row"><span class="lbl" id="lb">Base size</span><div class="seg" id="bases" role="group" aria-labelledby="lb"></div></div>
+<div class="row" style="margin-top:8px"><span class="lbl" id="lr">Ratio</span><div class="seg" id="ratios" role="group" aria-labelledby="lr"></div></div></section>
+<section><div id="lad" class="specimen lad" data-label="your type scale"></div></section>
+</main>
+<footer class="od-f">
+<label><input type="checkbox" id="lock"> Lock this decision</label>
+<label>Note <input type="text" id="note" placeholder="optional reason" size="24"></label>
+<textarea id="out" class="od-out" rows="2" readonly aria-label="Your choice as OD lines"></textarea>
+<button type="button" class="primary" id="copy">Copy my choice</button>
+<span id="live" class="kv" role="status" aria-live="polite"></span>
+</footer>
+<script type="application/json" id="od-data">
+{
+ "title": "Type scale",
+ "subtitle": "Sample data. Pick a scale, then fine-tune the base size and the ratio. Each size is the one below it times the ratio (base × ratio^n), rounded to whole pixels. Line heights snap to a 4 px grid.",
+ "question": "Q-type-09",
+ "recommended": "1.25",
+ "options": [
+  {
+   "value": "1.2",
+   "label": "Minor third, 1.2",
+   "note": "productive: dashboards, dense tools",
+   "base": 14,
+   "ratio": 1.2
+  },
+  {
+   "value": "1.25",
+   "label": "Major third, 1.25",
+   "note": "balanced default for product UI",
+   "base": 16,
+   "ratio": 1.25
+  },
+  {
+   "value": "1.333",
+   "label": "Perfect fourth, 1.333",
+   "note": "expressive: content and marketing",
+   "base": 16,
+   "ratio": 1.333
+  }
+ ],
+ "adjust": {
+  "base": "OD:set raw.baseSize={v}",
+  "ratio": "OD:set Q-type-09={v}"
+ },
+ "sample": "Invoices due this week",
+ "fontHref": null
+}
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadData(){let d={};try{d=JSON.parse($('#od-data').textContent)}catch(e){}
+ if(window.OD_DATA)d=window.OD_DATA;const m=location.hash.match(/[#&]data=([^&]+)/);
+ if(m){try{d=JSON.parse(decodeURIComponent(m[1]))}catch(e){console.warn('OpenDesigner: #data is not valid JSON')}}return d}
+const D=loadData();
+const OD={sel:null,extra:null,draw:()=>{}};
+// OD: line grammar (spec 3.7, DC-L18-07): OD:set <path>=<json-value> [--why "reason"], OD:lock <path>
+function fmtv(v){return typeof v==='number'||typeof v==='boolean'?String(v):JSON.stringify(String(v))}
+function fill(tpl,v){return tpl.replace('{v}',fmtv(v))}
+function lines(){let L=[];const o=OD.sel;
+ if(o){if(o.od)L=[].concat(o.od);else if(D.question)L=['OD:set '+D.question+'='+fmtv(o.value)];else if(D.path)L=['OD:set '+D.path+'='+fmtv(o.value)]}
+ if(OD.extra)L=L.concat(OD.extra());
+ const why=[$('#note').value.trim()].concat(OD.why?OD.why():[]).filter(Boolean).join('; ');
+ L=L.map(x=>why&&/^OD:set /.test(x)&&x.indexOf(' --why ')<0?x+' --why '+JSON.stringify(why):x);
+ if($('#lock').checked)L=L.concat(L.filter(x=>/^OD:set /.test(x)).map(x=>'OD:lock '+x.slice(7).split('=')[0]));
+ return L}
+function update(){OD.draw();$('#out').value=lines().join('\n')||'(nothing chosen yet)'}
+async function copy(){const t=$('#out').value;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){$('#out').select();try{ok=document.execCommand('copy')}catch(_){}}
+ $('#live').textContent=ok?'Copied. Paste it into the chat.':'Select the text and copy it by hand.'}
+function mode(){const t=document.documentElement.dataset.theme;return t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
+function lum(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+ const c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function fix(r){return (Math.floor(r*100)/100).toFixed(2)} // WCAG: no rounding up
+function band(bands,v){for(const b of bands)if(v>=b[0]&&v<=b[1])return b[2];return bands[bands.length-1][2]}
+function seg(el,values,cur,onPick,fmt=String){el.innerHTML=values.map(v=>'<button type="button" aria-pressed="'+(v==cur)+'" data-v="'+esc(v)+'">'+esc(fmt(v))+'</button>').join('');
+ el.onclick=e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));onPick(b.dataset.v)}}
+function mountOptions(inner){const box=$('#opts');const opts=D.options||[];
+ box.innerHTML='<legend class="vh">'+esc(D.title||'Options')+'</legend>'+opts.map((o,i)=>'<label class="opt"'+(o.more?' title="'+esc(o.more)+'"':'')+'><input type="radio" name="opt" value="'+i+'"><span class="opt-t">'+esc(o.label||o.value)+(o.value==D.recommended?'<span class="rec">Recommended</span>':'')+'</span>'+(o.note?'<span class="opt-n">'+esc(o.note)+'</span>':'')+(o.short?'<span class="kv">'+esc(o.short)+'</span>':'')+(inner?inner(o):'')+'</label>').join('');
+ box.onchange=e=>{if(e.target.name==='opt'){OD.sel=opts[+e.target.value];if(OD.onPick)OD.onPick(OD.sel);update()}};
+ const i=Math.max(0,opts.findIndex(o=>o.value==D.recommended));const r=box.querySelector('input[value="'+i+'"]');if(r){r.checked=true;OD.sel=opts[i]}}
+function boot(){$('#t').textContent=D.title||document.title;$('#st').textContent=D.subtitle||'';
+ seg($('#theme'),['auto','light','dark'],'auto',v=>{if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;update()},v=>v[0].toUpperCase()+v.slice(1));
+ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+ $('#copy').onclick=copy;$('#lock').onchange=update;$('#note').oninput=update;update()}
+const cur={};const STEPS=D.steps||[['display',6],['h1',5],['h2',4],['h3',3],['h4',2],['lead',1],['body',0],['small',-1],['caption',-2]];
+function lh(sz,n){const f=n<=0?1.5:n<=2?1.3:1.15;return Math.max(sz+4,Math.round(sz*f/4)*4)}
+function take(o){Object.assign(cur,{base:o.base||16,ratio:o.ratio||1.25,family:o.family||'system-ui, sans-serif',hw:o.headingWeight||600,bw:o.bodyWeight||400,tb:false,tr:false});
+ seg($('#bases'),D.bases||[13,14,15,16,17,18],cur.base,v=>{cur.base=+v;cur.tb=true;update()},v=>v+' px');
+ seg($('#ratios'),D.ratios||[1.125,1.2,1.25,1.333,1.5],cur.ratio,v=>{cur.ratio=+v;cur.tr=true;update()})}
+OD.onPick=o=>take(o);
+OD.extra=()=>{const a=D.adjust||{},L=[];if(cur.tb&&a.base)L.push(fill(a.base,cur.base));if(cur.tr&&a.ratio)L.push(fill(a.ratio,String(cur.ratio)));return L};
+OD.draw=()=>{if(!cur.base)return;const s=D.sample||'Invoices due this week';const el=$('#lad');el.style.fontFamily=cur.family;
+ el.innerHTML=STEPS.map(([nm,n])=>{const sz=Math.round(cur.base*Math.pow(cur.ratio,n)),l=lh(sz,n),w=n>=2?cur.hw:cur.bw;
+  return '<div class="step"><span class="kv">'+esc(nm)+' · '+sz+'/'+l+' · '+(sz/16).toFixed(3).replace(/0+$/,'')+'rem · '+w+'</span><span class="txt" style="font-size:'+sz+'px;line-height:'+l+'px;font-weight:'+w+'">'+esc(s)+'</span></div>'}).join('')
+  +'<p class="para" style="font-size:'+cur.base+'px;line-height:'+lh(cur.base,0)+'px">'+esc(D.paragraph||'Body text at the base size. Lines of 45 to 75 characters read best, so this paragraph is capped at 66 characters. Change the base size and the ratio to see every step move together.')+'</p>'};
+if(D.fontHref){const k=document.createElement('link');k.rel='stylesheet';k.href=D.fontHref;document.head.appendChild(k)}
+mountOptions(o=>'<span class="kv">'+(o.base||16)+' px × '+(o.ratio||1.25)+'</span>');if(OD.sel)take(OD.sel);boot();
+</script>
+</body>
+</html>

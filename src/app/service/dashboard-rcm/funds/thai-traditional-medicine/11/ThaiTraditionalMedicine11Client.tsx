@@ -34,6 +34,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -94,6 +96,7 @@ export default function ThaiTraditionalMedicine11Client({
   const [cardFilter, setCardFilter] = useState<Ttm11CardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<Ttm11SortField>(
@@ -180,6 +183,7 @@ export default function ThaiTraditionalMedicine11Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -211,7 +215,7 @@ export default function ThaiTraditionalMedicine11Client({
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Skip first mount fetch if initialData is provided
@@ -347,8 +351,8 @@ export default function ThaiTraditionalMedicine11Client({
     setCurrentPage(1)
   }
 
-  // Export to CSV with UTF-8 BOM
-  const handleExportCsv = async () => {
+  // Export to Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
@@ -360,6 +364,7 @@ export default function ThaiTraditionalMedicine11Client({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/thai-traditional-medicine/11?${queryParams.toString()}`
@@ -369,7 +374,7 @@ export default function ThaiTraditionalMedicine11Client({
         throw new Error('ไม่สามารถดึงข้อมูลสำหรับส่งออกได้')
       }
 
-      const rows: Ttm11Item[] = json.data.items
+      const rowsData: Ttm11Item[] = json.data.items
 
       const headers = [
         'ลำดับ',
@@ -386,7 +391,7 @@ export default function ThaiTraditionalMedicine11Client({
         'สิทธิการรักษา',
         'HospMain',
         'HospSub',
-        'Authen Code',
+        'ClaimCode',
         'Authen Endpoint',
         'PDX',
         'รายการยาสมุนไพร 32 รายการ',
@@ -404,50 +409,46 @@ export default function ThaiTraditionalMedicine11Client({
         'สถานะ',
       ]
 
-      const csvContent = rows.map((r, idx) => [
+      const rows = rowsData.map((r, idx) => [
         idx + 1,
-        `"${r.vn}"`,
-        `"${r.hn}"`,
-        `"${r.an || ''}"`,
-        `"${r.cid}"`,
-        `"${r.ptname}"`,
-        `"${r.sex}"`,
+        r.vn,
+        r.hn,
+        r.an || '',
+        r.cid,
+        r.ptname,
+        r.sex,
         r.age,
-        `"${r.vstdate}"`,
-        `"${r.vsttime}"`,
-        `"${r.hipdataCode}"`,
-        `"${r.pttypename}"`,
-        `"${r.hospmain || ''}"`,
-        `"${r.hospsub || ''}"`,
-        `"${r.authCode || ''}"`,
-        `"${r.authenEndpoint || ''}"`,
-        `"${r.pdx || ''}"`,
-        `"${r.drugNames}"`,
-        `"${r.ttmtCodes}"`,
+        r.vstdate,
+        r.vsttime,
+        r.hipdataCode,
+        r.pttypename,
+        r.hospmain || '',
+        r.hospsub || '',
+        r.authCode || '',
+        r.authenEndpoint || '',
+        r.pdx || '',
+        r.drugNames,
+        r.ttmtCodes,
         r.totalQty,
         r.totalDrugAmount,
         r.income,
-        `"${r.rep || ''}"`,
+        r.rep || '',
         r.compensated,
-        `"${r.fund || ''}"`,
-        `"${r.subfund || ''}"`,
-        `"${r.errorcode || ''}"`,
-        `"${r.repInvoice || ''}"`,
+        r.fund || '',
+        r.subfund || '',
+        r.errorcode || '',
+        r.repInvoice || '',
         r.compensatedInvoice ?? '',
-        `"${r.status || ''}"`,
+        r.status || '',
       ])
 
-      const csvString =
-        '\uFEFF' + [headers.join(','), ...csvContent.map((e) => e.join(','))].join('\r\n')
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.setAttribute('href', url)
-      link.setAttribute('download', `TTM_Topic11_Herbs32_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `TTM_Topic11_Herbs32_${ds1}_to_${ds2}.xlsx`,
+        title: 'รายชื่อผู้รับบริการรับยาสมุนไพร 32 รายการ',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${rowsData.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์')
     } finally {
@@ -495,12 +496,12 @@ export default function ThaiTraditionalMedicine11Client({
           <button
             type="button"
             className="ttm11-btn ttm11-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกข้อมูลเป็นไฟล์ CSV สำหรับ Excel"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} className={isExporting ? 'animate-spin' : ''} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -678,16 +679,16 @@ export default function ThaiTraditionalMedicine11Client({
           </div>
         </div>
 
-        {/* Card 4: มี Authen Code */}
+        {/* Card 4: มี ClaimCode */}
         <div
           className={`ttm11-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('WITH_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="ttm11-kpi-header">
-            <span className="ttm11-kpi-title">มี Authen Code</span>
+            <span className="ttm11-kpi-title">มี ClaimCode</span>
             <div className="ttm11-kpi-icon icon-info">
               <UserCheck size={16} />
             </div>
@@ -698,16 +699,16 @@ export default function ThaiTraditionalMedicine11Client({
           </div>
         </div>
 
-        {/* Card 5: ไม่มี Authen Code */}
+        {/* Card 5: ไม่มี ClaimCode */}
         <div
           className={`ttm11-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('NO_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองรายการที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่ไม่มี ClaimCode"
         >
           <div className="ttm11-kpi-header">
-            <span className="ttm11-kpi-title">ไม่มี Authen Code</span>
+            <span className="ttm11-kpi-title">ไม่มี ClaimCode</span>
             <div className="ttm11-kpi-icon icon-danger">
               <AlertTriangle size={16} />
             </div>
@@ -717,7 +718,7 @@ export default function ThaiTraditionalMedicine11Client({
               {summary.withoutAuthenCount.toLocaleString('th-TH')}
             </span>
             <span className="ttm11-kpi-sub">
-              {(100 - summary.authenRate).toFixed(1)}% ต้องขอ Authen ย้อนหลัง
+              {(100 - summary.authenRate).toFixed(1)}% ต้องขอ ClaimCode ย้อนหลัง
             </span>
           </div>
         </div>
@@ -812,6 +813,16 @@ export default function ThaiTraditionalMedicine11Client({
         </div>
 
         <div className="ttm11-secondary-filters">
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
           {cardFilter !== 'ALL' && (
             <div className="ttm11-active-filter-badge">
               <span>ฟิลเตอร์: <strong>{cardFilter}</strong></span>
@@ -944,7 +955,7 @@ export default function ThaiTraditionalMedicine11Client({
                       className="ttm11-sort-btn"
                       onClick={() => handleSort('authCode')}
                     >
-                      Authen Code{' '}
+                      ClaimCode{' '}
                       {sortBy === 'authCode' ? (
                         sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       ) : (
@@ -1295,7 +1306,7 @@ export default function ThaiTraditionalMedicine11Client({
                     <h3 className="ttm11-section-title">การยืนยันตัวตน & แผนก</h3>
                     <div className="ttm11-info-list">
                       <div className="ttm11-info-item">
-                        <span className="ttm11-info-label">Authen Code</span>
+                        <span className="ttm11-info-label">ClaimCode:</span>
                         <span className="ttm11-info-val font-mono">
                           {selectedItem.authCode ? (
                             <span className="ttm11-badge ttm11-badge-ok">

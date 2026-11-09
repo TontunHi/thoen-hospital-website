@@ -1,0 +1,66 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-audit-log { box-sizing: border-box; inline-size: 100%; max-inline-size: 1040px; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-audit-log *, .odl-audit-log *::before { box-sizing: border-box; }
+.odl-audit-log .odl-card { background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); overflow: hidden; }
+.odl-audit-log header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-stack-sm) var(--ds-space-inline-md); padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl);
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-audit-log h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-audit-log header p { margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-audit-log .odl-filters { display: flex; gap: var(--ds-space-4); padding: var(--ds-space-4); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-sunken); }
+.odl-audit-log .odl-filters label { position: relative; }
+.odl-audit-log .odl-filters input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.odl-audit-log .odl-filters span { display: grid; place-items: center; min-block-size: var(--ds-size-target-min); padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control-sm);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); white-space: nowrap; }
+.odl-audit-log .odl-filters input:checked + span { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); box-shadow: var(--ds-elevation-raised); font-weight: var(--ds-font-weight-label); }
+.odl-audit-log .odl-filters input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-audit-log ol { list-style: none; margin: 0; padding: 0; }
+.odl-audit-log li { display: grid; grid-template-columns: var(--ds-size-control-sm) minmax(0, 1fr) auto; grid-template-areas: "who what time" ". meta meta"; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md);
+  align-items: start; padding: var(--ds-space-inset-md) var(--ds-space-inset-xl); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-audit-log li:last-child { border-block-end: 0; }
+.odl-audit-log .odl-who { grid-area: who; display: grid; place-items: center; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); border-radius: var(--ds-radius-person); object-fit: cover;
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-default); }
+.odl-audit-log .odl-who.is-bot { border-radius: var(--ds-radius-nested); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-sunken); }
+.odl-audit-log .odl-who svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-audit-log p { grid-area: what; margin: 0; min-inline-size: 0; align-self: center; }
+.odl-audit-log p strong { font-weight: var(--ds-font-weight-label); }
+.odl-audit-log code { font: var(--ds-text-code-sm); padding: var(--ds-space-2) var(--ds-space-6); border-radius: var(--ds-radius-detail); background: var(--ds-color-surface-sunken); white-space: nowrap; }
+.odl-audit-log .odl-meta { grid-area: meta; display: flex; flex-wrap: wrap; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-audit-log .odl-meta .odl-ip { font: var(--ds-text-code-sm); font-variant-numeric: tabular-nums; }
+.odl-audit-log time { grid-area: time; align-self: center; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: end; }
+.odl-audit-log .odl-sev { display: inline-block; margin-inline-end: var(--ds-space-inline-sm); padding: 0 var(--ds-space-6); border-radius: var(--ds-radius-control-sm); font: var(--ds-text-label-sm);
+  letter-spacing: var(--ds-text-label-sm-tracking); vertical-align: 0.1em; }
+.odl-audit-log .is-high { background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); }
+.odl-audit-log .is-med { background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-warning); }
+@container (min-width: 50rem) {
+  .odl-audit-log li { grid-template-columns: var(--ds-size-control-sm) minmax(0, 1fr) minmax(0, 15rem) 4rem; grid-template-areas: "who what meta time"; column-gap: var(--ds-space-inline-md); min-block-size: var(--ds-size-row-two-line); align-items: center; }
+  .odl-audit-log .odl-meta { flex-direction: column; gap: var(--ds-space-2); }
+}
+@container (max-width: 30rem) {
+  .odl-audit-log header { padding: var(--ds-space-inset-lg); }
+  .odl-audit-log li { grid-template-areas: "who what what" ". meta time"; padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); }
+  .odl-audit-log time { align-self: end; }
+  .odl-audit-log .odl-filters { flex: 1 1 100%; }
+  .odl-audit-log .odl-filters label { flex: 1; }
+}
+.odl-audit-log:has(input[value="high"]:checked) li:not(:has(.is-high)) { display: none; }
+</style>
+<section class="odl-audit-log" aria-labelledby="odl-al-title"><div class="odl-card">
+  <header>
+    <div><h3 id="odl-al-title">Audit log</h3><p>Today · Quenwick Mutual workspace</p></div>
+    <div class="odl-filters" role="radiogroup" aria-label="Show">
+      <label><input type="radio" name="odl-audit-log-show" value="all" checked><span>All events</span></label>
+      <label><input type="radio" name="odl-audit-log-show" value="high"><span>High risk</span></label>
+    </div>
+  </header>
+  <ol>
+    <li><img class="odl-avatar odl-who" src="https://images.unsplash.com/photo-1681097561932-36d0df02b379?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+      <p><span class="odl-sev is-high">High</span><strong>Yerlan Abenov</strong> turned off single sign-on enforcement for <code>Quenwick Mutual</code></p><span class="odl-meta"><span class="odl-ip">203.0.113.42</span><span>Lisbon · “vendor login broken”</span></span><time>14:02</time></li>
+    <li><span class="odl-who is-bot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span>
+      <p><strong>people-sync</strong> removed 3 people who left the company</p><span class="odl-meta"><span>Service account</span><span>SCIM</span></span><time>13:40</time></li>
+    <li><img class="odl-avatar odl-who" src="https://images.unsplash.com/photo-1604072366595-e75dc92d6bdc?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+      <p><span class="odl-sev is-med">Medium</span><strong>Ragnhild Torvik</strong> created API key <code>policy-vault</code> with read access to all records</p><span class="odl-meta"><span class="odl-ip">198.51.100.7</span><span>Expires in 90 days</span></span><time>11:15</time></li>
+    <li><img class="odl-avatar odl-who" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+      <p><strong>Thiago Carvalho</strong> exported 1,204 rows from <code>analytics_main</code></p><span class="odl-meta"><span class="odl-ip">198.51.100.23</span><span>CSV</span></span><time>09:58</time></li>
+  </ol>
+</div></section>

@@ -1,5 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
+import { matchesPttypeFilter } from './pttypeConstants'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
@@ -54,6 +56,7 @@ export type ColorectalCancerDataQualityStatus =
 export interface ColorectalCancerReportParams extends FiscalDateRangeParams {
   cardFilter?: ColorectalCancerCardFilter
   ucOnly?: boolean
+  pttypes?: string
   searchField?: ColorectalCancerSearchField
   search?: string
   sortBy?: ColorectalCancerSortField
@@ -94,6 +97,8 @@ export interface ColorectalCancerItem {
   authencode: string | null
   maininscl: string
   isUc: boolean
+  pttype?: string
+  pttype_eclaim_id?: string
   pttypename: string
   department: string | null
   clinic: string | null
@@ -164,6 +169,7 @@ export interface ColorectalCancerReportResult {
   adpMapping: ColorectalCancerAdpMappingCheck
   cardFilter: ColorectalCancerCardFilter
   ucOnly: boolean
+  pttypes?: string
   searchField: ColorectalCancerSearchField
   search: string
   sortBy: ColorectalCancerSortField
@@ -178,7 +184,15 @@ export interface ColorectalCancerReportResult {
 
 // ── 2. Helper Functions ───────────────────────────────────────────────────────
 
-export function isUniversalCoverageScheme(maininscl?: string | null, pttypename?: string | null): boolean {
+export function isUniversalCoverageScheme(
+  maininscl?: string | null,
+  pttypename?: string | null,
+  pttypeEclaimId?: string | null
+): boolean {
+  if (pttypeEclaimId) {
+    const id = pttypeEclaimId.trim()
+    if (/^0[1-9]$/.test(id)) return true
+  }
   if (maininscl) {
     const code = maininscl.trim().toUpperCase()
     if (code === 'UCS' || code === 'WEL' || code === 'UC') return true
@@ -253,6 +267,27 @@ export class RcmColorectalCancerService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -336,7 +371,9 @@ export class RcmColorectalCancerService {
             IFNULL(nat.name, pt.nationality) AS nation,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
+            IFNULL(o.pttype, '') AS pttype,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
             ptt.name AS pttypename,
             dep.department AS department,
@@ -352,7 +389,7 @@ export class RcmColorectalCancerService {
             sm.status AS status_seamless,
             sm.rep AS rep_seamless,
             IFNULL(sm.compensated, 0) AS compensated_seamless,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, sm.status) AS status,
+            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, sm.status, '-:ยังไม่ได้ส่ง') AS status,
             COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep, sm.rep) AS rep,
             COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, sm.compensated, 0) AS compensated,
             rep.agency,
@@ -366,6 +403,7 @@ export class RcmColorectalCancerService {
           LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT 
               oo.vn,
@@ -410,7 +448,7 @@ export class RcmColorectalCancerService {
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -423,7 +461,7 @@ export class RcmColorectalCancerService {
                    GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                    GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -434,7 +472,7 @@ export class RcmColorectalCancerService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
@@ -451,16 +489,44 @@ export class RcmColorectalCancerService {
           adpCode, // dd TRIM(s_sub.nhso_adp_code) = ?
           ds1, ds2, // dd oo.vstdate BETWEEN ? AND ?
           ds1, ds2, // lo lh.order_date BETWEEN ? AND ?
-          ds1, ds2, // nhso admdate BETWEEN ? AND ?
-          ds1, ds2, // rep admdate BETWEEN ? AND ?
-          ds1, ds2, // m dateadm BETWEEN ? AND ?
+          ds1, ds2, // nhso admdate
+          ds1, ds2, // rep admdate
           ds1, ds2, // main ovst o.vstdate BETWEEN ? AND ?
         ]
 
-        const [mappingRes, rows] = await Promise.all([
-          RcmColorectalCancerService.checkAdpMapping(executor, Boolean(params.refresh)),
-          executor(sql, sqlParams, { timeoutMs: 90000 }),
-        ])
+        let rows: any[] = []
+        let mappingRes: ColorectalCancerAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmColorectalCancerService.checkAdpMapping(executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('colorectal-cancer', { ds1, ds2, adpCode }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmColorectalCancerService.checkAdpMapping(executor, Boolean(params.refresh)),
+            executor(sql, sqlParams, { timeoutMs: 90000 }),
+          ])
+          rows = (dbRows as any[]) || []
+          mappingRes = mRes
+        }
 
         return {
           rawRows: rows || [],
@@ -477,7 +543,9 @@ export class RcmColorectalCancerService {
       const authencode = r.authencode ? String(r.authencode).trim() : null
       const maininscl = String(r.maininscl || '').trim()
       const pttypename = String(r.pttypename || '').trim()
-      const isUc = isUniversalCoverageScheme(maininscl, pttypename)
+      const pttype = r.pttype ? String(r.pttype).trim() : ''
+      const pttypeEclaimId = r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : ''
+      const isUc = isUniversalCoverageScheme(maininscl, pttypename, pttypeEclaimId)
       const age = Number(r.age) || 0
       const isTargetAge = age >= 50 && age <= 70
       const sex = formatThaiSex(r.sex_code, r.sex)
@@ -516,6 +584,8 @@ export class RcmColorectalCancerService {
         authencode,
         maininscl,
         isUc,
+        pttype,
+        pttype_eclaim_id: pttypeEclaimId,
         pttypename,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
@@ -555,8 +625,17 @@ export class RcmColorectalCancerService {
       }
     })
 
-    // Calculate Summary KPIs across ALL eligible records
-    const totalVisits = allItems.length
+    const pttypes = (params.pttypes || '').trim()
+    const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
+
+    // Cohort for summary KPIs:
+    // If pttypes filter is specified, compute summary KPIs based on matching pttypes (Full Page Filter Q2: A)
+    const summaryCohort = selectedPttypesList.length > 0
+      ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
+      : allItems
+
+    // Calculate Summary KPIs across eligible records
+    const totalVisits = summaryCohort.length
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -569,7 +648,7 @@ export class RcmColorectalCancerService {
     let withoutAuthenCount = 0
     let ucCount = 0
 
-    for (const it of allItems) {
+    for (const it of summaryCohort) {
       if (it.hn) uniqueHnSet.add(it.hn)
       if (it.isCompensated) {
         compensatedVisits++
@@ -621,10 +700,10 @@ export class RcmColorectalCancerService {
       totalIncome,
     }
 
-    // Filter Items by cardFilter and ucOnly
-    let filtered = allItems
+    // Filter Items by cardFilter and ucOnly (Dual-Mode)
+    let filtered = summaryCohort
 
-    if (ucOnly) {
+    if (selectedPttypesList.length === 0 && ucOnly) {
       filtered = filtered.filter((it) => it.isUc)
     }
 
@@ -741,6 +820,7 @@ export class RcmColorectalCancerService {
       adpMapping,
       cardFilter,
       ucOnly,
+      pttypes,
       searchField,
       search,
       sortBy,

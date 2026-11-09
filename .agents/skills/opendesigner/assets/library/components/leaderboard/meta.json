@@ -1,0 +1,93 @@
+{
+  "name": "Leaderboard",
+  "summary": "A game or challenge leaderboard: a calm podium of the top three with photos and a crown for first, ranked rows with photos and how far each moved up or down, your own row pinned and highlighted, and a this week or all time switch.",
+  "use": "in a game, fitness challenge or learning streak, for showing who leads and where you stand",
+  "type": "data",
+  "style": "friendly",
+  "industries": [
+    "games",
+    "fitness",
+    "education"
+  ],
+  "tags": [
+    "leaderboard",
+    "ranking",
+    "podium",
+    "scores",
+    "challenge"
+  ],
+  "states": [
+    "this week",
+    "all time",
+    "moved up",
+    "moved down",
+    "no change",
+    "you",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Ordered lists in rank order (the podium is reordered only visually); each rank change is said in words, your row has aria-current, and the period switch is a native radio group.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1566616213894-2d4e1baee5d8",
+      "author": "Ravi Patel",
+      "page": "VMGAbeeJTKo"
+    },
+    {
+      "img": "photo-1565884280295-98eb83e41c65",
+      "author": "Dorrell Tibbs",
+      "page": "GntSiIMHyVM"
+    },
+    {
+      "img": "photo-1632765854612-9b02b6ec2b15",
+      "author": "Good Faces",
+      "page": "xmSWVeGEnJw"
+    },
+    {
+      "img": "photo-1544168190-79c17527004f",
+      "author": "Juan Encalada",
+      "page": "WC7KIHo13Fc"
+    },
+    {
+      "img": "photo-1607503873903-c5e95f80d7b9",
+      "author": "Jassir Jonis",
+      "page": "hSKBleRfj5A"
+    },
+    {
+      "img": "photo-1605988941502-372407d1dac5",
+      "author": "Dhruv Kadam",
+      "page": "-cFEBbptadk"
+    },
+    {
+      "img": "photo-1770096951056-c94a812e9fd4",
+      "author": "Babak Eshaghian",
+      "page": "o5xiwSPLd8o"
+    },
+    {
+      "img": "photo-1637325262485-5cf1abb98c05",
+      "author": "Teslariu Mihai",
+      "page": "UWUlKFicthA"
+    },
+    {
+      "img": "photo-1784651989032-b55410f21e52",
+      "author": "McFollis",
+      "page": "ARbIPXSI4dA"
+    },
+    {
+      "img": "photo-1541823709867-1b206113eafd",
+      "author": "Anthony Tran",
+      "page": "3Xkms-gMvZg"
+    },
+    {
+      "img": "photo-1596075700978-ecba72d16eb0",
+      "author": "Mark Farías",
+      "page": "on4m9g6bJe4"
+    },
+    {
+      "img": "photo-1535713875002-d1d0cf377fde",
+      "author": "Alex Suprun",
+      "page": "ZHvM3XIOHoE"
+    }
+  ]
+}

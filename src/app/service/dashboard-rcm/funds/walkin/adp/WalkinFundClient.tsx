@@ -31,6 +31,8 @@ import type {
   WalkinAdpMappingCheck,
 } from '@/lib/clinical/rcmWalkinFundService'
 import { formatThaiDate } from '@/lib/formatters'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTH_OPTIONS = [
@@ -94,6 +96,7 @@ export default function WalkinFundClient({
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<WalkinFundCardFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
   const [sortBy, setSortBy] = useState<WalkinFundSortField>('vstdate')
@@ -176,6 +179,9 @@ export default function WalkinFundClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+        if (pttypes.length > 0) {
+          queryParams.set('pttypes', pttypes.join(','))
+        }
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -208,7 +214,7 @@ export default function WalkinFundClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Mount Guard: Skip double fetch on first mount if SSR sent initialData
@@ -299,8 +305,8 @@ export default function WalkinFundClient({
     setTimeout(() => setCopiedField(null), 1500)
   }
 
-  // Safe CSV Export Handler
-  const handleExportCsv = async () => {
+  // Safe Excel Export Handler (.xlsx)
+  const handleExportExcel = async () => {
     try {
       setIsExporting(true)
       const exportParams = new URLSearchParams({
@@ -312,6 +318,9 @@ export default function WalkinFundClient({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) {
+        exportParams.set('pttypes', pttypes.join(','))
+      }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/walkin?${exportParams.toString()}`)
       const json = await res.json()
@@ -319,7 +328,7 @@ export default function WalkinFundClient({
 
       const exportRows: WalkinFundItem[] = json.data.items || []
 
-      // CSV Headers
+      // Headers
       const headers = [
         'ลำดับ',
         'VN',
@@ -332,7 +341,7 @@ export default function WalkinFundClient({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -357,72 +366,52 @@ export default function WalkinFundClient({
         'สถานะการชดเชย',
       ]
 
-      // Guard against formula injection: prefix with ' if starting with =, +, -, @, \t, \r
-      const sanitizeCell = (val: any): string => {
-        if (val == null) return '""'
-        let s = String(val).trim()
-        if (/^[=+\-@\t\r]/.test(s)) {
-          s = `'${s}`
-        }
-        return `"${s.replace(/"/g, '""')}"`
-      }
+      const rows = exportRows.map((r) => [
+        r.no,
+        r.vn,
+        r.an || '',
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.sex,
+        r.age,
+        r.nation || '',
+        r.vstdate,
+        r.vsttime,
+        r.authencode || '',
+        r.pttypename,
+        r.department || '',
+        r.clinic || '',
+        r.pdx || '',
+        r.dx0 || '',
+        r.dx1 || '',
+        r.dx2 || '',
+        r.dx3 || '',
+        r.dx4 || '',
+        r.dx5 || '',
+        r.listname || '',
+        r.income,
+        r.rep || '',
+        r.compensated,
+        r.invoice || '',
+        r.invoice_compensated,
+        r.transactiontype || '',
+        r.resource || '',
+        r.subfund || '',
+        r.projectcode || '',
+        r.remark || '',
+        r.status || '',
+      ])
 
-      const csvLines = [
-        headers.join(','),
-        ...exportRows.map((r) =>
-          [
-            r.no,
-            sanitizeCell(r.vn),
-            sanitizeCell(r.an || ''),
-            sanitizeCell(r.hn),
-            sanitizeCell(r.cid),
-            sanitizeCell(r.ptname),
-            sanitizeCell(r.sex),
-            r.age,
-            sanitizeCell(r.nation || ''),
-            sanitizeCell(r.vstdate),
-            sanitizeCell(r.vsttime),
-            sanitizeCell(r.authencode || ''),
-            sanitizeCell(r.pttypename),
-            sanitizeCell(r.department || ''),
-            sanitizeCell(r.clinic || ''),
-            sanitizeCell(r.pdx || ''),
-            sanitizeCell(r.dx0 || ''),
-            sanitizeCell(r.dx1 || ''),
-            sanitizeCell(r.dx2 || ''),
-            sanitizeCell(r.dx3 || ''),
-            sanitizeCell(r.dx4 || ''),
-            sanitizeCell(r.dx5 || ''),
-            sanitizeCell(r.listname || ''),
-            r.income.toFixed(2),
-            sanitizeCell(r.rep || ''),
-            r.compensated.toFixed(2),
-            sanitizeCell(r.invoice || ''),
-            r.invoice_compensated.toFixed(2),
-            sanitizeCell(r.transactiontype || ''),
-            sanitizeCell(r.resource || ''),
-            sanitizeCell(r.subfund || ''),
-            sanitizeCell(r.projectcode || ''),
-            sanitizeCell(r.remark || ''),
-            sanitizeCell(r.status || ''),
-          ].join(',')
-        ),
-      ]
-
-      // UTF-8 BOM
-      const blob = new Blob(['\uFEFF' + csvLines.join('\r\n')], {
-        type: 'text/csv;charset=utf-8;',
+      await exportRcmExcel({
+        filename: `rcm_fund_walkin_${ds1}_to_${ds2}.xlsx`,
+        title: 'กองทุน Walkin',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportRows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
       })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rcm_fund_walkin_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งออกไฟล์ CSV')
+      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -477,12 +466,12 @@ export default function WalkinFundClient({
           <button
             type="button"
             className="walkin-btn walkin-btn-export"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกข้อมูลเป็น CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -625,7 +614,7 @@ export default function WalkinFundClient({
           </div>
         </div>
 
-        {/* Card 2: มี Authen Code */}
+        {/* Card 2: มี ClaimCode */}
         <div
           role="button"
           tabIndex={0}
@@ -634,7 +623,7 @@ export default function WalkinFundClient({
           onKeyDown={(e) => e.key === 'Enter' && handleCardFilterClick('WITH_AUTHEN')}
         >
           <div className="walkin-card-header">
-            <span className="walkin-card-title">มี Authen Code</span>
+            <span className="walkin-card-title">มี ClaimCode</span>
             <span className="walkin-card-indicator" />
           </div>
           <div className="walkin-card-value">
@@ -645,7 +634,7 @@ export default function WalkinFundClient({
           </div>
         </div>
 
-        {/* Card 3: ไม่มี Authen Code */}
+        {/* Card 3: ไม่มี ClaimCode */}
         <div
           role="button"
           tabIndex={0}
@@ -654,14 +643,14 @@ export default function WalkinFundClient({
           onKeyDown={(e) => e.key === 'Enter' && handleCardFilterClick('NO_AUTHEN')}
         >
           <div className="walkin-card-header">
-            <span className="walkin-card-title">ไม่มี Authen Code</span>
+            <span className="walkin-card-title">ไม่มี ClaimCode</span>
             <span className="walkin-card-indicator" />
           </div>
           <div className="walkin-card-value">
             {(summary.withoutAuthenCount ?? 0).toLocaleString('th-TH')}
           </div>
           <div className="walkin-card-sub">
-            <span>ต้องขอ Authen ย้อนหลัง</span>
+            <span>ต้องขอ ClaimCode ย้อนหลัง</span>
           </div>
         </div>
 
@@ -753,7 +742,7 @@ export default function WalkinFundClient({
           <input
             type="text"
             className="walkin-search-input"
-            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, Authen Code, รายการยา..."
+            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ClaimCode, รายการยา..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -769,15 +758,27 @@ export default function WalkinFundClient({
           )}
         </div>
 
+        <div style={{ minWidth: '220px' }}>
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+        </div>
+
         <div className="walkin-filter-info">
           {cardFilter !== 'ALL' && (
             <span className="walkin-active-filter-badge">
               <span>
                 กรอง:{' '}
                 {cardFilter === 'WITH_AUTHEN'
-                  ? 'มี Authen Code'
+                  ? 'มี ClaimCode'
                   : cardFilter === 'NO_AUTHEN'
-                  ? 'ไม่มี Authen Code'
+                  ? 'ไม่มี ClaimCode'
                   : cardFilter === 'COMPENSATED'
                   ? 'ชดเชยแล้ว (มี Rep)'
                   : cardFilter === 'INVOICE'
@@ -899,7 +900,7 @@ export default function WalkinFundClient({
                     </span>
                   </th>
                   <th className="col-center" style={{ width: '120px' }}>
-                    Authen Code
+                    ClaimCode
                   </th>
                   <th className="col-center" style={{ width: '150px' }}>
                     สิทธิการรักษา
@@ -1173,9 +1174,9 @@ export default function WalkinFundClient({
                   </div>
 
                   <div className="walkin-modal-item">
-                    <span className="walkin-modal-label">Authen Code</span>
+                    <span className="walkin-modal-label">ClaimCode</span>
                     <span className="walkin-modal-val-tabular">
-                      {selectedItem.authencode || '— ไม่มี Authen Code —'}
+                      {selectedItem.authencode || '— ไม่มี ClaimCode —'}
                     </span>
                   </div>
                 </div>

@@ -1,0 +1,89 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-boarding-pass { box-sizing: border-box; inline-size: 100%; max-inline-size: 24rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); }
+.odl-boarding-pass *, .odl-boarding-pass *::before, .odl-boarding-pass *::after { box-sizing: border-box; }
+.odl-boarding-pass .odl-pass { --notch: var(--ds-space-12); filter: drop-shadow(0 var(--ds-space-2) var(--ds-space-8) var(--ds-color-shadow-ambient)); }
+.odl-boarding-pass .odl-face, .odl-boarding-pass .odl-stub { position: relative; }
+.odl-boarding-pass .odl-face { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); color: var(--ds-color-text-inverse);
+  background: var(--ds-color-bg-inverse);
+  border-radius: var(--ds-radius-container) var(--ds-radius-container) 0 0;
+  -webkit-mask: radial-gradient(circle at 0 100%, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) left / 51% 100% no-repeat, radial-gradient(circle at 100% 100%, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle at 0 100%, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) left / 51% 100% no-repeat, radial-gradient(circle at 100% 100%, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) right / 51% 100% no-repeat; }
+.odl-boarding-pass .odl-stub { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised);
+  border-radius: 0 0 var(--ds-radius-container) var(--ds-radius-container);
+  -webkit-mask: radial-gradient(circle at 0 0, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) left / 51% 100% no-repeat, radial-gradient(circle at 100% 0, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle at 0 0, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) left / 51% 100% no-repeat, radial-gradient(circle at 100% 0, transparent var(--notch), var(--ds-color-black) calc(var(--notch) + 0.5px)) right / 51% 100% no-repeat; }
+.odl-boarding-pass .odl-tear { position: absolute; inset-inline: calc(var(--notch) + var(--ds-space-8)); inset-block-start: 0; block-size: var(--ds-border-width-emphasis); transform: translateY(-50%);
+  background: repeating-linear-gradient(to right, var(--ds-color-border-strong) 0 var(--ds-space-6), transparent var(--ds-space-6) var(--ds-space-12)); }
+.odl-boarding-pass .odl-top { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); }
+.odl-boarding-pass .odl-brand { display: flex; align-items: center; gap: var(--ds-space-inline-sm); font: var(--ds-text-label-lg); }
+.odl-boarding-pass .odl-mark { display: grid; place-items: center; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-boarding-pass .odl-mark svg { inline-size: 70%; block-size: 70%; }
+.odl-boarding-pass .odl-flightno { display: grid; gap: var(--ds-space-2); text-align: end; font: var(--ds-text-label-md); opacity: 0.8; font-variant-numeric: tabular-nums; }
+.odl-boarding-pass .odl-route { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: var(--ds-space-inline-sm); }
+.odl-boarding-pass .odl-city { display: grid; gap: var(--ds-space-stack-xs); margin: 0; }
+.odl-boarding-pass .odl-city:last-child { text-align: end; }
+.odl-boarding-pass .odl-iata { font: var(--ds-text-headline-sm); letter-spacing: var(--ds-text-headline-sm-tracking); line-height: 1.05; }
+.odl-boarding-pass .odl-name { font: var(--ds-text-label-md); opacity: 0.8; white-space: nowrap; }
+.odl-boarding-pass .odl-fly { position: relative; display: grid; place-items: center; block-size: var(--ds-size-control-sm); margin-block-end: var(--ds-space-stack-md); }
+.odl-boarding-pass .odl-fly::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: var(--ds-border-width-emphasis);
+  background: repeating-linear-gradient(to right, var(--ds-color-white) 0 var(--ds-space-4), transparent var(--ds-space-4) var(--ds-space-8)); opacity: 0.6; }
+.odl-boarding-pass .odl-fly svg { position: relative; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); padding-inline: var(--ds-space-inline-xs); box-sizing: content-box;
+  background: var(--ds-color-bg-inverse); transform: rotate(45deg); stroke-width: var(--ds-icon-stroke-md); }
+.odl-boarding-pass .odl-fly span { position: absolute; inset-block-start: 100%; font: var(--ds-text-label-sm); opacity: 0.8; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.odl-boarding-pass .odl-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--ds-space-stack-md) var(--ds-space-inline-md); margin: 0; }
+.odl-boarding-pass .odl-facts div { display: grid; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-boarding-pass .odl-facts dt { font: var(--ds-text-label-md); opacity: 0.7; }
+.odl-boarding-pass .odl-facts dd { margin: 0; font: var(--ds-text-title-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-boarding-pass .odl-who { display: flex; justify-content: space-between; align-items: start; gap: var(--ds-space-inline-md); }
+.odl-boarding-pass .odl-who p { margin: 0; display: grid; gap: var(--ds-space-stack-xs); }
+.odl-boarding-pass .odl-who small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-boarding-pass .odl-who strong { font: var(--ds-text-title-sm); }
+.odl-boarding-pass .odl-who p:last-child { text-align: end; }
+.odl-boarding-pass .odl-status { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); justify-self: start; padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-boarding-pass .odl-status::before { content: ""; inline-size: var(--ds-space-6); block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: currentColor; }
+.odl-boarding-pass .odl-code { display: grid; gap: var(--ds-space-stack-sm); justify-items: center; padding: var(--ds-space-inset-md); border-radius: var(--ds-radius-nested); background: var(--ds-color-white);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-boarding-pass .odl-code svg { display: block; inline-size: 100%; block-size: calc(var(--ds-size-control-lg) * 1.4); }
+.odl-boarding-pass .odl-code rect { fill: var(--ds-color-neutral-light-12); }
+.odl-boarding-pass .odl-code span { color: var(--ds-color-neutral-light-11); font: var(--ds-text-code-sm); letter-spacing: var(--ds-text-label-sm-tracking); }
+.odl-boarding-pass .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (max-width: 21rem) {
+  .odl-boarding-pass .odl-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .odl-boarding-pass .odl-face, .odl-boarding-pass .odl-stub { padding-inline: var(--ds-space-inset-lg); }
+}
+</style>
+<article class="odl-boarding-pass" aria-label="Boarding pass, Vellora Air flight VA 482, Lisbon to Doha">
+  <div class="odl-pass">
+    <div class="odl-face">
+      <div class="odl-top">
+        <span class="odl-brand"><span class="odl-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M12 29 22 11h6l-6 18z" fill="currentColor"/><path d="M24 29l4-8h4l-3 8z" fill="currentColor" opacity=".55"/></svg></span>Vellora Air</span>
+        <span class="odl-flightno"><span>VA 482</span><span>Sat 14 Nov</span></span>
+      </div>
+      <div class="odl-route">
+        <p class="odl-city"><span class="odl-iata">LIS</span><span class="odl-name">Lisbon</span></p>
+        <div class="odl-fly" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg><span>6h 25m</span></div>
+        <p class="odl-city"><span class="odl-iata">DOH</span><span class="odl-name">Doha</span></p>
+      </div>
+      <dl class="odl-facts">
+        <div><dt>Gate</dt><dd>B14</dd></div>
+        <div><dt>Seat</dt><dd>23A</dd></div>
+        <div><dt>Boards</dt><dd>09:40</dd></div>
+        <div><dt>Group</dt><dd>3</dd></div>
+      </dl>
+    </div>
+    <div class="odl-stub">
+      <span class="odl-tear" aria-hidden="true"></span>
+      <div class="odl-who">
+        <p><small>Passenger</small><strong>Inês Valadares</strong></p>
+        <p><small>Departs</small><strong>10:15</strong></p>
+      </div>
+      <span class="odl-status">On time · gate closes 09:55</span>
+      <div class="odl-code">
+        <svg viewBox="0 0 236 40" preserveAspectRatio="none" role="img" aria-label="Barcode for booking K7XQ2M"><rect x="0" width="1" height="40"/><rect x="2" width="2" height="40"/><rect x="5" width="1" height="40"/><rect x="9" width="1" height="40"/><rect x="12" width="2" height="40"/><rect x="15" width="2" height="40"/><rect x="18" width="1" height="40"/><rect x="20" width="2" height="40"/><rect x="24" width="1" height="40"/><rect x="26" width="1" height="40"/><rect x="30" width="2" height="40"/><rect x="33" width="2" height="40"/><rect x="36" width="1" height="40"/><rect x="40" width="1" height="40"/><rect x="44" width="2" height="40"/><rect x="48" width="1" height="40"/><rect x="50" width="1" height="40"/><rect x="54" width="1" height="40"/><rect x="57" width="2" height="40"/><rect x="60" width="2" height="40"/><rect x="63" width="2" height="40"/><rect x="67" width="2" height="40"/><rect x="70" width="1" height="40"/><rect x="74" width="2" height="40"/><rect x="77" width="1" height="40"/><rect x="79" width="2" height="40"/><rect x="82" width="2" height="40"/><rect x="85" width="2" height="40"/><rect x="88" width="2" height="40"/><rect x="93" width="2" height="40"/><rect x="97" width="2" height="40"/><rect x="102" width="2" height="40"/><rect x="106" width="1" height="40"/><rect x="108" width="1" height="40"/><rect x="110" width="1" height="40"/><rect x="114" width="1" height="40"/><rect x="118" width="2" height="40"/><rect x="122" width="3" height="40"/><rect x="127" width="1" height="40"/><rect x="131" width="1" height="40"/><rect x="133" width="2" height="40"/><rect x="137" width="1" height="40"/><rect x="140" width="1" height="40"/><rect x="143" width="2" height="40"/><rect x="146" width="3" height="40"/><rect x="150" width="2" height="40"/><rect x="155" width="1" height="40"/><rect x="158" width="3" height="40"/><rect x="163" width="2" height="40"/><rect x="167" width="2" height="40"/><rect x="171" width="1" height="40"/><rect x="173" width="1" height="40"/><rect x="176" width="3" height="40"/><rect x="180" width="1" height="40"/><rect x="183" width="3" height="40"/><rect x="189" width="3" height="40"/><rect x="194" width="1" height="40"/><rect x="197" width="3" height="40"/><rect x="202" width="1" height="40"/><rect x="205" width="1" height="40"/><rect x="207" width="2" height="40"/><rect x="210" width="2" height="40"/><rect x="213" width="1" height="40"/><rect x="216" width="1" height="40"/><rect x="218" width="2" height="40"/><rect x="222" width="2" height="40"/><rect x="225" width="1" height="40"/><rect x="228" width="2" height="40"/><rect x="233" width="1" height="40"/><rect x="235" width="2" height="40"/></svg>
+        <span>K7XQ2M · SEQ 118</span>
+      </div>
+    </div>
+  </div>
+</article>

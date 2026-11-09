@@ -24,6 +24,7 @@ import {
   getItemFiscalYear,
 } from '@/lib/clinical/palliativeRegistryService'
 import { formatThaiDate } from '@/lib/formatters'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 export interface PalliativeRegistryClientProps {
@@ -1053,39 +1054,36 @@ export default function PalliativeRegistryClient({
           const displayComp = formatVisitComp(repItems, comp)
 
           visitCols.push(
-            escapeCsv(date),
-            escapeCsv(displayRep),
-            escapeCsv(displayComp)
+            date,
+            displayRep,
+            displayComp
           )
         }
 
         return [
           idx + 1,
-          `="${item.hn}"`,
-          escapeCsv(item.patientName),
-          escapeCsv(item.address),
-          escapeCsv(item.phone),
-          escapeCsv(item.icd10Principal),
-          escapeCsv(item.icd10Palliative),
-          escapeCsv(item.projectCode),
-          escapeCsv(item.registeredDate ? 'ขึ้นทะเบียนแล้ว' : item.registrationStatus),
-          escapeCsv(item.registeredDate || ''),
+          item.hn,
+          item.patientName,
+          item.address,
+          item.phone,
+          item.icd10Principal,
+          item.icd10Palliative,
+          item.projectCode,
+          item.registeredDate ? 'ขึ้นทะเบียนแล้ว' : item.registrationStatus,
+          item.registeredDate || '',
           ...visitCols,
-          escapeCsv(item.deathDate || ''),
+          item.deathDate || '',
         ]
       })
 
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
       const fySuffix = filterFiscalYear !== 'ALL' ? `_FY${filterFiscalYear}` : ''
-      link.setAttribute('download', `Palliative_Care_Registry${fySuffix}_${new Date().toISOString().slice(0, 10)}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `Palliative_Care_Registry${fySuffix}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        title: 'ทะเบียนผู้ป่วย Palliative Care โรงพยาบาลเถิน',
+        subtitle: `ปีงบประมาณ: ${filterFiscalYear !== 'ALL' ? filterFiscalYear : 'ทั้งหมด'} | วันที่ส่งออก: ${new Date().toLocaleDateString('th-TH')}`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
       alert(err?.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์')
     } finally {

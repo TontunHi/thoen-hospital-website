@@ -1,0 +1,39 @@
+{
+  "name": "Profile card",
+  "summary": "One person at a glance: a cover photo and their portrait, who they are, where and what time it is for them, three numbers about their work, and buttons to message or follow them.",
+  "use": "for a person's profile in a team directory or hover card",
+  "type": "content",
+  "style": "quiet",
+  "industries": [
+    "any"
+  ],
+  "tags": [
+    "profile",
+    "person",
+    "avatar",
+    "team",
+    "member"
+  ],
+  "states": [
+    "hover",
+    "pressed",
+    "focus",
+    "following",
+    "not following"
+  ],
+  "source": null,
+  "a11y": "An article labelled with the person's name; the portrait has the person's name as alt text and the cover is decorative; the stats are a description list, and Follow is a toggle button that reports its state with aria-pressed.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1578771792482-1e7eb2b8b447",
+      "author": "Sander Jeurissen",
+      "page": "AB0Ndb2UtnA"
+    },
+    {
+      "img": "photo-1521146764736-56c929d59c83",
+      "author": "Hassan Khan",
+      "page": "EGVccebWodM"
+    }
+  ]
+}

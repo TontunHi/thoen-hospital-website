@@ -1,10 +1,27 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { PalliativeCareItem, PalliativeCareSummary } from '@/lib/clinical/rcmDashboardService'
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  CircleAlert,
+  Download,
+  FileSearch,
+  RefreshCw,
+  Search,
+  X,
+} from 'lucide-react'
+import {
+  PalliativeCareItem,
+  PalliativeCareResult,
+  PalliativeCareSummary,
+} from '@/lib/clinical/rcmDashboardService'
 import { VnDetailModal } from '../components/VnDetailModal'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -24,8 +41,49 @@ const THAI_MONTHS = [
 
 const YEAR_OPTIONS = [2572, 2571, 2570, 2569, 2568, 2567, 2566, 2565]
 
+const EMPTY_SUMMARY: PalliativeCareSummary = {
+  totalVisits: 0,
+  totalPatients: 0,
+  advanceCarePlanCount: 0,
+  opioidCount: 0,
+  hasZ515Count: 0,
+  missingZ515Count: 0,
+  paidCount: 0,
+  totalCompensated: 0,
+  deceasedCount: 0,
+}
+
+const SEARCH_DEBOUNCE_MS = 300
+
+/** เงินบาท: ทศนิยม 2 ตำแหน่งคงที่ทั้งหน้า เพื่อให้เทียบหลักได้ตรงกัน */
+const formatBaht = (value: number | null | undefined): string =>
+  (Number.isFinite(value ?? NaN) ? (value as number) : 0).toLocaleString('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+const formatCount = (value: number | null | undefined): string =>
+  (Number.isFinite(value ?? NaN) ? (value as number) : 0).toLocaleString('th-TH')
+
+/* ── CSV safety helpers (Excel on Windows + Formula Injection Guard) ─────── */
+const CSV_GUARD_PATTERN = /^[=+\-@\t\r]/
+
+function csvText(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '""'
+  const raw = String(value)
+  const guarded = CSV_GUARD_PATTERN.test(raw) ? `'${raw}` : raw
+  return `"${guarded.replace(/"/g, '""')}"`
+}
+
+/** รหัสตัวเลข (VN/HN/CID) ต้องคงเลข 0 นำหน้าและไม่ถูก Excel แปลงเป็นวิทยาศาสตร์ */
+function csvNumericCode(value: string | null | undefined): string {
+  const raw = (value ?? '').trim()
+  if (!raw) return '""'
+  return /^\d+$/.test(raw) ? `="${raw}"` : csvText(raw)
+}
+
 export interface PalliativeCareClientProps {
-  initialData?: any | null
+  initialData?: PalliativeCareResult | null
   initialRange?: { startDate: string; endDate: string }
 }
 
@@ -39,17 +97,13 @@ export default function PalliativeCareClient({
   const curMonth = today.getMonth() + 1
   const defaultFiscalBeYear = curMonth >= 10 ? curBeYear + 1 : curBeYear
 
-  // Date Mode: 'custom' (กำหนดเอง) | 'monthly' (รายเดือน) | 'fiscal' (รายปีงบประมาณ)
+  // Date mode: 'custom' (กำหนดเอง) | 'monthly' (รายเดือน) | 'fiscal' (รายปีงบประมาณ)
   const [dateMode, setDateMode] = useState<'custom' | 'monthly' | 'fiscal'>('monthly')
 
-  // Selected Month & Year (for monthly mode)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-
-  // Selected Fiscal Year (for fiscal mode)
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
 
-  // Actual Date Range state
   const initialMonthlyRange = useMemo(() => {
     const padM = String(curMonth).padStart(2, '0')
     const lastDay = new Date(curCalYear, curMonth, 0).getDate()
@@ -74,44 +128,54 @@ export default function PalliativeCareClient({
     ]
   )
   const [search, setSearch] = useState<string>('')
-  const [baseSummary, setBaseSummary] = useState<PalliativeCareSummary | null>(initialData?.summary || null)
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('')
+  const [baseSummary, setBaseSummary] = useState<PalliativeCareSummary | null>(
+    initialData?.summary || null
+  )
 
   // Data states
   const [loading, setLoading] = useState<boolean>(!initialData)
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<PalliativeCareItem[]>(initialData?.items || [])
-  const [summary, setSummary] = useState<PalliativeCareSummary>(
-    initialData?.summary || {
-      totalVisits: 0,
-      totalPatients: 0,
-      advanceCarePlanCount: 0,
-      opioidCount: 0,
-      hasZ515Count: 0,
-      missingZ515Count: 0,
-      paidCount: 0,
-      totalCompensated: 0,
-      deceasedCount: 0,
-    }
-  )
+  const [summary, setSummary] = useState<PalliativeCareSummary>(initialData?.summary || EMPTY_SUMMARY)
 
   const abortControllerRef = useRef<AbortController | null>(null)
   const isFirstMount = useRef(true)
 
-  // Pagination states
+  // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(50)
 
-  // Selected row for detail modal
+  // Drill-down targets
   const [selectedItem, setSelectedItem] = useState<PalliativeCareItem | null>(null)
   const [selectedVn, setSelectedVn] = useState<string | null>(null)
 
-  // Reset base summary when date range or UC changes
+  // Card view on small screens (ตาราง 24 คอลัมน์อ่านไม่ไหวบนมือถือ)
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(false)
+
+  // Reset the unfiltered baseline when the scope (date / UC) changes
   useEffect(() => {
     setBaseSummary(null)
   }, [ds1, ds2, ucOnly])
 
-  // Active Card Filter flags
-  const isTotalActive = filterType === 'ALL' && deathStatus === 'ALL' && compensatedFilter === 'ALL' && z515Filter === 'ALL'
+  // Unified search — debounce 300ms เพื่อไม่ยิง API ทุกคีย์
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const mediaQuery = window.matchMedia('(max-width: 767px)')
+    const handleChange = () => setIsMobileLayout(mediaQuery.matches)
+    handleChange()
+    mediaQuery.addEventListener?.('change', handleChange)
+    return () => mediaQuery.removeEventListener?.('change', handleChange)
+  }, [])
+
+  // Active card filter flags
+  const isTotalActive =
+    filterType === 'ALL' && deathStatus === 'ALL' && compensatedFilter === 'ALL' && z515Filter === 'ALL'
   const isAcpActive = filterType === 'Chronic'
   const isOpioidActive = filterType === 'Opioid'
   const isZ515Active = z515Filter === 'Y'
@@ -119,8 +183,9 @@ export default function PalliativeCareClient({
   const isPaidActive = compensatedFilter === 'PAID'
   const isDeathActive = deathStatus === 'Y'
 
-  // Card filter click handler
-  const handleCardClick = (card: 'ALL' | 'ACP' | 'OPIOID' | 'Z515' | 'NO_Z515' | 'PAID' | 'DEATH') => {
+  type CardFilter = 'ALL' | 'ACP' | 'OPIOID' | 'Z515' | 'NO_Z515' | 'PAID' | 'DEATH'
+
+  const handleCardClick = (card: CardFilter) => {
     setCurrentPage(1)
     if (card === 'ALL') {
       setFilterType('ALL')
@@ -167,7 +232,7 @@ export default function PalliativeCareClient({
         setDeathStatus('ALL')
         setZ515Filter('ALL')
       }
-    } else if (card === 'DEATH') {
+    } else {
       const next = isDeathActive ? 'ALL' : 'Y'
       setDeathStatus(next)
       if (next !== 'ALL') {
@@ -178,9 +243,9 @@ export default function PalliativeCareClient({
     }
   }
 
-  // Handle Date Mode Changes
   const handleModeChange = (mode: 'custom' | 'monthly' | 'fiscal') => {
     setDateMode(mode)
+    setCurrentPage(1)
     if (mode === 'monthly') {
       const ceYear = selectedBeYear - 543
       const padM = String(selectedMonth).padStart(2, '0')
@@ -194,7 +259,6 @@ export default function PalliativeCareClient({
     }
   }
 
-  // Handle Month or Year change in Monthly mode
   const handleMonthYearChange = (newMonth: number, newBeYear: number) => {
     setSelectedMonth(newMonth)
     setSelectedBeYear(newBeYear)
@@ -203,14 +267,32 @@ export default function PalliativeCareClient({
     const lastDay = new Date(ceYear, newMonth, 0).getDate()
     setDs1(`${ceYear}-${padM}-01`)
     setDs2(`${ceYear}-${padM}-${String(lastDay).padStart(2, '0')}`)
+    setCurrentPage(1)
   }
 
-  // Handle Fiscal Year change in Fiscal mode
   const handleFiscalYearChange = (newFiscalYear: number) => {
     setSelectedFiscalYear(newFiscalYear)
     const ceFiscalYear = newFiscalYear - 543
     setDs1(`${ceFiscalYear - 1}-10-01`)
     setDs2(`${ceFiscalYear}-09-30`)
+    setCurrentPage(1)
+  }
+
+  const resetFilters = () => {
+    setUcOnly(true)
+    setFilterType('ALL')
+    setDeathStatus('ALL')
+    setZ515Filter('ALL')
+    setCompensatedFilter('ALL')
+    setSearch('')
+    setDebouncedSearch('')
+    setCurrentPage(1)
+  }
+
+  const clearSearch = () => {
+    setSearch('')
+    setDebouncedSearch('')
+    setCurrentPage(1)
   }
 
   // Fetch report data
@@ -237,8 +319,8 @@ export default function PalliativeCareClient({
       if (compensatedFilter && compensatedFilter !== 'ALL') {
         q.set('compensated', compensatedFilter)
       }
-      if (search.trim()) {
-        q.set('search', search.trim())
+      if (debouncedSearch) {
+        q.set('search', debouncedSearch)
       }
 
       const res = await fetch(`/api/service/dashboard-rcm/palliative-care/pc-3?${q.toString()}`, {
@@ -254,19 +336,9 @@ export default function PalliativeCareClient({
       if (Array.isArray(data.availableCompensations) && data.availableCompensations.length > 0) {
         setAvailableCompensations(data.availableCompensations)
       }
-      const newSummary = data.summary || {
-        totalVisits: 0,
-        totalPatients: 0,
-        advanceCarePlanCount: 0,
-        opioidCount: 0,
-        hasZ515Count: 0,
-        missingZ515Count: 0,
-        paidCount: 0,
-        totalCompensated: 0,
-        deceasedCount: 0,
-      }
+      const newSummary: PalliativeCareSummary = data.summary || EMPTY_SUMMARY
       setSummary(newSummary)
-      if (isTotalActive && !search.trim()) {
+      if (isTotalActive && !debouncedSearch) {
         setBaseSummary(newSummary)
       }
       setCurrentPage(1)
@@ -280,7 +352,7 @@ export default function PalliativeCareClient({
         setLoading(false)
       }
     }
-  }, [ds1, ds2, ucOnly, filterType, deathStatus, z515Filter, compensatedFilter, search, isTotalActive])
+  }, [ds1, ds2, ucOnly, filterType, deathStatus, z515Filter, compensatedFilter, debouncedSearch, isTotalActive])
 
   useEffect(() => {
     if (isFirstMount.current) {
@@ -295,16 +367,44 @@ export default function PalliativeCareClient({
     }
   }, [fetchData, initialData])
 
-  // Paginated items
+  // Close the detail modal with Escape
+  useEffect(() => {
+    if (!selectedItem) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedItem(null)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedItem])
+
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return items.slice(start, start + pageSize)
   }, [items, currentPage, pageSize])
 
   const totalPages = Math.ceil(items.length / pageSize) || 1
+  const uniquePatientCount = useMemo(() => new Set(items.map((row) => row.hn)).size, [items])
 
-  // Export to CSV with UTF-8 BOM for Thai Excel support (No Masking)
-  const handleExportCsv = () => {
+  const activeSummary = baseSummary || summary
+  const missingZ515Rate =
+    activeSummary.totalVisits > 0
+      ? (activeSummary.missingZ515Count / activeSummary.totalVisits) * 100
+      : 0
+
+  const hasActiveFilters =
+    !ucOnly ||
+    filterType !== 'ALL' ||
+    deathStatus !== 'ALL' ||
+    z515Filter !== 'ALL' ||
+    compensatedFilter !== 'ALL' ||
+    debouncedSearch.length > 0
+
+  const isInitialLoading = loading && items.length === 0
+  const rangeStart = items.length > 0 ? (currentPage - 1) * pageSize + 1 : 0
+  const rangeEnd = Math.min(currentPage * pageSize, items.length)
+
+  // Modern Excel (.xlsx) Export
+  const handleExportCsv = async () => {
     if (!items || items.length === 0) return
 
     const headers = [
@@ -314,7 +414,7 @@ export default function PalliativeCareClient({
       'เลขประจำตัวประชาชน (CID)',
       'ชื่อ-สกุล',
       'วันที่รับบริการ',
-      'Authen Code',
+      'ClaimCode',
       'รหัสสิทธิ',
       'กลุ่มสิทธิ',
       'ชื่อสิทธิการรักษา',
@@ -343,69 +443,111 @@ export default function PalliativeCareClient({
 
     const rows = items.map((r) => [
       r.no,
-      `="${r.vn}"`,
-      `="${r.hn}"`,
-      `="${r.cid}"`,
-      `"${r.ptname}"`,
-      `"${r.vstdate}"`,
-      `"${r.authencode}"`,
-      `"${r.pttype}"`,
-      `"${r.inscl}"`,
-      `"${r.pttypename}"`,
-      `"${r.death === 'Y' ? 'เสียชีวิต' : 'มีชีวิต'}"`,
-      `"${r.death_date || ''}"`,
-      `"${r.room}"`,
-      `"${r.spclty}"`,
-      `"${r.diag}"`,
-      `"${r.oper}"`,
-      `"${r.z515}"`,
-      `"${r.dx}"`,
-      `"${r.z718}"`,
-      `"${r.dx === 'Y' && r.z718 === 'Y' ? 'Y' : ''}"`,
-      `"${r.cancer}"`,
-      `"${r.drug}"`,
-      `"${r.cancer === 'Y' && r.drug === 'Y' ? 'Y' : ''}"`,
-      `"${r.ok === 'Y' ? 'จ่ายแล้ว' : 'ยังไม่ชดเชย'}"`,
+      r.vn,
+      r.hn,
+      r.cid,
+      r.ptname,
+      r.vstdate,
+      r.authencode,
+      r.pttype,
+      r.inscl,
+      r.pttypename,
+      r.death === 'Y' ? 'เสียชีวิต' : 'มีชีวิต',
+      r.death_date,
+      r.room,
+      r.spclty,
+      r.diag,
+      r.oper,
+      r.z515,
+      r.dx,
+      r.z718,
+      r.dx === 'Y' && r.z718 === 'Y' ? 'Y' : '',
+      r.cancer,
+      r.drug,
+      r.cancer === 'Y' && r.drug === 'Y' ? 'Y' : '',
+      r.ok === 'Y' ? 'จ่ายแล้ว' : 'ยังไม่ชดเชย',
       r.compensated,
-      `"${r.rep_invoice}"`,
-      `"${r.eclaim_no}"`,
-      `"${r.senddate || ''}"`,
-      `"${r.status_eclaim}"`,
-      `"${r.filename_send}"`,
-      `"${r.error_name}"`,
+      r.rep_invoice,
+      r.eclaim_no,
+      r.senddate,
+      r.status_eclaim,
+      r.filename_send,
+      r.error_name,
     ])
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\r\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.setAttribute('href', url)
-    link.setAttribute('download', `Palliative_Care_PC3_${ds1}_to_${ds2}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    await exportRcmExcel({
+      filename: `Palliative_Care_PC3_${ds1}_to_${ds2}.xlsx`,
+      title: 'Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด (PC.3)',
+      subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+      headers,
+      rows,
+    })
   }
 
-  // Row highlight class based on semantic status (1 สี = 1 ความหมาย)
-  const getRowClass = (item: PalliativeCareItem) => {
-    if (item.death === 'Y') return 'pc3-row-death'
-    if (item.ok === 'Y') return 'pc3-row-paid'
-    if (item.error_name) return 'pc3-row-warn'
-    return ''
+  /** เกณฑ์ Palliative: แสดงค่าของรหัสทั้งสองตัวอย่างโปร่งใส (Y / –) */
+  const renderCriteria = (firstCode: string, firstValue: string, secondCode: string, secondValue: string) => (
+    <span className="pc3-crit">
+      <span className={firstValue === 'Y' ? 'pc3-crit-on' : 'pc3-crit-off'}>
+        {firstCode} {firstValue === 'Y' ? 'Y' : '–'}
+      </span>
+      <span className="pc3-crit-sep" aria-hidden="true">
+        ·
+      </span>
+      <span className={secondValue === 'Y' ? 'pc3-crit-on' : 'pc3-crit-off'}>
+        {secondCode} {secondValue === 'Y' ? 'Y' : '–'}
+      </span>
+    </span>
+  )
+
+  const rowStatus = (item: PalliativeCareItem) => {
+    if (item.death === 'Y') return { label: 'เสียชีวิต', tone: 'is-danger' }
+    if (item.ok === 'Y') return { label: 'จ่ายแล้ว', tone: 'is-ok' }
+    if (item.error_name) return { label: 'ต้องแก้ไข', tone: 'is-warn' }
+    return { label: 'รอชดเชย', tone: 'is-ghost' }
   }
+
+  const emptyState = debouncedSearch ? (
+    <div className="pc3-state">
+      <Search size={40} className="pc3-state-icon" aria-hidden="true" />
+      <p className="pc3-state-title">ไม่พบผลลัพธ์สำหรับ “{debouncedSearch}”</p>
+      <p className="pc3-state-text">
+        ลองค้นหาด้วย HN, เลขบัตรประชาชน 13 หลัก, ชื่อ-สกุล, VN หรือรหัสวินิจฉัย ICD-10
+      </p>
+      <div className="pc3-state-actions">
+        <button type="button" className="pc3-btn-secondary" onClick={clearSearch}>
+          ล้างคำค้นหา
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="pc3-state">
+      <FileSearch size={40} className="pc3-state-icon" aria-hidden="true" />
+      <p className="pc3-state-title">ไม่พบผู้ป่วย Palliative Care ในเงื่อนไขนี้</p>
+      <p className="pc3-state-text">
+        ลองขยายช่วงวันที่ หรือผ่อนตัวกรองสิทธิ เกณฑ์การรักษา และสถานะการชดเชย
+      </p>
+      {hasActiveFilters && (
+        <div className="pc3-state-actions">
+          <button type="button" className="pc3-btn-secondary" onClick={resetFilters}>
+            ล้างตัวกรองทั้งหมด
+          </button>
+        </div>
+      )}
+    </div>
+  )
 
   return (
-    <div className="pc3-container">
-      {/* 1. Header */}
-      <div className="pc3-header">
-        <div>
-          <div className="pc3-title-wrap">
+    <div className="pc3-page">
+      {/* ── 1. Header ─────────────────────────────────────────────────── */}
+      <header className="pc3-header">
+        <div className="pc3-title-group">
+          <div className="pc3-title-row">
             <h1 className="pc3-title">Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด</h1>
-            <span className="pc3-badge">PC.3</span>
+            <span className="pc3-code-chip">PC.3</span>
           </div>
-          <p className="pc3-desc">
-            ระบบตรวจสอบผู้ป่วย Palliative Care, Advance Care Plan, Opioid และการชดเชยค่ารักษา e-Claim (ไม่รวมสิทธิ H1, 35, 36)
+          <p className="pc3-subtitle">
+            ตรวจสอบผู้ป่วย Palliative Care, เกณฑ์ Advance Care Plan (Dx + Z718), Opioid (Cancer + Drug)
+            และการชดเชยค่ารักษา e-Claim (ไม่รวมสิทธิ H1, 35, 36)
           </p>
         </div>
 
@@ -413,10 +555,13 @@ export default function PalliativeCareClient({
           <button
             type="button"
             className="pc3-btn-secondary"
-            onClick={fetchData}
+            onClick={() => fetchData()}
             disabled={loading}
+            aria-busy={loading}
+            title="ดึงข้อมูลล่าสุดจาก HOSxP อีกครั้ง"
           >
-            {loading ? 'กำลังโหลด...' : 'รีเฟรช'}
+            <RefreshCw size={16} className={loading ? 'pc3-spin' : undefined} aria-hidden="true" />
+            <span>{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
           </button>
 
           <button
@@ -424,176 +569,78 @@ export default function PalliativeCareClient({
             className="pc3-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || items.length === 0}
+            title="ส่งออกรายการทั้งหมดตามเงื่อนไขปัจจุบันเป็นไฟล์ Excel (.xlsx)"
           >
-            ส่งออก CSV
+            <Download size={16} aria-hidden="true" />
+            <span>ส่งออก Excel</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* 2. Vibrant Metric Cards Bar */}
-      <div className="pc3-metric-bar" role="region" aria-label="สรุปสถิติและตัวกรองด่วนผ่านการ์ด">
-        <button
-          type="button"
-          className={`pc3-metric-card pc3-card-total pc3-metric-card-btn ${isTotalActive ? 'is-active is-active-total' : ''}`}
-          onClick={() => handleCardClick('ALL')}
-          aria-pressed={isTotalActive}
-          title={isTotalActive ? 'แสดงผู้ป่วยทั้งหมด' : 'คลิกเพื่อดูผู้ป่วยทั้งหมด'}
-        >
-          <div className="pc3-metric-label">ผู้ป่วย Palliative ทั้งหมด</div>
-          <div className="pc3-metric-val">
-            {(baseSummary || summary).totalPatients.toLocaleString()}
-            <span className="pc3-metric-unit">คน</span>
+      {/* Error state */}
+      {error && (
+        <div className="pc3-banner" role="alert">
+          <CircleAlert size={18} aria-hidden="true" />
+          <div className="pc3-banner-text">
+            <span className="pc3-banner-strong">โหลดข้อมูลไม่สำเร็จ</span>
+            <span>{error}</span>
           </div>
-          <div className="pc3-metric-sub">
-            จำนวนรับบริการ: {(baseSummary || summary).totalVisits.toLocaleString()} ครั้ง
-          </div>
-        </button>
+          <button type="button" className="pc3-btn-secondary" onClick={() => fetchData()}>
+            ลองอีกครั้ง
+          </button>
+        </div>
+      )}
 
-        <button
-          type="button"
-          className={`pc3-metric-card pc3-card-acp pc3-metric-card-btn ${isAcpActive ? 'is-active is-active-acp' : ''}`}
-          onClick={() => handleCardClick('ACP')}
-          aria-pressed={isAcpActive}
-          title={isAcpActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วย Advance Care Plan (Dx + Z718)'}
-        >
-          <div className="pc3-metric-label">Advance Care Plan</div>
-          <div className="pc3-metric-val" style={{ color: '#0f766e' }}>
-            {(baseSummary || summary).advanceCarePlanCount.toLocaleString()}
-            <span className="pc3-metric-unit">ครั้ง</span>
-          </div>
-          <div className="pc3-metric-sub">เกณฑ์ Dx + Z718</div>
-        </button>
-
-        <button
-          type="button"
-          className={`pc3-metric-card pc3-card-opioid pc3-metric-card-btn ${isOpioidActive ? 'is-active is-active-opioid' : ''}`}
-          onClick={() => handleCardClick('OPIOID')}
-          aria-pressed={isOpioidActive}
-          title={isOpioidActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ได้รับยา Opioid'}
-        >
-          <div className="pc3-metric-label">Opioid</div>
-          <div className="pc3-metric-val" style={{ color: '#7e22ce' }}>
-            {(baseSummary || summary).opioidCount.toLocaleString()}
-            <span className="pc3-metric-unit">ครั้ง</span>
-          </div>
-          <div className="pc3-metric-sub">Cancer + ยา Opioid</div>
-        </button>
-
-        <button
-          type="button"
-          className={`pc3-metric-card pc3-card-z515 pc3-metric-card-btn ${isZ515Active ? 'is-active is-active-z515' : ''}`}
-          onClick={() => handleCardClick('Z515')}
-          aria-pressed={isZ515Active}
-          title={isZ515Active ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่มีรหัส Z515'}
-        >
-          <div className="pc3-metric-label">มีรหัส Z515</div>
-          <div className="pc3-metric-val" style={{ color: '#15803d' }}>
-            {(baseSummary || summary).hasZ515Count.toLocaleString()}
-            <span className="pc3-metric-unit">ครั้ง</span>
-          </div>
-          <div className="pc3-metric-sub">ลงรหัสครบถ้วน</div>
-        </button>
-
-        <button
-          type="button"
-          className={`pc3-metric-card pc3-card-noz515 pc3-metric-card-btn ${isNoZ515Active ? 'is-active is-active-noz515' : ''}`}
-          onClick={() => handleCardClick('NO_Z515')}
-          aria-pressed={isNoZ515Active}
-          title={isNoZ515Active ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ไม่พบรหัส Z515'}
-        >
-          <div className="pc3-metric-label">ไม่พบรหัส Z515 (ส้ม)</div>
-          <div className="pc3-metric-val pc3-val-warn">
-            {(baseSummary || summary).missingZ515Count.toLocaleString()}
-            <span className="pc3-metric-unit">ครั้ง</span>
-          </div>
-          <div className="pc3-metric-sub">ต้องบันทึกรหัสเพิ่ม</div>
-        </button>
-
-        <button
-          type="button"
-          className={`pc3-metric-card pc3-card-paid pc3-metric-card-btn ${isPaidActive ? 'is-active is-active-paid' : ''}`}
-          onClick={() => handleCardClick('PAID')}
-          aria-pressed={isPaidActive}
-          title={isPaidActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ได้รับชดเชยแล้ว'}
-        >
-          <div className="pc3-metric-label">ชดเชยแล้ว (เขียว)</div>
-          <div className="pc3-metric-val pc3-val-paid">
-            {(baseSummary || summary).paidCount.toLocaleString()}
-            <span className="pc3-metric-unit">ครั้ง</span>
-          </div>
-          <div className="pc3-metric-sub">
-            {(baseSummary || summary).totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
-          </div>
-        </button>
-
-        <button
-          type="button"
-          className={`pc3-metric-card pc3-card-death pc3-metric-card-btn ${isDeathActive ? 'is-active is-active-death' : ''}`}
-          onClick={() => handleCardClick('DEATH')}
-          aria-pressed={isDeathActive}
-          title={isDeathActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่เสียชีวิต'}
-        >
-          <div className="pc3-metric-label">เสียชีวิต (ชมพู)</div>
-          <div className="pc3-metric-val pc3-val-risk">
-            {(baseSummary || summary).deceasedCount.toLocaleString()}
-            <span className="pc3-metric-unit">คน</span>
-          </div>
-          <div className="pc3-metric-sub">สถานะจำหน่าย</div>
-        </button>
-      </div>
-
-      {/* 3. Toolbar & Filters Card */}
-      <div className="pc3-toolbar">
-        {/* Date Mode Row */}
+      {/* ── 2. Toolbar: Date Ribbon + Filters + Unified Search ────────── */}
+      <section className="pc3-toolbar" aria-label="ตัวกรองข้อมูล">
         <div className="pc3-toolbar-row">
-          <div className="pc3-segmented-track">
+          <div className="pc3-mode-tabs" role="group" aria-label="รูปแบบช่วงเวลา">
             <button
               type="button"
-              className={`pc3-segmented-btn ${dateMode === 'custom' ? 'is-active' : ''}`}
+              className={`pc3-mode-tab ${dateMode === 'custom' ? 'is-active' : ''}`}
               onClick={() => handleModeChange('custom')}
+              aria-pressed={dateMode === 'custom'}
             >
-              กำหนดเอง (วันถึงวัน)
+              กำหนดเอง
             </button>
             <button
               type="button"
-              className={`pc3-segmented-btn ${dateMode === 'monthly' ? 'is-active' : ''}`}
+              className={`pc3-mode-tab ${dateMode === 'monthly' ? 'is-active' : ''}`}
               onClick={() => handleModeChange('monthly')}
+              aria-pressed={dateMode === 'monthly'}
             >
               รายเดือน
             </button>
             <button
               type="button"
-              className={`pc3-segmented-btn ${dateMode === 'fiscal' ? 'is-active' : ''}`}
+              className={`pc3-mode-tab ${dateMode === 'fiscal' ? 'is-active' : ''}`}
               onClick={() => handleModeChange('fiscal')}
+              aria-pressed={dateMode === 'fiscal'}
             >
-              รายปีงบประมาณ
+              ปีงบประมาณ
             </button>
           </div>
 
+          <div className="pc3-divider-v" aria-hidden="true" />
+
           {dateMode === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <ThaiDatePicker
-                value={ds1}
-                onChange={setDs1}
-                maxDate={ds2}
-                aria-label="ตั้งแต่วันที่"
-              />
-              <span style={{ color: 'var(--pc-muted)', fontSize: '0.85rem' }}>ถึง</span>
-              <ThaiDatePicker
-                value={ds2}
-                onChange={setDs2}
-                minDate={ds1}
-                aria-label="ถึงวันที่"
-              />
+            <div className="pc3-date-controls">
+              <div className="pc3-field-inline">
+                <span className="pc3-field-label">ตั้งแต่วันที่</span>
+                <ThaiDatePicker value={ds1} onChange={setDs1} maxDate={ds2} aria-label="ตั้งแต่วันที่" />
+              </div>
+              <span className="pc3-field-label">ถึง</span>
+              <ThaiDatePicker value={ds2} onChange={setDs2} minDate={ds1} aria-label="ถึงวันที่" />
             </div>
           )}
 
           {dateMode === 'monthly' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="pc3-date-controls">
               <select
                 className="pc3-select"
                 value={selectedMonth}
                 onChange={(e) => handleMonthYearChange(Number(e.target.value), selectedBeYear)}
+                aria-label="เลือกเดือน"
               >
                 {THAI_MONTHS.map((m) => (
                   <option key={m.value} value={m.value}>
@@ -606,6 +653,7 @@ export default function PalliativeCareClient({
                 className="pc3-select"
                 value={selectedBeYear}
                 onChange={(e) => handleMonthYearChange(selectedMonth, Number(e.target.value))}
+                aria-label="เลือกปี พ.ศ."
               >
                 {YEAR_OPTIONS.map((y) => (
                   <option key={y} value={y}>
@@ -617,11 +665,12 @@ export default function PalliativeCareClient({
           )}
 
           {dateMode === 'fiscal' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="pc3-date-controls">
               <select
                 className="pc3-select"
                 value={selectedFiscalYear}
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
+                aria-label="เลือกปีงบประมาณ"
               >
                 {YEAR_OPTIONS.map((y) => (
                   <option key={y} value={y}>
@@ -631,70 +680,103 @@ export default function PalliativeCareClient({
               </select>
             </div>
           )}
+
+          {/* Unified Global Search — ค้นได้ทุกมิติในช่องเดียว */}
+          <div className="pc3-search">
+            <Search size={16} className="pc3-search-icon" aria-hidden="true" />
+            <input
+              type="search"
+              className="pc3-search-input"
+              placeholder="ค้นหา HN, ชื่อ-สกุล, CID, VN หรือรหัสโรค"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="ค้นหาผู้ป่วย"
+            />
+            {search && (
+              <button
+                type="button"
+                className="pc3-search-clear"
+                onClick={clearSearch}
+                title="ล้างคำค้นหา"
+                aria-label="ล้างคำค้นหา"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Filters Row: Checkbox UC, สถานะการมีชีวิต, เงินชดเชย, กลุ่มโรค, ค้นหา */}
+        <div className="pc3-toolbar-divider" aria-hidden="true" />
+
         <div className="pc3-toolbar-row">
-          <label className="pc3-checkbox-label">
+          <label className="pc3-check">
             <input
               type="checkbox"
               checked={ucOnly}
-              onChange={(e) => setUcOnly(e.target.checked)}
+              onChange={(e) => {
+                setUcOnly(e.target.checked)
+                setCurrentPage(1)
+              }}
             />
             <span>เฉพาะสิทธิ UC</span>
           </label>
 
-          {/* Filter สถานะการมีชีวิต */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--pc-muted)' }}>สถานะการมีชีวิต:</span>
+          <div className="pc3-field-inline">
+            <span className="pc3-field-label">สถานะการมีชีวิต</span>
             <select
               className="pc3-select"
               value={deathStatus}
-              onChange={(e) => setDeathStatus(e.target.value as 'ALL' | 'Y' | 'N')}
+              onChange={(e) => {
+                setDeathStatus(e.target.value as 'ALL' | 'Y' | 'N')
+                setCurrentPage(1)
+              }}
+              aria-label="สถานะการมีชีวิต"
             >
-              <option value="ALL">สถานะการมีชีวิต: ทั้งหมด</option>
-              <option value="N">เฉพาะผู้ป่วยมีชีวิต</option>
-              <option value="Y">เฉพาะผู้ป่วยเสียชีวิต</option>
+              <option value="ALL">ทั้งหมด</option>
+              <option value="N">เฉพาะผู้ที่มีชีวิต</option>
+              <option value="Y">เฉพาะผู้เสียชีวิต</option>
             </select>
           </div>
 
-          {/* Filter เงินชดเชย */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--pc-muted)' }}>เงินชดเชย:</span>
+          <div className="pc3-field-inline">
+            <span className="pc3-field-label">เงินชดเชย</span>
             <select
               className="pc3-select"
               value={compensatedFilter}
-              onChange={(e) => setCompensatedFilter(e.target.value)}
+              onChange={(e) => {
+                setCompensatedFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              aria-label="เงินชดเชย"
             >
-              <option value="ALL">เงินชดเชย: ทั้งหมด</option>
-              <option value="0">ยังไม่ได้รับเงินชดเชย (0 บาท)</option>
-              <option value="PAID">ได้รับเงินชดเชยแล้ว (ทุกยอด)</option>
-              <optgroup label="เกณฑ์ยอดเงินขั้นต่ำ (>=)">
-                <option value=">=750">&gt;= 750 บาท</option>
-                <option value=">=1000">&gt;= 1,000 บาท</option>
-                <option value=">=2000">&gt;= 2,000 บาท</option>
-                <option value=">=3000">&gt;= 3,000 บาท</option>
-                <option value=">=4000">&gt;= 4,000 บาท</option>
-                <option value=">=5000">&gt;= 5,000 บาท</option>
-                <option value=">=6000">&gt;= 6,000 บาท</option>
-                <option value=">=7000">&gt;= 7,000 บาท</option>
-                <option value=">=8000">&gt;= 8,000 บาท</option>
-                <option value=">=9000">&gt;= 9,000 บาท</option>
+              <option value="ALL">ทั้งหมด</option>
+              <option value="0">ยังไม่ได้รับชดเชย (0 บาท)</option>
+              <option value="PAID">ได้รับชดเชยแล้ว (ทุกยอด)</option>
+              <optgroup label="เกณฑ์ยอดเงินขั้นต่ำ (≥)">
+                <option value=">=750">≥ 750 บาท</option>
+                <option value=">=1000">≥ 1,000 บาท</option>
+                <option value=">=2000">≥ 2,000 บาท</option>
+                <option value=">=3000">≥ 3,000 บาท</option>
+                <option value=">=4000">≥ 4,000 บาท</option>
+                <option value=">=5000">≥ 5,000 บาท</option>
+                <option value=">=6000">≥ 6,000 บาท</option>
+                <option value=">=7000">≥ 7,000 บาท</option>
+                <option value=">=8000">≥ 8,000 บาท</option>
+                <option value=">=9000">≥ 9,000 บาท</option>
                 <option value=">9000">&gt; 9,000 บาท</option>
               </optgroup>
               <optgroup label="ระบุจำนวนเงินตรงตัว (=)">
                 {availableCompensations.map((val) => (
                   <option key={val} value={`=${val}`}>
-                    = {val.toLocaleString()} บาท
+                    = {val.toLocaleString('th-TH')} บาท
                   </option>
                 ))}
               </optgroup>
             </select>
           </div>
 
-          {/* Filter กลุ่มโรค */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--pc-muted)' }}>กลุ่มโรค:</span>
+          <div className="pc3-field-inline">
+            <span className="pc3-field-label">กลุ่มโรค</span>
             <select
               className="pc3-select"
               value={filterType}
@@ -702,16 +784,16 @@ export default function PalliativeCareClient({
                 setFilterType(e.target.value as 'ALL' | 'Chronic' | 'Opioid' | 'Death')
                 setCurrentPage(1)
               }}
+              aria-label="กลุ่มโรค"
             >
-              <option value="ALL">กลุ่มโรค: ทั้งหมด</option>
+              <option value="ALL">ทั้งหมด</option>
               <option value="Chronic">Chronic (Dx + Z718)</option>
               <option value="Opioid">Opioid (Cancer + Drug)</option>
             </select>
           </div>
 
-          {/* Filter รหัส Z515 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--pc-muted)' }}>รหัส Z515:</span>
+          <div className="pc3-field-inline">
+            <span className="pc3-field-label">รหัส Z515</span>
             <select
               className="pc3-select"
               value={z515Filter}
@@ -719,253 +801,390 @@ export default function PalliativeCareClient({
                 setZ515Filter(e.target.value as 'ALL' | 'Y' | 'N')
                 setCurrentPage(1)
               }}
+              aria-label="รหัส Z515"
             >
-              <option value="ALL">รหัส Z515: ทั้งหมด</option>
+              <option value="ALL">ทั้งหมด</option>
               <option value="Y">มีรหัส Z515</option>
               <option value="N">ไม่พบรหัส Z515</option>
             </select>
           </div>
 
-          <input
-            type="search"
-            className="pc3-search-input"
-            placeholder="ค้นหา HN, ชื่อผู้ป่วย, เลข CID 13 หลัก, VN, หรือรหัสโรค..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginLeft: 'auto' }}>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--pc-muted)' }}>หน้าละ:</span>
-            <select
-              className="pc3-select"
-              style={{ minHeight: 38, padding: '0 0.5rem', fontSize: '0.8125rem' }}
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value))
-                setCurrentPage(1)
-              }}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="pc3-btn-ghost"
+              onClick={resetFilters}
+              title="ล้างตัวกรองและการค้นหาทั้งหมด"
             >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-            </select>
-          </div>
+              ล้างตัวกรอง
+            </button>
+          )}
         </div>
-      </div>
+      </section>
 
-      {/* 4. Vivid Legend Bar (แถบสีจำแนกสถานะ) */}
-      <div className="pc3-legend">
-        <span className="pc3-legend-title">แถบสีจำแนกสถานะ:</span>
-        <div className="pc3-legend-pill pc3-pill-paid">
-          <span className="pc3-legend-dot pc3-dot-paid" />
-          <span>แถบสีเขียว = ได้รับเงินชดเชยแล้ว</span>
-        </div>
-        <div className="pc3-legend-pill pc3-pill-death">
-          <span className="pc3-legend-dot pc3-dot-death" />
-          <span>แถบสีชมพู = ผู้ป่วยเสียชีวิต</span>
-        </div>
-        <div className="pc3-legend-pill pc3-pill-warn">
-          <span className="pc3-legend-dot pc3-dot-warn" />
-          <span>แถบสีส้ม = ไม่พบรหัส Z515 (ต้องลงรหัสเพิ่ม)</span>
-        </div>
-      </div>
+      {/* ── 3. Tiered Summary: Featured Totals + Filter Chips ────────── */}
+      <section className="pc3-summary" aria-label="สรุปภาพรวม Palliative Care">
+        <div className="pc3-featured-grid">
+          <button
+            type="button"
+            className={`pc3-kpi-card ${isTotalActive ? 'is-active' : ''}`}
+            onClick={() => handleCardClick('ALL')}
+            aria-pressed={isTotalActive}
+            title="แสดงผู้ป่วย Palliative Care ทั้งหมด (ล้างตัวกรองตามเกณฑ์)"
+          >
+            <span className="pc3-kpi-label">ผู้ป่วย Palliative ทั้งหมด</span>
+            <span className="pc3-kpi-value">
+              {formatCount(activeSummary.totalPatients)}
+              <span className="pc3-kpi-unit">คน</span>
+            </span>
+            <span className="pc3-kpi-sub">
+              จำนวนรับบริการ {formatCount(activeSummary.totalVisits)} ครั้ง
+            </span>
+          </button>
 
-      {/* Error state */}
-      {error && (
-        <div style={{ padding: '1rem', background: 'var(--pc-risk-bg)', border: '1px solid var(--pc-risk-border)', borderRadius: 8, color: 'var(--pc-risk-text)' }}>
-          <strong>เกิดข้อผิดพลาด:</strong> {error}
-        </div>
-      )}
+          <button
+            type="button"
+            className={`pc3-kpi-card ${isNoZ515Active ? 'is-active' : ''}`}
+            onClick={() => handleCardClick('NO_Z515')}
+            aria-pressed={isNoZ515Active}
+            title="กรองเฉพาะผู้ป่วยที่ไม่พบรหัส Z515 (ต้องบันทึกรหัสเพิ่ม)"
+          >
+            <span className="pc3-kpi-label">ไม่พบรหัส Z515</span>
+            <span className={`pc3-kpi-value ${activeSummary.missingZ515Count > 0 ? 'is-warn' : ''}`}>
+              {formatCount(activeSummary.missingZ515Count)}
+              <span className="pc3-kpi-unit">ครั้ง</span>
+            </span>
+            <span className="pc3-kpi-sub">
+              {missingZ515Rate.toFixed(1)}% ของการรับบริการ · ต้องบันทึกรหัสเพิ่ม
+            </span>
+          </button>
 
-      {/* 5. Data Table */}
-      <div className="pc3-table-card">
-        <div className="pc3-table-scroll">
-          <table className="pc3-table">
-            <thead>
-              <tr>
-                <th rowSpan={2} style={{ width: 45, textAlign: 'center' }}>ลำดับ</th>
-                <th rowSpan={2}>VN</th>
-                <th rowSpan={2}>HN</th>
-                <th rowSpan={2}>เลขบัตรประชาชน (CID)</th>
-                {/* ชื่อ-สกุล แสดงแถวแนวนอนแถวเดียวไม่ซ้อนกัน */}
-                <th rowSpan={2} style={{ whiteSpace: 'nowrap' }}>ชื่อ-สกุล</th>
-                <th rowSpan={2}>วันที่รับบริการ</th>
-                <th rowSpan={2}>Authen Code</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>รหัสสิทธิ</th>
-                <th rowSpan={2}>ชื่อสิทธิการรักษา</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>สถานะการมีชีวิต</th>
-                <th rowSpan={2}>จุดบริการ / คลินิก</th>
-                <th rowSpan={2}>รหัสวินิจฉัย (Diag)</th>
-                <th rowSpan={2}>หัตถการ</th>
-                {/* Merged Header 1: Advance Care Plan */}
-                <th colSpan={2} className="pc3-th-group-acp">Advance Care Plan</th>
-                {/* Merged Header 2: Opioid */}
-                <th colSpan={2} className="pc3-th-group-opioid">Opioid</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>Z515</th>
-                <th rowSpan={2}>ErrorName</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>จ่ายแล้ว</th>
-                <th rowSpan={2}>เงินชดเชย</th>
-                <th rowSpan={2}>Rep / Invoice</th>
-                <th rowSpan={2}>E-Claim No</th>
-                <th rowSpan={2}>วันที่ส่งเคลม</th>
-                <th rowSpan={2}>สถานะ e-Claim</th>
-                <th rowSpan={2}>ไฟล์ส่งเคลม</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>รายละเอียด</th>
-              </tr>
-              <tr>
-                <th className="pc3-th-group-acp">Dx</th>
-                <th className="pc3-th-group-acp">Z718</th>
-                <th className="pc3-th-group-opioid">Cancer</th>
-                <th className="pc3-th-group-opioid">Drug</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={27} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--pc-muted)' }}>
-                    กำลังโหลดข้อมูล Palliative Care จากระบบ...
-                  </td>
-                </tr>
-              ) : paginatedItems.length === 0 ? (
-                <tr>
-                  <td colSpan={27} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--pc-muted)' }}>
-                    ไม่พบข้อมูลผู้ป่วย Palliative Care ในช่วงเวลาหรือเงื่อนไขที่เลือก
-                  </td>
-                </tr>
-              ) : (
-                paginatedItems.map((item) => (
-                  <tr key={item.vn} className={getRowClass(item)}>
-                    <td className="pc3-num" style={{ textAlign: 'center', color: 'var(--pc-muted)' }}>
-                      {item.no}
-                    </td>
-                    <td className="pc3-num">
-                      <button
-                        type="button"
-                        className="pc3-vn-link"
-                        onClick={() => setSelectedVn(item.vn)}
-                        title={`คลิกเพื่อดูรายละเอียดการรับบริการ VN: ${item.vn} (opdscreen, ovstdiag, opitemrece)`}
-                      >
-                        {item.vn}
-                      </button>
-                    </td>
-                    <td className="pc3-num">{item.hn}</td>
-                    {/* เลขบัตรประชาชน แสดงเต็ม 13 หลัก ไม่ mask */}
-                    <td className="pc3-num">{item.cid || '-'}</td>
-                    {/* ชื่อ-สกุล แสดงแนวนอนแถวเดียว ไม่ซ้อนกัน */}
-                    <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>
-                      {item.ptname}
-                    </td>
-                    <td className="pc3-num">{formatThaiDate(item.vstdate)}</td>
-                    <td className="pc3-num">{item.authencode || '-'}</td>
-                    <td className="pc3-num" style={{ textAlign: 'center' }}>
-                      <span className="pc3-tag pc3-tag-ok">{item.pttype || item.inscl || '-'}</span>
-                    </td>
-                    <td style={{ fontWeight: 500 }}>{item.pttypename || '-'}</td>
-                    {/* สถานะการมีชีวิต */}
-                    <td style={{ textAlign: 'center' }}>
-                      {item.death === 'Y' ? (
-                        <span className="pc3-tag pc3-tag-death" title={item.death_date ? `วันเสียชีวิต: ${formatThaiDate(item.death_date)}` : 'เสียชีวิต'}>
-                          เสียชีวิต{item.death_date ? ` (${formatThaiDate(item.death_date)})` : ''}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--pc-paid-text)', fontSize: '0.8125rem', fontWeight: 600 }}>มีชีวิต</span>
-                      )}
-                    </td>
-                    <td>{item.room || item.spclty || '-'}</td>
-                    <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.diag}>
-                      {item.diag || '-'}
-                    </td>
-                    <td style={{ maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.oper}>
-                      {item.oper || '-'}
-                    </td>
-                    {/* Advance Care Plan */}
-                    <td style={{ textAlign: 'center' }}>
-                      {item.dx === 'Y' ? <span className="pc3-tag pc3-tag-ok">Y</span> : '-'}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {item.z718 === 'Y' ? <span className="pc3-tag pc3-tag-ok">Y</span> : '-'}
-                    </td>
-                    {/* Opioid */}
-                    <td style={{ textAlign: 'center' }}>
-                      {item.cancer === 'Y' ? <span className="pc3-tag pc3-tag-ok">Y</span> : '-'}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {item.drug === 'Y' ? <span className="pc3-tag pc3-tag-ok">Y</span> : '-'}
-                    </td>
-                    {/* Z515 */}
-                    <td style={{ textAlign: 'center' }}>
-                      {item.z515 === 'Y' ? (
-                        <span className="pc3-tag pc3-tag-ok">Y</span>
-                      ) : (
-                        <span style={{ color: 'var(--pc-muted)' }}>-</span>
-                      )}
-                    </td>
-                    {/* ErrorName */}
-                    <td>
-                      {item.error_name ? (
-                        <span className="pc3-tag pc3-tag-warn">{item.error_name}</span>
-                      ) : (
-                        <span style={{ color: 'var(--pc-paid-text)', fontSize: '0.8125rem', fontWeight: 600 }}>ครบถ้วน</span>
-                      )}
-                    </td>
-                    {/* จ่ายแล้ว */}
-                    <td style={{ textAlign: 'center' }}>
-                      {item.ok === 'Y' ? (
-                        <span className="pc3-tag pc3-tag-paid">จ่ายแล้ว</span>
-                      ) : (
-                        <span style={{ color: 'var(--pc-muted)' }}>-</span>
-                      )}
-                    </td>
-                    {/* เงินชดเชย */}
-                    <td className="pc3-num" style={{ fontWeight: item.compensated > 0 ? 700 : 400 }}>
-                      {item.compensated > 0
-                        ? item.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })
-                        : '-'}
-                    </td>
-                    <td className="pc3-num">{item.rep_invoice || '-'}</td>
-                    <td className="pc3-num">{item.eclaim_no || '-'}</td>
-                    <td className="pc3-num">{formatThaiDate(item.senddate)}</td>
-                    <td>
-                      <span className="pc3-tag">{item.status_eclaim}</span>
-                    </td>
-                    <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.filename_send}>
-                      {item.filename_send || '-'}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedItem(item)}
-                        className="pc3-btn-secondary"
-                        style={{ minHeight: 30, padding: '0 0.55rem', fontSize: '0.75rem' }}
-                        title="ดูรายละเอียดผู้ป่วย"
-                      >
-                        ดูข้อมูล
-                      </button>
-                    </td>
+          <button
+            type="button"
+            className={`pc3-kpi-card ${isPaidActive ? 'is-active' : ''}`}
+            onClick={() => handleCardClick('PAID')}
+            aria-pressed={isPaidActive}
+            title="กรองเฉพาะรายการที่ได้รับชดเชยแล้ว"
+          >
+            <span className="pc3-kpi-label">ชดเชยแล้ว</span>
+            <span className="pc3-kpi-value is-ok">
+              <span className="pc3-kpi-unit">฿</span>
+              {formatBaht(activeSummary.totalCompensated)}
+            </span>
+            <span className="pc3-kpi-sub">
+              {formatCount(activeSummary.paidCount)} ครั้งที่จ่ายแล้ว
+            </span>
+          </button>
+        </div>
+
+        <div className="pc3-chip-row" role="group" aria-label="กรองตามเกณฑ์การรักษา">
+          <button
+            type="button"
+            className={`pc3-chip ${isAcpActive ? 'is-active' : ''}`}
+            onClick={() => handleCardClick('ACP')}
+            aria-pressed={isAcpActive}
+            title="กรองเฉพาะผู้ป่วยที่เข้าเกณฑ์ Advance Care Plan (Dx + Z718)"
+          >
+            <span>Advance Care Plan</span>
+            <span className="pc3-chip-count">{formatCount(activeSummary.advanceCarePlanCount)}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`pc3-chip ${isOpioidActive ? 'is-active' : ''}`}
+            onClick={() => handleCardClick('OPIOID')}
+            aria-pressed={isOpioidActive}
+            title="กรองเฉพาะผู้ป่วยที่ได้รับยา Opioid (Cancer + Drug)"
+          >
+            <span>Opioid</span>
+            <span className="pc3-chip-count">{formatCount(activeSummary.opioidCount)}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`pc3-chip ${isZ515Active ? 'is-active' : ''}`}
+            onClick={() => handleCardClick('Z515')}
+            aria-pressed={isZ515Active}
+            title="กรองเฉพาะผู้ป่วยที่มีรหัส Z515"
+          >
+            <span>มีรหัส Z515</span>
+            <span className="pc3-chip-count">{formatCount(activeSummary.hasZ515Count)}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`pc3-chip ${isDeathActive ? 'is-active' : ''}`}
+            onClick={() => handleCardClick('DEATH')}
+            aria-pressed={isDeathActive}
+            title="กรองเฉพาะผู้ป่วยที่เสียชีวิต"
+          >
+            <span>เสียชีวิต</span>
+            <span className="pc3-chip-count is-risk">{formatCount(activeSummary.deceasedCount)}</span>
+          </button>
+        </div>
+      </section>
+
+      {/* ── 4. Ledger Table ──────────────────────────────────────────── */}
+      <section className="pc3-table-card" aria-label="รายการผู้ป่วย Palliative Care">
+        {items.length === 0 && !isInitialLoading ? (
+          <div className="pc3-table-state">{emptyState}</div>
+        ) : (
+          <>
+            <div
+              className={`pc3-table-scroll ${isMobileLayout ? 'is-mobile-hidden' : ''} ${
+                loading ? 'is-refreshing' : ''
+              }`}
+            >
+              <table className="pc3-table">
+                <thead>
+                  <tr>
+                    <th className="col-center" style={{ width: 56 }}>
+                      ลำดับ
+                    </th>
+                    <th className="col-center">VN</th>
+                    <th className="col-center">HN</th>
+                    <th className="col-center">เลขบัตรประชาชน (CID)</th>
+                    <th className="col-center">ชื่อ-สกุล</th>
+                    <th className="col-center">วันที่รับบริการ</th>
+                    <th className="col-center">ClaimCode</th>
+                    <th className="col-center">รหัสสิทธิ</th>
+                    <th className="col-center">ชื่อสิทธิการรักษา</th>
+                    <th className="col-center">สถานะการมีชีวิต</th>
+                    <th className="col-center">จุดบริการ / คลินิก</th>
+                    <th className="col-center">รหัสวินิจฉัย (Diag)</th>
+                    <th className="col-center">หัตถการ</th>
+
+                    <th className="col-center">
+                      <span className="pc3-th-line">Advance Care Plan</span>
+                      <span className="pc3-th-hint">Dx + Z718</span>
+                    </th>
+                    <th className="col-center">
+                      <span className="pc3-th-line">Opioid</span>
+                      <span className="pc3-th-hint">Cancer + Drug</span>
+                    </th>
+                    <th className="col-center">Z515</th>
+                    <th className="col-center">ข้อผิดพลาด e-Claim</th>
+
+                    <th className="col-center">จ่ายแล้ว</th>
+                    <th className="col-center">เงินชดเชย (บาท)</th>
+                    <th className="col-center">Rep / Invoice</th>
+                    <th className="col-center">E-Claim No</th>
+                    <th className="col-center">วันที่ส่งเคลม</th>
+                    <th className="col-center">สถานะ e-Claim</th>
+                    <th className="col-center">ไฟล์ส่งเคลม</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {isInitialLoading ? (
+                    Array.from({ length: 8 }).map((_, idx) => (
+                      <tr key={`pc3-skeleton-${idx}`} className="pc3-skeleton-row" aria-hidden="true">
+                        <td colSpan={24}>
+                          <div className="pc3-skeleton-line" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    paginatedItems.map((item) => (
+                      <tr
+                        key={item.vn}
+                        className="pc3-row"
+                        tabIndex={0}
+                        onClick={() => setSelectedItem(item)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setSelectedItem(item)
+                          }
+                        }}
+                        title="คลิกเพื่อดูรายละเอียดผู้ป่วยและการชดเชย"
+                      >
+                        <td className="col-center pc3-cell-muted">{item.no}</td>
+                        <td className="col-center">
+                          <button
+                            type="button"
+                            className="pc3-vn-link"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedVn(item.vn)
+                            }}
+                            title={`เปิดรายละเอียดคลินิกของ VN ${item.vn} (opdscreen, ovstdiag, opitemrece)`}
+                          >
+                            {item.vn}
+                          </button>
+                        </td>
+                        <td className="col-center pc3-mono">{item.hn}</td>
+                        {/* เลขบัตรประชาชน: พอร์ทัล RCM ภายในแสดงครบ 13 หลัก */}
+                        <td className="col-center pc3-mono">{item.cid || '—'}</td>
+                        <td className="col-center">
+                          <span className="pc3-pt-name">{item.ptname}</span>
+                        </td>
+                        <td className="col-center">{formatThaiDate(item.vstdate)}</td>
+                        <td className="col-center pc3-mono">{item.authencode || '—'}</td>
+                        <td className="col-center">
+                          {item.pttype ? (
+                            <span className="pc3-badge is-code">{item.pttype}</span>
+                          ) : (
+                            <span className="pc3-cell-muted">—</span>
+                          )}
+                        </td>
+                        <td className="col-left">{item.pttypename || '—'}</td>
+                        <td className="col-center">
+                          {item.death === 'Y' ? (
+                            <span
+                              className="pc3-badge is-danger"
+                              title={item.death_date ? `วันเสียชีวิต: ${formatThaiDate(item.death_date)}` : 'เสียชีวิต'}
+                            >
+                              เสียชีวิต{item.death_date ? ` (${formatThaiDate(item.death_date)})` : ''}
+                            </span>
+                          ) : (
+                            <span className="pc3-text-ok">มีชีวิต</span>
+                          )}
+                        </td>
+                        <td className="col-left">{item.room || item.spclty || '—'}</td>
+                        <td className="col-left">
+                          <span className="pc3-cell-desc" title={item.diag}>
+                            {item.diag || '—'}
+                          </span>
+                        </td>
+                        <td className="col-left">
+                          <span className="pc3-cell-desc" title={item.oper}>
+                            {item.oper || '—'}
+                          </span>
+                        </td>
 
-        {/* 6. Pagination Footer */}
-        <div className="pc3-pagination">
-          <div style={{ fontSize: '0.8125rem', color: 'var(--pc-muted)' }}>
-            แสดง {items.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} ถึง{' '}
-            {Math.min(currentPage * pageSize, items.length)} จากทั้งหมด {items.length.toLocaleString()} รายการ
+                        <td className="col-center">{renderCriteria('Dx', item.dx, 'Z718', item.z718)}</td>
+                        <td className="col-center">{renderCriteria('Cancer', item.cancer, 'Drug', item.drug)}</td>
+                        <td className="col-center">
+                          {item.z515 === 'Y' ? (
+                            <span className="pc3-badge is-ok">Y</span>
+                          ) : (
+                            <span className="pc3-badge is-warn">ไม่พบ</span>
+                          )}
+                        </td>
+                        <td className="col-left">
+                          {item.error_name ? (
+                            <span className="pc3-badge is-warn">{item.error_name}</span>
+                          ) : (
+                            <span className="pc3-text-ok">ครบถ้วน</span>
+                          )}
+                        </td>
+
+                        <td className="col-center">
+                          {item.ok === 'Y' ? (
+                            <span className="pc3-badge is-ok">จ่ายแล้ว</span>
+                          ) : (
+                            <span className="pc3-badge is-ghost">รอชดเชย</span>
+                          )}
+                        </td>
+                        <td className={`col-right pc3-amount ${item.compensated > 0 ? 'has-value' : ''}`}>
+                          {item.compensated > 0 ? formatBaht(item.compensated) : '—'}
+                        </td>
+                        <td className="col-center pc3-mono">{item.rep_invoice || '—'}</td>
+                        <td className="col-center pc3-mono">{item.eclaim_no || '—'}</td>
+                        <td className="col-center">{formatThaiDate(item.senddate)}</td>
+                        <td className="col-left">
+                          {item.status_eclaim ? (
+                            <span className="pc3-badge is-ghost">{item.status_eclaim}</span>
+                          ) : (
+                            <span className="pc3-cell-muted">—</span>
+                          )}
+                        </td>
+                        <td className="col-left">
+                          <span className="pc3-cell-desc" title={item.filename_send}>
+                            {item.filename_send || '—'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card view: ตาราง 24 คอลัมน์อ่านไม่ไหวบนจอเล็ก */}
+            {isMobileLayout && (
+              <div className="pc3-mcard-list">
+                {isInitialLoading
+                  ? Array.from({ length: 4 }).map((_, idx) => (
+                      <div key={`pc3-mskeleton-${idx}`} className="pc3-mcard" aria-hidden="true">
+                        <div className="pc3-skeleton-line" />
+                        <div className="pc3-skeleton-line" />
+                      </div>
+                    ))
+                  : paginatedItems.map((item) => {
+                      const status = rowStatus(item)
+                      return (
+                        <button
+                          type="button"
+                          key={`m-${item.vn}`}
+                          className="pc3-mcard"
+                          onClick={() => setSelectedItem(item)}
+                        >
+                          <span className="pc3-mcard-head">
+                            <span className="pc3-mcard-name">{item.ptname}</span>
+                            <span className={`pc3-badge ${status.tone}`}>{status.label}</span>
+                          </span>
+                          <span className="pc3-mcard-meta">
+                            <span>HN {item.hn}</span>
+                            <span>VN {item.vn}</span>
+                            <span>{formatThaiDate(item.vstdate)}</span>
+                          </span>
+                          <span className="pc3-mcard-meta">CID {item.cid || '—'}</span>
+                          <span className="pc3-mcard-foot">
+                            <span>{item.pttypename || '—'}</span>
+                            <span className="pc3-mcard-amount">
+                              {item.compensated > 0 ? `฿ ${formatBaht(item.compensated)}` : 'ยังไม่ชดเชย'}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Footer / Pagination ────────────────────────────────────── */}
+        <footer className="pc3-table-footer">
+          <div className="pc3-footer-info">
+            {items.length > 0 ? (
+              <span>
+                แสดง <span className="pc3-footer-count">{rangeStart}–{rangeEnd}</span> จาก{' '}
+                <span className="pc3-footer-count">{formatCount(items.length)}</span> รายการ · ผู้ป่วย{' '}
+                {formatCount(uniquePatientCount)} คน
+              </span>
+            ) : (
+              <span>ไม่พบรายการตามเงื่อนไขที่เลือก</span>
+            )}
+            <span className="pc3-footer-size">
+              <span>หน้าละ</span>
+              <select
+                value={pageSize}
+                aria-label="จำนวนแถวต่อหน้า"
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value))
+                  setCurrentPage(1)
+                }}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+              <span>รายการ</span>
+            </span>
           </div>
 
-          <div className="pc3-page-btns">
+          <div className="pc3-pagination">
             <button
               type="button"
               className="pc3-page-btn"
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage(1)}
               title="หน้าแรก"
+              aria-label="หน้าแรก"
             >
-              &laquo;
+              <ChevronsLeft size={16} aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -973,11 +1192,12 @@ export default function PalliativeCareClient({
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => p - 1)}
               title="หน้าก่อนหน้า"
+              aria-label="หน้าก่อนหน้า"
             >
-              &lsaquo;
+              <ChevronLeft size={16} aria-hidden="true" />
             </button>
 
-            <span className="pc3-num" style={{ padding: '0 0.5rem', fontSize: '0.85rem', fontWeight: 600 }}>
+            <span className="pc3-page-indicator">
               หน้า {currentPage} / {totalPages}
             </span>
 
@@ -987,8 +1207,9 @@ export default function PalliativeCareClient({
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage((p) => p + 1)}
               title="หน้าถัดไป"
+              aria-label="หน้าถัดไป"
             >
-              &rsaquo;
+              <ChevronRight size={16} aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -996,133 +1217,176 @@ export default function PalliativeCareClient({
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage(totalPages)}
               title="หน้าสุดท้าย"
+              aria-label="หน้าสุดท้าย"
             >
-              &raquo;
+              <ChevronsRight size={16} aria-hidden="true" />
             </button>
           </div>
-        </div>
-      </div>
+        </footer>
+      </section>
 
-      {/* VN Clinical Detail Modal (opdscreen, ovstdiag, opitemrece) */}
+      {/* VN clinical detail modal (opdscreen, ovstdiag, opitemrece) */}
       <VnDetailModal vn={selectedVn} onClose={() => setSelectedVn(null)} />
 
-      {/* 7. Detail Modal */}
+      {/* ── 5. Detail Modal ──────────────────────────────────────────── */}
       {selectedItem && (
         <div className="pc3-modal-backdrop" onClick={() => setSelectedItem(null)}>
-          <div className="pc3-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="pc3-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pc3-detail-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="pc3-modal-header">
-              <h3 className="pc3-modal-title">
-                รายละเอียดผู้ป่วย: {selectedItem.ptname} (HN: {selectedItem.hn})
-              </h3>
+              <div>
+                <h3 className="pc3-modal-title" id="pc3-detail-title">
+                  รายละเอียดผู้ป่วย: {selectedItem.ptname}
+                </h3>
+                <p className="pc3-modal-subtitle">
+                  HN {selectedItem.hn} · VN {selectedItem.vn}
+                </p>
+              </div>
               <button
                 type="button"
                 className="pc3-btn-secondary"
-                style={{ minHeight: 32, padding: '0 0.6rem', fontSize: '0.8125rem' }}
                 onClick={() => setSelectedItem(null)}
+                aria-label="ปิดรายละเอียด"
               >
                 ปิด
               </button>
             </div>
 
             <div className="pc3-modal-body">
-              <div>
-                <div className="pc3-field-label">VN</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.vn}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">เลขบัตรประชาชน (CID)</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.cid || '-'}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">วันที่รับบริการ</div>
-                <div className="pc3-field-val pc3-num">{formatThaiDate(selectedItem.vstdate)}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">Authen Code</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.authencode || '-'}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">รหัสสิทธิ</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.pttype || selectedItem.inscl}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">ชื่อสิทธิการรักษา</div>
-                <div className="pc3-field-val">{selectedItem.pttypename}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">สถานะการมีชีวิต</div>
-                <div className="pc3-field-val">
-                  {selectedItem.death === 'Y' ? (
-                    <span style={{ color: 'var(--pc-risk-text)', fontWeight: 600 }}>
-                      เสียชีวิต{selectedItem.death_date ? ` (${formatThaiDate(selectedItem.death_date)})` : ''}
+              <section className="pc3-modal-group">
+                <h4 className="pc3-modal-group-title">ข้อมูลผู้รับบริการ</h4>
+                <div className="pc3-desc-grid">
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">เลขบัตรประชาชน (CID)</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.cid || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">วันที่รับบริการ</span>
+                    <span className="pc3-desc-value pc3-mono">{formatThaiDate(selectedItem.vstdate)}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">สถานะการมีชีวิต</span>
+                    <span className="pc3-desc-value">
+                      {selectedItem.death === 'Y' ? (
+                        <span className="pc3-badge is-danger">
+                          เสียชีวิต{selectedItem.death_date ? ` (${formatThaiDate(selectedItem.death_date)})` : ''}
+                        </span>
+                      ) : (
+                        <span className="pc3-text-ok">มีชีวิต</span>
+                      )}
                     </span>
-                  ) : (
-                    <span style={{ color: 'var(--pc-paid-text)', fontWeight: 600 }}>มีชีวิต</span>
-                  )}
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">รหัสสิทธิ</span>
+                    <span className="pc3-desc-value pc3-mono">
+                      {selectedItem.pttype || selectedItem.inscl || '—'}
+                    </span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">ชื่อสิทธิการรักษา</span>
+                    <span className="pc3-desc-value">{selectedItem.pttypename || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">เบอร์โทรศัพท์</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.tel || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item is-wide">
+                    <span className="pc3-desc-label">ที่อยู่</span>
+                    <span className="pc3-desc-value">{selectedItem.address || '—'}</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="pc3-field-label">เบอร์โทรศัพท์</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.tel || '-'}</div>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div className="pc3-field-label">ที่อยู่</div>
-                <div className="pc3-field-val">{selectedItem.address || '-'}</div>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div className="pc3-field-label">อาการสำคัญ (CC)</div>
-                <div className="pc3-field-val">{selectedItem.cc || '-'}</div>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div className="pc3-field-label">การวินิจฉัยโรค (Diag)</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.diag || '-'}</div>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div className="pc3-field-label">หัตถการ (Oper)</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.oper || '-'}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">Z515</div>
-                <div className="pc3-field-val">{selectedItem.z515 ? 'พบรหัส Z515' : 'ไม่พบรหัส Z515'}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">Advance Care Plan</div>
-                <div className="pc3-field-val">
-                  {selectedItem.z718 === 'Y' && selectedItem.dx === 'Y' ? 'เข้าเกณฑ์ (Dx + Z718)' : 'ไม่เข้าเกณฑ์'}
+              </section>
+
+              <section className="pc3-modal-group">
+                <h4 className="pc3-modal-group-title">การวินิจฉัยและเกณฑ์ Palliative Care</h4>
+                <div className="pc3-desc-grid">
+                  <div className="pc3-desc-item is-wide">
+                    <span className="pc3-desc-label">อาการสำคัญ (CC)</span>
+                    <span className="pc3-desc-value">{selectedItem.cc || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item is-wide">
+                    <span className="pc3-desc-label">การวินิจฉัยโรค (Diag)</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.diag || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item is-wide">
+                    <span className="pc3-desc-label">หัตถการ (Oper)</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.oper || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">รหัส Z515</span>
+                    <span className="pc3-desc-value">
+                      {selectedItem.z515 === 'Y' ? (
+                        <span className="pc3-badge is-ok">พบรหัส Z515</span>
+                      ) : (
+                        <span className="pc3-badge is-warn">ไม่พบรหัส Z515</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">Advance Care Plan</span>
+                    <span className="pc3-desc-value">
+                      {selectedItem.dx === 'Y' && selectedItem.z718 === 'Y'
+                        ? 'เข้าเกณฑ์ (Dx + Z718)'
+                        : 'ไม่เข้าเกณฑ์'}
+                    </span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">Opioid</span>
+                    <span className="pc3-desc-value">
+                      {selectedItem.cancer === 'Y' && selectedItem.drug === 'Y'
+                        ? 'เข้าเกณฑ์ (Cancer + Drug)'
+                        : 'ไม่เข้าเกณฑ์'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="pc3-field-label">Opioid</div>
-                <div className="pc3-field-val">
-                  {selectedItem.cancer === 'Y' && selectedItem.drug === 'Y' ? 'เข้าเกณฑ์ (Cancer + Drug)' : 'ไม่เข้าเกณฑ์'}
+              </section>
+
+              <section className="pc3-modal-group">
+                <h4 className="pc3-modal-group-title">การชดเชย e-Claim</h4>
+                <div className="pc3-desc-grid">
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">ClaimCode</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.authencode || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">สถานะการชดเชย</span>
+                    <span className="pc3-desc-value">
+                      {selectedItem.ok === 'Y' ? (
+                        <span className="pc3-badge is-ok">
+                          จ่ายแล้ว ฿ {formatBaht(selectedItem.compensated)}
+                        </span>
+                      ) : (
+                        <span className="pc3-badge is-ghost">ยังไม่ชดเชย</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">Rep / Invoice</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.rep_invoice || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">E-Claim No</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.eclaim_no || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">วันที่ส่งเคลม</span>
+                    <span className="pc3-desc-value pc3-mono">{formatThaiDate(selectedItem.senddate)}</span>
+                  </div>
+                  <div className="pc3-desc-item">
+                    <span className="pc3-desc-label">สถานะ e-Claim</span>
+                    <span className="pc3-desc-value">{selectedItem.status_eclaim || '—'}</span>
+                  </div>
+                  <div className="pc3-desc-item is-wide">
+                    <span className="pc3-desc-label">ไฟล์ส่งเคลม</span>
+                    <span className="pc3-desc-value pc3-mono">{selectedItem.filename_send || '—'}</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="pc3-field-label">สถานะการชดเชย</div>
-                <div className="pc3-field-val">
-                  {selectedItem.ok === 'Y' ? `จ่ายแล้ว (${selectedItem.compensated.toLocaleString()} ฿)` : 'ยังไม่ชดเชย'}
-                </div>
-              </div>
-              <div>
-                <div className="pc3-field-label">Rep / Invoice</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.rep_invoice || '-'}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">E-Claim No</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.eclaim_no || '-'}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">วันที่ส่งเคลม</div>
-                <div className="pc3-field-val pc3-num">{formatThaiDate(selectedItem.senddate)}</div>
-              </div>
-              <div>
-                <div className="pc3-field-label">สถานะ e-Claim</div>
-                <div className="pc3-field-val">{selectedItem.status_eclaim}</div>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div className="pc3-field-label">ไฟล์ส่งเคลม</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.filename_send || '-'}</div>
-              </div>
+              </section>
             </div>
           </div>
         </div>

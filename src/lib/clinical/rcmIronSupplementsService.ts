@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter } from './pttypeConstants'
 
 // ── 1. Domain Types: 18.2 รายชื่อผู้รับบริการยาเม็ดเสริมธาตุเหล็ก ADP (14001) ──
 
@@ -72,6 +74,7 @@ export type IronSupplementsSortField =
 export interface IronSupplementsReportParams extends FiscalDateRangeParams {
   cardFilter?: IronSupplementsCardFilter
   ucOnly?: boolean
+  pttypes?: string
   targetAgeOnly?: boolean
   searchField?: IronSupplementsSearchField
   search?: string
@@ -114,6 +117,7 @@ export interface IronSupplementsItem {
   maininscl: string
   isUc: boolean
   pttypename: string
+  pttype_eclaim_id?: string | null
   department: string | null
   clinic: string | null
   pdx: string | null
@@ -231,6 +235,27 @@ export class RcmIronSupplementsService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode: gwRes.adpCode || adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -319,9 +344,10 @@ export class RcmIronSupplementsService {
             IFNULL(nat.name, pt.nationality) AS nation,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
             ptt.name AS pttypename,
+            ptt.pttype_eclaim_id,
             dep.department AS department,
             spc.name AS clinic,
             v.pdx,
@@ -377,11 +403,12 @@ export class RcmIronSupplementsService {
           LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -396,7 +423,7 @@ export class RcmIronSupplementsService {
                    GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
                    GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -407,7 +434,7 @@ export class RcmIronSupplementsService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
@@ -426,14 +453,42 @@ export class RcmIronSupplementsService {
           ds1, ds2, // dd oo.vstdate BETWEEN ? AND ?
           ds1, ds2, // nhso admdate
           ds1, ds2, // rep admdate
-          ds1, ds2, // m dateadm
           ds1, ds2, // main ovst o vstdate
         ]
 
-        const [mappingRes, rows] = await Promise.all([
-          RcmIronSupplementsService.checkAdpMapping(executor, Boolean(params.refresh)),
-          executor(sql, sqlParams, { timeoutMs: 90000 }),
-        ])
+        let rows: any[] = []
+        let mappingRes: IronSupplementsAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmIronSupplementsService.checkAdpMapping(executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('iron-supplements', { ds1, ds2, adpCode }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmIronSupplementsService.checkAdpMapping(executor, Boolean(params.refresh)),
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+          ])
+          rows = dbRows || []
+          mappingRes = mRes
+        }
 
         return {
           rawRows: rows || [],
@@ -484,6 +539,7 @@ export class RcmIronSupplementsService {
         maininscl,
         isUc,
         pttypename,
+        pttype_eclaim_id: r.pttype_eclaim_id != null ? String(r.pttype_eclaim_id).trim() : null,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         pdx: r.pdx ? String(r.pdx).trim() : null,
@@ -519,7 +575,17 @@ export class RcmIronSupplementsService {
       }
     })
 
-    // Calculate Summary Aggregates
+    // Calculate Summary Aggregates (Full Page Filter based on pttypes / ucOnly)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      const selectedPttypesList = params.pttypes.split(',').map((p) => p.trim()).filter(Boolean)
+      summaryCohort = summaryCohort.filter((item) =>
+        matchesPttypeFilter(item.pttypename || item.pttype_eclaim_id, selectedPttypesList, item.isUc, item.pttype_eclaim_id)
+      )
+    } else if (ucOnly) {
+      summaryCohort = summaryCohort.filter((item) => item.isUc)
+    }
+
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -530,7 +596,7 @@ export class RcmIronSupplementsService {
     let withDrugCount = 0
     let totalIncome = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniqueHnSet.add(item.hn)
       if (item.isCompensated) {
         compensatedVisits++
@@ -544,7 +610,7 @@ export class RcmIronSupplementsService {
       totalIncome += item.income
     }
 
-    const totalVisits = allItems.length
+    const totalVisits = summaryCohort.length
     const uncompensatedVisits = totalVisits - compensatedVisits
     const withoutAuthenCount = totalVisits - withAuthenCount
     const compensationRate = totalVisits > 0 ? (compensatedVisits / totalVisits) * 100 : 0
@@ -577,8 +643,8 @@ export class RcmIronSupplementsService {
       totalIncome,
     }
 
-    // Apply Card Filter
-    let filtered = allItems
+    // Apply Card Filter on summaryCohort
+    let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)
     } else if (cardFilter === 'UNCOMPENSATED') {

@@ -1,0 +1,145 @@
+<style>
+.odl-bar-chart { box-sizing: border-box; inline-size: 100%; max-inline-size: 60rem; margin-inline: auto; container-type: inline-size; text-wrap: pretty; }
+.odl-bar-chart *, .odl-bar-chart *::before, .odl-bar-chart *::after { box-sizing: border-box; }
+.odl-bar-chart .odl-card { display: grid; gap: var(--ds-space-stack-xl); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); }
+.odl-bar-chart .odl-head { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: var(--ds-space-stack-lg) var(--ds-space-inset-xl); }
+.odl-bar-chart h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-bar-chart .odl-sub { margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-bar-chart .odl-stats { display: flex; flex-wrap: wrap; gap: var(--ds-space-stack-sm) var(--ds-space-inset-xl); margin: 0; font-variant-numeric: tabular-nums; }
+.odl-bar-chart .odl-stats div { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-bar-chart .odl-stats dt { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-bar-chart .odl-stats dd { margin: 0; font: var(--ds-text-numeric-md); white-space: nowrap; }
+.odl-bar-chart .odl-over { display: inline-block; margin-inline-start: var(--ds-space-inline-xs); padding: 0 var(--ds-space-inline-xs); border-radius: var(--ds-radius-full); vertical-align: middle;
+  background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-warning); font: var(--ds-text-label-sm); }
+
+.odl-bar-chart .odl-chart { padding-block-start: var(--ds-space-stack-sm); display: grid; grid-template-columns: 4.5ch minmax(0, 1fr); column-gap: var(--ds-space-inline-md); row-gap: var(--ds-space-stack-sm); }
+.odl-bar-chart .odl-axis, .odl-bar-chart .odl-plot { position: relative; block-size: 13.5rem; }
+.odl-bar-chart .odl-axis span { position: absolute; inset-inline-end: 0; inset-block-end: calc(var(--y) * 1%); transform: translateY(50%);
+  color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-bar-chart .odl-grid { position: absolute; inset-inline: 0; inset-block-end: calc(var(--y) * 1%); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-bar-chart .odl-grid.is-base { border-block-start-color: var(--ds-color-border-strong); }
+.odl-bar-chart .odl-budget { position: absolute; z-index: 1; inset-inline: 0; inset-block-end: 60%; border-block-start: var(--ds-border-width-emphasis) dashed var(--ds-color-text-secondary); pointer-events: none; }
+.odl-bar-chart .odl-budget span { position: absolute; inset-inline-start: 0; inset-block-end: var(--ds-space-2); padding: 0 var(--ds-space-4); border-radius: var(--ds-radius-4);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.odl-bar-chart .odl-cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--ds-space-4); }
+.odl-bar-chart .odl-col { position: relative; display: flex; align-items: end; justify-content: center; min-inline-size: var(--ds-size-target-min); block-size: 100%; margin: 0; padding: 0;
+  border: 0; border-radius: var(--ds-radius-4); background: transparent; color: inherit; cursor: pointer; }
+.odl-bar-chart .odl-col:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-bar-chart .odl-bar { display: flex; flex-direction: column-reverse; inline-size: 56%; max-inline-size: 2.75rem; block-size: calc(var(--v) * 1%);
+  transition: opacity var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-bar-chart .odl-actual { flex: none; block-size: calc(var(--a, 100) * 1%); background: var(--ds-color-bg-accent-bold); border-radius: var(--ds-radius-4) var(--ds-radius-4) 0 0; }
+.odl-bar-chart .odl-fc + .odl-actual, .odl-bar-chart .odl-actual:not(:last-child) { border-radius: 0; }
+.odl-bar-chart .odl-fc { flex: 1; border: var(--ds-border-width-default) solid var(--ds-color-border-accent); border-block-end: 0; border-radius: var(--ds-radius-4) var(--ds-radius-4) 0 0;
+  background: repeating-linear-gradient(135deg, var(--ds-color-border-accent) 0 1.5px, transparent 1.5px 5px), var(--ds-color-bg-accent-subtle); }
+.odl-bar-chart .odl-cols:hover .odl-col:not(:hover) .odl-bar, .odl-bar-chart .odl-cols:has(.odl-col:focus-visible) .odl-col:not(:focus-visible) .odl-bar { opacity: 0.4; }
+
+.odl-bar-chart .odl-tip { position: absolute; z-index: 2; inset-block-end: calc(var(--v) * 1%); inline-size: max-content; min-inline-size: 10.5rem; display: grid; gap: var(--ds-space-2);
+  padding: var(--ds-space-inset-sm) var(--ds-space-inset-md); border-radius: var(--ds-radius-container); background: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse);
+  box-shadow: var(--ds-elevation-floating); text-align: start; font: var(--ds-text-body-sm); font-variant-numeric: tabular-nums; pointer-events: none;
+  opacity: 0; transform: translateY(50%); transition: opacity var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-bar-chart .odl-col:nth-child(-n+3) .odl-tip { inset-inline-start: calc(50% + var(--ds-space-24)); }
+.odl-bar-chart .odl-col:nth-child(n+4) .odl-tip { inset-inline-end: calc(50% + var(--ds-space-24)); }
+.odl-bar-chart .odl-tip b { font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-heading); }
+.odl-bar-chart .odl-tip span { display: flex; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-bar-chart .odl-tip i { font-style: normal; opacity: 0.72; }
+/* The tip shows on hover or keyboard focus only: at rest it would cover the bar beside it, and the header already states the month so far. */
+.odl-bar-chart .odl-col:hover .odl-tip, .odl-bar-chart .odl-col:focus-visible .odl-tip { opacity: 1; }
+
+.odl-bar-chart .odl-x { grid-column: 2; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--ds-space-4); margin: 0; padding: 0; list-style: none;
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); text-align: center; }
+.odl-bar-chart .odl-x .is-current { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-heading); }
+
+.odl-bar-chart .odl-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--ds-space-stack-sm) var(--ds-space-inset-md);
+  padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-bar-chart .odl-legend { display: flex; flex-wrap: wrap; gap: var(--ds-space-stack-xs) var(--ds-space-inset-md); margin: 0; padding: 0; list-style: none; }
+.odl-bar-chart .odl-legend li { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); }
+.odl-bar-chart .odl-key { inline-size: var(--ds-space-12); block-size: var(--ds-space-12); border-radius: var(--ds-radius-2); }
+.odl-bar-chart .odl-key.is-actual { background: var(--ds-color-bg-accent-bold); }
+.odl-bar-chart .odl-key.is-fc { border: var(--ds-border-width-default) solid var(--ds-color-border-accent);
+  background: repeating-linear-gradient(135deg, var(--ds-color-border-accent) 0 1.5px, transparent 1.5px 4px), var(--ds-color-bg-accent-subtle); }
+.odl-bar-chart .odl-key.is-budget { block-size: 0; border-radius: 0; border-block-start: var(--ds-border-width-emphasis) dashed var(--ds-color-text-secondary); }
+.odl-bar-chart .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@container (min-width: 44rem) {
+  .odl-bar-chart .odl-axis, .odl-bar-chart .odl-plot { block-size: 16rem; }
+  .odl-bar-chart .odl-bar { inline-size: 52%; max-inline-size: 4rem; }
+  .odl-bar-chart .odl-stats { gap: var(--ds-space-inset-xl); }
+  .odl-bar-chart .odl-stats dd { font: var(--ds-text-numeric-lg); }
+}
+@container (max-width: 30rem) {
+  .odl-bar-chart .odl-card { padding: var(--ds-space-inset-lg); gap: var(--ds-space-stack-lg); }
+  .odl-bar-chart .odl-head { gap: var(--ds-space-stack-md); }
+  .odl-bar-chart .odl-head > div:first-child { flex: 1 1 100%; }
+  .odl-bar-chart .odl-axis, .odl-bar-chart .odl-plot { block-size: 11rem; }
+  .odl-bar-chart .odl-cols, .odl-bar-chart .odl-x { gap: var(--ds-space-2); }
+  .odl-bar-chart .odl-tip { min-inline-size: 9rem; padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm); }
+  .odl-bar-chart .odl-col:nth-child(-n+3) .odl-tip { inset-inline-start: calc(50% + var(--ds-space-12)); }
+  .odl-bar-chart .odl-col:nth-child(n+4) .odl-tip { inset-inline-end: calc(50% + var(--ds-space-12)); }
+  .odl-bar-chart .odl-col:nth-child(3) .odl-tip { inset-inline-start: auto; inset-inline-end: calc(50% + var(--ds-space-12)); }
+  /* Narrow: every tip reads out in the plot's top-left corner, so none can run past the card's edge. */
+  .odl-bar-chart .odl-col { position: static; }
+  .odl-bar-chart .odl-col .odl-tip, .odl-bar-chart .odl-col:nth-child(n) .odl-tip { inset-block: 0 auto; inset-inline: 0 auto; max-inline-size: 100%; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-bar-chart, .odl-bar-chart *, .odl-bar-chart *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-bar-chart" aria-label="Monthly spend">
+  <div class="odl-card">
+    <div class="odl-head">
+      <div>
+        <h3>Monthly spend</h3>
+        <p class="odl-sub">May to Oct 2026 · updated Oct 14, 22:40 UTC</p>
+      </div>
+      <dl class="odl-stats">
+        <div><dt>October so far</dt><dd>$6,412.38</dd></div>
+        <div><dt>Forecast by Oct 31</dt><dd>$15,536<span class="odl-over">129%</span></dd></div>
+      </dl>
+    </div>
+    <div class="odl-chart">
+      <div class="odl-axis" aria-hidden="true">
+        <span style="--y: 0">$0</span><span style="--y: 25">$5k</span><span style="--y: 50">$10k</span><span style="--y: 75">$15k</span><span style="--y: 100">$20k</span>
+      </div>
+      <div class="odl-plot">
+        <div class="odl-grid is-base" style="--y: 0" aria-hidden="true"></div><div class="odl-grid" style="--y: 25" aria-hidden="true"></div>
+        <div class="odl-grid" style="--y: 50" aria-hidden="true"></div><div class="odl-grid" style="--y: 75" aria-hidden="true"></div><div class="odl-grid" style="--y: 100" aria-hidden="true"></div>
+        <div class="odl-budget" aria-hidden="true"><span>Budget $12,000</span></div>
+        <div class="odl-cols" role="list" aria-label="Spend per month">
+          <button type="button" class="odl-col" role="listitem" style="--v: 40.51" aria-label="May 2026: spent $8,102.55, $3,897.45 under budget">
+            <span class="odl-bar"><span class="odl-actual"></span></span>
+            <span class="odl-tip" aria-hidden="true"><b>May 2026</b><span><i>Spent</i>$8,102.55</span><span><i>Under budget</i>$3,897.45</span></span>
+          </button>
+          <button type="button" class="odl-col" role="listitem" style="--v: 43.69" aria-label="June 2026: spent $8,738.66, $3,261.34 under budget">
+            <span class="odl-bar"><span class="odl-actual"></span></span>
+            <span class="odl-tip" aria-hidden="true"><b>June 2026</b><span><i>Spent</i>$8,738.66</span><span><i>Under budget</i>$3,261.34</span></span>
+          </button>
+          <button type="button" class="odl-col" role="listitem" style="--v: 52.06" aria-label="July 2026: spent $10,412.80, $1,587.20 under budget">
+            <span class="odl-bar"><span class="odl-actual"></span></span>
+            <span class="odl-tip" aria-hidden="true"><b>July 2026</b><span><i>Spent</i>$10,412.80</span><span><i>Under budget</i>$1,587.20</span></span>
+          </button>
+          <button type="button" class="odl-col" role="listitem" style="--v: 49.53" aria-label="August 2026: spent $9,906.42, $2,093.58 under budget">
+            <span class="odl-bar"><span class="odl-actual"></span></span>
+            <span class="odl-tip" aria-hidden="true"><b>August 2026</b><span><i>Spent</i>$9,906.42</span><span><i>Under budget</i>$2,093.58</span></span>
+          </button>
+          <button type="button" class="odl-col" role="listitem" style="--v: 56.42" aria-label="September 2026: spent $11,284.17, $715.83 under budget">
+            <span class="odl-bar"><span class="odl-actual"></span></span>
+            <span class="odl-tip" aria-hidden="true"><b>September 2026</b><span><i>Spent</i>$11,284.17</span><span><i>Under budget</i>$715.83</span></span>
+          </button>
+          <button type="button" class="odl-col is-current" role="listitem" style="--v: 77.68" aria-label="October 2026, in progress: $6,412.38 so far, forecast $15,536.26, $3,536.26 over budget">
+            <span class="odl-bar"><span class="odl-actual" style="--a: 41.27"></span><span class="odl-fc"></span></span>
+            <span class="odl-tip" aria-hidden="true"><b>October 2026 · day 14 of 31</b><span><i>So far</i>$6,412.38</span><span><i>Forecast</i>$15,536.26</span><span><i>Over budget</i>$3,536.26</span></span>
+          </button>
+        </div>
+      </div>
+      <ol class="odl-x" aria-hidden="true"><li>May</li><li>Jun</li><li>Jul</li><li>Aug</li><li>Sep</li><li class="is-current">Oct</li></ol>
+    </div>
+    <div class="odl-foot">
+      <ul class="odl-legend" aria-label="Legend">
+        <li><span class="odl-key is-actual" aria-hidden="true"></span>Spent, after credit</li>
+        <li><span class="odl-key is-fc" aria-hidden="true"></span>Forecast</li>
+        <li><span class="odl-key is-budget" aria-hidden="true"></span>Budget</li>
+      </ul>
+      <span>Forecast from the last 7 days</span>
+    </div>
+  </div>
+</section>

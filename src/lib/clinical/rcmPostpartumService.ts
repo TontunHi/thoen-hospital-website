@@ -1,6 +1,8 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── Common Domain Types: กองทุนการตรวจหลังคลอด (PNC) ─────────────────────────
 
@@ -51,6 +53,8 @@ export interface PostpartumServiceItem {
   vsttime: string
   authencode: string | null
   pttypename: string | null
+  pttype_eclaim_id?: string | null
+  isUc?: boolean
   department: string | null
   clinic: string | null
   pdx: string | null
@@ -96,6 +100,8 @@ export type PostpartumService72Item = PostpartumServiceItem
 export type PostpartumService72Summary = PostpartumServiceSummary
 export interface PostpartumService72Params extends FiscalDateRangeParams {
   compensationFilter?: PostpartumCompensationFilter
+  pttypes?: string
+  ucOnly?: boolean
   searchField?: PostpartumSearchField
   search?: string
   sortBy?: PostpartumSortField
@@ -152,6 +158,26 @@ export class RcmPostpartumService {
   static async check72AdpMapping(
     executor: QueryExecutor = queryClinicalDb
   ): Promise<PostpartumAdpMappingCheck> {
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getAdpMapping('30015')
+        if (gwRes && typeof gwRes.isMapped === 'boolean') {
+          return {
+            isMapped: gwRes.isMapped,
+            mappedCount: gwRes.mappedCount,
+            items: (gwRes.items || []).map((r: any) => ({
+              icode: String(r.icode || '').trim(),
+              name: String(r.name || '').trim(),
+              strength: r.strength ? String(r.strength).trim() : null,
+              nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+            })),
+          }
+        }
+      } catch {
+        // Fallback to executor query
+      }
+    }
+
     try {
       const rows = await executor(
         `
@@ -197,6 +223,26 @@ export class RcmPostpartumService {
   static async check30016AdpMapping(
     executor: QueryExecutor = queryClinicalDb
   ): Promise<PostpartumAdpMappingCheck> {
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getAdpMapping('30016')
+        if (gwRes && typeof gwRes.isMapped === 'boolean') {
+          return {
+            isMapped: gwRes.isMapped,
+            mappedCount: gwRes.mappedCount,
+            items: (gwRes.items || []).map((r: any) => ({
+              icode: String(r.icode || '').trim(),
+              name: String(r.name || '').trim(),
+              strength: r.strength ? String(r.strength).trim() : null,
+              nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+            })),
+          }
+        }
+      } catch {
+        // Fallback to executor query
+      }
+    }
+
     try {
       const rows = await executor(
         `
@@ -270,12 +316,7 @@ export class RcmPostpartumService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const [mappingRes, rows] = await Promise.all([
-          adpCode === '30015'
-            ? RcmPostpartumService.check72AdpMapping(executor)
-            : RcmPostpartumService.check30016AdpMapping(executor),
-          executor(
-            `
+        const sql = `
             SELECT 
               o.vn,
               IFNULL(pt.cid, '') AS cid,
@@ -285,8 +326,9 @@ export class RcmPostpartumService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               ptt.name AS pttypename,
+              ptt.pttype_eclaim_id AS pttype_eclaim_id,
               dep.department,
               spc.name AS clinic,
               v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
@@ -296,7 +338,7 @@ export class RcmPostpartumService {
                FROM opitemrece a
                JOIN nondrugitems b ON b.icode = a.icode
                WHERE a.vn = o.vn) AS listname1,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
               re.fund,
@@ -309,6 +351,7 @@ export class RcmPostpartumService {
             LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
             LEFT JOIN spclty spc ON spc.spclty = o.spclty
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             JOIN (
               SELECT 
                 oo.vn, 
@@ -324,7 +367,7 @@ export class RcmPostpartumService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -332,7 +375,7 @@ export class RcmPostpartumService {
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
@@ -341,7 +384,7 @@ export class RcmPostpartumService {
               SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                      GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) re ON re.vn = o.vn
             LEFT JOIN (
@@ -351,19 +394,53 @@ export class RcmPostpartumService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
             ORDER BY o.hn ASC, o.vn ASC
-            `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
-          ),
-        ])
+        `
+        const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
 
-        return { rawRows: rows as Record<string, unknown>[], adpMapping: mappingRes }
+        let rows: Record<string, unknown>[] = []
+        let mappingRes: PostpartumAdpMappingCheck = {
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              adpCode === '30015'
+                ? RcmPostpartumService.check72AdpMapping(executor)
+                : RcmPostpartumService.check30016AdpMapping(executor),
+              apiGateway.clinical.getRcmFundData('postpartum', { ds1, ds2, adpCode }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows as Record<string, unknown>[]
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            adpCode === '30015'
+              ? RcmPostpartumService.check72AdpMapping(executor)
+              : RcmPostpartumService.check30016AdpMapping(executor),
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<Record<string, unknown>[]>,
+          ])
+          rows = dbRows || []
+          mappingRes = mRes
+        }
+
+        return { rawRows: rows, adpMapping: mappingRes }
       },
       600
     )
@@ -382,6 +459,8 @@ export class RcmPostpartumService {
         vsttime: String(r.vsttime || ''),
         authencode: r.authencode ? String(r.authencode).trim() : null,
         pttypename: r.pttypename ? String(r.pttypename).trim() : null,
+        pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null,
+        isUc: isUcEclaimCode(r.pttype_eclaim_id ? String(r.pttype_eclaim_id) : null),
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         pdx: r.pdx ? String(r.pdx).trim() : null,
@@ -409,9 +488,20 @@ export class RcmPostpartumService {
       }
     })
 
-    // Calculate Summary Metrics on all visits before filtering
-    const totalVisits = allItems.length
-    const uniqueHns = new Set(allItems.map((i) => i.hn).filter(Boolean))
+    // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
+    const summaryCohort = allItems.filter((i) => {
+      if (params.pttypes !== undefined) {
+        return matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      }
+      if (params.ucOnly) {
+        return i.isUc ?? false
+      }
+      return true
+    })
+
+    // Calculate Summary Metrics on summaryCohort
+    const totalVisits = summaryCohort.length
+    const uniqueHns = new Set(summaryCohort.map((i) => i.hn).filter(Boolean))
     const uniquePatients = uniqueHns.size
 
     let compensatedVisits = 0
@@ -422,7 +512,7 @@ export class RcmPostpartumService {
     let withPdxCount = 0
     let withOpCount = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.isCompensated) {
         compensatedVisits++
         totalCompensated += item.compensated
@@ -459,7 +549,7 @@ export class RcmPostpartumService {
     }
 
     // Apply Filter & Search
-    let filtered = allItems
+    let filtered = summaryCohort
 
     if (compensationFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)

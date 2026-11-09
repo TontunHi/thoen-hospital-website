@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,8 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { isUniversalCoverageScheme } from './rcmOralCancerService'
+import { matchesPttypeFilter } from './pttypeConstants'
 
 // ── ADP Mapping Item ──────────────────────────────────────────────────────────
 
@@ -63,6 +66,8 @@ export interface StreptokinaseReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  pttypes?: string
+  ucOnly?: boolean
 }
 
 export interface StreptokinaseItem {
@@ -82,6 +87,7 @@ export interface StreptokinaseItem {
   admdate?: string
   dchdate?: string
   pttypename: string
+  pttype_eclaim_id?: string | null
   maininscl?: string
   department?: string | null
   clinic?: string | null
@@ -104,6 +110,7 @@ export interface StreptokinaseItem {
   status: string
   compensated: number
   isCompensated: boolean
+  isUc?: boolean
 }
 
 export interface StreptokinaseSummary {
@@ -200,6 +207,27 @@ export class RcmStreptokinaseService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping('STEMI')
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode: 'STEMI',
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -327,6 +355,7 @@ export class RcmStreptokinaseService {
         admdate: r.admdate ? String(r.admdate).trim() : undefined,
         dchdate: r.dchdate ? String(r.dchdate).trim() : undefined,
         pttypename: String(r.pttypename || '').trim(),
+        pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null,
         maininscl: r.maininscl ? String(r.maininscl).trim() : undefined,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
@@ -349,33 +378,43 @@ export class RcmStreptokinaseService {
         status: rawStatus,
         compensated,
         isCompensated,
+        isUc: isUniversalCoverageScheme(r.maininscl, r.pttypename),
       }
 
       return baseItem
     })
 
     // Compute Summary Stats
-    const totalCases = allItems.length
-    const uniqueHnSet = new Set(allItems.map((it) => it.hn))
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((it) =>
+        matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, params.pttypes, it.isUc, it.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((it) => it.isUc)
+    }
+
+    const totalCases = summaryCohort.length
+    const uniqueHnSet = new Set(summaryCohort.map((it) => it.hn))
     const uniquePatients = uniqueHnSet.size
 
-    const auditPassCases = allItems.filter((it) => !it.hasError).length
+    const auditPassCases = summaryCohort.filter((it) => !it.hasError).length
     const auditPassRate = totalCases > 0 ? Number(((auditPassCases / totalCases) * 100).toFixed(1)) : 0
 
-    const auditErrorCases = allItems.filter((it) => it.hasError).length
+    const auditErrorCases = summaryCohort.filter((it) => it.hasError).length
     const auditErrorRate = totalCases > 0 ? Number(((auditErrorCases / totalCases) * 100).toFixed(1)) : 0
 
-    const compensatedCases = allItems.filter((it) => it.isCompensated).length
+    const compensatedCases = summaryCohort.filter((it) => it.isCompensated).length
     const uncompensatedCases = totalCases - compensatedCases
     const compensationRate = totalCases > 0 ? Number(((compensatedCases / totalCases) * 100).toFixed(1)) : 0
 
-    const totalCompensated = allItems.reduce((acc, it) => acc + it.compensated, 0)
-    const totalHosxp = allItems.reduce((acc, it) => acc + it.money_hosxp, 0)
-    const totalDebit = allItems.reduce((acc, it) => acc + it.debit, 0)
+    const totalCompensated = summaryCohort.reduce((acc, it) => acc + it.compensated, 0)
+    const totalHosxp = summaryCohort.reduce((acc, it) => acc + it.money_hosxp, 0)
+    const totalDebit = summaryCohort.reduce((acc, it) => acc + it.debit, 0)
 
-    const withInvoiceCases = allItems.filter((it) => it.status.includes('Invoice') || it.money_invoice > 0).length
-    const withRepCases = allItems.filter((it) => it.status.includes('Rep') || it.money_rep > 0).length
-    const notSentCases = allItems.filter((it) => it.status.startsWith('-') || it.status.includes('ยังไม่ส่ง')).length
+    const withInvoiceCases = summaryCohort.filter((it) => it.status.includes('Invoice') || it.money_invoice > 0).length
+    const withRepCases = summaryCohort.filter((it) => it.status.includes('Rep') || it.money_rep > 0).length
+    const notSentCases = summaryCohort.filter((it) => it.status.startsWith('-') || it.status.includes('ยังไม่ส่ง')).length
 
     const summary: StreptokinaseSummary = {
       totalCases,
@@ -396,7 +435,7 @@ export class RcmStreptokinaseService {
     }
 
     // Filter by Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'AUDIT_PASS') {
       filtered = filtered.filter((it) => !it.hasError)
     } else if (cardFilter === 'AUDIT_ERROR') {
@@ -511,6 +550,17 @@ export class RcmStreptokinaseService {
     ds2: string,
     executor: QueryExecutor
   ): Promise<any[]> {
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getRcmFundData('streptokinase', { ds1, ds2, patientType: 'OPD' })
+        if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+          return gwRes.data.rawRows
+        }
+      } catch {
+        // Fallback to local SQL queries
+      }
+    }
+
     try {
       const primarySql = `
         SELECT 
@@ -525,6 +575,7 @@ export class RcmStreptokinaseService {
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
           IFNULL(ptt.hipdata_code, '') AS maininscl,
+          ptt.pttype_eclaim_id,
           dep.department AS department,
           spc.name AS clinic,
           target_drugs.drugname AS drugname,
@@ -689,6 +740,17 @@ export class RcmStreptokinaseService {
     ds2: string,
     executor: QueryExecutor
   ): Promise<any[]> {
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getRcmFundData('streptokinase', { ds1, ds2, patientType: 'IPD' })
+        if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+          return gwRes.data.rawRows
+        }
+      } catch {
+        // Fallback to local SQL queries
+      }
+    }
+
     try {
       const primarySql = `
         SELECT 
@@ -703,6 +765,7 @@ export class RcmStreptokinaseService {
           DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
           CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
           IFNULL(ptt.hipdata_code, '') AS maininscl,
+          ptt.pttype_eclaim_id,
           w.name AS ward,
           target_drugs.drugname AS drugname,
           target_drugs.money_hosxp AS money_hosxp,

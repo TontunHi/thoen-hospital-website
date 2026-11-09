@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -7,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmColorectalCancerService'
+import { matchesPttypeFilter } from './pttypeConstants'
 
 // ── Types: กองทุน T1DM/GDM/PDM (หัวข้อที่ 2 รายชื่อผู้รับบริการ) ──────────────────────
 
@@ -55,6 +57,8 @@ export interface T1dmGdmPdmReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  pttypes?: string
+  ucOnly?: boolean
 }
 
 export interface T1dmGdmPdmRecipientItem {
@@ -79,6 +83,7 @@ export interface T1dmGdmPdmRecipientItem {
   pttypenamePatient: string | null
   pttypenameVisit: string | null
   maininscl: string | null
+  pttype_eclaim_id?: string
   department: string | null
   clinic: string | null
   pdx: string | null
@@ -179,6 +184,17 @@ export class RcmT1dmGdmPdmService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getRcmFundData('t1dm-gdm-pdm', { ds1, ds2 })
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return gwRes.data.rawRows
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         // Safe check / query: join rcmdb.t1dm if available, otherwise coalesce
         const sql = `
           SELECT 
@@ -205,16 +221,17 @@ export class RcmT1dmGdmPdmService {
               ORDER BY anc.person_anc_id DESC
               LIMIT 1
             ) AS lmp,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             IFNULL(ptt_pt.name, pt.pttype) AS pttypename_patient,
             IFNULL(ptt.name, o.pttype) AS pttypename_visit,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             IFNULL(dep.department, o.main_dep) AS department,
             IFNULL(spc.name, o.spclty) AS clinic,
             v.pdx,
             v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
             v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
             COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
             COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
             rep.fund,
@@ -230,11 +247,12 @@ export class RcmT1dmGdmPdmService {
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN rcmdb.t1dm dd ON dd.pid = pt.cid
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -246,7 +264,7 @@ export class RcmT1dmGdmPdmService {
                    GROUP_CONCAT(DISTINCT fund SEPARATOR ', ') AS fund,
                    GROUP_CONCAT(DISTINCT subfund SEPARATOR ', ') AS subfund
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -257,7 +275,7 @@ export class RcmT1dmGdmPdmService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
@@ -269,7 +287,6 @@ export class RcmT1dmGdmPdmService {
         const sqlParams: any[] = [
           ds1, ds2, // nhso
           ds1, ds2, // rep
-          ds1, ds2, // m
           ds1, ds2, // ovst
         ]
 
@@ -299,7 +316,8 @@ export class RcmT1dmGdmPdmService {
       const compensatedVal = Number(r.compensated || 0)
       const hasRep = Boolean(r.rep && String(r.rep).trim() !== '')
       const isCompensated = compensatedVal > 0 || hasRep
-      const isUc = isUniversalCoverageScheme(r.maininscl, r.pttypename_visit || r.pttypename_patient)
+      const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+      const isUc = isUniversalCoverageScheme(r.maininscl, r.pttypename_visit || r.pttypename_patient, pttypeEclaimId)
 
       const pdx = r.pdx ? String(r.pdx).trim() : null
       const dxList: string[] = [
@@ -343,6 +361,7 @@ export class RcmT1dmGdmPdmService {
         pttypenamePatient: r.pttypename_patient ? String(r.pttypename_patient).trim() : null,
         pttypenameVisit: r.pttypename_visit ? String(r.pttypename_visit).trim() : null,
         maininscl: r.maininscl ? String(r.maininscl).trim() : null,
+        pttype_eclaim_id: pttypeEclaimId,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         pdx,
@@ -370,9 +389,19 @@ export class RcmT1dmGdmPdmService {
       }
     })
 
-    // Compute Summary across ALL items (before cardFilter or search)
-    const totalCases = allItems.length
-    const uniqueHns = new Set(allItems.map((i) => i.hn))
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter((i as any).pttypename || i.pttypenameVisit || i.pttypenamePatient || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Summary across summaryCohort
+    const totalCases = summaryCohort.length
+    const uniqueHns = new Set(summaryCohort.map((i) => i.hn))
     const uniquePatients = uniqueHns.size
 
     let registeredCases = 0
@@ -381,7 +410,7 @@ export class RcmT1dmGdmPdmService {
     let withAuthenCases = 0
     let ucCases = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.isRegistered) registeredCases++
       if (item.isCompensated) {
         compensatedCases++
@@ -422,7 +451,7 @@ export class RcmT1dmGdmPdmService {
     }
 
     // Apply Card Filter
-    let filtered = allItems
+    let filtered = [...summaryCohort]
     switch (cardFilter) {
       case 'REGISTERED':
         filtered = filtered.filter((i) => i.isRegistered)

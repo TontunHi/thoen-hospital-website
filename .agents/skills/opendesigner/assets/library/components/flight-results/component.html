@@ -1,0 +1,154 @@
+<style>
+.odl-flight-results { box-sizing: border-box; inline-size: 100%; max-inline-size: 44rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-flight-results *, .odl-flight-results *::before, .odl-flight-results *::after { box-sizing: border-box; }
+.odl-flight-results .odl-head { display: grid; gap: var(--ds-space-stack-xs); margin-block-end: var(--ds-space-stack-lg); }
+.odl-flight-results h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-flight-results .odl-sub { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); }
+/* Sort tabs: three equal tabs; on a phone each shows its name and price only. */
+.odl-flight-results .odl-sort { display: flex; gap: var(--ds-space-inline-sm); margin: 0 0 var(--ds-space-stack-lg); padding: 0; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.odl-flight-results .odl-sort::-webkit-scrollbar { display: none; }
+.odl-flight-results .odl-sort li { display: grid; flex: 1 1 0; min-inline-size: 0; }
+@container (min-width: 38rem) { .odl-flight-results .odl-sort li { flex: 0 0 11rem; } }
+.odl-flight-results .odl-sort button { display: inline-flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: var(--ds-space-2); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: var(--ds-space-inset-xs) var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  font: var(--ds-text-label-lg); white-space: nowrap; overflow: hidden; cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-flight-results .odl-sort button small { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-flight-results .odl-sort button:hover { border-color: var(--ds-color-border-strong); }
+.odl-flight-results .odl-sort button[aria-pressed="true"] { background: var(--ds-color-bg-inverse); border-color: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); }
+.odl-flight-results .odl-sort button[aria-pressed="true"] small { color: var(--ds-color-text-inverse); }
+.odl-flight-results .odl-list { display: grid; gap: var(--ds-space-stack-md); margin: 0; padding: 0; list-style: none; }
+.odl-flight-results .odl-flight { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--ds-space-stack-lg) var(--ds-space-inline-md); align-items: center;
+  padding: var(--ds-space-inset-lg); background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-flight-results .odl-route { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); }
+.odl-flight-results .odl-end { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-flight-results .odl-end:last-child { text-align: end; }
+.odl-flight-results .odl-time { font: var(--ds-text-title-lg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-flight-results .odl-time sup { color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); vertical-align: top; }
+.odl-flight-results .odl-code { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-flight-results .odl-path { display: grid; gap: var(--ds-space-stack-xs); justify-items: center; text-align: center; min-inline-size: 0; }
+.odl-flight-results .odl-dur { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-flight-results .odl-line { position: relative; display: flex; justify-content: space-evenly; align-items: center; inline-size: 100%; block-size: var(--ds-space-12); }
+.odl-flight-results .odl-line::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: var(--ds-border-width-emphasis); border-radius: var(--ds-radius-full); background: var(--ds-color-border-default); transform: translateY(-50%); }
+.odl-flight-results .odl-line::after { content: ""; position: absolute; inset-inline-end: 0; inset-block-start: 50%; inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-icon-default); transform: translateY(-50%); }
+.odl-flight-results .odl-line i { position: relative; inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); border: var(--ds-border-width-emphasis) solid var(--ds-color-icon-default); }
+.odl-flight-results .odl-stops { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-flight-results .odl-stops.is-direct { color: var(--ds-color-text-success); }
+.odl-flight-results .odl-carrier { display: flex; align-items: center; gap: var(--ds-space-inline-md); min-inline-size: 0; }
+.odl-flight-results .odl-mark { flex: none; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-nested); overflow: hidden;
+  background: var(--ds-color-surface-sunken); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-flight-results .odl-mark svg { display: block; inline-size: 100%; block-size: 100%; }
+.odl-flight-results .odl-mark .odl-fin { fill: var(--ds-color-icon-default); }
+.odl-flight-results .odl-who { display: grid; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-flight-results .odl-airline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--ds-text-label-lg); }
+.odl-flight-results .odl-tags { display: flex; flex-wrap: wrap; gap: var(--ds-space-4); }
+.odl-flight-results .odl-tag { padding: var(--ds-space-2) var(--ds-space-inset-xs); border-radius: var(--ds-radius-control-sm); font: var(--ds-text-label-sm); white-space: nowrap; }
+.odl-flight-results .odl-tag.is-best { background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-accent); }
+.odl-flight-results .odl-tag.is-cheap { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); }
+.odl-flight-results .odl-tag.is-note { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); }
+.odl-flight-results .odl-buy { display: grid; justify-items: end; gap: var(--ds-space-stack-xs); }
+.odl-flight-results .odl-price { font: var(--ds-text-title-lg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-flight-results .odl-per { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-flight-results .odl-pick { position: relative; display: block; border-radius: var(--ds-radius-container); color: inherit; text-decoration: none; cursor: pointer; }
+.odl-flight-results .odl-pick:hover .odl-flight { border-color: var(--ds-color-border-strong); }
+.odl-flight-results .odl-pick:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-flight-results .odl-sort button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-flight-results .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Wider: one row per flight, carrier on the left, price on the right. */
+@container (min-width: 38rem) {
+  .odl-flight-results .odl-flight { grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) auto; column-gap: var(--ds-space-inline-md); padding-inline: var(--ds-space-inset-xl); }
+  .odl-flight-results .odl-route { grid-column: 2; grid-row: 1; }
+  .odl-flight-results .odl-carrier { grid-column: 1; grid-row: 1; }
+  .odl-flight-results .odl-buy { grid-column: 3; grid-row: 1; padding-inline-start: var(--ds-space-inline-md); }
+}
+@container (max-width: 30rem) { .odl-flight-results .odl-also { display: none; } }
+@container (max-width: 21rem) {
+  .odl-flight-results .odl-time, .odl-flight-results .odl-price { font: var(--ds-text-title-md); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-flight-results, .odl-flight-results *, .odl-flight-results *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-flight-results" aria-labelledby="odl-fr-title">
+  <div class="odl-head">
+    <h3 id="odl-fr-title">Lisbon to Tokyo</h3>
+    <p class="odl-sub">Sat 14 Nov · 1 adult · Economy · 4 of 38 flights</p>
+  </div>
+  <ul class="odl-sort" aria-label="Sort flights">
+    <li><button type="button" data-sort="best" aria-pressed="true">Best <small>€612<span class="odl-also"> · 17h 20m</span></small></button></li>
+    <li><button type="button" data-sort="price" aria-pressed="false">Cheapest <small>€548<span class="odl-also"> · 22h 05m</span></small></button></li>
+    <li><button type="button" data-sort="time" aria-pressed="false">Fastest <small>€689<span class="odl-also"> · 16h 05m</span></small></button></li>
+  </ul>
+  <ul class="odl-list">
+    <li data-best="1" data-price="612" data-time="1040">
+      <a class="odl-pick" href="#flight-1" aria-label="Vellora Air, departs 10:15 from LIS, arrives 09:35 next day at HND, 17 hours 20 minutes, 1 stop in Doha, €612. Best">
+      <article class="odl-flight">
+        <div class="odl-route" aria-hidden="true">
+          <div class="odl-end"><span class="odl-time">10:15</span><span class="odl-code">LIS</span></div>
+          <div class="odl-path"><span class="odl-dur">17h 20m</span><span class="odl-line"><i></i></span><span class="odl-stops">1 stop · DOH</span></div>
+          <div class="odl-end"><span class="odl-time">09:35<sup>+1</sup></span><span class="odl-code">HND</span></div>
+        </div>
+        <div class="odl-carrier" aria-hidden="true">
+          <span class="odl-mark odl-m1"><svg viewBox="0 0 40 40"><path class="odl-fin" d="M12 29 22 11h6l-6 18z"/><path class="odl-fin" d="M24 29l4-8h4l-3 8z" opacity=".55"/></svg></span>
+          <span class="odl-who"><span class="odl-airline">Vellora Air</span><span class="odl-tags"><span class="odl-tag is-best">Best</span></span></span>
+        </div>
+        <div class="odl-buy" aria-hidden="true"><span class="odl-price">€612</span><span class="odl-per">per adult</span></div>
+      </article></a>
+    </li>
+    <li data-best="2" data-price="548" data-time="1325">
+      <a class="odl-pick" href="#flight-2" aria-label="Brisaline, departs 06:40 from LIS, arrives 10:45 next day at NRT, 22 hours 5 minutes, 2 stops in Frankfurt and Seoul, €548. Cheapest">
+      <article class="odl-flight">
+        <div class="odl-route" aria-hidden="true">
+          <div class="odl-end"><span class="odl-time">06:40</span><span class="odl-code">LIS</span></div>
+          <div class="odl-path"><span class="odl-dur">22h 05m</span><span class="odl-line"><i></i><i></i></span><span class="odl-stops">2 stops · FRA, ICN</span></div>
+          <div class="odl-end"><span class="odl-time">10:45<sup>+1</sup></span><span class="odl-code">NRT</span></div>
+        </div>
+        <div class="odl-carrier" aria-hidden="true">
+          <span class="odl-mark odl-m2"><svg viewBox="0 0 40 40"><circle class="odl-fin" cx="20" cy="20" r="9" opacity=".35"/><path class="odl-fin" d="M9 22c6-2 14-2 22-8-3 8-11 12-22 8z"/></svg></span>
+          <span class="odl-who"><span class="odl-airline">Brisaline</span><span class="odl-tags"><span class="odl-tag is-cheap">Cheapest</span></span></span>
+        </div>
+        <div class="odl-buy" aria-hidden="true"><span class="odl-price">€548</span><span class="odl-per">per adult</span></div>
+      </article></a>
+    </li>
+    <li data-best="3" data-price="689" data-time="965">
+      <a class="odl-pick" href="#flight-3" aria-label="Peldra Airways, departs 13:50 from LIS, arrives 11:55 next day at HND, 16 hours 5 minutes, 1 stop in Istanbul, €689. Fastest">
+      <article class="odl-flight">
+        <div class="odl-route" aria-hidden="true">
+          <div class="odl-end"><span class="odl-time">13:50</span><span class="odl-code">LIS</span></div>
+          <div class="odl-path"><span class="odl-dur">16h 05m</span><span class="odl-line"><i></i></span><span class="odl-stops">1 stop · IST</span></div>
+          <div class="odl-end"><span class="odl-time">11:55<sup>+1</sup></span><span class="odl-code">HND</span></div>
+        </div>
+        <div class="odl-carrier" aria-hidden="true">
+          <span class="odl-mark odl-m3"><svg viewBox="0 0 40 40"><path class="odl-fin" d="M10 28h20L20 10z" opacity=".45"/><path class="odl-fin" d="M16 28h14l-7-12z"/></svg></span>
+          <span class="odl-who"><span class="odl-airline">Peldra Airways</span><span class="odl-tags"><span class="odl-tag is-note">Fastest</span></span></span>
+        </div>
+        <div class="odl-buy" aria-hidden="true"><span class="odl-price">€689</span><span class="odl-per">per adult</span></div>
+      </article></a>
+    </li>
+    <li data-best="4" data-price="731" data-time="1090">
+      <a class="odl-pick" href="#flight-4" aria-label="Tamsu Air, departs 21:30 from LIS, arrives 21:40 next day at KIX, 18 hours 10 minutes, 1 stop in Dubai, €731">
+      <article class="odl-flight">
+        <div class="odl-route" aria-hidden="true">
+          <div class="odl-end"><span class="odl-time">21:30</span><span class="odl-code">LIS</span></div>
+          <div class="odl-path"><span class="odl-dur">18h 10m</span><span class="odl-line"><i></i></span><span class="odl-stops">1 stop · DXB</span></div>
+          <div class="odl-end"><span class="odl-time">21:40<sup>+1</sup></span><span class="odl-code">KIX</span></div>
+        </div>
+        <div class="odl-carrier" aria-hidden="true">
+          <span class="odl-mark odl-m4"><svg viewBox="0 0 40 40"><rect class="odl-fin" x="10" y="17" width="20" height="6" rx="3"/><rect class="odl-fin" x="17" y="10" width="6" height="20" rx="3" opacity=".45"/></svg></span>
+          <span class="odl-who"><span class="odl-airline">Tamsu Air</span><span class="odl-tags"><span class="odl-tag is-note">Overnight</span></span></span>
+        </div>
+        <div class="odl-buy" aria-hidden="true"><span class="odl-price">€731</span><span class="odl-per">per adult</span></div>
+      </article></a>
+    </li>
+  </ul>
+</section>
+<script>
+document.querySelectorAll(".odl-flight-results").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const list = root.querySelector(".odl-list"), chips = root.querySelectorAll(".odl-sort button");
+  const key = { best: "best", price: "price", time: "time" };
+  chips.forEach((chip) => chip.addEventListener("click", () => {
+    chips.forEach((c) => c.setAttribute("aria-pressed", String(c === chip)));
+    const k = key[chip.dataset.sort];
+    [...list.children].sort((a, b) => Number(a.dataset[k]) - Number(b.dataset[k])).forEach((li) => list.appendChild(li));
+  }));
+});
+</script>

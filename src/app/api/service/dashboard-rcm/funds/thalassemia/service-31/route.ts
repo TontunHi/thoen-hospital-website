@@ -27,6 +27,10 @@ const service31ParamsSchema = z.object({
     ])
     .optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
+  pttypes: z.string().max(300).optional(),
+  ucOnly: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
+    .optional(),
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().min(10).max(500).optional(),
   exportAll: z

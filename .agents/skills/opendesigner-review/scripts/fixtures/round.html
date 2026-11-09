@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- Planted for test_probe_live.py: capitals tracked tight; tracking looser on a bigger size; fractional and many sizes;
+     a heading over two lines at 390 px; a centred heading over a left-aligned lede and button row; a heading 12 px off the
+     centre; three button styles and a 13 px primary label; a font loaded by script and never used. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Round fixture</title>
+<style>
+  @font-face { font-family: "Fixture Unused"; src: local("Arial"), local("Helvetica"); }
+  body { margin: 0; font: 16px/1.5 Arial, sans-serif; color: #111; }
+  section { padding: 32px 16px; }
+  .eyebrow { text-transform: uppercase; letter-spacing: -0.04em; font-size: 12px; }
+  .big { font-size: 40px; letter-spacing: 0.02em; }
+  .small { font-size: 14px; letter-spacing: -0.01em; }
+  .fluid { font-size: 15.36px; }
+  .fluid2 { font-size: 18.72px; }
+  #head-long { font-size: 34px; }
+  #mixed { text-align: center; }
+  #mixed p, #mixed .ctas { text-align: left; }
+  .ctas { display: flex; gap: 12px; }
+  #off { width: 100%; text-align: center; padding-left: 24px; box-sizing: border-box; }
+  .btn { display: inline-block; text-decoration: none; padding: 0 16px; }
+  #buy { background: #1d4ed8; color: #fff; height: 40px; line-height: 40px; border-radius: 8px; font-size: 13px; }
+  #demo { background: #111; color: #fff; height: 48px; line-height: 48px; border-radius: 24px; font-size: 16px; }
+  #more { border: 1px solid #111; color: #111; height: 32px; line-height: 30px; border-radius: 2px; font-size: 11px; text-transform: uppercase; }
+  .s1 { font-size: 11px } .s2 { font-size: 13px } .s3 { font-size: 17px } .s4 { font-size: 21px } .s5 { font-size: 26px } .s6 { font-size: 30px }
+</style></head><body>
+<section id="hero">
+  <p class="eyebrow" id="eyebrow">NEW FOR TEAMS</p>
+  <h1 id="head-long">Every invoice, every receipt and every payment in one calm place for your team</h1>
+  <p class="big" id="big">Loose at forty</p>
+  <p class="small" id="small">Tight at fourteen pixels, which is backwards.</p>
+  <p class="fluid">Fluid size one.</p><p class="fluid2">Fluid size two.</p>
+  <p class="s1">a</p><p class="s2">b</p><p class="s3">c</p><p class="s4">d</p><p class="s5">e</p><p class="s6">f</p>
+</section>
+<section id="mixed">
+  <div class="head">
+    <h2 id="mixed-h">Built for operators</h2>
+    <p id="mixed-p">One line that sits on the left.</p>
+    <div class="ctas" id="mixed-ctas"><a class="btn" id="buy" href="#a">Book a demo</a><a class="btn" id="demo" href="#b">Start free</a><a class="btn" id="more" href="#c">Learn more</a></div>
+  </div>
+</section>
+<section id="off-sec"><h2 id="off">Off the centre line</h2></section>
+<script>document.fonts.load('16px "Fixture Unused"');</script>
+</body></html>

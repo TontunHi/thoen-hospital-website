@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Domain Types: ระบบ AMed และ Home Ward - รายงาน HOMEWARD ──────────────
 
@@ -42,6 +44,8 @@ export interface HomewardReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  pttypes?: string
+  ucOnly?: boolean
 }
 
 export interface HomewardItem {
@@ -72,8 +76,9 @@ export interface HomewardItem {
   dchdoctor: string
   authencode: string | null
   hasAuthen: boolean
-  pttype_eclaim_id: string
-  pttype_eclaim_name: string
+  pttype_eclaim_id?: string
+  pttype_eclaim_name?: string
+  isUc?: boolean
   pttype: string
   pttypename: string
   copttype: string
@@ -178,6 +183,17 @@ export class RcmAmedHomewardService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getRcmFundData('amed-homeward', { ds1, ds2 })
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return gwRes.data.rawRows
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         const hasAmedTable = await this.checkAmedTableExists(executor)
 
         const amedJoin = hasAmedTable
@@ -300,6 +316,8 @@ export class RcmAmedHomewardService {
       const isOnAmed = Boolean((onwebCid && onwebCid.length > 0) || (onwebAn && onwebAn.length > 0))
       const hasRep = Boolean((repVal && repVal.length > 0) || (invVal && invVal.length > 0))
       const hasAuthen = Boolean(authen && authen.length > 0)
+      const pttypeEclaimId = String(row.pttype_eclaim_id || '').trim()
+      const isUc = isUcEclaimCode(pttypeEclaimId)
 
       return {
         no: idx + 1,
@@ -329,8 +347,9 @@ export class RcmAmedHomewardService {
         dchdoctor: String(row.dchdoctor || '').trim(),
         authencode: authen || null,
         hasAuthen,
-        pttype_eclaim_id: String(row.pttype_eclaim_id || '').trim(),
+        pttype_eclaim_id: pttypeEclaimId,
         pttype_eclaim_name: String(row.pttype_eclaim_name || '').trim(),
+        isUc,
         pttype: String(row.pttype || '').trim(),
         pttypename: String(row.pttypename || '').trim(),
         copttype: String(row.copttype || '').trim(),
@@ -367,8 +386,18 @@ export class RcmAmedHomewardService {
       }
     })
 
-    // Compute Tier 1 Aggregated Summary from all scoped records
-    const totalCases = allItems.length
+    // Dual-mode summaryCohort filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Tier 1 Aggregated Summary from summaryCohort
+    const totalCases = summaryCohort.length
     let onAmedCases = 0
     let notOnAmedCases = 0
     let withAuthenCases = 0
@@ -381,7 +410,7 @@ export class RcmAmedHomewardService {
     let totalAdjrw = 0
     let totalLos = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.isOnAmed) onAmedCases++
       else notOnAmedCases++
 
@@ -417,7 +446,7 @@ export class RcmAmedHomewardService {
     }
 
     // Apply Card Filtering
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'ON_AMED') {
       filtered = filtered.filter((i) => i.isOnAmed)
     } else if (cardFilter === 'NOT_ON_AMED') {

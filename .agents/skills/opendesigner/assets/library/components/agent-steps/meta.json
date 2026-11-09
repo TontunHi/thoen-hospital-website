@@ -1,0 +1,13 @@
+{
+  "name": "Agent run steps",
+  "summary": "An AI agent's run as a timeline: what it has done, what it is doing now, the step waiting for your approval, what it skipped, with times, tool output and a way to stop it.",
+  "use": "when an AI agent works through several steps and may need a person's approval",
+  "type": "ai",
+  "style": "technical",
+  "industries": ["finance", "saas", "devtools", "productivity"],
+  "tags": ["agent", "timeline", "steps", "approval", "run log"],
+  "states": ["done", "running", "waiting for approval", "approved", "denied", "skipped", "stopped", "expanded", "hover", "focus"],
+  "source": null,
+  "a11y": "The steps are an ordered list with the running one marked aria-current and a labelled progressbar; tool output opens with a native details element, the run status is a live status line, and Approve, Deny and Stop run are real buttons.",
+  "width": "medium"
+}

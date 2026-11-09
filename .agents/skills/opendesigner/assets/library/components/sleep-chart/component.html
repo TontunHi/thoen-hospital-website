@@ -1,0 +1,74 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-sleep-chart { box-sizing: border-box; inline-size: 100%; max-inline-size: 38rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-sleep-chart *, .odl-sleep-chart *::before, .odl-sleep-chart *::after { box-sizing: border-box; }
+.odl-sleep-chart p, .odl-sleep-chart figure { margin: 0; }
+.odl-sleep-chart .odl-card { --awake: var(--ds-color-warning-light-9); --rem: var(--ds-color-info-light-8); --light: var(--ds-color-accent-light-8); --deep: var(--ds-color-accent-light-11);
+  display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-sleep-chart .odl-eyebrow { display: flex; align-items: center; gap: var(--ds-space-inline-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-sleep-chart .odl-eyebrow svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-default); }
+.odl-sleep-chart h3 { margin: var(--ds-space-stack-sm) 0 0; font: var(--ds-text-headline-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-sleep-chart .odl-bed { display: flex; flex-wrap: wrap; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); margin-block-start: var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); font-variant-numeric: tabular-nums; }
+.odl-sleep-chart .odl-hyp { --lane: calc(var(--ds-size-icon-lg) * 1.6); display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--ds-space-inline-md); row-gap: var(--ds-space-stack-xs); }
+.odl-sleep-chart .odl-lanes { display: grid; grid-template-rows: repeat(4, var(--lane)); margin: 0; padding: 0; list-style: none; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-sleep-chart .odl-lanes li { display: flex; align-items: center; }
+.odl-sleep-chart .odl-plot { position: relative; block-size: calc(var(--lane) * 4); border-radius: var(--ds-radius-nested);
+  background: linear-gradient(to bottom, var(--ds-color-neutral-alpha-light-2) 25%, transparent 25% 50%, var(--ds-color-neutral-alpha-light-2) 50% 75%, transparent 75%); }
+.odl-sleep-chart .odl-seg { position: absolute; inset-inline-start: var(--x); inline-size: max(var(--w), var(--ds-border-width-emphasis)); inset-block-start: calc(var(--lane) * var(--l) + var(--lane) * 0.18);
+  block-size: calc(var(--lane) * 0.64); border-radius: var(--ds-radius-4); background: var(--c); }
+.odl-sleep-chart .odl-link { position: absolute; inset-inline-start: var(--x); inline-size: var(--ds-border-width-default); inset-block-start: calc(var(--lane) * var(--a) + var(--lane) * 0.5);
+  block-size: calc(var(--lane) * (var(--b) - var(--a))); background: var(--ds-color-border-strong); transform: translateX(-50%); }
+.odl-sleep-chart .is-awake { --c: var(--awake); } .odl-sleep-chart .is-rem { --c: var(--rem); } .odl-sleep-chart .is-light { --c: var(--light); } .odl-sleep-chart .is-deep { --c: var(--deep); }
+.odl-sleep-chart .odl-axis { position: relative; grid-column: 2; block-size: var(--ds-space-24); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+.odl-sleep-chart .odl-axis span { position: absolute; inset-block-end: 0; inset-inline-start: var(--x); transform: translateX(-50%); white-space: nowrap; }
+.odl-sleep-chart .odl-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-inline-sm); margin: 0; }
+.odl-sleep-chart .odl-totals div { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--ds-space-inline-sm); row-gap: var(--ds-space-stack-xs);
+  padding: var(--ds-space-inset-md); border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-neutral-subtle); }
+.odl-sleep-chart .odl-totals div::before { content: ""; align-self: center; inline-size: var(--ds-space-12); block-size: var(--ds-space-12); border-radius: var(--ds-radius-full); background: var(--c); }
+.odl-sleep-chart .odl-totals dt { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-sleep-chart .odl-totals dd { grid-column: 1 / 4; margin: 0; font: var(--ds-text-title-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-sleep-chart .odl-totals .odl-pct { grid-column: 3; grid-row: 1; color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+.odl-sleep-chart .odl-week { display: grid; gap: var(--ds-space-stack-md); padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-sleep-chart .odl-week header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--ds-space-inline-sm); }
+.odl-sleep-chart h4 { margin: 0; font: var(--ds-text-title-sm); }
+.odl-sleep-chart .odl-avg { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-sleep-chart .odl-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--ds-space-inline-xs); margin: 0; padding: 0; list-style: none; }
+.odl-sleep-chart .odl-bars li { display: grid; justify-items: center; gap: var(--ds-space-stack-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-sleep-chart .odl-col { position: relative; display: flex; flex-direction: column; justify-content: end; align-items: center; gap: var(--ds-space-4); inline-size: 100%; block-size: calc(var(--ds-size-control-lg) * 2.2); }
+.odl-sleep-chart .odl-col::after { content: ""; position: absolute; inset-inline: 0; inset-block-end: 80%; border-block-start: var(--ds-border-width-default) dashed var(--ds-color-border-strong); }
+.odl-sleep-chart .odl-col > span { flex: none; inline-size: min(100%, var(--ds-space-24)); block-size: var(--h); border-radius: var(--ds-radius-full) var(--ds-radius-full) var(--ds-radius-4) var(--ds-radius-4); background: var(--ds-color-accent-light-5); }
+.odl-sleep-chart .odl-bars .is-last { color: var(--ds-color-text-primary); }
+.odl-sleep-chart .odl-bars .is-last .odl-col > span { background: var(--ds-color-accent-light-9); }
+.odl-sleep-chart .odl-chart { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--ds-space-inline-xs); }
+.odl-sleep-chart .odl-8 { align-self: start; margin-block-start: calc(var(--ds-size-control-lg) * 2.2 * 0.2 - var(--ds-space-8)); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); }
+.odl-sleep-chart .odl-goal { display: flex; align-items: center; gap: var(--ds-space-inline-xs); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); }
+.odl-sleep-chart .odl-goal::before { content: ""; inline-size: var(--ds-space-16); border-block-start: var(--ds-border-width-default) dashed var(--ds-color-border-strong); }
+.odl-sleep-chart .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (min-width: 34rem) { .odl-sleep-chart .odl-totals { grid-template-columns: repeat(4, minmax(0, 1fr)); } .odl-sleep-chart .odl-hyp { --lane: calc(var(--ds-size-icon-lg) * 1.75); } }
+@container (max-width: 26rem) { .odl-sleep-chart .odl-card { padding: var(--ds-space-inset-lg); } .odl-sleep-chart .odl-totals div { padding: var(--ds-space-inset-sm) var(--ds-space-inset-md); } }
+</style>
+<section class="odl-sleep-chart" aria-labelledby="odl-sc-title">
+  <div class="odl-card">
+    <header>
+      <p class="odl-eyebrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>Asleep last night · Wed 21 to Thu 22 Oct</p>
+      <h3 id="odl-sc-title">7 h 26 min</h3>
+      <p class="odl-bed"><span>In bed 23:14 – 06:58</span><span>Awake 18 min</span></p>
+    </header>
+    <figure class="odl-hyp" role="img" aria-label="Sleep stages through the night: four cycles of light, deep and REM sleep, most deep sleep before 03:00, and four short wakings, the longest 6 minutes just before 07:00">
+      <ul class="odl-lanes" aria-hidden="true"><li>Awake</li><li>REM</li><li>Light</li><li>Deep</li></ul>
+      <div class="odl-plot" aria-hidden="true"><i class="odl-link" style="--x: 2.59%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 10.78%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 15.09%; --a: 1; --b: 2"></i><i class="odl-link" style="--x: 18.10%; --a: 0; --b: 1"></i><i class="odl-link" style="--x: 18.75%; --a: 0; --b: 2"></i><i class="odl-link" style="--x: 24.35%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 31.25%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 35.99%; --a: 1; --b: 2"></i><i class="odl-link" style="--x: 40.73%; --a: 1; --b: 2"></i><i class="odl-link" style="--x: 46.77%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 52.16%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 58.62%; --a: 0; --b: 2"></i><i class="odl-link" style="--x: 59.48%; --a: 0; --b: 1"></i><i class="odl-link" style="--x: 65.09%; --a: 1; --b: 2"></i><i class="odl-link" style="--x: 72.41%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 76.29%; --a: 2; --b: 3"></i><i class="odl-link" style="--x: 81.68%; --a: 1; --b: 2"></i><i class="odl-link" style="--x: 85.56%; --a: 0; --b: 1"></i><i class="odl-link" style="--x: 86.64%; --a: 0; --b: 2"></i><i class="odl-link" style="--x: 93.97%; --a: 1; --b: 2"></i><i class="odl-link" style="--x: 98.71%; --a: 0; --b: 1"></i><i class="odl-seg is-light" style="--x: 0.00%; --w: 2.59%; --l: 2"></i><i class="odl-seg is-deep" style="--x: 2.59%; --w: 8.19%; --l: 3"></i><i class="odl-seg is-light" style="--x: 10.78%; --w: 4.31%; --l: 2"></i><i class="odl-seg is-rem" style="--x: 15.09%; --w: 3.02%; --l: 1"></i><i class="odl-seg is-awake" style="--x: 18.10%; --w: 0.65%; --l: 0"></i><i class="odl-seg is-light" style="--x: 18.75%; --w: 5.60%; --l: 2"></i><i class="odl-seg is-deep" style="--x: 24.35%; --w: 6.90%; --l: 3"></i><i class="odl-seg is-light" style="--x: 31.25%; --w: 4.74%; --l: 2"></i><i class="odl-seg is-rem" style="--x: 35.99%; --w: 4.74%; --l: 1"></i><i class="odl-seg is-light" style="--x: 40.73%; --w: 6.03%; --l: 2"></i><i class="odl-seg is-deep" style="--x: 46.77%; --w: 5.39%; --l: 3"></i><i class="odl-seg is-light" style="--x: 52.16%; --w: 6.47%; --l: 2"></i><i class="odl-seg is-awake" style="--x: 58.62%; --w: 0.86%; --l: 0"></i><i class="odl-seg is-rem" style="--x: 59.48%; --w: 5.60%; --l: 1"></i><i class="odl-seg is-light" style="--x: 65.09%; --w: 7.33%; --l: 2"></i><i class="odl-seg is-deep" style="--x: 72.41%; --w: 3.88%; --l: 3"></i><i class="odl-seg is-light" style="--x: 76.29%; --w: 5.39%; --l: 2"></i><i class="odl-seg is-rem" style="--x: 81.68%; --w: 3.88%; --l: 1"></i><i class="odl-seg is-awake" style="--x: 85.56%; --w: 1.08%; --l: 0"></i><i class="odl-seg is-light" style="--x: 86.64%; --w: 7.33%; --l: 2"></i><i class="odl-seg is-rem" style="--x: 93.97%; --w: 4.74%; --l: 1"></i><i class="odl-seg is-awake" style="--x: 98.71%; --w: 1.29%; --l: 0"></i></div>
+      <div class="odl-axis" aria-hidden="true"><span style="--x: 9.91%">00:00</span><span style="--x: 35.78%">02:00</span><span style="--x: 61.64%">04:00</span><span style="--x: 87.50%">06:00</span></div>
+    </figure>
+    <dl class="odl-totals">
+      <div class="is-awake"><dt>Awake</dt><dd>18 min</dd><span class="odl-pct">4%</span></div>
+      <div class="is-rem"><dt>REM</dt><dd>1 h 42 min</dd><span class="odl-pct">22%</span></div>
+      <div class="is-light"><dt>Light</dt><dd>3 h 51 min</dd><span class="odl-pct">50%</span></div>
+      <div class="is-deep"><dt>Deep</dt><dd>1 h 53 min</dd><span class="odl-pct">24%</span></div>
+    </dl>
+    <section class="odl-week" aria-labelledby="odl-sc-week">
+      <header><h4 id="odl-sc-week">Last 7 nights</h4><span class="odl-avg">Average 7 h 12 min</span></header>
+      <div class="odl-chart"><ol class="odl-bars"><li><span class="odl-sr">Friday: 6 h 54 min</span><span class="odl-col" aria-hidden="true"><span style="--h: 69%"></span></span><span aria-hidden="true">F</span></li><li><span class="odl-sr">Saturday: 7 h 48 min</span><span class="odl-col" aria-hidden="true"><span style="--h: 78%"></span></span><span aria-hidden="true">S</span></li><li><span class="odl-sr">Sunday: 8 h 24 min</span><span class="odl-col" aria-hidden="true"><span style="--h: 84%"></span></span><span aria-hidden="true">S</span></li><li><span class="odl-sr">Monday: 6 h 12 min</span><span class="odl-col" aria-hidden="true"><span style="--h: 62%"></span></span><span aria-hidden="true">M</span></li><li><span class="odl-sr">Tuesday: 7 h 06 min</span><span class="odl-col" aria-hidden="true"><span style="--h: 71%"></span></span><span aria-hidden="true">T</span></li><li><span class="odl-sr">Wednesday: 6 h 36 min</span><span class="odl-col" aria-hidden="true"><span style="--h: 66%"></span></span><span aria-hidden="true">W</span></li><li class="is-last"><span class="odl-sr">Last night: 7 h 26 min</span><span class="odl-col" aria-hidden="true"><span style="--h: 74%"></span></span><span aria-hidden="true">T</span></li></ol><span class="odl-8">8 h goal</span></div>
+    </section>
+  </div>
+</section>

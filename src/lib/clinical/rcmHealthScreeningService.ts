@@ -1,5 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
+import { matchesPttypeFilter } from './pttypeConstants'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 
 // ── 1. Domain Types: 14. บริการคัดกรองและประเมินปัจจัยเสี่ยงต่อสุขภาพกาย/สุขภาพจิต-ADP ──
@@ -40,6 +42,7 @@ export interface HealthScreeningReportParams extends FiscalDateRangeParams {
   adpCode: '12003' | '12004'
   cardFilter?: HealthScreeningCardFilter
   ucOnly?: boolean
+  pttypes?: string
   targetAgeOnly?: boolean
   searchField?: HealthScreeningSearchField
   search?: string
@@ -79,6 +82,7 @@ export interface HealthScreeningItem {
   authencode: string | null
   maininscl: string
   isUc: boolean
+  pttype_eclaim_id: string
   pttypename: string
   department: string | null
   clinic: string | null
@@ -142,6 +146,7 @@ export interface HealthScreeningReportResult {
   adpMapping: HealthScreeningAdpMappingCheck
   cardFilter: HealthScreeningCardFilter
   ucOnly: boolean
+  pttypes?: string
   targetAgeOnly: boolean
   searchField: HealthScreeningSearchField
   search: string
@@ -209,6 +214,27 @@ export class RcmHealthScreeningService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -302,8 +328,9 @@ export class RcmHealthScreeningService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
+              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
               ptt.name AS pttypename,
               dep.department AS department,
               spc.name AS clinic,
@@ -314,7 +341,7 @@ export class RcmHealthScreeningService {
               dd.name AS listname,
               ${includeNondrugItems ? 'nd.listname1 AS listname1,' : 'NULL AS listname1,'}
               GROUP_CONCAT(DISTINCT DATE_FORMAT(prev_claim.camedate, '%Y-%m-%d') ORDER BY prev_claim.camedate SEPARATOR ', ') AS camedate,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
               rep.agency,
@@ -375,11 +402,12 @@ export class RcmHealthScreeningService {
                 AND TRIM(d2.nhso_adp_code) IN (?)
             ) prev_claim ON prev_claim.hn = o.hn AND prev_claim.camedate < o.vstdate
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -394,7 +422,7 @@ export class RcmHealthScreeningService {
                      GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
                      GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
             LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -405,7 +433,7 @@ export class RcmHealthScreeningService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
@@ -419,16 +447,44 @@ export class RcmHealthScreeningService {
           fiscalStartYear, ds2, fiscalStartYear, ds2, adpCode, // prev_claim
           ds1, ds2, // nhso
           ds1, ds2, // rep
-          ds1, ds2, // m
           ds1, ds2, // main ovst o
         ]
 
-        const [mappingRes, rows] = await Promise.all([
-          RcmHealthScreeningService.checkAdpMapping(adpCode, executor, Boolean(params.refresh)),
-          executor(sql, sqlParams, { timeoutMs: 90000 }),
-        ])
+        let rows: any[] = []
+        let mappingRes: HealthScreeningAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
 
-        return { rawRows: rows as any[], adpMapping: mappingRes }
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmHealthScreeningService.checkAdpMapping(adpCode, executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('health-screening', { ds1, ds2, adpCode }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmHealthScreeningService.checkAdpMapping(adpCode, executor, Boolean(params.refresh)),
+            executor(sql, sqlParams, { timeoutMs: 90000 }),
+          ])
+          rows = (dbRows as any[]) || []
+          mappingRes = mRes
+        }
+
+        return { rawRows: rows, adpMapping: mappingRes }
       },
       180000 // Cache TTL 3 minutes
     )
@@ -467,6 +523,7 @@ export class RcmHealthScreeningService {
         authencode: r.authencode ? String(r.authencode).trim() : null,
         maininscl: String(r.maininscl || '').trim(),
         isUc,
+        pttype_eclaim_id: String(r.pttype_eclaim_id || '').trim(),
         pttypename: String(r.pttypename || '').trim(),
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
@@ -502,29 +559,37 @@ export class RcmHealthScreeningService {
       }
     })
 
-    // Compute Summary KPIs before filtering
-    const totalVisits = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn).filter(Boolean)).size
-    const compensatedVisits = allItems.filter((i) => i.isCompensated).length
+    const pttypes = (params.pttypes || '').trim()
+    const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
+
+    // Cohort for summary KPIs (Full page filter Q2: A)
+    const summaryCohort = selectedPttypesList.length > 0
+      ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
+      : allItems
+
+    // Compute Summary KPIs across summaryCohort
+    const totalVisits = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn).filter(Boolean)).size
+    const compensatedVisits = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedVisits = totalVisits - compensatedVisits
     const compensationRate = totalVisits > 0 ? (compensatedVisits / totalVisits) * 100 : 0
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
     const averageCompensated = compensatedVisits > 0 ? totalCompensated / compensatedVisits : 0
 
-    const repeatClaimCount = allItems.filter((i) => i.hasRepeatClaim).length
+    const repeatClaimCount = summaryCohort.filter((i) => i.hasRepeatClaim).length
     const repeatClaimRate = totalVisits > 0 ? (repeatClaimCount / totalVisits) * 100 : 0
 
-    const withAuthenCount = allItems.filter((i) => Boolean(i.authencode)).length
+    const withAuthenCount = summaryCohort.filter((i) => Boolean(i.authencode)).length
     const withoutAuthenCount = totalVisits - withAuthenCount
     const authenRate = totalVisits > 0 ? (withAuthenCount / totalVisits) * 100 : 0
 
-    const ucCount = allItems.filter((i) => i.isUc).length
+    const ucCount = summaryCohort.filter((i) => i.isUc).length
     const ucRate = totalVisits > 0 ? (ucCount / totalVisits) * 100 : 0
 
-    const targetAgeCount = allItems.filter((i) => i.isTargetAge).length
+    const targetAgeCount = summaryCohort.filter((i) => i.isTargetAge).length
     const targetAgeRate = totalVisits > 0 ? (targetAgeCount / totalVisits) * 100 : 0
 
-    const totalIncome = allItems.reduce((acc, i) => acc + i.income, 0)
+    const totalIncome = summaryCohort.reduce((acc, i) => acc + i.income, 0)
 
     const summary: HealthScreeningSummary = {
       totalVisits,
@@ -547,7 +612,7 @@ export class RcmHealthScreeningService {
     }
 
     // Apply Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)
     } else if (cardFilter === 'UNCOMPENSATED') {
@@ -564,8 +629,8 @@ export class RcmHealthScreeningService {
       filtered = filtered.filter((i) => i.isTargetAge)
     }
 
-    // Secondary filters
-    if (ucOnly && cardFilter !== 'UC_ONLY') {
+    // Secondary filters (fallback when pttypes is empty)
+    if (selectedPttypesList.length === 0 && ucOnly && cardFilter !== 'UC_ONLY') {
       filtered = filtered.filter((i) => i.isUc)
     }
     if (targetAgeOnly && cardFilter !== 'TARGET_AGE') {
@@ -659,6 +724,7 @@ export class RcmHealthScreeningService {
       adpMapping,
       cardFilter,
       ucOnly,
+      pttypes,
       targetAgeOnly,
       searchField,
       search,

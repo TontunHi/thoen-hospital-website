@@ -1,0 +1,71 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-pagination { box-sizing: border-box; inline-size: 100%; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-pagination *, .odl-pagination *::before { box-sizing: border-box; }
+.odl-pagination .odl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm) var(--ds-space-inline-md);
+  padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-pagination .odl-info { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-inline-sm) var(--ds-space-inset-xl); }
+.odl-pagination .odl-count { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-pagination .odl-count b { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-pagination .odl-rows { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-pagination .odl-select { position: relative; display: inline-grid; }
+.odl-pagination select { appearance: none; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 calc(var(--ds-space-inset-sm) + var(--ds-size-icon-sm) + var(--ds-space-inline-xs)) 0 var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field);
+  color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; cursor: pointer; }
+.odl-pagination .odl-select svg { position: absolute; inset-inline-end: var(--ds-space-inset-sm); inset-block-start: 50%; translate: 0 -50%; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md);
+  color: var(--ds-color-icon-subtle); pointer-events: none; }
+.odl-pagination ol { display: flex; align-items: center; gap: var(--ds-space-inline-xs); margin: 0; padding: 0; list-style: none; }
+.odl-pagination .odl-page, .odl-pagination .odl-step { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-xs);
+  min-inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid transparent; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-secondary);
+  font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-hover); }
+.odl-pagination .odl-page:hover, .odl-pagination .odl-step:hover:not(:disabled) { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-pagination .odl-page[aria-current="page"] { background: var(--ds-color-bg-neutral-subtle); border-color: var(--ds-color-border-default); color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-heading); cursor: default; }
+.odl-pagination .odl-step { padding-inline: var(--ds-space-inset-md); border-color: var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-pagination .odl-step:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-pagination .odl-step svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-pagination .odl-gap { display: inline-grid; place-items: center; min-inline-size: var(--ds-size-control-md); color: var(--ds-color-text-tertiary); }
+.odl-pagination .odl-pager { display: flex; align-items: center; gap: var(--ds-space-inline-sm); margin-inline-start: auto; }
+.odl-pagination .odl-of { display: none; margin: 0; padding-inline: var(--ds-space-inset-sm); font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-pagination .odl-of span { color: var(--ds-color-text-secondary); font-weight: var(--ds-font-weight-body); }
+.odl-pagination select:focus-visible, .odl-pagination button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* tablet: the page list becomes "Page 3 of 49" so the bar keeps one row */
+@container (max-width: 900px) {
+  .odl-pagination ol { display: none; }
+  .odl-pagination .odl-of { display: block; }
+  .odl-pagination .odl-step { padding-inline: var(--ds-space-inset-sm); }
+  .odl-pagination .odl-step span { display: none; }
+}
+@container (max-width: 520px) {
+  .odl-pagination .odl-bar { row-gap: var(--ds-space-stack-md); padding: var(--ds-space-inset-lg) 0; }
+  .odl-pagination .odl-info { flex: 1 1 100%; justify-content: space-between; }
+  .odl-pagination .odl-step { padding-inline: var(--ds-space-inset-sm); }
+  .odl-pagination .odl-pager { flex: 1 1 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-pagination, .odl-pagination *, .odl-pagination *::before { transition: none !important; animation: none !important; } }
+</style>
+<nav class="odl-pagination" aria-label="Pagination">
+  <div class="odl-bar">
+    <div class="odl-info">
+      <p class="odl-count" aria-live="polite">Showing <b>101–150</b> of <b>2,418</b></p>
+      <label class="odl-rows">Rows per page
+        <span class="odl-select"><select><option>25</option><option selected>50</option><option>100</option></select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+      </label>
+    </div>
+    <div class="odl-pager">
+      <button type="button" class="odl-step" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span>Previous</span></button>
+      <ol>
+        <li><button type="button" class="odl-page" aria-label="Page 1">1</button></li>
+        <li><button type="button" class="odl-page" aria-label="Page 2">2</button></li>
+        <li><button type="button" class="odl-page" aria-label="Page 3" aria-current="page">3</button></li>
+        <li><button type="button" class="odl-page" aria-label="Page 4">4</button></li>
+        <li><button type="button" class="odl-page" aria-label="Page 5">5</button></li>
+        <li class="odl-gap" aria-hidden="true">…</li>
+        <li><button type="button" class="odl-page" aria-label="Page 49, last page">49</button></li>
+      </ol>
+      <p class="odl-of">Page 3 <span>of 49</span></p>
+      <button type="button" class="odl-step" aria-label="Next page"><span>Next</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+  </div>
+</nav>

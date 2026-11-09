@@ -1,0 +1,37 @@
+{
+  "name": "Delivery tracker",
+  "summary": "A food or parcel order on its way: a map drawn from the tokens with the route travelled and to go, the arrival time, the courier's photo with message and call, and a step timeline.",
+  "use": "after checkout, while an order is on its way",
+  "type": "data",
+  "style": "friendly",
+  "industries": [
+    "food",
+    "retail"
+  ],
+  "tags": [
+    "delivery",
+    "tracking",
+    "map",
+    "courier",
+    "eta",
+    "timeline"
+  ],
+  "states": [
+    "done",
+    "current step",
+    "upcoming",
+    "live",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The map and the progress bar are images described in words, the timeline is an ordered list with the current step marked aria-current and finished steps named done, and message and call name the courier; the live pulse stops under reduced motion.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1762066436642-945a40f35097",
+      "author": "abolfazl babaei",
+      "page": "2YS2yb8qusU"
+    }
+  ]
+}

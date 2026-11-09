@@ -1,5 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
+import { matchesPttypeFilter } from './pttypeConstants'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
@@ -42,6 +44,7 @@ export type FluorideVarnishSortField =
 export interface FluorideVarnishReportParams extends FiscalDateRangeParams {
   cardFilter?: FluorideVarnishCardFilter
   ucOnly?: boolean
+  pttypes?: string
   targetAgeOnly?: boolean
   searchField?: FluorideVarnishSearchField
   search?: string
@@ -81,6 +84,7 @@ export interface FluorideVarnishItem {
   vsttime: string
   authencode: string | null
   maininscl: string
+  pttype_eclaim_id?: string
   isUc: boolean
   pttypename: string
   department: string | null
@@ -160,8 +164,13 @@ export interface FluorideVarnishReportResult {
  */
 export function isUniversalCoverageScheme(
   maininscl?: string | null,
-  pttypename?: string | null
+  pttypename?: string | null,
+  pttypeEclaimId?: string | null
 ): boolean {
+  if (pttypeEclaimId) {
+    const num = parseInt(pttypeEclaimId.trim(), 10)
+    if (!isNaN(num) && num >= 1 && num <= 9) return true
+  }
   if (maininscl) {
     const code = maininscl.trim().toUpperCase()
     if (code === 'UCS' || code === 'WEL' || code === 'UC') return true
@@ -198,6 +207,27 @@ export class RcmFluorideVarnishService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode: gwRes.adpCode || adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -282,8 +312,9 @@ export class RcmFluorideVarnishService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
+              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
               ptt.name AS pttypename,
               dep.department AS department,
               spc.name AS clinic,
@@ -293,7 +324,7 @@ export class RcmFluorideVarnishService {
               IFNULL(v.income, 0) AS income,
               dd.name AS listname,
               nd.listname1 AS listname1,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
               rep.agency,
@@ -336,11 +367,12 @@ export class RcmFluorideVarnishService {
               GROUP BY a.vn
             ) nd ON nd.vn = o.vn
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -355,7 +387,7 @@ export class RcmFluorideVarnishService {
                      GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
                      GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
             LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -366,7 +398,7 @@ export class RcmFluorideVarnishService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
@@ -383,14 +415,42 @@ export class RcmFluorideVarnishService {
           ds1, ds2, adpCode, // nd (listname1)
           ds1, ds2, // nhso
           ds1, ds2, // rep
-          ds1, ds2, // m
           ds1, ds2, // main ovst o
         ]
 
-        const [mappingRes, rows] = await Promise.all([
-          RcmFluorideVarnishService.checkAdpMapping(executor, Boolean(params.refresh)),
-          executor(sql, sqlParams, { timeoutMs: 90000 }),
-        ])
+        let rows: any[] = []
+        let mappingRes: FluorideVarnishAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmFluorideVarnishService.checkAdpMapping(executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('fluoride-varnish', { ds1, ds2, adpCode }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, dbRows] = await Promise.all([
+            RcmFluorideVarnishService.checkAdpMapping(executor, Boolean(params.refresh)),
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+          ])
+          rows = dbRows || []
+          mappingRes = mRes
+        }
 
         return {
           rawRows: rows || [],
@@ -407,7 +467,8 @@ export class RcmFluorideVarnishService {
       const authencode = r.authencode ? String(r.authencode).trim() : null
       const maininscl = String(r.maininscl || '').trim()
       const pttypename = String(r.pttypename || '').trim()
-      const isUc = isUniversalCoverageScheme(maininscl, pttypename)
+      const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+      const isUc = isUniversalCoverageScheme(maininscl, pttypename, pttypeEclaimId)
       const age = Number(r.age) || 0
       const isTargetAge = age >= 25 && age <= 29
       const sex = formatThaiSex(r.sex_code, r.sex)
@@ -433,6 +494,7 @@ export class RcmFluorideVarnishService {
         vsttime: String(r.vsttime || '').trim(),
         authencode: authencode || null,
         maininscl,
+        pttype_eclaim_id: pttypeEclaimId,
         isUc,
         pttypename,
         department: r.department ? String(r.department).trim() : null,
@@ -467,26 +529,36 @@ export class RcmFluorideVarnishService {
       }
     })
 
-    // Compute Summary across all retrieved rows
-    const totalVisits = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn)).size
-    const compensatedVisits = allItems.filter((i) => i.isCompensated).length
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Summary across summaryCohort
+    const totalVisits = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn)).size
+    const compensatedVisits = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedVisits = totalVisits - compensatedVisits
     const compensationRate = totalVisits > 0 ? Math.round((compensatedVisits / totalVisits) * 1000) / 10 : 0
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
     const averageCompensated =
       compensatedVisits > 0 ? Math.round((totalCompensated / compensatedVisits) * 100) / 100 : 0
 
-    const targetAgeCount = allItems.filter((i) => i.isTargetAge).length
+    const targetAgeCount = summaryCohort.filter((i) => i.isTargetAge).length
     const targetAgeRate = totalVisits > 0 ? Math.round((targetAgeCount / totalVisits) * 1000) / 10 : 0
 
-    const withAuthenCount = allItems.filter((i) => Boolean(i.authencode)).length
+    const withAuthenCount = summaryCohort.filter((i) => Boolean(i.authencode)).length
     const withoutAuthenCount = totalVisits - withAuthenCount
     const authenRate = totalVisits > 0 ? Math.round((withAuthenCount / totalVisits) * 1000) / 10 : 0
 
-    const ucCount = allItems.filter((i) => i.isUc).length
+    const ucCount = summaryCohort.filter((i) => i.isUc).length
     const ucRate = totalVisits > 0 ? Math.round((ucCount / totalVisits) * 1000) / 10 : 0
-    const totalIncome = allItems.reduce((acc, i) => acc + i.income, 0)
+    const totalIncome = summaryCohort.reduce((acc, i) => acc + i.income, 0)
 
     const summary: FluorideVarnishSummary = {
       totalVisits,
@@ -507,7 +579,7 @@ export class RcmFluorideVarnishService {
     }
 
     // Filter by Card & Toggles
-    let filtered = allItems
+    let filtered = [...summaryCohort]
 
     if (cardFilter === 'TARGET_AGE') {
       filtered = filtered.filter((i) => i.isTargetAge)

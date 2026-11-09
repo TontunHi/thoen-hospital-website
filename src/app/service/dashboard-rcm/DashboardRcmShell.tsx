@@ -290,14 +290,14 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         icon: PhoneCall,
         children: [
           {
-            href: '/service/dashboard-rcm/funds/telemed-drug/telemed',
-            label: 'บริการ Telemed',
-            badge: '11.53',
-          },
-          {
             href: '/service/dashboard-rcm/funds/telemed-drug/postal-drug',
             label: 'ส่งยาไปรษณีย์ Drug',
             badge: '11.52',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/telemed-drug/telemed',
+            label: 'บริการ Telemed',
+            badge: '11.53',
           },
         ],
       },

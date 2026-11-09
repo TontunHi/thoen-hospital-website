@@ -1,0 +1,47 @@
+{
+  "name": "Restaurant cards",
+  "summary": "Restaurants or stores in a list: a cover photo, name, cuisine and price level, rating with its count, delivery time and fee, an offer line and a favourite toggle.",
+  "use": "in a food delivery or local shops app, for browsing places nearby",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": [
+    "food",
+    "retail"
+  ],
+  "tags": [
+    "restaurant",
+    "store",
+    "delivery",
+    "rating",
+    "favourite",
+    "promo"
+  ],
+  "states": [
+    "saved",
+    "not saved",
+    "promo",
+    "new",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Each card is one link (its name) that covers the card, with the focus ring on the cover; save is a separate toggle button named for its place, and the rating is read as words.",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1583354608715-177553a4035e",
+      "author": "Klara Kulikova",
+      "page": "yjQDnOhGE34"
+    },
+    {
+      "img": "photo-1512621776951-a57141f2eefd",
+      "author": "Anna Pelzer",
+      "page": "IGfIGP5ONV0"
+    },
+    {
+      "img": "photo-1569718212165-3a8278d5f624",
+      "author": "Michele Blackwell",
+      "page": "rAyCBQTH7ws"
+    }
+  ]
+}

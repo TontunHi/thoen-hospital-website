@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── Types: ค้นหาจากรหัส ADP (OPD & IPD) ──────────────────────────────
 
@@ -31,6 +33,8 @@ export interface AdpSearchReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  pttypes?: string
+  ucOnly?: boolean
 }
 
 export interface AdpMappingItem {
@@ -64,6 +68,7 @@ export interface AdpSearchItem {
   dchdate?: string | null
   pttype: string
   pttypename: string
+  pttype_eclaim_id?: string
   hipdataCode?: string | null
   hospmain?: string | null
   hospsub?: string | null
@@ -241,6 +246,27 @@ export class RcmAdpSearchService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (queryExecutor === queryClinicalDb && cleanCodes.length === 1) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(cleanCodes[0])
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCodes: cleanCodes,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to query
+          }
+        }
+
         const placeholders = cleanCodes.map(() => '?').join(', ')
         const sql = `
           SELECT 
@@ -377,11 +403,21 @@ export class RcmAdpSearchService {
         ? await this.fetchIpdRecords(ds1, ds2, adpCodes, queryExecutor, refresh)
         : await this.fetchOpdRecords(ds1, ds2, adpCodes, queryExecutor, refresh)
 
-    // Compute summary over all items before filtering by cardFilter or search
-    const summary = this.computeSummary(allItems)
+    // Dual-mode summaryCohort filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((it) =>
+        matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, params.pttypes, it.isUc, it.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((it) => it.isUc)
+    }
+
+    // Compute summary over summaryCohort before filtering by cardFilter or search
+    const summary = this.computeSummary(summaryCohort)
 
     // Apply Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((it) => it.isCompensated)
     } else if (cardFilter === 'UNCOMPENSATED') {
@@ -601,7 +637,8 @@ export class RcmAdpSearchService {
           const hasAuthen = Boolean(authencode && authencode !== '' && authencode !== '-')
           const pttypename = String(r.pttypename || '').trim()
           const hipdataCode = r.hipdata_code ? String(r.hipdata_code).trim() : null
-          const isUc = isUniversalCoverageScheme(hipdataCode, pttypename)
+          const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+          const isUc = (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) || isUniversalCoverageScheme(hipdataCode, pttypename)
           const diagStr = r.diag ? String(r.diag).trim() : null
 
           return {
@@ -621,6 +658,7 @@ export class RcmAdpSearchService {
             dchdate: null,
             pttype: String(r.pttype || '').trim(),
             pttypename,
+            pttype_eclaim_id: pttypeEclaimId,
             hipdataCode,
             hospmain: r.hospmain ? String(r.hospmain).trim() : null,
             hospsub: r.hospsub ? String(r.hospsub).trim() : null,
@@ -707,6 +745,7 @@ export class RcmAdpSearchService {
             i.pttype,
             ptt.hipdata_code,
             ptt.name AS pttypename,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             w.name AS department,
             
             a.pdx,
@@ -783,7 +822,8 @@ export class RcmAdpSearchService {
           const isCompensated = compensated > 0
           const pttypename = String(r.pttypename || '').trim()
           const hipdataCode = r.hipdata_code ? String(r.hipdata_code).trim() : null
-          const isUc = isUniversalCoverageScheme(hipdataCode, pttypename)
+          const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+          const isUc = (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) || isUniversalCoverageScheme(hipdataCode, pttypename)
           const procStr = r.proc_ops ? String(r.proc_ops).trim() : null
           const hasOperation = Boolean(procStr && procStr !== '' && procStr !== '-')
 
@@ -803,6 +843,7 @@ export class RcmAdpSearchService {
             dchdate: r.dchdate ? String(r.dchdate).trim() : null,
             pttype: String(r.pttype || '').trim(),
             pttypename,
+            pttype_eclaim_id: pttypeEclaimId,
             hipdataCode,
             hospmain: null,
             hospsub: null,

@@ -36,6 +36,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -100,6 +102,7 @@ export default function ThaiTraditionalMedicine3Client({
     initialData?.place ?? 'ALL'
   )
   const [treatmentType, setTreatmentType] = useState<string>('')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
@@ -192,6 +195,7 @@ export default function ThaiTraditionalMedicine3Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
         if (treatmentType) queryParams.set('treatmentType', treatmentType)
         if (refresh) queryParams.set('refresh', 'true')
 
@@ -230,6 +234,7 @@ export default function ThaiTraditionalMedicine3Client({
       cardFilter,
       placeFilter,
       treatmentType,
+      pttypes,
       ucOnly,
       debouncedSearch,
       sortBy,
@@ -370,8 +375,8 @@ export default function ThaiTraditionalMedicine3Client({
     setCurrentPage(1)
   }
 
-  // Export to CSV with UTF-8 BOM
-  const handleExportCsv = async () => {
+  // Export to Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
@@ -385,6 +390,7 @@ export default function ThaiTraditionalMedicine3Client({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
       if (treatmentType) queryParams.set('treatmentType', treatmentType)
 
       const res = await fetch(
@@ -395,7 +401,7 @@ export default function ThaiTraditionalMedicine3Client({
         throw new Error('ไม่สามารถดึงข้อมูลสำหรับส่งออกได้')
       }
 
-      const rows: Ttm3Item[] = json.data.items
+      const rowsData: Ttm3Item[] = json.data.items
 
       const headers = [
         'ลำดับ',
@@ -409,7 +415,7 @@ export default function ThaiTraditionalMedicine3Client({
         'เวลา',
         'สถานที่',
         'สิทธิการรักษา',
-        'Authen Code',
+        'ClaimCode',
         'ยา (T1)',
         'นวด (T2)',
         'ประคบ (T3)',
@@ -428,48 +434,44 @@ export default function ThaiTraditionalMedicine3Client({
         'Seamless ชดเชย (บาท)',
       ]
 
-      const csvContent = rows.map((r, idx) => [
+      const rows = rowsData.map((r, idx) => [
         idx + 1,
-        `"${r.vn}"`,
-        `"${r.hn}"`,
-        `"${r.cid}"`,
-        `"${r.ptname}"`,
-        `"${r.sex}"`,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.sex,
         r.age,
-        `"${r.vstdate}"`,
-        `"${r.vsttime}"`,
-        `"${r.placeLabel}"`,
-        `"${r.pttypename}"`,
-        `"${r.authencode || ''}"`,
-        `"${r.treatment1}"`,
-        `"${r.treatment2}"`,
-        `"${r.treatment3}"`,
-        `"${r.treatment4}"`,
-        `"${r.treatment5}"`,
-        `"${r.treatment6}"`,
-        `"${r.treatment7}"`,
-        `"${r.treatmentNames || ''}"`,
-        `"${r.herbDrugs || ''}"`,
-        `"${r.pdx || ''}"`,
+        r.vstdate,
+        r.vsttime,
+        r.placeLabel,
+        r.pttypename,
+        r.authencode || '',
+        r.treatment1,
+        r.treatment2,
+        r.treatment3,
+        r.treatment4,
+        r.treatment5,
+        r.treatment6,
+        r.treatment7,
+        r.treatmentNames || '',
+        r.herbDrugs || '',
+        r.pdx || '',
         r.income,
-        `"${r.status || ''}"`,
-        `"${r.rep || ''}"`,
+        r.status || '',
+        r.rep || '',
         r.compensated,
-        `"${r.seamlessPayno || ''}"`,
+        r.seamlessPayno || '',
         r.seamlessCompensated ?? '',
       ])
 
-      const csvString =
-        '\uFEFF' + [headers.join(','), ...csvContent.map((e) => e.join(','))].join('\r\n')
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.setAttribute('href', url)
-      link.setAttribute('download', `TTM_Topic3_Report_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `TTM_Topic3_Report_${ds1}_to_${ds2}.xlsx`,
+        title: 'รายชื่อผู้รับบริการแพทย์แผนไทยรวม',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${rowsData.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์')
     } finally {
@@ -517,12 +519,12 @@ export default function ThaiTraditionalMedicine3Client({
           <button
             type="button"
             className="ttm-btn ttm-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกข้อมูลเป็นไฟล์ CSV สำหรับ Excel"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} className={isExporting ? 'animate-spin' : ''} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -797,16 +799,16 @@ export default function ThaiTraditionalMedicine3Client({
           </div>
         </div>
 
-        {/* Card 8: มี Authen Code */}
+        {/* Card 8: มี ClaimCode */}
         <div
           className={`ttm-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('WITH_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="ttm-kpi-header">
-            <span className="ttm-kpi-title">มี Authen Code</span>
+            <span className="ttm-kpi-title">มี ClaimCode</span>
             <div className="ttm-kpi-icon icon-info">
               <UserCheck size={16} />
             </div>
@@ -825,7 +827,7 @@ export default function ThaiTraditionalMedicine3Client({
           <input
             type="text"
             className="ttm-search-input"
-            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ยาสมุนไพร, การรักษา, Authen..."
+            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ยาสมุนไพร, การรักษา, ClaimCode..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -842,6 +844,16 @@ export default function ThaiTraditionalMedicine3Client({
         </div>
 
         <div className="ttm-secondary-filters">
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
           {/* สถานที่ */}
           <select
             className="ttm-select-filter"
@@ -1022,7 +1034,7 @@ export default function ThaiTraditionalMedicine3Client({
                       className="ttm-sort-btn"
                       onClick={() => handleSort('authencode')}
                     >
-                      Authen Code{' '}
+                      ClaimCode{' '}
                       {sortBy === 'authencode' ? (
                         sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       ) : (
@@ -1114,7 +1126,7 @@ export default function ThaiTraditionalMedicine3Client({
                         }`}
                         title={item.treatment1 === 'Y' ? item.herbDrugs || 'จ่ายยาสมุนไพร' : 'ไม่มี'}
                       >
-                        {item.treatment1 === 'Y' ? '✓' : '—'}
+                        {item.treatment1 === 'Y' ? <Check size={14} className="inline-block text-emerald-700" /> : '—'}
                       </span>
                     </td>
                     <td className="col-center">
@@ -1123,7 +1135,7 @@ export default function ThaiTraditionalMedicine3Client({
                           item.treatment2 === 'Y' ? 'ttm-treatment-yes' : 'ttm-treatment-no'
                         }`}
                       >
-                        {item.treatment2 === 'Y' ? '✓' : '—'}
+                        {item.treatment2 === 'Y' ? <Check size={14} className="inline-block text-emerald-700" /> : '—'}
                       </span>
                     </td>
                     <td className="col-center">
@@ -1132,7 +1144,7 @@ export default function ThaiTraditionalMedicine3Client({
                           item.treatment3 === 'Y' ? 'ttm-treatment-yes' : 'ttm-treatment-no'
                         }`}
                       >
-                        {item.treatment3 === 'Y' ? '✓' : '—'}
+                        {item.treatment3 === 'Y' ? <Check size={14} className="inline-block text-emerald-700" /> : '—'}
                       </span>
                     </td>
                     <td className="col-center">
@@ -1141,7 +1153,7 @@ export default function ThaiTraditionalMedicine3Client({
                           item.treatment4 === 'Y' ? 'ttm-treatment-yes' : 'ttm-treatment-no'
                         }`}
                       >
-                        {item.treatment4 === 'Y' ? '✓' : '—'}
+                        {item.treatment4 === 'Y' ? <Check size={14} className="inline-block text-emerald-700" /> : '—'}
                       </span>
                     </td>
                     <td className="col-center">
@@ -1150,7 +1162,7 @@ export default function ThaiTraditionalMedicine3Client({
                           item.treatment5 === 'Y' ? 'ttm-treatment-yes' : 'ttm-treatment-no'
                         }`}
                       >
-                        {item.treatment5 === 'Y' ? '✓' : '—'}
+                        {item.treatment5 === 'Y' ? <Check size={14} className="inline-block text-emerald-700" /> : '—'}
                       </span>
                     </td>
                     <td className="col-center">
@@ -1159,7 +1171,7 @@ export default function ThaiTraditionalMedicine3Client({
                           item.treatment6 === 'Y' ? 'ttm-treatment-yes' : 'ttm-treatment-no'
                         }`}
                       >
-                        {item.treatment6 === 'Y' ? '✓' : '—'}
+                        {item.treatment6 === 'Y' ? <Check size={14} className="inline-block text-emerald-700" /> : '—'}
                       </span>
                     </td>
                     <td className="col-center">
@@ -1168,7 +1180,7 @@ export default function ThaiTraditionalMedicine3Client({
                           item.treatment7 === 'Y' ? 'ttm-treatment-yes' : 'ttm-treatment-no'
                         }`}
                       >
-                        {item.treatment7 === 'Y' ? '✓' : '—'}
+                        {item.treatment7 === 'Y' ? <Check size={14} className="inline-block text-emerald-700" /> : '—'}
                       </span>
                     </td>
 
@@ -1389,7 +1401,7 @@ export default function ThaiTraditionalMedicine3Client({
                         </span>
                       </div>
                       <div className="ttm-info-item">
-                        <span className="ttm-info-label">Authen Code</span>
+                        <span className="ttm-info-label">ClaimCode:</span>
                         <span className="ttm-info-val font-mono">
                           {selectedItem.authencode ? (
                             <span className="ttm-badge ttm-badge-ok">
@@ -1453,7 +1465,7 @@ export default function ThaiTraditionalMedicine3Client({
                           selectedItem.treatment1 === 'Y' ? 'is-checked' : 'is-unchecked'
                         }`}
                       >
-                        <span>{selectedItem.treatment1 === 'Y' ? '✓' : '—'}</span>
+                        <span>{selectedItem.treatment1 === 'Y' ? <Check size={14} className="inline-block text-emerald-700 mr-1" /> : '—'}</span>
                         <span>1. ยาแผนไทยและสมุนไพร</span>
                       </div>
                       <div
@@ -1461,7 +1473,7 @@ export default function ThaiTraditionalMedicine3Client({
                           selectedItem.treatment2 === 'Y' ? 'is-checked' : 'is-unchecked'
                         }`}
                       >
-                        <span>{selectedItem.treatment2 === 'Y' ? '✓' : '—'}</span>
+                        <span>{selectedItem.treatment2 === 'Y' ? <Check size={14} className="inline-block text-emerald-700 mr-1" /> : '—'}</span>
                         <span>2. การนวดไทย</span>
                       </div>
                       <div
@@ -1469,7 +1481,7 @@ export default function ThaiTraditionalMedicine3Client({
                           selectedItem.treatment3 === 'Y' ? 'is-checked' : 'is-unchecked'
                         }`}
                       >
-                        <span>{selectedItem.treatment3 === 'Y' ? '✓' : '—'}</span>
+                        <span>{selectedItem.treatment3 === 'Y' ? <Check size={14} className="inline-block text-emerald-700 mr-1" /> : '—'}</span>
                         <span>3. การประคบสมุนไพร</span>
                       </div>
                       <div
@@ -1477,7 +1489,7 @@ export default function ThaiTraditionalMedicine3Client({
                           selectedItem.treatment4 === 'Y' ? 'is-checked' : 'is-unchecked'
                         }`}
                       >
-                        <span>{selectedItem.treatment4 === 'Y' ? '✓' : '—'}</span>
+                        <span>{selectedItem.treatment4 === 'Y' ? <Check size={14} className="inline-block text-emerald-700 mr-1" /> : '—'}</span>
                         <span>4. การอบไอน้ำสมุนไพร / การอบสมุนไพร</span>
                       </div>
                       <div
@@ -1485,7 +1497,7 @@ export default function ThaiTraditionalMedicine3Client({
                           selectedItem.treatment5 === 'Y' ? 'is-checked' : 'is-unchecked'
                         }`}
                       >
-                        <span>{selectedItem.treatment5 === 'Y' ? '✓' : '—'}</span>
+                        <span>{selectedItem.treatment5 === 'Y' ? <Check size={14} className="inline-block text-emerald-700 mr-1" /> : '—'}</span>
                         <span>5. การทับหม้อเกลือ</span>
                       </div>
                       <div
@@ -1493,7 +1505,7 @@ export default function ThaiTraditionalMedicine3Client({
                           selectedItem.treatment6 === 'Y' ? 'is-checked' : 'is-unchecked'
                         }`}
                       >
-                        <span>{selectedItem.treatment6 === 'Y' ? '✓' : '—'}</span>
+                        <span>{selectedItem.treatment6 === 'Y' ? <Check size={14} className="inline-block text-emerald-700 mr-1" /> : '—'}</span>
                         <span>6. สมาธิบำบัด</span>
                       </div>
                       <div
@@ -1501,7 +1513,7 @@ export default function ThaiTraditionalMedicine3Client({
                           selectedItem.treatment7 === 'Y' ? 'is-checked' : 'is-unchecked'
                         }`}
                       >
-                        <span>{selectedItem.treatment7 === 'Y' ? '✓' : '—'}</span>
+                        <span>{selectedItem.treatment7 === 'Y' ? <Check size={14} className="inline-block text-emerald-700 mr-1" /> : '—'}</span>
                         <span>7. การรักษาอื่นๆ</span>
                       </div>
                     </div>

@@ -1,0 +1,38 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-empty-state { box-sizing: border-box; inline-size: 100%; max-inline-size: 45rem; margin-inline: auto; container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center;
+  padding: var(--ds-space-section-sm) var(--ds-space-inset-xl); text-align: center; background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-empty-state *, .odl-empty-state *::before { box-sizing: border-box; }
+.odl-empty-state svg { flex: none; fill: none; stroke: currentColor; stroke-width: var(--ds-icon-stroke-md); }
+.odl-empty-state .odl-art { position: relative; display: grid; place-items: center; inline-size: calc(var(--ds-size-control-lg) * 1.75); aspect-ratio: 1; margin-block-end: var(--ds-space-stack-lg);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); background: var(--ds-color-surface-sunken); color: var(--ds-color-icon-default); }
+.odl-empty-state .odl-art > svg { inline-size: calc(var(--ds-size-icon-lg) * 1.5); block-size: calc(var(--ds-size-icon-lg) * 1.5); stroke-width: var(--ds-icon-stroke-sm); }
+.odl-empty-state .odl-badge { position: absolute; inset-block-end: var(--ds-space-6); inset-inline-end: var(--ds-space-6); display: grid; place-items: center;
+  padding: var(--ds-space-2); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); color: var(--ds-color-text-success); }
+.odl-empty-state .odl-badge svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-empty-state h3 { margin: 0; font: var(--ds-text-title-md); text-wrap: balance; }
+.odl-empty-state p { margin: var(--ds-space-stack-sm) 0 0; max-inline-size: 38ch; color: var(--ds-color-text-secondary); text-wrap: pretty; }
+.odl-empty-state .odl-acts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--ds-space-inline-sm); margin-block-start: var(--ds-space-stack-xl); }
+.odl-empty-state button, .odl-empty-state a { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; text-decoration: none;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-empty-state button { border: var(--ds-border-width-default) solid transparent; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-empty-state button:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-empty-state a { border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-empty-state a:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-empty-state button svg, .odl-empty-state a svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-empty-state button:focus-visible, .odl-empty-state a:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 26rem) {
+  .odl-empty-state { padding: var(--ds-space-section-sm) var(--ds-space-inset-lg); }
+  .odl-empty-state .odl-acts { flex-direction: column; align-self: stretch; }
+  .odl-empty-state .odl-acts > * { align-self: stretch; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-empty-state, .odl-empty-state *, .odl-empty-state *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-empty-state" aria-label="Receipts">
+  <span class="odl-art" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span class="odl-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span></span>
+  <h3>Every receipt is matched</h3>
+  <p>New payments from your bank feed show up here within a few minutes.</p>
+  <div class="odl-acts"><button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Import a bank file</button><a href="#">Set up match rules</a></div>
+</section>

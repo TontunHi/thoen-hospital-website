@@ -1,0 +1,27 @@
+{
+  "name": "Settings switches",
+  "summary": "A group of on and off settings, each with a plain explanation, including one that is locked by the organization.",
+  "use": "on a settings page with on and off options",
+  "type": "form",
+  "style": "quiet",
+  "industries": [
+    "any"
+  ],
+  "tags": [
+    "settings",
+    "switch",
+    "toggle",
+    "preferences",
+    "form"
+  ],
+  "states": [
+    "on",
+    "off",
+    "locked",
+    "hover",
+    "focus"
+  ],
+  "source": "brand/showcase/product/06-ferrule-security",
+  "a11y": "Native checkboxes with role switch inside their labels, so the whole row is the target; the switch is at least 24 px tall; a setting the organization locked shows its state in words with a lock and is read as \"On, locked\".",
+  "width": "medium"
+}

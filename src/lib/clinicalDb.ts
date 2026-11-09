@@ -58,6 +58,23 @@ export interface AppointmentMismatchRecord {
 export async function fetchAppointmentMismatches(
   queryExecutor = queryClinicalDb
 ): Promise<AppointmentMismatchRecord[]> {
+  if (queryExecutor === queryClinicalDb) {
+    try {
+      const gwRows = await apiGateway.clinical.getAppointmentMismatches()
+      if (Array.isArray(gwRows)) {
+        return gwRows.map((row) => ({
+          hn: String(row.hn || ''),
+          department: row.department ? String(row.department).trim() : '',
+          vstdate: row.vstdate ? String(row.vstdate) : '',
+          nextdate: row.nextdate ? String(row.nextdate) : '',
+          appUser: row.app_user ? String(row.app_user).trim() : '',
+        }))
+      }
+    } catch {
+      // Graceful fallback to executor query
+    }
+  }
+
   const sql = `
     SELECT 
       o.hn,

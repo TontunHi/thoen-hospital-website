@@ -301,6 +301,129 @@ describe('RcmAdpSearchService', () => {
       expect(result.items[0].hasOperation).toBe(true)
       expect(result.summary.withOperationCount).toBe(1)
     })
+
+    it('filters IPD records with pttypes and recalculates summary', async () => {
+      const mixedIpdRows = [
+        {
+          an: '690001',
+          hn: '0011111',
+          cid: '1529900011111',
+          ptname: 'นาย ก',
+          sex_code: '1',
+          birthday: '1980-01-01',
+          age: 46,
+          regdate: '2026-10-01',
+          dchdate: '2026-10-05',
+          pttype: '10',
+          pttypename: 'บัตรทอง',
+          pttype_eclaim_id: '01',
+          hipdata_code: 'UCS',
+          income: 10000,
+          compensated: 8000,
+          pdx: 'I21.0',
+        },
+        {
+          an: '690002',
+          hn: '0022222',
+          cid: '1529900022222',
+          ptname: 'นาย ข',
+          sex_code: '1',
+          birthday: '1975-01-01',
+          age: 51,
+          regdate: '2026-10-02',
+          dchdate: '2026-10-06',
+          pttype: '30',
+          pttypename: 'ประกันสังคม',
+          pttype_eclaim_id: '30',
+          hipdata_code: 'SSS',
+          income: 5000,
+          compensated: 4000,
+          pdx: 'K29.0',
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce([{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }])
+        .mockResolvedValueOnce(mixedIpdRows)
+
+      const res = await RcmAdpSearchService.getAdpSearchReport(
+        {
+          patientType: 'IPD',
+          adpCode: '14001',
+          ds1: '2026-10-01',
+          ds2: '2026-10-31',
+          pttypes: '01,02',
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      expect(res.items).toHaveLength(1)
+      expect(res.items[0].an).toBe('690001')
+      expect(res.summary.totalRecords).toBe(1)
+      expect(res.summary.totalIncome).toBe(10000)
+    })
+
+    it('falls back to ucOnly when pttypes is omitted', async () => {
+      const mixedIpdRows = [
+        {
+          an: '690001',
+          hn: '0011111',
+          cid: '1529900011111',
+          ptname: 'นาย ก',
+          sex_code: '1',
+          birthday: '1980-01-01',
+          age: 46,
+          regdate: '2026-10-01',
+          dchdate: '2026-10-05',
+          pttype: '10',
+          pttypename: 'บัตรทอง',
+          pttype_eclaim_id: '01',
+          hipdata_code: 'UCS',
+          income: 10000,
+          compensated: 8000,
+        },
+        {
+          an: '690002',
+          hn: '0022222',
+          cid: '1529900022222',
+          ptname: 'นาย ข',
+          sex_code: '1',
+          birthday: '1975-01-01',
+          age: 51,
+          regdate: '2026-10-02',
+          dchdate: '2026-10-06',
+          pttype: '30',
+          pttypename: 'ประกันสังคม',
+          pttype_eclaim_id: '30',
+          hipdata_code: 'SSS',
+          income: 5000,
+          compensated: 4000,
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce([{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }])
+        .mockResolvedValueOnce(mixedIpdRows)
+
+      const res = await RcmAdpSearchService.getAdpSearchReport(
+        {
+          patientType: 'IPD',
+          adpCode: '14001',
+          ds1: '2026-10-01',
+          ds2: '2026-10-31',
+          ucOnly: true,
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      expect(res.items).toHaveLength(1)
+      expect(res.items[0].an).toBe('690001')
+      expect(res.summary.totalRecords).toBe(1)
+    })
   })
 
   describe('getAvailableAdpCodes', () => {

@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ckryptickunal/OpenDesigner/blob/main/skills/opendesigner/references/report.schema.json",
+  "title": "OpenDesigner anonymous journey report",
+  "description": "The only data `journey.py share` can send (BRIEF requirement 19). An allowlist: every object is closed (additionalProperties false), every string is an enum or a fixed pattern, every number is bounded. There is no field for answers, names, colors, paths, project names, notes, links, code, free text, timezone or a lasting id; report_id is random and new for every report. Hand-written; journey.py and server/telemetry/worker.js both validate against it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "report_id",
+    "version",
+    "host",
+    "week",
+    "sessions",
+    "secs_total",
+    "levels",
+    "events",
+    "questions"
+  ],
+  "properties": {
+    "schema": {
+      "const": "opendesigner-report/1"
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$",
+      "description": "Random, new for every report; never reused"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$",
+      "description": "OpenDesigner skill version"
+    },
+    "host": {
+      "enum": [
+        "claude-code",
+        "claude-ai",
+        "claude-desktop",
+        "chatgpt",
+        "codex",
+        "cursor",
+        "copilot",
+        "gemini-cli",
+        "other",
+        "unknown"
+      ],
+      "description": "The AI tool, as a fixed word"
+    },
+    "week": {
+      "type": "string",
+      "pattern": "^20\\d\\d-W(0[1-9]|[1-4]\\d|5[0-3])$",
+      "description": "ISO week the report was made; no day, time or timezone"
+    },
+    "sessions": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "secs_total": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 36000000,
+      "multipleOf": 5
+    },
+    "levels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sketch": {
+          "$ref": "#/$defs/level"
+        },
+        "broad": {
+          "$ref": "#/$defs/level"
+        },
+        "defined": {
+          "$ref": "#/$defs/level"
+        },
+        "detailed": {
+          "$ref": "#/$defs/level"
+        }
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session_start": {
+          "$ref": "#/$defs/count"
+        },
+        "session_end": {
+          "$ref": "#/$defs/count"
+        },
+        "step_shown": {
+          "$ref": "#/$defs/count"
+        },
+        "step_answered": {
+          "$ref": "#/$defs/count"
+        },
+        "step_skipped": {
+          "$ref": "#/$defs/count"
+        },
+        "step_changed": {
+          "$ref": "#/$defs/count"
+        },
+        "help": {
+          "$ref": "#/$defs/count"
+        },
+        "frustration": {
+          "$ref": "#/$defs/count"
+        },
+        "error": {
+          "$ref": "#/$defs/count"
+        },
+        "level_complete": {
+          "$ref": "#/$defs/count"
+        },
+        "export": {
+          "$ref": "#/$defs/count"
+        },
+        "review": {
+          "$ref": "#/$defs/count"
+        },
+        "feedback_filed": {
+          "$ref": "#/$defs/count"
+        },
+        "speed_mode": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "questions": {
+      "type": "object",
+      "maxProperties": 250,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^Q-[a-z]+-\\d{2}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/question"
+      },
+      "description": "Keyed by public questionnaire ids only (references/questions.json)"
+    }
+  },
+  "$defs": {
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000
+    },
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completed",
+        "steps_taken",
+        "fewest",
+        "planned",
+        "secs",
+        "planned_min"
+      ],
+      "properties": {
+        "completed": {
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "steps_taken": {
+          "$ref": "#/$defs/count"
+        },
+        "fewest": {
+          "$ref": "#/$defs/count"
+        },
+        "planned": {
+          "$ref": "#/$defs/count"
+        },
+        "secs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 36000000,
+          "multipleOf": 5
+        },
+        "planned_min": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shown": {
+          "$ref": "#/$defs/count"
+        },
+        "answered": {
+          "$ref": "#/$defs/count"
+        },
+        "skipped": {
+          "$ref": "#/$defs/count"
+        },
+        "changed": {
+          "$ref": "#/$defs/count"
+        },
+        "dropped": {
+          "$ref": "#/$defs/count"
+        },
+        "turns": {
+          "$ref": "#/$defs/count"
+        },
+        "help": {
+          "$ref": "#/$defs/count"
+        },
+        "errors": {
+          "$ref": "#/$defs/count"
+        },
+        "faster": {
+          "$ref": "#/$defs/count"
+        },
+        "how": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "default": {
+              "$ref": "#/$defs/count"
+            },
+            "option": {
+              "$ref": "#/$defs/count"
+            },
+            "free": {
+              "$ref": "#/$defs/count"
+            },
+            "delegated": {
+              "$ref": "#/$defs/count"
+            },
+            "reference": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "said": {
+              "$ref": "#/$defs/count"
+            },
+            "repeat_question": {
+              "$ref": "#/$defs/count"
+            },
+            "undo": {
+              "$ref": "#/$defs/count"
+            },
+            "rage_skip": {
+              "$ref": "#/$defs/count"
+            },
+            "just_do_it": {
+              "$ref": "#/$defs/count"
+            },
+            "error_loop": {
+              "$ref": "#/$defs/count"
+            },
+            "slow": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "secs": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1800,
+            "multipleOf": 5
+          }
+        }
+      }
+    }
+  }
+}

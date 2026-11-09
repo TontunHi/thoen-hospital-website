@@ -1,0 +1,91 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-confirm-dialog { box-sizing: border-box; inline-size: 100%; max-inline-size: 30rem; margin-inline: auto; display: grid; container-type: inline-size;
+  background: var(--ds-color-surface-overlay); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay); font: var(--ds-text-body-md); text-wrap: pretty; overflow: hidden; }
+.odl-confirm-dialog *, .odl-confirm-dialog *::before { box-sizing: border-box; }
+.odl-confirm-dialog svg { flex: none; fill: none; stroke: currentColor; stroke-width: var(--ds-icon-stroke-md); }
+.odl-confirm-dialog .odl-main { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); }
+.odl-confirm-dialog .odl-head { display: grid; gap: var(--ds-space-stack-md); justify-items: start; }
+.odl-confirm-dialog .odl-mark { display: grid; place-items: center; inline-size: var(--ds-size-control-lg); block-size: var(--ds-size-control-lg); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); }
+.odl-confirm-dialog .odl-mark svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-confirm-dialog h2 { margin: 0; font: var(--ds-text-title-md); text-wrap: balance; }
+.odl-confirm-dialog .odl-lede { margin: var(--ds-space-stack-sm) 0 0; color: var(--ds-color-text-secondary); }
+.odl-confirm-dialog ul { margin: 0; padding: var(--ds-space-inset-xs) var(--ds-space-inset-md); list-style: none; display: grid;
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-sunken); font-variant-numeric: tabular-nums; }
+.odl-confirm-dialog li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); }
+.odl-confirm-dialog li + li { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-confirm-dialog li span:first-child { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-confirm-dialog li small { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-confirm-dialog li span:last-child { white-space: nowrap; }
+.odl-confirm-dialog .odl-field { display: grid; gap: var(--ds-space-stack-sm); }
+.odl-confirm-dialog label { font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-confirm-dialog code { font: var(--ds-text-code-sm); padding: 0 var(--ds-space-4); border-radius: var(--ds-radius-detail); background: var(--ds-color-bg-neutral-subtle); overflow-wrap: anywhere; }
+.odl-confirm-dialog input { inline-size: 100%; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field);
+  color: var(--ds-color-text-primary); font: var(--ds-text-code-md); font-size: var(--ds-font-size-input); }
+.odl-confirm-dialog input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-confirm-dialog input:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-confirm-dialog .odl-hint { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-confirm-dialog footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ds-space-inline-sm); padding: var(--ds-space-inset-md) var(--ds-space-inset-xl);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-sunken); }
+.odl-confirm-dialog button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm);
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control);
+  font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-hover); }
+.odl-confirm-dialog .odl-cancel { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-default); }
+.odl-confirm-dialog .odl-cancel:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-confirm-dialog .odl-delete { background: var(--ds-color-bg-danger-bold); color: var(--ds-color-text-on-danger); border: var(--ds-border-width-default) solid transparent; }
+.odl-confirm-dialog .odl-delete:hover:not(:disabled) { background: var(--ds-color-bg-danger-bold-hover); }
+.odl-confirm-dialog .odl-delete:active:not(:disabled) { background: var(--ds-color-bg-danger-bold-pressed); }
+.odl-confirm-dialog .odl-delete:disabled { background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); border-color: var(--ds-color-border-danger); cursor: not-allowed; }
+.odl-confirm-dialog button svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-confirm-dialog button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 26rem) {
+  .odl-confirm-dialog .odl-main { padding: var(--ds-space-inset-lg); }
+  .odl-confirm-dialog footer { padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); }
+  .odl-confirm-dialog footer button { flex: 1 1 100%; }
+  .odl-confirm-dialog .odl-delete { order: -1; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-confirm-dialog, .odl-confirm-dialog *, .odl-confirm-dialog *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="odl-cd-title" aria-describedby="odl-cd-desc">
+  <div class="odl-main">
+    <div class="odl-head">
+      <span class="odl-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></span>
+      <div>
+        <h2 id="odl-cd-title">Delete 3 receipts?</h2>
+        <p class="odl-lede" id="odl-cd-desc">They will be removed from the ledger and from the October export. Matched bank lines go back to unmatched. This cannot be undone.</p>
+      </div>
+    </div>
+    <ul aria-label="Receipts to delete">
+      <li><span>Redwillow Produce <small>· Oct 18</small></span><span>$5,402.88</span></li>
+      <li><span>Inchley Print Co. <small>· Oct 14</small></span><span>$612.40</span></li>
+      <li><span>Hollin Water Co. <small>· Oct 19</small></span><span>$238.14</span></li>
+    </ul>
+    <div class="odl-field">
+      <label for="odl-cd-input">Type <code>thistlecombe-foods</code> to confirm</label>
+      <input id="odl-cd-input" type="text" value="thistlecombe-foods" autocomplete="off" spellcheck="false" aria-describedby="odl-cd-hint">
+      <p class="odl-hint" id="odl-cd-hint">The workspace name, as it appears in your URL.</p>
+    </div>
+  </div>
+  <footer>
+    <button type="button" class="odl-cancel">Cancel</button>
+    <button type="button" class="odl-delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>Delete 3 receipts</button>
+  </footer>
+</div>
+<script>
+document.querySelectorAll(".odl-confirm-dialog").forEach((root, n) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  // Keep ids unique when the dialog appears more than once on a page.
+  const refs = [root, ...root.querySelectorAll("[for], [aria-labelledby], [aria-describedby]")];
+  root.querySelectorAll("[id]").forEach((el) => { el.id += "-" + n; });
+  refs.forEach((r) => ["for", "aria-labelledby", "aria-describedby"].forEach((a) => { if (r.hasAttribute(a)) r.setAttribute(a, r.getAttribute(a) + "-" + n); }));
+  const input = root.querySelector("input"), del = root.querySelector(".odl-delete"), want = root.querySelector("label code").textContent.trim();
+  const sync = () => { del.disabled = input.value.trim() !== want; };
+  input.addEventListener("input", sync);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !del.disabled) del.click(); });
+  sync();
+});
+</script>

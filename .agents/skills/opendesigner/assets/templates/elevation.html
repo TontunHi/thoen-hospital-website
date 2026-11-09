@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Elevation</title>
+<!--
+OpenDesigner visual template: Elevation. How surfaces separate: borders, rings, tonal steps, shadow ladders (stage 15).
+Three voices: an option's "label" and "note" are plain; optional "short" shows the one-line
+"Designers: X · Code: Y" pointer, and optional "more" holds the full designer and engineer notes (tooltip).
+Feed it JSON in one of three ways: replace the contents of <script id="od-data">, set window.OD_DATA before the
+last script runs, or open the file with #data=<url-encoded JSON>. The sample payload below documents every field.
+"Copy my choice" produces OD: lines (grammar in references/rules.md): OD:<action> <target>=<value> <status>.
+No network requests, no dependencies. The shared chrome is repeated in every template on purpose so each file stands alone.
+-->
+<style>:root{--c-bg:#f6f6f7;--c-surface:#fff;--c-fg:#18181b;--c-muted:#585862;--c-border:#dcdce1;--c-strong:#18181b;--c-on-strong:#fff;--c-ok:#166534;--c-bad:#b42318;--r:8px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--font)}
+h1{font-size:16px;margin:0;font-weight:600}h2{font-size:13px;margin:0 0 8px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em}
+.od-h{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
+.sub{color:var(--c-muted);font-size:13px;margin:4px 0 0;max-width:72ch}
+main{max-width:1120px;margin:0 auto;padding:20px;display:grid;gap:24px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;border:0;padding:0;margin:0;min-width:0}
+.opt{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);padding:12px;cursor:pointer;min-height:44px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt:has(input:checked){border-color:var(--c-strong);box-shadow:inset 0 0 0 1px var(--c-strong)}
+.opt:has(input:focus-visible){outline:2px solid var(--c-strong);outline-offset:2px}
+.opt-t{font-weight:600}.opt-n{color:var(--c-muted);font-size:13px}
+.rec{display:inline-block;margin-left:6px;font:600 11px var(--font);padding:1px 6px;border:1px solid var(--c-border);border-radius:99px;color:var(--c-muted);vertical-align:1px}
+.specimen{position:relative;border:1px solid var(--c-border);border-radius:var(--r);background:var(--s-bg,var(--c-surface));color:var(--s-fg,var(--c-fg));padding:30px 16px 16px;overflow-x:auto}
+.specimen::before{content:attr(data-label);position:absolute;top:8px;left:12px;font:11px var(--mono);color:inherit;opacity:.6}
+.kv{font:12px/1.4 var(--mono);color:var(--c-muted)}.num{font-family:var(--mono);text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.lbl{min-width:84px;color:var(--c-muted);font-size:13px}
+button{font:inherit;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);cursor:pointer}
+button.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong);font-weight:600}
+:focus-visible{outline:2px solid var(--c-strong);outline-offset:2px}
+input[type=text],input[type=number]{font:inherit;min-height:44px;padding:0 10px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-fg)}
+input[type=range]{min-height:44px;accent-color:var(--c-strong);flex:1 1 120px;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--c-border);border-radius:var(--r);overflow:hidden;background:var(--c-surface)}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--c-border)}.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--c-strong);color:var(--c-on-strong)}
+.tbl{border-collapse:collapse;width:100%;font-size:13px}.tbl th,.tbl td{border-bottom:1px solid var(--c-border);padding:8px;text-align:left}.tbl th{color:var(--c-muted);font-weight:600}
+.ok{color:var(--c-ok);font-weight:600}.bad{color:var(--c-bad);font-weight:600}
+.od-f{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--c-surface);border-top:1px solid var(--c-border)}
+.od-f label{display:inline-flex;gap:6px;align-items:center;min-height:44px}
+.od-out{flex:1 1 320px;min-height:44px;font:12px/1.4 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg);resize:vertical}
+input[type=radio],input[type=checkbox]{accent-color:var(--c-strong);width:18px;height:18px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.stage{position:relative;min-height:340px;border-radius:8px;padding:20px}
+.lv{position:absolute;padding:14px;border-radius:10px;width:min(240px,60%)}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:18px}
+.cell{height:80px;border-radius:10px;display:flex;align-items:flex-end;padding:8px}
+</style>
+</head>
+<body>
+<header class="od-h"><div><h1 id="t"></h1><p class="sub" id="st"></p></div><div class="seg" id="theme" role="group" aria-label="Color mode"></div></header>
+<main>
+<fieldset class="opts" id="opts"></fieldset>
+<section><div id="es" class="specimen" data-label="your elevation"></div></section>
+</main>
+<footer class="od-f">
+<label><input type="checkbox" id="lock"> Lock this decision</label>
+<label>Note <input type="text" id="note" placeholder="optional reason" size="24"></label>
+<textarea id="out" class="od-out" rows="2" readonly aria-label="Your choice as OD lines"></textarea>
+<button type="button" class="primary" id="copy">Copy my choice</button>
+<span id="live" class="kv" role="status" aria-live="polite"></span>
+</footer>
+<script type="application/json" id="od-data">
+{
+ "title": "Depth and elevation",
+ "subtitle": "Sample data. Three surfaces stacked on the page, then every level with its exact CSS. In dark mode, raised surfaces get lighter instead of using shadows.",
+ "question": "Q-depth-01",
+ "recommended": "ring-shadow",
+ "options": [
+  {
+   "value": "borders",
+   "label": "Lines only",
+   "note": "flat; separation by 1 px borders",
+   "levels": {
+    "light": [
+     {
+      "name": "0",
+      "border": "1px solid #e4e4e7"
+     },
+     {
+      "name": "1",
+      "border": "1px solid #d4d4d8"
+     },
+     {
+      "name": "2",
+      "border": "1px solid #a1a1aa"
+     },
+     {
+      "name": "3",
+      "border": "1px solid #71717a"
+     }
+    ],
+    "dark": [
+     {
+      "name": "0",
+      "border": "1px solid #2e2e33",
+      "bg": "#18181b"
+     },
+     {
+      "name": "1",
+      "border": "1px solid #3f3f46",
+      "bg": "#1c1c20"
+     },
+     {
+      "name": "2",
+      "border": "1px solid #52525b",
+      "bg": "#202025"
+     },
+     {
+      "name": "3",
+      "border": "1px solid #71717a",
+      "bg": "#25252b"
+     }
+    ]
+   }
+  },
+  {
+   "value": "ring-shadow",
+   "label": "Ring + faint shadow",
+   "note": "crisp edge, small lift",
+   "levels": {
+    "light": [
+     {
+      "name": "0",
+      "shadow": "0 0 0 1px rgba(24,24,27,.08)"
+     },
+     {
+      "name": "1",
+      "shadow": "0 0 0 1px rgba(24,24,27,.08), 0 1px 2px rgba(24,24,27,.08)"
+     },
+     {
+      "name": "2",
+      "shadow": "0 0 0 1px rgba(24,24,27,.08), 0 4px 12px rgba(24,24,27,.12)"
+     },
+     {
+      "name": "3",
+      "shadow": "0 0 0 1px rgba(24,24,27,.08), 0 12px 32px rgba(24,24,27,.18)"
+     }
+    ],
+    "dark": [
+     {
+      "name": "0",
+      "shadow": "0 0 0 1px rgba(255,255,255,.08)",
+      "bg": "#18181b"
+     },
+     {
+      "name": "1",
+      "shadow": "0 0 0 1px rgba(255,255,255,.1), 0 1px 2px rgba(0,0,0,.4)",
+      "bg": "#1f1f23"
+     },
+     {
+      "name": "2",
+      "shadow": "0 0 0 1px rgba(255,255,255,.12), 0 4px 12px rgba(0,0,0,.5)",
+      "bg": "#26262b"
+     },
+     {
+      "name": "3",
+      "shadow": "0 0 0 1px rgba(255,255,255,.14), 0 12px 32px rgba(0,0,0,.6)",
+      "bg": "#2c2c32"
+     }
+    ]
+   }
+  },
+  {
+   "value": "shadow",
+   "label": "Shadow ladder",
+   "note": "key + ambient shadows, clear layering",
+   "levels": {
+    "light": [
+     {
+      "name": "0"
+     },
+     {
+      "name": "1",
+      "shadow": "0 0 2px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.14)"
+     },
+     {
+      "name": "2",
+      "shadow": "0 0 2px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.14)"
+     },
+     {
+      "name": "3",
+      "shadow": "0 0 2px rgba(0,0,0,.12), 0 14px 28px rgba(0,0,0,.14)"
+     }
+    ],
+    "dark": [
+     {
+      "name": "0",
+      "bg": "#18181b"
+     },
+     {
+      "name": "1",
+      "shadow": "0 0 2px rgba(0,0,0,.24), 0 1px 2px rgba(0,0,0,.28)",
+      "bg": "#212126"
+     },
+     {
+      "name": "2",
+      "shadow": "0 0 2px rgba(0,0,0,.24), 0 4px 8px rgba(0,0,0,.28)",
+      "bg": "#28282e"
+     },
+     {
+      "name": "3",
+      "shadow": "0 0 2px rgba(0,0,0,.24), 0 14px 28px rgba(0,0,0,.28)",
+      "bg": "#303037"
+     }
+    ]
+   }
+  },
+  {
+   "value": "tonal",
+   "label": "Tonal steps",
+   "note": "surfaces differ by color, no shadows",
+   "levels": {
+    "light": [
+     {
+      "name": "0",
+      "bg": "#f4f4f5"
+     },
+     {
+      "name": "1",
+      "bg": "#ffffff"
+     },
+     {
+      "name": "2",
+      "bg": "#ffffff",
+      "border": "1px solid #e4e4e7"
+     },
+     {
+      "name": "3",
+      "bg": "#ffffff",
+      "border": "1px solid #d4d4d8"
+     }
+    ],
+    "dark": [
+     {
+      "name": "0",
+      "bg": "#141417"
+     },
+     {
+      "name": "1",
+      "bg": "#1c1c20"
+     },
+     {
+      "name": "2",
+      "bg": "#25252a"
+     },
+     {
+      "name": "3",
+      "bg": "#2f2f35"
+     }
+    ]
+   }
+  }
+ ]
+}
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadData(){let d={};try{d=JSON.parse($('#od-data').textContent)}catch(e){}
+ if(window.OD_DATA)d=window.OD_DATA;const m=location.hash.match(/[#&]data=([^&]+)/);
+ if(m){try{d=JSON.parse(decodeURIComponent(m[1]))}catch(e){console.warn('OpenDesigner: #data is not valid JSON')}}return d}
+const D=loadData();
+const OD={sel:null,extra:null,draw:()=>{}};
+// OD: line grammar (spec 3.7, DC-L18-07): OD:set <path>=<json-value> [--why "reason"], OD:lock <path>
+function fmtv(v){return typeof v==='number'||typeof v==='boolean'?String(v):JSON.stringify(String(v))}
+function fill(tpl,v){return tpl.replace('{v}',fmtv(v))}
+function lines(){let L=[];const o=OD.sel;
+ if(o){if(o.od)L=[].concat(o.od);else if(D.question)L=['OD:set '+D.question+'='+fmtv(o.value)];else if(D.path)L=['OD:set '+D.path+'='+fmtv(o.value)]}
+ if(OD.extra)L=L.concat(OD.extra());
+ const why=[$('#note').value.trim()].concat(OD.why?OD.why():[]).filter(Boolean).join('; ');
+ L=L.map(x=>why&&/^OD:set /.test(x)&&x.indexOf(' --why ')<0?x+' --why '+JSON.stringify(why):x);
+ if($('#lock').checked)L=L.concat(L.filter(x=>/^OD:set /.test(x)).map(x=>'OD:lock '+x.slice(7).split('=')[0]));
+ return L}
+function update(){OD.draw();$('#out').value=lines().join('\n')||'(nothing chosen yet)'}
+async function copy(){const t=$('#out').value;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){$('#out').select();try{ok=document.execCommand('copy')}catch(_){}}
+ $('#live').textContent=ok?'Copied. Paste it into the chat.':'Select the text and copy it by hand.'}
+function mode(){const t=document.documentElement.dataset.theme;return t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
+function lum(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+ const c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function fix(r){return (Math.floor(r*100)/100).toFixed(2)} // WCAG: no rounding up
+function band(bands,v){for(const b of bands)if(v>=b[0]&&v<=b[1])return b[2];return bands[bands.length-1][2]}
+function seg(el,values,cur,onPick,fmt=String){el.innerHTML=values.map(v=>'<button type="button" aria-pressed="'+(v==cur)+'" data-v="'+esc(v)+'">'+esc(fmt(v))+'</button>').join('');
+ el.onclick=e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));onPick(b.dataset.v)}}
+function mountOptions(inner){const box=$('#opts');const opts=D.options||[];
+ box.innerHTML='<legend class="vh">'+esc(D.title||'Options')+'</legend>'+opts.map((o,i)=>'<label class="opt"'+(o.more?' title="'+esc(o.more)+'"':'')+'><input type="radio" name="opt" value="'+i+'"><span class="opt-t">'+esc(o.label||o.value)+(o.value==D.recommended?'<span class="rec">Recommended</span>':'')+'</span>'+(o.note?'<span class="opt-n">'+esc(o.note)+'</span>':'')+(o.short?'<span class="kv">'+esc(o.short)+'</span>':'')+(inner?inner(o):'')+'</label>').join('');
+ box.onchange=e=>{if(e.target.name==='opt'){OD.sel=opts[+e.target.value];if(OD.onPick)OD.onPick(OD.sel);update()}};
+ const i=Math.max(0,opts.findIndex(o=>o.value==D.recommended));const r=box.querySelector('input[value="'+i+'"]');if(r){r.checked=true;OD.sel=opts[i]}}
+function boot(){$('#t').textContent=D.title||document.title;$('#st').textContent=D.subtitle||'';
+ seg($('#theme'),['auto','light','dark'],'auto',v=>{if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;update()},v=>v[0].toUpperCase()+v.slice(1));
+ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+ $('#copy').onclick=copy;$('#lock').onchange=update;$('#note').oninput=update;update()}
+function lv(o,m){return ((o.levels||{})[m])||((o.levels||{}).light)||[]}
+OD.draw=()=>{const o=OD.sel;if(!o)return;const m=mode(),L=lv(o,m),pg=(o.page||{})[m]||(m==='dark'?'#111113':'#f4f4f5'),fg=m==='dark'?'#ececef':'#1b1b1f';
+ const st=(i)=>{const l=L[Math.min(i,L.length-1)]||{};return 'background:'+(l.bg||(m==='dark'?'#1c1c20':'#ffffff'))+';box-shadow:'+(l.shadow||'none')+';border:'+(l.border||'0')+';color:'+fg};
+ const el=$('#es');el.style.setProperty('--s-bg',pg);el.style.setProperty('--s-fg',fg);
+ el.innerHTML='<div class="stage" style="background:'+pg+'"><div class="lv" style="'+st(1)+';left:4%;top:20px"><strong>Card</strong><div class="kv" style="color:inherit">level 1</div></div>'
+ +'<div class="lv" style="'+st(2)+';left:34%;top:90px"><strong>Menu</strong><div class="kv" style="color:inherit">level 2</div></div>'
+ +'<div class="lv" style="'+st(3)+';left:22%;top:180px"><strong>Dialog</strong><div class="kv" style="color:inherit">level 3</div></div></div>'
+ +'<div class="strip">'+L.map((l,i)=>'<div><div class="cell" style="background:'+(l.bg||(m==='dark'?'#1c1c20':'#fff'))+';box-shadow:'+(l.shadow||'none')+';border:'+(l.border||'0')+';color:'+fg+'"><strong>'+esc(l.name||i)+'</strong></div><div class="kv" style="margin-top:6px">'+esc([l.shadow&&l.shadow!=='none'?l.shadow:'',l.border||'',l.bg||''].filter(Boolean).join(' · ')||'none')+'</div></div>').join('')+'</div>'};
+mountOptions();boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-detail-drawer { box-sizing: border-box; inline-size: 100%; max-inline-size: 30rem; margin-inline: auto; max-block-size: 100%; display: flex; flex-direction: column; container-type: inline-size;
+  background: var(--ds-color-surface-overlay); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay); font: var(--ds-text-body-md); text-wrap: pretty; overflow: hidden; }
+.odl-detail-drawer *, .odl-detail-drawer *::before { box-sizing: border-box; }
+.odl-detail-drawer svg { flex: none; fill: none; stroke: currentColor; stroke-width: var(--ds-icon-stroke-md); }
+.odl-detail-drawer header { display: flex; align-items: center; gap: var(--ds-space-inline-sm); padding: var(--ds-space-inset-sm) var(--ds-space-inset-sm) var(--ds-space-inset-sm) var(--ds-space-inset-xl);
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-detail-drawer h2 { flex: 1 1 auto; min-inline-size: 0; margin: 0; font: var(--ds-text-title-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-detail-drawer .odl-nav { display: flex; align-items: center; gap: var(--ds-space-2); flex: none; }
+.odl-detail-drawer .odl-pos { padding-inline-end: var(--ds-space-inline-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-detail-drawer .odl-sep { inline-size: var(--ds-border-width-default); block-size: var(--ds-size-icon-md); margin-inline: var(--ds-space-inline-xs); background: var(--ds-color-border-subtle); }
+.odl-detail-drawer .odl-icon-btn { display: inline-grid; place-items: center; min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min));
+  padding: 0; border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-icon-default); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-hover); }
+.odl-detail-drawer .odl-icon-btn:hover { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-detail-drawer .odl-icon-btn svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-detail-drawer .odl-body { flex: 1 1 auto; overflow: auto; display: grid; gap: var(--ds-space-stack-xl); padding: var(--ds-space-inset-xl); align-content: start; }
+.odl-detail-drawer .odl-top { display: grid; gap: var(--ds-space-stack-sm); }
+.odl-detail-drawer .odl-pill { justify-self: start; display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); padding: var(--ds-space-2) var(--ds-space-inset-xs);
+  border-radius: var(--ds-radius-full); background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-detail-drawer .odl-pill::before { content: ""; inline-size: var(--ds-space-6); block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: var(--ds-color-text-warning); }
+.odl-detail-drawer .odl-amount { margin: var(--ds-space-stack-xs) 0 0; font: var(--ds-text-headline-sm); font-variant-numeric: tabular-nums; }
+.odl-detail-drawer .odl-amount span { color: var(--ds-color-text-tertiary); }
+.odl-detail-drawer .odl-amount small { margin-inline-start: var(--ds-space-inline-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); }
+.odl-detail-drawer .odl-sub { margin: 0; color: var(--ds-color-text-secondary); }
+.odl-detail-drawer .odl-label { margin: 0 0 var(--ds-space-stack-sm); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-detail-drawer dl { margin: 0; display: grid; grid-template-columns: minmax(7rem, 2fr) 3fr; font-variant-numeric: tabular-nums; }
+.odl-detail-drawer dl > div { display: contents; }
+.odl-detail-drawer dt, .odl-detail-drawer dd { display: flex; align-items: center; margin: 0; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding-block: var(--ds-space-inset-xs);
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-detail-drawer dl > div:last-child > * { border-block-end: 0; }
+.odl-detail-drawer dt { color: var(--ds-color-text-secondary); }
+.odl-detail-drawer dd { padding-inline-start: var(--ds-space-inline-md); flex-wrap: wrap; gap: var(--ds-space-2) var(--ds-space-inline-xs); min-inline-size: 0; overflow-wrap: anywhere; }
+.odl-detail-drawer dd code { font: var(--ds-text-code-md); font-size: inherit; line-height: inherit; }
+.odl-detail-drawer dd .odl-muted { color: var(--ds-color-text-tertiary); }
+.odl-detail-drawer .odl-person { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); }
+.odl-detail-drawer .odl-person img { flex: none; inline-size: var(--ds-size-icon-lg); block-size: var(--ds-size-icon-lg); border-radius: var(--ds-radius-full); object-fit: cover;
+  background: var(--ds-color-bg-neutral-subtle); }
+.odl-detail-drawer .odl-file { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--ds-space-inline-md); align-items: center;
+  padding: var(--ds-space-inset-xs) var(--ds-space-inset-xs) var(--ds-space-inset-xs) var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-nested); }
+.odl-detail-drawer .odl-file-icon { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-default); }
+.odl-detail-drawer .odl-file-icon svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-detail-drawer .odl-file p { display: grid; gap: var(--ds-space-2); margin: 0; min-inline-size: 0; }
+.odl-detail-drawer .odl-file b { display: block; font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-detail-drawer .odl-file small { display: block; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-detail-drawer footer { position: sticky; inset-block-end: 0; display: flex; align-items: center; justify-content: flex-end; gap: var(--ds-space-inline-sm);
+  padding: var(--ds-space-inset-md) var(--ds-space-inset-xl); background: var(--ds-color-surface-overlay); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-detail-drawer .odl-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); flex: none;
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control);
+  font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-hover); }
+.odl-detail-drawer .odl-btn svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-detail-drawer .odl-secondary { background: var(--ds-color-surface-raised); color: var(--ds-color-text-danger); border: var(--ds-border-width-default) solid var(--ds-color-border-default); }
+.odl-detail-drawer .odl-secondary:hover { background: var(--ds-color-bg-danger-subtle); }
+.odl-detail-drawer .odl-primary { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); border: var(--ds-border-width-default) solid transparent; }
+.odl-detail-drawer .odl-primary:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-detail-drawer .odl-primary:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-detail-drawer button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 27rem) {
+  .odl-detail-drawer .odl-pos, .odl-detail-drawer .odl-sep { display: none; }
+}
+@container (max-width: 380px) {
+  .odl-detail-drawer header { padding-inline-start: var(--ds-space-inset-lg); }
+  .odl-detail-drawer .odl-body { padding: var(--ds-space-inset-lg); gap: var(--ds-space-stack-lg); }
+  .odl-detail-drawer dl { grid-template-columns: minmax(6.5rem, 2fr) 3fr; }
+  .odl-detail-drawer footer { padding-inline: var(--ds-space-inset-lg); }
+  .odl-detail-drawer footer .odl-btn { flex: 1 1 0; }
+}
+/* Very narrow: each label sits over its value. */
+@container (max-width: 18rem) {
+  .odl-detail-drawer dl { grid-template-columns: minmax(0, 1fr); }
+  .odl-detail-drawer dt { min-block-size: 0; padding-block-end: 0; border-block-end: 0; font: var(--ds-text-label-md); }
+  .odl-detail-drawer dd { padding-block-start: var(--ds-space-2); padding-inline-start: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-detail-drawer, .odl-detail-drawer *, .odl-detail-drawer *::before { transition: none !important; animation: none !important; } }
+</style>
+<aside class="odl-detail-drawer" role="dialog" aria-modal="false" aria-label="Bill from Redwillow Produce">
+  <header>
+    <h2>Redwillow Produce</h2>
+    <div class="odl-nav">
+      <span class="odl-pos">5 of 14</span>
+      <button type="button" class="odl-icon-btn" aria-label="Previous bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+      <button type="button" class="odl-icon-btn" aria-label="Next bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <span class="odl-sep" aria-hidden="true"></span>
+      <button type="button" class="odl-icon-btn" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+  </header>
+  <div class="odl-body">
+    <div class="odl-top">
+      <span class="odl-pill">1 of 2 approved</span>
+      <p class="odl-amount">$5,402<span>.88</span><small>USD</small></p>
+      <p class="odl-sub">Due Oct 18 · in 4 days · Net 30 from Sep 18</p>
+      <p class="odl-sub">Approving schedules ACH for Oct 17.</p>
+    </div>
+    <div>
+      <p class="odl-label">Details</p>
+      <dl>
+        <div><dt>Bill number</dt><dd><code>EVP-3390</code></dd></div>
+        <div><dt>Submitted by</dt><dd><span class="odl-person"><img src="https://images.unsplash.com/photo-1725033489648-a819750348eb?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">Nandini Iyer</span><span class="odl-muted">· Oct 8</span></dd></div>
+        <div><dt>GL account</dt><dd><code>5120</code> Produce and dairy</dd></div>
+        <div><dt>Department</dt><dd>Kitchen · Reno DC</dd></div>
+        <div><dt>Pay from</dt><dd>Operating ··4410</dd></div>
+        <div><dt>Payment</dt><dd>ACH on Oct 17</dd></div>
+        <div><dt>Matched to</dt><dd><code>PO-3291</code> <span class="odl-muted">· 3 of 3 lines</span></dd></div>
+      </dl>
+    </div>
+    <div>
+      <p class="odl-label">Attachment</p>
+      <div class="odl-file">
+        <span class="odl-file-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+        <p><b>EVP-3390.pdf</b><small>Invoice · 2 pages · 211 KB</small></p>
+        <button type="button" class="odl-icon-btn" aria-label="Open EVP-3390.pdf in a new tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></button>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <button type="button" class="odl-btn odl-secondary">Reject</button>
+    <button type="button" class="odl-btn odl-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Approve</button>
+  </footer>
+</aside>

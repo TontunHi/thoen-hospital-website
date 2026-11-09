@@ -1,0 +1,13 @@
+{
+  "name": "Invite members",
+  "summary": "Invite several people at once: emails become removable chips, one role applies to all with a line on what it can do, and a seat count shows what the invites use.",
+  "use": "when adding people to a workspace or team",
+  "type": "form",
+  "style": "quiet",
+  "industries": ["saas", "productivity", "any"],
+  "tags": ["invite", "team", "members", "roles", "seats", "chips"],
+  "states": ["hover", "focus", "invalid email", "seats used", "over seat limit", "disabled send"],
+  "source": null,
+  "a11y": "The email field is a labelled input; each chip has a remove button that names the address, Backspace removes the last chip, the role is a native select described by its explanation, and errors are tied to the field.",
+  "width": "medium"
+}

@@ -1,0 +1,78 @@
+{
+  "name": "Story rail",
+  "summary": "A row of story rings with people's photos that scrolls sideways inside its box: your own add ring first, unseen stories in an accent ring, close friends marked with a star, a live badge, and seen ones in grey.",
+  "use": "at the top of a social or media feed, for the stories people have posted today",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "social",
+    "media"
+  ],
+  "tags": [
+    "stories",
+    "avatars",
+    "carousel",
+    "feed",
+    "rings"
+  ],
+  "states": [
+    "unseen",
+    "seen",
+    "close friends",
+    "live",
+    "add",
+    "hover",
+    "focus",
+    "scrolled to end"
+  ],
+  "source": null,
+  "a11y": "Each story is a button whose name says who posted it and whether it is new, live or seen; opening one marks it seen, and on wider screens two arrow buttons scroll the rail.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1531746020798-e6953c6e8e04",
+      "author": "Jimmy Fermin",
+      "page": "bqe0J0b26RQ"
+    },
+    {
+      "img": "photo-1506794778202-cad84cf45f1d",
+      "author": "Albert Dera",
+      "page": "ILip77SbmOE"
+    },
+    {
+      "img": "photo-1611403119860-57c4937ef987",
+      "author": "Hà Nguyễn",
+      "page": "OFSQ6bHjFjs"
+    },
+    {
+      "img": "photo-1607569708758-0270aa4651bd",
+      "author": "Meg Wagener",
+      "page": "M7fbJyBuAag"
+    },
+    {
+      "img": "photo-1705645930353-0e335311ef20",
+      "author": "Danny Postma",
+      "page": "zNxOw2JFNKs"
+    },
+    {
+      "img": "photo-1684598273404-2d94d7a7ce2f",
+      "author": "Hugo ROUQUETTE",
+      "page": "RhTXKh0UofQ"
+    },
+    {
+      "img": "photo-1596580817363-a4a8f67d4bc8",
+      "author": "Dorrell Tibbs",
+      "page": "gisFZKWpKQ4"
+    },
+    {
+      "img": "photo-1534751516642-a1af1ef26a56",
+      "author": "Mathias Huysmans",
+      "page": "U4JDjYmjn1g"
+    },
+    {
+      "img": "photo-1600603406200-5b2a104684ac",
+      "author": "Vicky Hladynets",
+      "page": "_gDoyVv5F4c"
+    }
+  ]
+}

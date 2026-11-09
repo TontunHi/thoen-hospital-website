@@ -1,0 +1,111 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-code-input { box-sizing: border-box; container-type: inline-size; inline-size: 100%; max-inline-size: 420px; display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-code-input *, .odl-code-input *::before { box-sizing: border-box; }
+.odl-code-input svg { stroke-width: var(--ds-icon-stroke-md); }
+.odl-code-input .odl-mark { display: grid; place-items: center; inline-size: var(--ds-size-control-lg); block-size: var(--ds-size-control-lg); border-radius: min(var(--ds-radius-control), var(--ds-radius-container), var(--ds-radius-12));
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-default); }
+.odl-code-input .odl-mark svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-code-input h2 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-code-input .odl-head { display: grid; gap: var(--ds-space-stack-sm); }
+.odl-code-input .odl-head p { margin: 0; color: var(--ds-color-text-secondary); }
+.odl-code-input .odl-head strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); white-space: nowrap; }
+.odl-code-input fieldset { display: grid; gap: var(--ds-space-stack-md); min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.odl-code-input legend { padding: 0; margin-block-end: var(--ds-space-stack-sm); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-code-input .odl-boxes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto repeat(3, minmax(0, 1fr)); align-items: center; gap: var(--ds-space-inline-sm); }
+.odl-code-input .odl-boxes input { inline-size: 100%; min-inline-size: 0; block-size: calc(var(--ds-size-control-lg) * 1.25); padding: 0; text-align: center;
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: min(var(--ds-radius-control), var(--ds-radius-container), var(--ds-radius-12)); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary);
+  font: var(--ds-text-title-lg); font-family: var(--ds-font-family-mono); font-variant-numeric: tabular-nums; caret-color: var(--ds-color-border-focus);
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), box-shadow var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-code-input .odl-boxes input:hover { border-color: var(--ds-color-border-strong); }
+.odl-code-input .odl-boxes input:focus-visible { outline: none; border-color: var(--ds-color-border-focus); box-shadow: 0 0 0 var(--ds-focus-ring-width) var(--ds-color-border-focus); }
+.odl-code-input .odl-boxes .odl-dash { inline-size: var(--ds-space-12); block-size: var(--ds-border-width-emphasis); border-radius: var(--ds-radius-full); background: var(--ds-color-border-default); }
+.odl-code-input fieldset.is-invalid .odl-boxes input { border-color: var(--ds-color-border-danger); }
+.odl-code-input fieldset.is-invalid .odl-boxes input:focus-visible { box-shadow: 0 0 0 var(--ds-focus-ring-width) var(--ds-color-border-danger); }
+.odl-code-input .odl-msg { display: flex; gap: var(--ds-space-inline-sm); margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-code-input .odl-msg svg { display: none; flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin-block-start: var(--ds-space-2); }
+.odl-code-input fieldset.is-invalid .odl-msg { color: var(--ds-color-text-danger); }
+.odl-code-input fieldset.is-invalid .odl-msg svg { display: block; }
+.odl-code-input .odl-verify { display: inline-flex; align-items: center; justify-content: center; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md);
+  border: 0; border-radius: var(--ds-radius-control); background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-code-input .odl-verify:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-code-input .odl-verify:disabled { background: var(--ds-color-bg-disabled); color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-code-input .odl-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); padding-block-start: var(--ds-space-stack-md);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-code-input .odl-link { display: inline-flex; align-items: center; min-block-size: var(--ds-size-target-min); padding: 0; border: 0; border-radius: var(--ds-radius-detail); background: transparent;
+  color: var(--ds-color-text-link); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label); cursor: pointer; }
+.odl-code-input .odl-link:hover:not(:disabled) { text-decoration: underline; text-underline-offset: var(--ds-space-2); }
+.odl-code-input .odl-link:disabled { color: var(--ds-color-text-secondary); font-weight: var(--ds-font-weight-body); cursor: default; }
+.odl-code-input .odl-verify:focus-visible, .odl-code-input .odl-link:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@media (max-width: 30rem) {
+  .odl-code-input { padding: var(--ds-space-inset-lg); }
+  .odl-code-input .odl-mark { border-radius: min(var(--ds-radius-control), max(var(--ds-radius-detail), calc(var(--ds-radius-container) - var(--ds-space-inset-lg)))); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-code-input, .odl-code-input *, .odl-code-input *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-code-input" aria-labelledby="odl-ci-title">
+  <span class="odl-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
+  <div class="odl-head">
+    <h2 id="odl-ci-title">Check your email</h2>
+    <p>We sent a 6-digit code to <strong>c•••••@abernathylow.example</strong>. It works for 10 minutes.</p>
+  </div>
+  <fieldset class="is-invalid">
+    <legend>Verification code</legend>
+    <div class="odl-boxes">
+      <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Digit 1 of 6" aria-invalid="true" aria-describedby="odl-ci-msg" value="4">
+      <input type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2 of 6" aria-invalid="true" aria-describedby="odl-ci-msg" value="8">
+      <input type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3 of 6" aria-invalid="true" aria-describedby="odl-ci-msg" value="1">
+      <span class="odl-dash" aria-hidden="true"></span>
+      <input type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4 of 6" aria-invalid="true" aria-describedby="odl-ci-msg" value="9">
+      <input type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5 of 6" aria-invalid="true" aria-describedby="odl-ci-msg" value="0">
+      <input type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6 of 6" aria-invalid="true" aria-describedby="odl-ci-msg" value="3">
+    </div>
+    <p class="odl-msg" id="odl-ci-msg" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg><span>That code does not match. Check the newest email from us; 2 tries left.</span></p>
+  </fieldset>
+  <button type="button" class="odl-verify">Verify</button>
+  <div class="odl-foot">
+    <button type="button" class="odl-link odl-resend" disabled><span>Resend code in <span class="odl-time">0:42</span></span></button>
+    <button type="button" class="odl-link">Use a different email</button>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-code-input").forEach((root) => {
+  if (root.dataset.odlReady) return; root.dataset.odlReady = "1";
+  const boxes = [...root.querySelectorAll(".odl-boxes input")], set = root.querySelector("fieldset"), msg = root.querySelector(".odl-msg span"), verify = root.querySelector(".odl-verify");
+  const resend = root.querySelector(".odl-resend");
+  let left = 42, timer;
+  const tick = () => {
+    if (left <= 0) { clearInterval(timer); resend.disabled = false; resend.textContent = "Resend code"; return; }
+    left--; const t = resend.querySelector(".odl-time"); if (t) t.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  };
+  const start = () => { left = 42; resend.disabled = true; const w = document.createElement("span"), t = document.createElement("span"); t.className = "odl-time"; t.textContent = "0:42"; w.append("Resend code in ", t); resend.replaceChildren(w); clearInterval(timer); timer = setInterval(tick, 1000); };
+  const clearError = () => { if (!set.classList.contains("is-invalid")) return; set.classList.remove("is-invalid"); boxes.forEach((b) => b.removeAttribute("aria-invalid")); msg.textContent = "Type or paste the code. It fills the boxes for you."; };
+  const sync = () => { verify.disabled = boxes.some((b) => !b.value); };
+  const fill = (from, digits) => { digits.split("").forEach((d, i) => { if (boxes[from + i]) boxes[from + i].value = d; }); const next = boxes[Math.min(from + digits.length, boxes.length - 1)]; next.focus(); next.select(); sync(); };
+  boxes.forEach((box, i) => {
+    box.addEventListener("focus", () => box.select());
+    box.addEventListener("input", () => {
+      clearError();
+      const digits = box.value.replace(/\D/g, "");
+      if (!digits) { box.value = ""; sync(); return; }
+      box.value = digits[0];
+      if (digits.length > 1) fill(i, digits.slice(0, boxes.length - i)); else if (boxes[i + 1]) { boxes[i + 1].focus(); } sync();
+    });
+    box.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" && !box.value && boxes[i - 1]) { e.preventDefault(); boxes[i - 1].value = ""; boxes[i - 1].focus(); clearError(); sync(); }
+      else if (e.key === "ArrowLeft" && boxes[i - 1]) { e.preventDefault(); boxes[i - 1].focus(); }
+      else if (e.key === "ArrowRight" && boxes[i + 1]) { e.preventDefault(); boxes[i + 1].focus(); }
+    });
+    box.addEventListener("paste", (e) => {
+      const digits = ((e.clipboardData && e.clipboardData.getData("text")) || "").replace(/\D/g, "");
+      if (!digits) return;
+      e.preventDefault(); clearError(); fill(digits.length >= boxes.length ? 0 : i, digits.slice(0, boxes.length));
+    });
+  });
+  resend.addEventListener("click", () => { start(); boxes.forEach((b) => { b.value = ""; }); clearError(); msg.textContent = "We sent a new code. The old one no longer works."; boxes[0].focus(); sync(); });
+  timer = setInterval(tick, 1000);
+});
+</script>

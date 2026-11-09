@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -33,6 +34,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -112,6 +115,15 @@ export default function ColorectalCancer212Client({
     initialData?.cardFilter ?? 'ALL'
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(() => {
+    if (initialData?.pttypes) {
+      return initialData.pttypes.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    if (initialData?.ucOnly) {
+      return [...UC_ECLAIM_CODES]
+    }
+    return []
+  })
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<ColorectalCancerSortField>(
@@ -200,13 +212,18 @@ export default function ColorectalCancer212Client({
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           search: debouncedSearch,
           sortBy,
           sortOrder,
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          query.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          query.set('ucOnly', 'true')
+        }
 
         if (refresh) query.set('refresh', 'true')
 
@@ -239,7 +256,7 @@ export default function ColorectalCancer212Client({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, selectedPttypes, ucOnly, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch VN Clinical Details for modal
@@ -381,12 +398,17 @@ export default function ColorectalCancer212Client({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         search: debouncedSearch,
         sortBy,
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        query.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        query.set('ucOnly', 'true')
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/colorectal-cancer/service-21-2?${query.toString()}`
@@ -406,7 +428,7 @@ export default function ColorectalCancer212Client({
         'เพศ',
         'อายุ (ปี)',
         'สิทธิการรักษา',
-        'Authen Code',
+        'ClaimCode',
         'ผล Lab (FIT)',
         'รหัส Special PP',
         'รายการ Special PP',
@@ -452,17 +474,13 @@ export default function ColorectalCancer212Client({
         it.fund || '—',
       ])
 
-      const csvContent =
-        '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rcm_colorectal_cancer_fit_test_21_2_${ds1}_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `rcm_colorectal_cancer_fit_test_21_2_${ds1}_${ds2}.xlsx`,
+        title: 'บริการตรวจคัดกรองมะเร็งลำไส้ใหญ่ Fit test (21.2 / ADP 90005)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกข้อมูล')
     } finally {
@@ -507,10 +525,10 @@ export default function ColorectalCancer212Client({
             className="crc-btn crc-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || isExporting || totalCount === 0}
-            title="ดาวน์โหลดไฟล์ CSV (Excel ภาษาไทย)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} className={isExporting ? 'animate-spin' : ''} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -791,16 +809,16 @@ export default function ColorectalCancer212Client({
           </span>
         </div>
 
-        {/* Card 7: มี Authen Code */}
+        {/* Card 7: มี ClaimCode */}
         <div
           className={`crc-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรอง: เคสที่มี Authen Code"
+          title="คลิกเพื่อกรอง: เคสที่มี ClaimCode"
         >
           <div className="crc-kpi-header">
-            <span className="crc-kpi-title">มี Authen Code</span>
+            <span className="crc-kpi-title">มี ClaimCode</span>
             <span className="crc-kpi-icon" style={{ color: '#0284c7', backgroundColor: '#f0f9ff' }}>
               <UserCheck size={18} />
             </span>
@@ -816,16 +834,16 @@ export default function ColorectalCancer212Client({
           </span>
         </div>
 
-        {/* Card 8: ไม่มี Authen Code */}
+        {/* Card 8: ไม่มี ClaimCode */}
         <div
           className={`crc-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('NO_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรอง: เคสที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรอง: เคสที่ไม่มี ClaimCode"
         >
           <div className="crc-kpi-header">
-            <span className="crc-kpi-title">ไม่มี Authen Code</span>
+            <span className="crc-kpi-title">ไม่มี ClaimCode</span>
             <span className="crc-kpi-icon" style={{ color: '#e11d48', backgroundColor: '#fff1f2' }}>
               <X size={18} />
             </span>
@@ -865,18 +883,39 @@ export default function ColorectalCancer212Client({
           )}
         </div>
 
-        <div className="crc-filter-pills">
-          <label className="crc-checkbox-label">
-            <input
-              type="checkbox"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
-              }}
-            />
-            <span>เฉพาะสิทธิบัตรทอง (UC)</span>
-          </label>
+        <div className="crc-filter-pills" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
+          {selectedPttypes.length > 0 && (
+            <div className="crc-active-filter-badge">
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะบัตรทอง (UC)'
+                  : `${selectedPttypes.length} สิทธิ (${selectedPttypes.join(', ')})`}
+              </span>
+              <button
+                type="button"
+                className="crc-active-filter-clear"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                title="ยกเลิกตัวกรองสิทธิ์"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
 
           {cardFilter !== 'ALL' && (
             <div className="crc-active-filter-badge">
@@ -893,9 +932,9 @@ export default function ColorectalCancer212Client({
                         : cardFilter === 'MISSING_PP'
                           ? 'ขาด Special PP'
                           : cardFilter === 'WITH_AUTHEN'
-                            ? 'มี Authen Code'
+                            ? 'มี ClaimCode'
                             : cardFilter === 'NO_AUTHEN'
-                              ? 'ไม่มี Authen Code'
+                              ? 'ไม่มี ClaimCode'
                               : 'สิทธิบัตรทอง'}
               </span>
               <button
@@ -981,7 +1020,9 @@ export default function ColorectalCancer212Client({
                   </div>
                 </th>
                 <th style={{ minWidth: '150px' }}>สิทธิการรักษา</th>
-                <th className="crc-col-center" style={{ width: '120px' }}>Authen Code</th>
+                <th className="crc-col-center" style={{ width: '120px' }}>
+                    ClaimCode
+                  </th>
                 <th className="crc-col-center" style={{ width: '110px' }}>ผล Lab (FIT)</th>
                 <th style={{ minWidth: '160px' }}>Special PP (1B006)</th>
                 <th style={{ minWidth: '160px' }}>รายการ ADP (90005)</th>
@@ -1023,7 +1064,7 @@ export default function ColorectalCancer212Client({
                       <TestTube2 size={40} className="crc-empty-icon" />
                       <p className="crc-empty-title">ไม่พบข้อมูลผู้รับบริการคัดกรอง FIT test</p>
                       <p className="crc-empty-desc">
-                        {search || cardFilter !== 'ALL' || ucOnly
+                        {search || cardFilter !== 'ALL' || selectedPttypes.length > 0 || ucOnly
                           ? 'ลองปรับเปลี่ยนคำค้นหา หรือยกเลิกตัวกรองเพื่อค้นหาอีกครั้ง'
                           : 'ไม่มีข้อมูลการรับบริการในช่วงเวลาที่เลือก'}
                       </p>
@@ -1267,7 +1308,7 @@ export default function ColorectalCancer212Client({
                       </div>
 
                       <div className="crc-modal-card">
-                        <span className="crc-modal-card-label">Authen Code</span>
+                        <span className="crc-modal-card-label">ClaimCode:</span>
                         <div className="crc-modal-card-value">
                           <span>{selectedItem.authencode || 'ไม่มี'}</span>
                           {selectedItem.authencode && (
@@ -1275,8 +1316,8 @@ export default function ColorectalCancer212Client({
                               type="button"
                               className="crc-modal-copy-btn"
                               onClick={() => handleCopy(selectedItem.authencode!, 'authen')}
-                              title="คัดลอก Authen Code"
-                              aria-label="คัดลอก Authen Code"
+                              title="คัดลอก ClaimCode"
+                              aria-label="คัดลอก ClaimCode"
                             >
                               {copiedField === 'authen' ? <Check size={14} style={{ color: '#059669' }} /> : <Copy size={14} />}
                             </button>

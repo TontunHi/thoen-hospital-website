@@ -1,0 +1,13 @@
+{
+  "name": "Boarding pass",
+  "summary": "A wallet-style boarding pass: from and to airport codes joined by a plane line, gate, seat, boarding time and group, the passenger, a drawn barcode and a notched tear line.",
+  "use": "in a travel or airline app, for the pass a traveller shows at the gate",
+  "type": "content",
+  "style": "friendly",
+  "industries": ["travel"],
+  "tags": ["boarding pass", "flight", "wallet", "barcode", "ticket"],
+  "states": ["on time"],
+  "source": null,
+  "a11y": "The pass is an article named by flight and route; gate, seat, boarding time and group are a description list, and the barcode is an image named with its booking code.",
+  "width": "narrow"
+}

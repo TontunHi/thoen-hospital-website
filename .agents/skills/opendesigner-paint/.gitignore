@@ -1,0 +1,4 @@
+# Films normally live in the person's project. If the engine is ever run in place, its installs and renders stay out of git.
+node_modules/
+out/
+.vite/

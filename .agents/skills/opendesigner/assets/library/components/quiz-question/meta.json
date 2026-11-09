@@ -1,0 +1,37 @@
+{
+  "name": "Quiz question",
+  "summary": "One quiz question: a progress bar and lives, the question with a photo, four answers that select, a Check button, and then the right or wrong state with the answer marked and a short explanation.",
+  "use": "in a learning or trivia app, for one question at a time",
+  "type": "form",
+  "style": "friendly",
+  "industries": [
+    "education",
+    "games"
+  ],
+  "tags": [
+    "quiz",
+    "multiple choice",
+    "feedback",
+    "progress",
+    "learning"
+  ],
+  "states": [
+    "unanswered",
+    "selected",
+    "correct",
+    "wrong",
+    "disabled",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The answers are a native radio group with a hidden legend; Check stays disabled until one is picked, the result is announced as a status with its explanation, and the quiz progress is a progressbar.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1545239705-1564e58b9e4a",
+      "author": "Kara Eads",
+      "page": "EbLX7oRo4vI"
+    }
+  ]
+}

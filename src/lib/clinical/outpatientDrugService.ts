@@ -1,5 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { maskPatientName } from '@/lib/clinical/ipdWardService'
+import { logger } from '@/lib/logger'
 
 export interface OutpatientDrugQueueItem {
   hn: string
@@ -21,6 +23,31 @@ export class OutpatientDrugService {
   constructor(private clinicalDb: QueryExecutor = queryClinicalDb) {}
 
   async getDrugDispenseQueue(): Promise<OutpatientDrugQueueResult> {
+    // Mask patient names for PDPA compliance
+    const maskItems = (list: any[]): OutpatientDrugQueueItem[] =>
+      (list || []).map((row) => ({
+        hn: String(row.hn || ''),
+        ptname: maskPatientName(String(row.ptname || '')),
+        service_time: String(row.service_time || ''),
+        timelast: String(row.timelast || ''),
+        ...(row.department ? { department: String(row.department) } : {}),
+      }))
+
+    // Primary: Pure Named API via API Gateway
+    if (this.clinicalDb === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getDrugDispenseStatus()
+        if (gwRes && (Array.isArray(gwRes.paid) || Array.isArray(gwRes.printed))) {
+          return {
+            paidPatients: maskItems(gwRes.paid || []),
+            printedPatients: maskItems(gwRes.printed || []),
+            updatedAt: gwRes.updatedAt || new Date().toISOString(),
+          }
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Failed to fetch drug dispense status via API Gateway, falling back to queryClinicalDb')
+      }
+    }
     // 1. ผู้ป่วยนอก ที่ผ่านห้องการเงินแล้ว (รอพิมพ์ใบสั่งยา/รอจัดยา)
     const queryPaid = `
       SELECT 
@@ -63,16 +90,6 @@ export class OutpatientDrugService {
       this.clinicalDb(queryPaid),
       this.clinicalDb(queryPrinted),
     ])
-
-    // Mask patient names for PDPA compliance
-    const maskItems = (list: any[]): OutpatientDrugQueueItem[] =>
-      (list || []).map((row) => ({
-        hn: String(row.hn || ''),
-        ptname: maskPatientName(String(row.ptname || '')),
-        service_time: String(row.service_time || ''),
-        timelast: String(row.timelast || ''),
-        ...(row.department ? { department: String(row.department) } : {}),
-      }))
 
     return {
       paidPatients: maskItems(paidList),

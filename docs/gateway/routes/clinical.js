@@ -36,16 +36,20 @@ fastify.get('/api/v1/clinical/er/status', {
         const [patients] = await hosPool.query(`
           SELECT pt.hn, er.vn, concat(coalesce(pt.pname, ''), coalesce(pt.fname, ''), ' ', coalesce(pt.lname, '')) as ptname,
             YEAR(current_date)-YEAR(pt.birthday) as age, i.bedno, time(er.enter_er_time) as enter_time,
-            er.er_list, eel.er_emergency_level_name, er.er_emergency_level_id, er.observe, edt.name as dch_type_name
+            er.er_list, eel.er_emergency_level_name, er.er_emergency_level_id, er.observe, edt.name as dch_type_name,
+            w.name as wardname, h.name as hosname
           FROM er_regist er 
-          LEFT JOIN vn_stat vn ON er.vn = vn.vn 
-          LEFT JOIN patient pt ON vn.hn = pt.hn 
-          LEFT JOIN er_emergency_level eel ON er.er_emergency_level_id = eel.er_emergency_level_id 
-          LEFT JOIN er_dch_type edt ON er.er_dch_type = edt.er_dch_type 
-          LEFT JOIN an_stat an ON er.vn = an.vn 
-          LEFT JOIN iptadm i ON an.an = i.an  
+          LEFT OUTER JOIN vn_stat vn ON er.vn = vn.vn 
+          LEFT OUTER JOIN patient pt ON vn.hn = pt.hn 
+          LEFT OUTER JOIN er_emergency_level eel ON er.er_emergency_level_id = eel.er_emergency_level_id 
+          LEFT OUTER JOIN er_dch_type edt ON er.er_dch_type = edt.er_dch_type 
+          LEFT OUTER JOIN an_stat an ON er.vn = an.vn 
+          LEFT OUTER JOIN iptadm i ON an.an = i.an  
+          LEFT OUTER JOIN ward w ON an.ward = w.ward   
+          LEFT OUTER JOIN referout r ON vn.vn = r.vn 
+          LEFT OUTER JOIN hospcode h ON r.refer_hospcode = h.hospcode 
           WHERE er.vstdate = CURRENT_DATE 
-            AND (er.er_leave_status_id IS NULL OR er.er_leave_status_id = '')
+            AND ((er.er_dch_type IN ('2','3','5','6','7','8','9') AND w.name IS NULL) AND h.name IS NULL)
           ORDER BY er.enter_er_time DESC
         `)
         activePatients = patients
@@ -137,6 +141,45 @@ fastify.get('/api/v1/clinical/appointments', {
     else { sql += ' AND o.nextdate = CURRENT_DATE' }
     sql += ' ORDER BY o.nexttime ASC, o.hn ASC LIMIT 300'
     const [rows] = await hosPool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.4.1 Appointments Lookup by CID (Check Date Service for Citizens)
+fastify.get('/api/v1/clinical/appointments/by-cid/:cid', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ค้นหารายการนัดหมายแพทย์สำหรับประชาชนด้วยเลขบัตรประชาชน (Check Date Service)',
+    params: {
+      type: 'object',
+      properties: { cid: { type: 'string', minLength: 13, maxLength: 13 } }
+    }
+  }
+}, async (req, reply) => {
+  const { cid } = req.params
+  try {
+    const sql = `
+      SELECT 
+        ap.hn,
+        concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
+        ap.nextdate as appoint_date,
+        ap.nexttime as appoint_time,
+        c.name as clinic_name,
+        d.name as doctor_name,
+        ap.note as appoint_note,
+        ap.app_no
+      FROM oapp ap
+      LEFT OUTER JOIN patient pt ON ap.hn = pt.hn
+      LEFT OUTER JOIN clinic c ON ap.clinic = c.clinic
+      LEFT OUTER JOIN doctor d ON ap.doctor = d.code
+      WHERE pt.cid = ?
+        AND (ap.app_no IS NULL OR ap.app_no != 'C')
+      ORDER BY ap.nextdate DESC, ap.nexttime DESC
+      LIMIT 100
+    `
+    const [rows] = await hosPool.query(sql, [cid])
     return { success: true, count: rows.length, data: rows }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
@@ -261,6 +304,8 @@ fastify.get('/api/v1/clinical/drugs/status', {
         LEFT JOIN service_time st ON o.vn = st.vn
         LEFT JOIN kskdepartment k ON o.dep_code = k.depcode
         WHERE o.vstdate = CURRENT_DATE() AND o.icode LIKE '1%' AND (st.service6 IS NULL AND st.service7 IS NOT NULL)
+          AND o.vn IS NOT NULL
+          AND (st.service12_dep IS NULL OR st.service12_dep NOT IN ('028', '029', '042', '037', '045', '098'))
         GROUP BY o.hn, pt.pname, pt.fname, pt.lname, st.service7, k.department
         ORDER BY TIMEDIFF(CURRENT_TIME(), st.service7) DESC LIMIT 50
       `
@@ -271,7 +316,7 @@ fastify.get('/api/v1/clinical/drugs/status', {
         FROM opitemrece o
         LEFT JOIN patient pt ON o.hn = pt.hn
         LEFT JOIN service_time st ON o.vn = st.vn
-        WHERE o.vstdate = CURRENT_DATE() AND o.icode LIKE '1%' AND (st.service6 IS NOT NULL AND st.service8 IS NULL)
+        WHERE o.vstdate = CURRENT_DATE() AND o.icode LIKE '1%' AND (st.service6 IS NOT NULL AND st.service7 IS NOT NULL AND st.service16 IS NULL)
         GROUP BY o.hn, pt.pname, pt.fname, pt.lname, st.service6
         ORDER BY TIMEDIFF(CURRENT_TIME(), st.service6) DESC LIMIT 50
       `
@@ -1187,6 +1232,315 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
         page: pageNum,
         pageSize: limitNum,
         dateType
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.15 Patient Clinical Visits Search (by CID or HN)
+fastify.get('/api/v1/clinical/records/visits', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ค้นหาประวัติการรับบริการคลินิกของผู้ป่วยด้วย CID หรือ HN',
+    querystring: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'เลขประจำตัวประชาชน 13 หลัก หรือ HN' }
+      },
+      required: ['query']
+    }
+  }
+}, async (req, reply) => {
+  const { query = '' } = req.query || {}
+  const trimmed = String(query).trim()
+  if (!trimmed) {
+    return { success: true, count: 0, data: [] }
+  }
+  try {
+    const sql = `
+      SELECT 
+        o.cc,
+        pt.hn,
+        if((SELECT count(lo2.lab_order_number) FROM lab_head lh2 join lab_order lo2 on lh2.lab_order_number=lo2.lab_order_number WHERE lh2.vn=ov.an and lo2.confirm = 'Y' limit 1),(SELECT count(lo2.lab_order_number) from lab_head lh2 join lab_order lo2 on lh2.lab_order_number=lo2.lab_order_number where lh2.vn=ov.an and lo2.confirm = 'Y' limit 1),null) as clab2,
+        if((SELECT count(lo.lab_order_number) from lab_head lh join lab_order lo on lh.lab_order_number=lo.lab_order_number where lh.vn=o.vn and lo.confirm = 'Y' limit 1)>0,(SELECT count(lo.lab_order_number) from lab_head lh join lab_order lo on lh.lab_order_number=lo.lab_order_number where lh.vn=o.vn and lo.confirm = 'Y' limit 1),null) as clab,
+        if((SELECT count(o1.icode) from opitemrece o1 join drugitems d on o1.icode=d.icode where o1.vn=o.vn limit 1)>0,(SELECT count(o1.icode) from opitemrece o1 join drugitems d on o1.icode=d.icode where o1.vn=o.vn limit 1),null) as co1,
+        if((SELECT count(o1.icode) from opitemrece o1 join drugitems d on o1.icode=d.icode where o1.an=ov.an limit 1)>0,(SELECT count(o1.icode) from opitemrece o1 join drugitems d on o1.icode=d.icode where o1.an=ov.an limit 1),null) as co2,
+        ovs.name as status_name,
+        o.vn,
+        ov.an,
+        pt.cid,
+        concat(pt.pname,pt.fname,' ',pt.lname) as ptname, 
+        year(o.vstdate)+543 as yearv, 
+        case month(o.vstdate) 
+          when '1' then 'ม.ค.' 
+          when '2' then 'ก.พ.' 
+          when '3' then 'มี.ค.' 
+          when '4' then 'เม.ย.' 
+          when '5' then 'พ.ค.' 
+          when '6' then 'มิ.ย.' 
+          when '7' then 'ก.ค.' 
+          when '8' then 'ส.ค.' 
+          when '9' then 'ก.ย.' 
+          when '10' then 'ต.ค.' 
+          when '11' then 'พ.ย.' 
+          when '12' then 'ธ.ค.'
+        end as monthv,
+        day(o.vstdate) as dayv,  
+        k.department 
+      FROM opdscreen o 
+      left outer join patient pt on o.hn=pt.hn 
+      left outer join kskdepartment k on o.screen_dep=k.depcode 
+      left outer join ovst ov on o.vn=ov.vn 
+      left outer join ovstost ovs on ov.ovstost=ovs.ovstost 
+      WHERE (pt.cid = ? or pt.hn = ?) 
+      ORDER BY o.vn DESC
+      LIMIT 100
+    `
+    const [rows] = await hosPool.query(sql, [trimmed, trimmed])
+    const items = (rows || []).map(row => ({
+      hn: String(row.hn || ''),
+      cid: String(row.cid || ''),
+      ptname: String(row.ptname || ''),
+      vn: String(row.vn || ''),
+      an: row.an ? String(row.an) : null,
+      dateText: `${row.dayv || ''} ${row.monthv || ''} ${row.yearv || ''}`.trim(),
+      department: String(row.department || ''),
+      cc: String(row.cc || ''),
+      statusName: String(row.status_name || ''),
+      opdDrugsCount: Number(row.co1) || 0,
+      opdLabsCount: Number(row.clab) || 0,
+      ipdDrugsCount: Number(row.co2) || 0,
+      ipdLabsCount: Number(row.clab2) || 0,
+    }))
+    return { success: true, count: items.length, data: items }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.16 Visit Clinical Details (OPD / IPD Vitals, Dx, Drugs, Labs, X-Ray)
+fastify.get('/api/v1/clinical/records/visit-details', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ดึงรายละเอียดการตรวจรักษาคลินิกเชิงลึก (Vitals, Dx, ยา, แล็บ, X-Ray) ด้วย VN หรือ AN',
+    querystring: {
+      type: 'object',
+      properties: {
+        vn: { type: 'string' },
+        an: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { vn: rawVn = '', an: rawAn = '' } = req.query || {}
+  const vn = String(rawVn).trim()
+  const an = String(rawAn).trim()
+  if (!vn && !an) {
+    reply.code(400); return { success: false, error: 'ต้องระบุ vn หรือ an' }
+  }
+  try {
+    if (vn) {
+      // OPD Visit Details
+      const patientSql = `
+        SELECT o.hn, pt.cid, concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
+        YEAR(CURDATE())-YEAR(pt.birthday) as ptage, o.vn,
+        year(o.vstdate)+543 as yearv, 
+        case month(o.vstdate) 
+          when '1' then 'ม.ค.' when '2' then 'ก.พ.' when '3' then 'มี.ค.' when '4' then 'เม.ย.' when '5' then 'พ.ค.' when '6' then 'มิ.ย.' when '7' then 'ก.ค.' when '8' then 'ส.ค.' when '9' then 'ก.ย.' when '10' then 'ต.ค.' when '11' then 'พ.ย.' when '12' then 'ธ.ค.'
+        end as monthv,
+        day(o.vstdate) as dayv 
+        FROM opdscreen o 
+        join patient pt on pt.hn=o.hn 
+        WHERE vn = ?
+      `
+      const [patients] = await hosPool.query(patientSql, [vn])
+      if (!patients || patients.length === 0) {
+        return { success: true, data: null }
+      }
+      const patient = patients[0]
+
+      const screenSql = `
+        SELECT 
+          concat(ic1.code,' : ',ic1.name) as dx0name,
+          concat(ic2.code,' : ',ic2.name) as dx1name,
+          concat(ic3.code,' : ',ic3.name) as dx2name,
+          o.pe,
+          concat(ic.code,' : ',ic.name) as name,
+          o.bpd, o.bps, o.bw, o.cc, o.pulse, o.temperature, o.rr, o.height, o.bmi, o.hpi, o.pmh,
+          k.department 
+        FROM opdscreen o  
+        left outer join kskdepartment k on o.screen_dep=k.depcode 
+        left outer join vn_stat vn on o.vn=vn.vn 
+        left outer join icd101 ic on vn.pdx=ic.code 
+        left outer join icd101 ic1 on vn.dx0=ic1.code 
+        left outer join icd101 ic2 on vn.dx1=ic2.code 
+        left outer join icd101 ic3 on vn.dx2=ic3.code 
+        WHERE o.vn = ?
+      `
+      const [screenData] = await hosPool.query(screenSql, [vn])
+      const screen = screenData[0] || {}
+
+      const drugSql = `
+        SELECT dr.name1, d.strength, dr.name2, dr.name3, d.name, o.qty, d.units,
+        su.sp_name as sname, su.name1 as sname1, su.name2 as sname2, su.name3 as sname3 
+        FROM opitemrece o  
+        join drugitems d on o.icode=d.icode 
+        left outer join drugusage dr on o.drugusage=dr.drugusage 
+        left outer join sp_use su on o.sp_use=su.sp_use 
+        WHERE vn = ? and o.qty <> '0'
+      `
+      const [drugs] = await hosPool.query(drugSql, [vn])
+
+      const labSql = `
+        SELECT lh.vn, lh.hn, l.lab_items_name, lo.lab_order_result, lh.form_name, l.lab_items_normal_value 
+        FROM lab_head lh 
+        left outer join lab_order lo on lh.lab_order_number=lo.lab_order_number 
+        left outer join lab_items l on lo.lab_items_code=l.lab_items_code 
+        WHERE lh.vn = ? and lo.confirm = 'Y' and lo.lab_order_result is not null
+      `
+      const [labs] = await hosPool.query(labSql, [vn])
+
+      const xraySql = `select xray_list from xray_head WHERE vn = ?`
+      const [xrays] = await hosPool.query(xraySql, [vn])
+      const xray = xrays[0]?.xray_list || null
+
+      return {
+        success: true,
+        data: {
+          type: 'OPD',
+          patient: {
+            hn: String(patient.hn || ''),
+            cid: String(patient.cid || ''),
+            name: String(patient.ptname || ''),
+            age: Number(patient.ptage) || 0,
+            dateText: `${patient.dayv || ''} ${patient.monthv || ''} ${patient.yearv || ''}`.trim(),
+          },
+          screen: {
+            bps: screen.bps,
+            bpd: screen.bpd,
+            bw: screen.bw,
+            height: screen.height,
+            pulse: screen.pulse,
+            temperature: screen.temperature,
+            rr: screen.rr,
+            cc: screen.cc,
+            hpi: screen.hpi,
+            pe: screen.pe,
+            pmh: screen.pmh,
+            department: screen.department,
+            dxMain: screen.name,
+            dxSub0: screen.dx0name,
+            dxSub1: screen.dx1name,
+            dxSub2: screen.dx2name,
+          },
+          drugs: (drugs || []).map((d) => ({
+            name: String(d.name || ''),
+            strength: d.strength,
+            qty: d.qty,
+            units: d.units,
+            usage: [d.name1, d.name2, d.name3, d.sname1, d.sname2, d.sname3].filter(Boolean).join(' '),
+          })),
+          labs: (labs || []).map((l) => ({
+            formName: l.form_name,
+            itemName: String(l.lab_items_name || ''),
+            result: String(l.lab_order_result || ''),
+            refValue: l.lab_items_normal_value,
+          })),
+          xray,
+        }
+      }
+    } else {
+      // IPD Visit Details
+      const patientSql = `
+        SELECT ipt.hn, pt.cid, concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
+        YEAR(CURDATE())-YEAR(pt.birthday) as ptage, ipt.an,
+        year(ipt.regdate)+543 as yearv, 
+        case month(ipt.regdate) 
+          when '1' then 'ม.ค.' when '2' then 'ก.พ.' when '3' then 'มี.ค.' when '4' then 'เม.ย.' when '5' then 'พ.ค.' when '6' then 'มิ.ย.' when '7' then 'ก.ค.' when '8' then 'ส.ค.' when '9' then 'ก.ย.' when '10' then 'ต.ค.' when '11' then 'พ.ย.' when '12' then 'ธ.ค.'
+        end as monthv,
+        day(ipt.regdate) as dayv,
+        w.name as wardname,
+        i.bedno
+        FROM ipt 
+        join patient pt on pt.hn=ipt.hn 
+        left outer join ward w on ipt.ward=w.ward
+        left outer join iptadm i on ipt.an=i.an
+        WHERE ipt.an = ?
+      `
+      const [patients] = await hosPool.query(patientSql, [an])
+      if (!patients || patients.length === 0) {
+        return { success: true, data: null }
+      }
+      const patient = patients[0]
+
+      const diagSql = `
+        SELECT 
+          concat(ic.code, ' : ', ic.name) as dx_name,
+          i.diagtype
+        FROM iptdiag i
+        join icd101 ic on i.icd10 = ic.code
+        WHERE i.an = ?
+        ORDER BY i.diagtype ASC
+      `
+      const [diags] = await hosPool.query(diagSql, [an])
+
+      const drugSql = `
+        SELECT dr.name1, d.strength, dr.name2, dr.name3, d.name, o.qty, d.units,
+        su.sp_name as sname, su.name1 as sname1, su.name2 as sname2, su.name3 as sname3 
+        FROM opitemrece o  
+        join drugitems d on o.icode=d.icode 
+        left outer join drugusage dr on o.drugusage=dr.drugusage 
+        left outer join sp_use su on o.sp_use=su.sp_use 
+        WHERE o.an = ? and o.qty <> '0'
+      `
+      const [drugs] = await hosPool.query(drugSql, [an])
+
+      const labSql = `
+        SELECT lh.vn, lh.hn, l.lab_items_name, lo.lab_order_result, lh.form_name, l.lab_items_normal_value 
+        FROM lab_head lh 
+        left outer join lab_order lo on lh.lab_order_number=lo.lab_order_number 
+        left outer join lab_items l on lo.lab_items_code=l.lab_items_code 
+        WHERE lh.vn = ? and lo.confirm = 'Y' and lo.lab_order_result is not null
+      `
+      const [labs] = await hosPool.query(labSql, [an])
+
+      return {
+        success: true,
+        data: {
+          type: 'IPD',
+          patient: {
+            hn: String(patient.hn || ''),
+            cid: String(patient.cid || ''),
+            name: String(patient.ptname || ''),
+            age: Number(patient.ptage) || 0,
+            dateText: `${patient.dayv || ''} ${patient.monthv || ''} ${patient.yearv || ''}`.trim(),
+            wardName: patient.wardname,
+            bedNo: patient.bedno,
+          },
+          screen: {
+            department: patient.wardname,
+            dxMain: diags.find(d => d.diagtype === '1')?.dx_name || null,
+            dxSub0: diags.find(d => d.diagtype === '2')?.dx_name || null,
+            dxSub1: diags.find(d => d.diagtype === '3')?.dx_name || null,
+            dxSub2: diags.find(d => d.diagtype === '4')?.dx_name || null,
+          },
+          drugs: (drugs || []).map((d) => ({
+            name: String(d.name || ''),
+            strength: d.strength,
+            qty: d.qty,
+            units: d.units,
+            usage: [d.name1, d.name2, d.name3, d.sname1, d.sname2, d.sname3].filter(Boolean).join(' '),
+          })),
+          labs: (labs || []).map((l) => ({
+            formName: l.form_name,
+            itemName: String(l.lab_items_name || ''),
+            result: String(l.lab_order_result || ''),
+            refValue: l.lab_items_normal_value,
+          })),
+          xray: null,
+        }
       }
     }
   } catch (err) {

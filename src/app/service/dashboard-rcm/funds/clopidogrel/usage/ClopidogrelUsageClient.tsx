@@ -35,6 +35,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -103,6 +105,7 @@ export default function ClopidogrelUsageClient({
   )
 
   // Filter & Search states
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [cardFilter, setCardFilter] = useState<ClopidogrelCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
@@ -202,6 +205,7 @@ export default function ClopidogrelUsageClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+        if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
         if (refresh) query.set('refresh', 'true')
 
         const res = await fetch(
@@ -235,7 +239,7 @@ export default function ClopidogrelUsageClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize, pttypes]
   )
 
   // Fetch on parameter changes (skipping initial fetch if server data present)
@@ -340,8 +344,8 @@ export default function ClopidogrelUsageClient({
     setTimeout(() => setCopiedField(null), 1800)
   }
 
-  // Export to CSV with UTF-8 BOM
-  const handleExportCsv = async () => {
+  // Export to Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const query = new URLSearchParams({
@@ -353,6 +357,7 @@ export default function ClopidogrelUsageClient({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/clopidogrel/usage?${query.toString()}`
       )
@@ -375,7 +380,7 @@ export default function ClopidogrelUsageClient({
         'เวลารับบริการ',
         'สิทธิการรักษา',
         'สิทธิบัตรทอง',
-        'Authen Code',
+        'ClaimCode',
         'แผนก',
         'คลินิก',
         'แพทย์ผู้สั่ง',
@@ -395,50 +400,43 @@ export default function ClopidogrelUsageClient({
 
       const rows = exportItems.map((i, idx) => [
         idx + 1,
-        `"${i.vn}"`,
-        `"${i.hn}"`,
-        `"${i.cid}"`,
-        `"${i.ptname}"`,
-        `"${i.sex}"`,
+        i.vn,
+        i.hn,
+        i.cid,
+        i.ptname,
+        i.sex,
         i.age,
-        `"${i.vstdate}"`,
-        `"${i.vsttime}"`,
-        `"${i.pttypename}"`,
+        i.vstdate,
+        i.vsttime,
+        i.pttypename,
         i.isUc ? 'ใช่' : 'ไม่ใช่',
-        `"${i.authencode || ''}"`,
-        `"${i.department || ''}"`,
-        `"${i.clinic || ''}"`,
-        `"${i.doctorname || ''}"`,
-        `"${i.pdx || ''}"`,
-        `"${i.drugname}"`,
+        i.authencode || '',
+        i.department || '',
+        i.clinic || '',
+        i.doctorname || '',
+        i.pdx || '',
+        i.drugname,
         i.qty,
-        `"${i.units || ''}"`,
+        i.units || '',
         i.money,
         i.hosxp_money,
-        `"${i.adpcode || ''}"`,
-        `"${i.tmt || ''}"`,
-        `"${i.did || ''}"`,
-        `"${i.status_eclaim}"`,
-        `"${i.rep || ''}"`,
+        i.adpcode || '',
+        i.tmt || '',
+        i.did || '',
+        i.status_eclaim,
+        i.rep || '',
         i.compensated,
       ])
 
-      const csvContent =
-        '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.setAttribute('href', url)
-      link.setAttribute(
-        'download',
-        `clopidogrel-usage-${ds1}-to-${ds2}.csv`
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `clopidogrel-usage-${ds1}-to-${ds2}.xlsx`,
+        title: 'รายชื่อการใช้ยา Clopidogrel',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportItems.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์')
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -477,12 +475,12 @@ export default function ClopidogrelUsageClient({
           <button
             type="button"
             className="clop-btn clop-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={isExporting || totalCount === 0}
-            title="ส่งออกรายงานเป็นไฟล์ CSV สำหรับ Excel"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -693,14 +691,14 @@ export default function ClopidogrelUsageClient({
           </div>
         </div>
 
-        {/* Card 5: มี Authen Code */}
+        {/* Card 5: มี ClaimCode */}
         <div
           className={`clop-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
-          title="คลิกเพื่อกรองรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่มี ClaimCode"
         >
           <div className="clop-kpi-top">
-            <span className="clop-kpi-label">มี Authen Code</span>
+            <span className="clop-kpi-label">มี ClaimCode</span>
             <div className="clop-kpi-icon-wrap clop-kpi-icon-teal">
               <UserCheck size={18} />
             </div>
@@ -714,14 +712,14 @@ export default function ClopidogrelUsageClient({
           </div>
         </div>
 
-        {/* Card 6: ไม่มี Authen Code */}
+        {/* Card 6: ไม่มี ClaimCode */}
         <div
           className={`clop-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('NO_AUTHEN')}
-          title="คลิกเพื่อกรองรายการที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่ไม่มี ClaimCode"
         >
           <div className="clop-kpi-top">
-            <span className="clop-kpi-label">ไม่มี Authen Code</span>
+            <span className="clop-kpi-label">ไม่มี ClaimCode</span>
             <div className="clop-kpi-icon-wrap clop-kpi-icon-danger">
               <AlertTriangle size={18} />
             </div>
@@ -731,7 +729,7 @@ export default function ClopidogrelUsageClient({
             <span className="clop-kpi-unit">ครั้ง</span>
           </div>
           <div className="clop-kpi-sub">
-            ต้องติดตามขอรหัส Authen
+            ต้องติดตามขอรหัส ClaimCode
           </div>
         </div>
 
@@ -800,6 +798,16 @@ export default function ClopidogrelUsageClient({
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="clop-toolbar-stats">
           <span>
@@ -905,7 +913,9 @@ export default function ClopidogrelUsageClient({
                       )}
                     </button>
                   </th>
-                  <th style={{ width: 130 }} className="clop-col-center">Authen Code</th>
+                  <th style={{ width: 130 }} className="clop-col-center">
+                    ClaimCode
+                  </th>
                   <th style={{ minWidth: 150 }} className="clop-col-center">สถานะ e-Claim</th>
                   <th style={{ width: 110 }} className="clop-col-center">
                     <button
@@ -1266,7 +1276,7 @@ export default function ClopidogrelUsageClient({
                         <span className="clop-detail-val">{selectedItem.status_eclaim}</span>
                       </div>
                       <div className="clop-detail-item">
-                        <span className="clop-detail-label">Authen Code</span>
+                        <span className="clop-detail-label">ClaimCode:</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span className="clop-detail-val clop-tabular">{selectedItem.authencode || '—'}</span>
                           {selectedItem.authencode && (
@@ -1274,7 +1284,7 @@ export default function ClopidogrelUsageClient({
                               type="button"
                               className="clop-copy-btn"
                               onClick={() => handleCopy(selectedItem.authencode!, 'authen')}
-                              title="คัดลอก Authen Code"
+                              title="คัดลอก ClaimCode"
                             >
                               {copiedField === 'authen' ? <Check size={13} /> : <Copy size={13} />}
                             </button>

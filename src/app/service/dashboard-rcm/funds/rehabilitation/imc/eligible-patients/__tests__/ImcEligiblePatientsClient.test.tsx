@@ -128,8 +128,8 @@ describe('ImcEligiblePatientsClient', () => {
     expect(screen.getByText('ยังไม่ได้บันทึกใน Web IMC')).toBeInTheDocument()
     expect(screen.getByText('ได้รับการชดเชยแล้ว')).toBeInTheDocument()
     expect(screen.getByText('ยังไม่ได้รับการชดเชย')).toBeInTheDocument()
-    expect(screen.getByText('มี Authen Code')).toBeInTheDocument()
-    expect(screen.getByText('ไม่มี Authen Code')).toBeInTheDocument()
+    expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
+    expect(screen.getByText('ไม่มี ClaimCode')).toBeInTheDocument()
   })
 
   it('toggles card filter when a KPI card is clicked', async () => {

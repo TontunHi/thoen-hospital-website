@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -26,6 +27,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -102,6 +104,7 @@ export default function CcsScreenedRecipientsClient({
   const [okFilter, setOkFilter] = useState<CcsOkFilter>('ALL')
   const [resultStatusFilter, setResultStatusFilter] = useState<CcsResultStatusFilter>('ALL')
   const [compensationFilter, setCompensationFilter] = useState<CcsCompensationFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
   const [sortBy, setSortBy] = useState<CcsScreenedSortField>('vstdate')
@@ -202,6 +205,10 @@ export default function CcsScreenedRecipientsClient({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         const res = await fetch(`/api/service/dashboard-rcm/funds/ccs/screened-recipients?${q.toString()}`, {
           signal: controller.signal,
         })
@@ -237,6 +244,7 @@ export default function CcsScreenedRecipientsClient({
       okFilter,
       resultStatusFilter,
       compensationFilter,
+      pttypes,
       debouncedSearch,
       sortBy,
       sortOrder,
@@ -334,6 +342,10 @@ export default function CcsScreenedRecipientsClient({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(`/api/service/dashboard-rcm/funds/ccs/screened-recipients?${q.toString()}`)
       const json = await res.json()
 
@@ -386,68 +398,56 @@ export default function CcsScreenedRecipientsClient({
         'สปสช. ประมาณการชดเชย',
       ]
 
-      const escapeCsv = (str: unknown) => {
-        const s = str === null || str === undefined ? '' : String(str)
-        return `"${s.replace(/"/g, '""')}"`
-      }
+      const rows = allItems.map((r) => [
+        r.no,
+        r.vn,
+        r.an ?? '',
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.age ?? '',
+        r.nation ?? '',
+        r.vstdate ? formatThaiDate(r.vstdate) : '',
+        r.vsttime ?? '',
+        r.authencode ?? '',
+        r.pttypename_patient ?? '',
+        r.pttypename_visit ?? '',
+        r.department ?? '',
+        r.clinic ?? '',
+        r.pdx ?? '',
+        [r.dx0, r.dx1, r.dx2, r.dx3, r.dx4, r.dx5].filter(Boolean).join(','),
+        r.ok ?? '',
+        r.papsmear ?? '',
+        r.papsmear_result ?? '',
+        r.via ?? '',
+        r.via_result ?? '',
+        r.hpv ?? '',
+        r.hpv_result ?? '',
+        r.other ?? '',
+        r.other_result ?? '',
+        r.colposcopy ?? '',
+        r.listname ?? '',
+        r.type ?? '',
+        r.rep ?? '',
+        r.compensated,
+        r.note ?? '',
+        r.paydate ? formatThaiDate(r.paydate) : '',
+        r.status ?? '',
+        r.rep_nhso ?? '',
+        r.nhso,
+      ])
 
-      const csvRows = allItems.map((r) =>
-        [
-          r.no,
-          r.vn,
-          r.an ?? '',
-          r.hn,
-          r.cid,
-          r.ptname,
-          r.age ?? '',
-          r.nation ?? '',
-          r.vstdate ? formatThaiDate(r.vstdate) : '',
-          r.vsttime ?? '',
-          r.authencode ?? '',
-          r.pttypename_patient ?? '',
-          r.pttypename_visit ?? '',
-          r.department ?? '',
-          r.clinic ?? '',
-          r.pdx ?? '',
-          [r.dx0, r.dx1, r.dx2, r.dx3, r.dx4, r.dx5].filter(Boolean).join(','),
-          r.ok ?? '',
-          r.papsmear ?? '',
-          r.papsmear_result ?? '',
-          r.via ?? '',
-          r.via_result ?? '',
-          r.hpv ?? '',
-          r.hpv_result ?? '',
-          r.other ?? '',
-          r.other_result ?? '',
-          r.colposcopy ?? '',
-          r.listname ?? '',
-          r.type ?? '',
-          r.rep ?? '',
-          r.compensated > 0 ? r.compensated.toFixed(2) : '0.00',
-          r.note ?? '',
-          r.paydate ? formatThaiDate(r.paydate) : '',
-          r.status ?? '',
-          r.rep_nhso ?? '',
-          r.nhso > 0 ? r.nhso.toFixed(2) : '0.00',
-        ]
-          .map(escapeCsv)
-          .join(',')
-      )
-
-      const csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...csvRows].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `CCS_1_2_Screened_Recipients_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-      setExportNotice(`ส่งออกไฟล์ CSV จำนวน ${allItems.length.toLocaleString('th-TH')} รายการสำเร็จ`)
+      await exportRcmExcel({
+        filename: `CCS_1_2_Screened_Recipients_${ds1}_to_${ds2}.xlsx`,
+        title: 'รายชื่อผู้ได้รับการคัดกรองมะเร็งปากมดลูก (1.2)',
+        subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
+      setExportNotice(`ส่งออกไฟล์ Excel จำนวน ${allItems.length.toLocaleString('th-TH')} รายการสำเร็จ`)
     } catch (err: unknown) {
       const e = err as Error
-      setError(e.message || 'ส่งออกไฟล์ CSV ไม่สำเร็จ')
+      setError(e.message || 'ส่งออกไฟล์ Excel ไม่สำเร็จ')
     } finally {
       setIsExporting(false)
     }
@@ -458,6 +458,7 @@ export default function CcsScreenedRecipientsClient({
     setOkFilter('ALL')
     setResultStatusFilter('ALL')
     setCompensationFilter('ALL')
+    setPttypes([])
     setSearch('')
     setDebouncedSearch('')
     setCurrentPage(1)
@@ -468,6 +469,7 @@ export default function CcsScreenedRecipientsClient({
     okFilter !== 'ALL' ||
     resultStatusFilter !== 'ALL' ||
     compensationFilter !== 'ALL' ||
+    pttypes.length > 0 ||
     debouncedSearch.length > 0
 
   return (
@@ -475,6 +477,13 @@ export default function CcsScreenedRecipientsClient({
       {/* ── 1. Header Bar ── */}
       <header className="ccs2-header">
         <div className="ccs2-title-group">
+          <nav className="ccs2-breadcrumb" aria-label="แถบนำทาง">
+            <a href="/service/dashboard-rcm" className="ccs2-breadcrumb-link">Dashboard RCM</a>
+            <span className="ccs2-breadcrumb-sep" aria-hidden="true">/</span>
+            <a href="/service/dashboard-rcm/funds/ccs" className="ccs2-breadcrumb-link">กองทุนมะเร็งปากมดลูก (CCS)</a>
+            <span className="ccs2-breadcrumb-sep" aria-hidden="true">/</span>
+            <span className="ccs2-breadcrumb-current">1.2 รายชื่อผู้รับบริการคัดกรอง</span>
+          </nav>
           <h1 className="ccs2-title">
             1.2 รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก
           </h1>
@@ -490,26 +499,28 @@ export default function CcsScreenedRecipientsClient({
             onClick={() => fetchData(true)}
             disabled={loading || isRefreshing}
             aria-busy={isRefreshing}
+            title="รีเฟรชข้อมูลจากระบบ"
           >
             <RefreshCw size={16} className={isRefreshing ? 'ccs2-spin-icon' : undefined} />
-            {isRefreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}
+            <span>{isRefreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}</span>
           </button>
           <button
             type="button"
             className="ccs2-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || isExporting || totalCount === 0}
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
 
-      {/* ── 2. Date Selection Controls: กำหนดเอง -> รายเดือน -> ปีงบประมาณ ── */}
+      {/* ── 2. Single-Row Date Selection Ribbon: กำหนดเอง -> รายเดือน -> ปีงบประมาณ ── */}
       <section className="ccs2-date-card">
         <div className="ccs2-date-row">
-          <div className="ccs2-mode-tabs" role="tablist">
+          <div className="ccs2-mode-tabs" role="tablist" aria-label="โหมดการเลือกช่วงเวลา">
             <button
               type="button"
               role="tab"
@@ -539,8 +550,10 @@ export default function CcsScreenedRecipientsClient({
             </button>
           </div>
 
+          <div className="ccs2-date-divider" aria-hidden="true" />
+
           {dateMode === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="ccs2-date-inputs">
               <span className="ccs2-filter-label">ตั้งแต่วันที่:</span>
               <ThaiDatePicker value={ds1} onChange={(val) => setDs1(val)} />
               <span className="ccs2-filter-label">ถึง:</span>
@@ -549,9 +562,10 @@ export default function CcsScreenedRecipientsClient({
           )}
 
           {dateMode === 'monthly' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="ccs2-date-inputs">
               <span className="ccs2-filter-label">เดือน:</span>
               <select
+                aria-label="เลือกเดือน"
                 className="ccs2-date-select"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
@@ -564,13 +578,14 @@ export default function CcsScreenedRecipientsClient({
               </select>
               <span className="ccs2-filter-label">ปี พ.ศ.:</span>
               <select
+                aria-label="เลือกปี พ.ศ."
                 className="ccs2-date-select"
                 value={selectedBeYear}
                 onChange={(e) => setSelectedBeYear(Number(e.target.value))}
               >
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
-                    {y}
+                    พ.ศ. {y}
                   </option>
                 ))}
               </select>
@@ -578,27 +593,22 @@ export default function CcsScreenedRecipientsClient({
           )}
 
           {dateMode === 'fiscal' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="ccs2-filter-label">ปีงบประมาณ พ.ศ.:</span>
+            <div className="ccs2-date-inputs">
+              <span className="ccs2-filter-label">ปีงบประมาณ:</span>
               <select
+                aria-label="เลือกปีงบประมาณ"
                 className="ccs2-date-select"
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
-                    {y}
+                    ปีงบประมาณ {y}
                   </option>
                 ))}
               </select>
             </div>
           )}
-
-          <div style={{ marginLeft: 'auto' }}>
-            <span className="ccs2-date-span-badge">
-              {formatThaiDate(ds1)} — {formatThaiDate(ds2)}
-            </span>
-          </div>
         </div>
       </section>
 
@@ -620,7 +630,7 @@ export default function CcsScreenedRecipientsClient({
           role="button"
           tabIndex={0}
           aria-pressed={okFilter === 'ALL' && resultStatusFilter === 'ALL' && compensationFilter === 'ALL'}
-          className={`ccs2-kpi-card ccs2-kpi-accent ${
+          className={`ccs2-kpi-card ${
             okFilter === 'ALL' && resultStatusFilter === 'ALL' && compensationFilter === 'ALL' ? 'is-active-filter' : ''
           }`}
           onClick={() => handleCardClick('ALL')}
@@ -643,7 +653,7 @@ export default function CcsScreenedRecipientsClient({
           role="button"
           tabIndex={0}
           aria-pressed={okFilter === 'OK'}
-          className={`ccs2-kpi-card ccs2-kpi-success ${okFilter === 'OK' ? 'is-active-filter-success' : ''}`}
+          className={`ccs2-kpi-card ${okFilter === 'OK' ? 'is-active-filter-success' : ''}`}
           onClick={() => handleCardClick('OK')}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('OK')}
           title="คลิกเพื่อกรองเฉพาะรายการที่ผ่านเกณฑ์บันทึก (OK)"
@@ -652,7 +662,7 @@ export default function CcsScreenedRecipientsClient({
             ผ่านเกณฑ์บันทึก (OK)
             {okFilter === 'OK' && <span className="ccs2-kpi-filter-tag">กำลังกรอง</span>}
           </span>
-          <span className="ccs2-kpi-value" style={{ color: 'var(--ccs-ok)' }}>
+          <span className="ccs2-kpi-value ccs2-kpi-val-ok">
             {summary.okCount.toLocaleString('th-TH')}
           </span>
           <span className="ccs2-kpi-sub">
@@ -666,7 +676,7 @@ export default function CcsScreenedRecipientsClient({
           role="button"
           tabIndex={0}
           aria-pressed={okFilter === 'NOT_OK'}
-          className={`ccs2-kpi-card ccs2-kpi-warn ${okFilter === 'NOT_OK' ? 'is-active-filter-warn' : ''}`}
+          className={`ccs2-kpi-card ${okFilter === 'NOT_OK' ? 'is-active-filter-warn' : ''}`}
           onClick={() => handleCardClick('NOT_OK')}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('NOT_OK')}
           title="คลิกเพื่อกรองรายการที่ขาดรหัสคัดกรอง (Not OK)"
@@ -675,7 +685,7 @@ export default function CcsScreenedRecipientsClient({
             ขาดรหัสคัดกรอง (Not OK)
             {okFilter === 'NOT_OK' && <span className="ccs2-kpi-filter-tag">กำลังกรอง</span>}
           </span>
-          <span className="ccs2-kpi-value" style={{ color: 'var(--ccs-err)' }}>
+          <span className="ccs2-kpi-value ccs2-kpi-val-err">
             {summary.notOkCount.toLocaleString('th-TH')}
           </span>
           <span className="ccs2-kpi-sub">ต้องตรวจสอบการบันทึกบริการ</span>
@@ -695,8 +705,7 @@ export default function CcsScreenedRecipientsClient({
             {resultStatusFilter === 'ABNORMAL' && <span className="ccs2-kpi-filter-tag">กำลังกรอง</span>}
           </span>
           <span
-            className="ccs2-kpi-value"
-            style={{ color: summary.abnormalCount > 0 ? 'var(--ccs-err)' : 'inherit' }}
+            className={`ccs2-kpi-value ${summary.abnormalCount > 0 ? 'ccs2-kpi-val-err' : ''}`}
           >
             {summary.abnormalCount.toLocaleString('th-TH')}
           </span>
@@ -808,6 +817,17 @@ export default function CcsScreenedRecipientsClient({
             <option value="COMPENSATED">มีข้อมูลชดเชย</option>
             <option value="UNCOMPENSATED">ยังไม่ชดเชย</option>
           </select>
+
+          <span className="ccs2-filter-label">สิทธิการรักษา:</span>
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
         </div>
 
         {/* Global Search across all fields without dropdown selector */}
@@ -818,7 +838,7 @@ export default function CcsScreenedRecipientsClient({
               type="text"
               aria-label="คำค้นหา"
               className="ccs2-search-input"
-              placeholder="ค้นหา (ชื่อ-สกุล, HN, เลขบัตรประชาชน, VN, AuthenCode...)"
+              placeholder="ค้นหา (ชื่อ-สกุล, HN, เลขบัตรประชาชน, VN, ClaimCode...)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -853,88 +873,89 @@ export default function CcsScreenedRecipientsClient({
         <div className="ccs2-table-wrapper">
           <table className="ccs2-table">
             <thead>
-              {/* Row 1: Merged Group Header (FoxPro SetMergeHeader) */}
               <tr>
-                <th colSpan={7}>ข้อมูลผู้รับบริการ</th>
-                <th colSpan={4}>แผนก & วินิจฉัย</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>
-                  เกณฑ์ (OK)
-                </th>
-                <th colSpan={2}>PapSmear</th>
-                <th colSpan={2}>VIA</th>
-                <th colSpan={2}>HPV</th>
-                <th colSpan={2}>วิธีการอื่นๆ</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>
-                  ColpoScopy
-                </th>
-                <th rowSpan={2}>รหัส ADP</th>
-                <th colSpan={5}>Seamless</th>
-                <th colSpan={3}>ชดเชยจาก สปสช.</th>
-              </tr>
-
-              {/* Row 2: Sub-column Headers */}
-              <tr>
-                <th style={{ width: '45px', textAlign: 'center' }}>ลำดับ</th>
-                <th className="is-sortable" onClick={() => handleSort('vstdate')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <th className="ccs2-align-center" style={{ width: '48px' }}>ลำดับ</th>
+                <th className="is-sortable ccs2-align-center" onClick={() => handleSort('vstdate')}>
+                  <div className="ccs2-th-sort-inner">
                     <span>วันที่รับบริการ</span>
-                    {sortBy === 'vstdate' && (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}
+                    {sortBy === 'vstdate' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={13} className="ccs2-sort-active" /> : <ArrowDown size={13} className="ccs2-sort-active" />
+                    ) : (
+                      <ArrowUpDown size={13} className="ccs2-sort-muted" />
+                    )}
                   </div>
                 </th>
-                <th>VN</th>
-                <th className="is-sortable" onClick={() => handleSort('hn')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <th className="ccs2-align-center">VN</th>
+                <th className="is-sortable ccs2-align-center" onClick={() => handleSort('hn')}>
+                  <div className="ccs2-th-sort-inner">
                     <span>HN</span>
-                    {sortBy === 'hn' && (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}
+                    {sortBy === 'hn' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={13} className="ccs2-sort-active" /> : <ArrowDown size={13} className="ccs2-sort-active" />
+                    ) : (
+                      <ArrowUpDown size={13} className="ccs2-sort-muted" />
+                    )}
                   </div>
                 </th>
-                <th>เลขบัตรประชาชน</th>
-                <th className="is-sortable" onClick={() => handleSort('ptname')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <th className="ccs2-align-center">เลขบัตรประชาชน</th>
+                <th className="is-sortable ccs2-align-center" onClick={() => handleSort('ptname')}>
+                  <div className="ccs2-th-sort-inner">
                     <span>ชื่อ-สกุล</span>
-                    {sortBy === 'ptname' && (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}
+                    {sortBy === 'ptname' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={13} className="ccs2-sort-active" /> : <ArrowDown size={13} className="ccs2-sort-active" />
+                    ) : (
+                      <ArrowUpDown size={13} className="ccs2-sort-muted" />
+                    )}
                   </div>
                 </th>
-                <th className="is-sortable ccs2-align-right" onClick={() => handleSort('age')}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                <th className="is-sortable ccs2-align-center" onClick={() => handleSort('age')}>
+                  <div className="ccs2-th-sort-inner">
                     <span>อายุ</span>
-                    {sortBy === 'age' && (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}
+                    {sortBy === 'age' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={13} className="ccs2-sort-active" /> : <ArrowDown size={13} className="ccs2-sort-active" />
+                    ) : (
+                      <ArrowUpDown size={13} className="ccs2-sort-muted" />
+                    )}
                   </div>
                 </th>
-                <th>สิทธิการรักษา</th>
-                <th>แผนกที่รับบริการ</th>
-                <th>คลินิก</th>
-                <th>ICD-10</th>
-                {/* PapSmear */}
-                <th>รหัส</th>
-                <th>ผลการตรวจ</th>
-                {/* VIA */}
-                <th>รหัส</th>
-                <th>ผลการตรวจ</th>
-                {/* HPV */}
-                <th>รหัส</th>
-                <th>ผลการตรวจ</th>
-                {/* Other */}
-                <th>รหัส</th>
-                <th>ผลการตรวจ</th>
-                {/* Seamless */}
-                <th>Type</th>
-                <th>เลขที่หนังสือ</th>
-                <th className="is-sortable ccs2-align-right" onClick={() => handleSort('compensated')}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
-                    <span>ชดเชย</span>
-                    {sortBy === 'compensated' && (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}
+                <th className="ccs2-align-center">สิทธิการรักษา</th>
+                <th className="ccs2-align-center">แผนกที่รับบริการ</th>
+                <th className="ccs2-align-center">คลินิก</th>
+                <th className="ccs2-align-center">ICD-10</th>
+                <th className="ccs2-align-center">เกณฑ์ (OK)</th>
+                <th className="ccs2-align-center">PapSmear (รหัส)</th>
+                <th className="ccs2-align-center">PapSmear (ผล)</th>
+                <th className="ccs2-align-center">VIA (รหัส)</th>
+                <th className="ccs2-align-center">VIA (ผล)</th>
+                <th className="ccs2-align-center">HPV (รหัส)</th>
+                <th className="ccs2-align-center">HPV (ผล)</th>
+                <th className="ccs2-align-center">วิธีอื่น (รหัส)</th>
+                <th className="ccs2-align-center">วิธีอื่น (ผล)</th>
+                <th className="ccs2-align-center">ColpoScopy</th>
+                <th className="ccs2-align-center">รหัส ADP</th>
+                <th className="ccs2-align-center">Seamless Type</th>
+                <th className="ccs2-align-center">Seamless เลขที่หนังสือ</th>
+                <th className="is-sortable ccs2-align-center" onClick={() => handleSort('compensated')}>
+                  <div className="ccs2-th-sort-inner">
+                    <span>Seamless ชดเชย</span>
+                    {sortBy === 'compensated' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={13} className="ccs2-sort-active" /> : <ArrowDown size={13} className="ccs2-sort-active" />
+                    ) : (
+                      <ArrowUpDown size={13} className="ccs2-sort-muted" />
+                    )}
                   </div>
                 </th>
-                <th>หมายเหตุ</th>
-                <th>วันที่จ่าย</th>
-                {/* NHSO */}
-                <th>สถานะ</th>
-                <th>เลขที่ Rep</th>
-                <th className="is-sortable ccs2-align-right" onClick={() => handleSort('nhso')}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
-                    <span>ประมาณการ</span>
-                    {sortBy === 'nhso' && (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}
+                <th className="ccs2-align-center">Seamless หมายเหตุ</th>
+                <th className="ccs2-align-center">Seamless วันที่จ่าย</th>
+                <th className="ccs2-align-center">สปสช. สถานะ</th>
+                <th className="ccs2-align-center">สปสช. เลขที่ Rep</th>
+                <th className="is-sortable ccs2-align-center" onClick={() => handleSort('nhso')}>
+                  <div className="ccs2-th-sort-inner">
+                    <span>สปสช. ประมาณการ</span>
+                    {sortBy === 'nhso' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={13} className="ccs2-sort-active" /> : <ArrowDown size={13} className="ccs2-sort-active" />
+                    ) : (
+                      <ArrowUpDown size={13} className="ccs2-sort-muted" />
+                    )}
                   </div>
                 </th>
               </tr>
@@ -964,7 +985,12 @@ export default function CcsScreenedRecipientsClient({
                 items.map((row) => {
                   const isNotOk = row.ok !== 'Y'
                   return (
-                    <tr key={row.vn || row.no} className={isNotOk ? 'ccs2-row-not-ok' : undefined}>
+                    <tr
+                      key={row.vn || row.no}
+                      className={`ccs2-row-interactive ${isNotOk ? 'ccs2-row-not-ok' : ''}`}
+                      onClick={() => handleOpenModal(row)}
+                      title="คลิกทั้งแถวเพื่อดูรายละเอียดเวชระเบียน"
+                    >
                       <td className="ccs2-align-center">{row.no}</td>
                       <td>
                         {row.vstdate ? formatThaiDate(row.vstdate) : '—'}
@@ -974,7 +1000,10 @@ export default function CcsScreenedRecipientsClient({
                         <button
                           type="button"
                           className="ccs2-link-vn ccs2-mono"
-                          onClick={() => handleOpenModal(row)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenModal(row)
+                          }}
                           title="คลิกดูรายละเอียดเวชระเบียน"
                         >
                           {row.vn}
@@ -982,8 +1011,12 @@ export default function CcsScreenedRecipientsClient({
                       </td>
                       <td className="ccs2-mono">{row.hn}</td>
                       <td className="ccs2-mono">{formatCidDisplay(row.cid)}</td>
-                      <td>{row.ptname}</td>
-                      <td className="ccs2-align-right">{row.age ?? '—'}</td>
+                      <td>
+                        <span className="ccs2-pt-name">{row.ptname}</span>
+                      </td>
+                      <td className="ccs2-align-center">
+                        {row.age != null ? `${row.age}\u00A0ปี` : '—'}
+                      </td>
                       <td>{row.pttypename_visit || row.pttypename_patient || '—'}</td>
                       <td>{row.department || '—'}</td>
                       <td>{row.clinic || '—'}</td>
@@ -1002,16 +1035,16 @@ export default function CcsScreenedRecipientsClient({
                       </td>
                       {/* PapSmear */}
                       <td className="ccs2-mono">{row.papsmear || '—'}</td>
-                      <td>{renderResultBadge(row.papsmear_result)}</td>
+                      <td className="ccs2-align-center">{renderResultBadge(row.papsmear_result)}</td>
                       {/* VIA */}
                       <td className="ccs2-mono">{row.via || '—'}</td>
-                      <td>{renderResultBadge(row.via_result)}</td>
+                      <td className="ccs2-align-center">{renderResultBadge(row.via_result)}</td>
                       {/* HPV */}
                       <td className="ccs2-mono">{row.hpv || '—'}</td>
-                      <td>{renderResultBadge(row.hpv_result)}</td>
+                      <td className="ccs2-align-center">{renderResultBadge(row.hpv_result)}</td>
                       {/* Other */}
                       <td className="ccs2-mono">{row.other || '—'}</td>
-                      <td>{renderResultBadge(row.other_result)}</td>
+                      <td className="ccs2-align-center">{renderResultBadge(row.other_result)}</td>
                       {/* ColpoScopy */}
                       <td className="ccs2-align-center">
                         {row.colposcopy === 'Y' ? (
@@ -1037,26 +1070,6 @@ export default function CcsScreenedRecipientsClient({
                 })
               )}
             </tbody>
-
-            {/* FoxPro Summary Footer */}
-            {items.length > 0 && (
-              <tfoot>
-                <tr style={{ background: 'var(--ccs-surface-2)', fontWeight: 700 }}>
-                  <td colSpan={6} style={{ textAlign: 'right', paddingRight: '12px' }}>
-                    รวมทั้งหมดในหน้านี้ (รายการ):
-                  </td>
-                  <td className="ccs2-align-right">{items.length}</td>
-                  <td colSpan={15}></td>
-                  <td className="ccs2-align-right">
-                    {formatMoney(items.reduce((acc, r) => acc + r.compensated, 0))}
-                  </td>
-                  <td colSpan={3}></td>
-                  <td className="ccs2-align-right">
-                    {formatMoney(items.reduce((acc, r) => acc + r.nhso, 0))}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
 
@@ -1167,7 +1180,7 @@ export default function CcsScreenedRecipientsClient({
                       <span className="ccs2-desc-value">{selectedItem.nation || '—'}</span>
                     </div>
                     <div className="ccs2-desc-item">
-                      <span className="ccs2-desc-label">ClaimCode / AuthenCode:</span>
+                      <span className="ccs2-desc-label">ClaimCode:</span>
                       <span className="ccs2-desc-value ccs2-mono">{selectedItem.authencode || '—'}</span>
                     </div>
                     <div className="ccs2-desc-item">

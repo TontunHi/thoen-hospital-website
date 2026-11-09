@@ -1,9 +1,20 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Check,
+  CircleAlert,
+  ClipboardList,
+  Info,
+  Pill,
+  Stethoscope,
+  UserPlus,
+  X,
+} from 'lucide-react'
 import type {
   VnClinicalDetails,
   VnOrderCategoryGroup,
+  VnScreenData,
 } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import './VnDetailModal.css'
@@ -13,19 +24,151 @@ interface VnDetailModalProps {
   onClose: () => void
 }
 
+type VnTab = 'screen' | 'diag' | 'orders'
+
+interface PopupNotice {
+  type: 'success' | 'warning' | 'error'
+  title: string
+  message: string
+}
+
+interface VitalItem {
+  key: string
+  label: string
+  value: string | number
+  unit: string
+}
+
+/** เงินบาท: ทศนิยม 2 ตำแหน่งคงที่ทั้งมุมมอง เพื่อให้เทียบหลักตรงกัน */
+const formatMoney = (value: number | null | undefined): string =>
+  (Number.isFinite(value ?? NaN) ? (value as number) : 0).toLocaleString('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+/** สัญญาณชีพ 9 ค่า — สร้างจากข้อมูล opdscreen ตรง ๆ ไม่คำนวณซ้ำ */
+function buildVitalItems(screen: VnScreenData | null): VitalItem[] {
+  return [
+    {
+      key: 'bp',
+      label: 'ความดันโลหิต',
+      value: screen?.bps != null && screen?.bpd != null ? `${screen.bps}/${screen.bpd}` : '-',
+      unit: 'mmHg',
+    },
+    { key: 'pulse', label: 'ชีพจร', value: screen?.pulse ?? '-', unit: 'bpm' },
+    { key: 'rr', label: 'อัตราการหายใจ', value: screen?.rr ?? '-', unit: '/min' },
+    { key: 'temp', label: 'อุณหภูมิ', value: screen?.temperature ?? '-', unit: '°C' },
+    { key: 'bw', label: 'น้ำหนัก', value: screen?.bw ?? '-', unit: 'kg' },
+    { key: 'height', label: 'ส่วนสูง', value: screen?.height ?? '-', unit: 'cm' },
+    {
+      key: 'bmi',
+      label: 'ดัชนีมวลกาย (BMI)',
+      value: screen?.bmi != null ? screen.bmi.toFixed(2) : '-',
+      unit: 'kg/m²',
+    },
+    { key: 'spo2', label: 'ออกซิเจน (SpO2)', value: screen?.spo2 ?? '-', unit: '%' },
+    { key: 'fbs', label: 'น้ำตาลในเลือด (FBS)', value: screen?.fbs ?? '-', unit: 'mg/dL' },
+  ]
+}
+
+const NOTE_SECTIONS: Array<{ key: 'cc' | 'hpi' | 'pmh' | 'pe'; title: string; emptyText: string }> = [
+  { key: 'cc', title: 'อาการสำคัญ (CC)', emptyText: 'ไม่ได้ระบุ' },
+  { key: 'hpi', title: 'ประวัติความเจ็บป่วยปัจจุบัน (HPI)', emptyText: 'ไม่ได้ระบุ' },
+  { key: 'pmh', title: 'ประวัติความเจ็บป่วยในอดีต / โรคประจำตัว (PMH)', emptyText: 'ไม่ได้ระบุ' },
+  { key: 'pe', title: 'การตรวจร่างกาย (PE)', emptyText: 'ไม่มีบันทึกผลการตรวจร่างกาย' },
+]
+
+/** paidst 02 = ลูกหนี้สิทธิ, 01/03 = ชำระแล้ว, อื่น ๆ = รอชำระ */
+function getPaidstTone(paidst: string): string {
+  if (paidst === '02') return 'is-info'
+  if (paidst === '01' || paidst === '03') return 'is-ok'
+  return 'is-warn'
+}
+
 export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
   const [data, setData] = useState<VnClinicalDetails | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'screen' | 'diag' | 'orders'>('screen')
+  const [activeTab, setActiveTab] = useState<VnTab>('screen')
   const [selectedCategory, setSelectedCategory] = useState<VnOrderCategoryGroup | 'ALL'>('ALL')
   const [isRegistering, setIsRegistering] = useState(false)
   const [isRegisteredSuccess, setIsRegisteredSuccess] = useState(false)
-  const [popupNotice, setPopupNotice] = useState<{
-    type: 'success' | 'warning' | 'error'
-    title: string
-    message: string
-  } | null>(null)
+  const [popupNotice, setPopupNotice] = useState<PopupNotice | null>(null)
+
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const requestIdRef = useRef(0)
+
+  // ── Fetch VN clinical details (กันคำตอบเก่าทับคำตอบใหม่) ──────────────
+  const loadDetails = useCallback(async () => {
+    if (!vn) return
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(
+        `/api/service/dashboard-rcm/palliative-care/vn-details?vn=${encodeURIComponent(vn)}`
+      )
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || `Error ${res.status}: ไม่สามารถดึงข้อมูลได้`)
+      }
+      if (requestId === requestIdRef.current) {
+        setData(json.data as VnClinicalDetails)
+      }
+    } catch (err: unknown) {
+      if (requestId === requestIdRef.current) {
+        setError((err as Error).message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
+      }
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false)
+    }
+  }, [vn])
+
+  useEffect(() => {
+    if (!vn) {
+      setData(null)
+      setError(null)
+      setActiveTab('screen')
+      setSelectedCategory('ALL')
+      return
+    }
+    loadDetails()
+  }, [vn, loadDetails])
+
+  // โฟกัสในกล่องบทสนทนาเมื่อเปิด + ล็อกการเลื่อนพื้นหลัง (ทั้ง html และ body)
+  useEffect(() => {
+    if (!vn) return
+    containerRef.current?.focus()
+    const html = document.documentElement
+    const previousHtmlOverflow = html.style.overflow
+    const previousBodyOverflow = document.body.style.overflow
+    html.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = previousHtmlOverflow
+      document.body.style.overflow = previousBodyOverflow
+    }
+  }, [vn])
+
+  // ESC ปิดป๊อปอัปแจ้งเตือนก่อน แล้วจึงปิดหน้าต่าง
+  useEffect(() => {
+    if (!vn) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (popupNotice) setPopupNotice(null)
+      else onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [vn, popupNotice, onClose])
+
+  const filteredOrders = useMemo(() => {
+    if (!data?.orders?.items) return []
+    if (selectedCategory === 'ALL') return data.orders.items
+    return data.orders.items.filter((item) => item.category_group === selectedCategory)
+  }, [data, selectedCategory])
 
   // Direct register patient into Palliative Care registry without leaving page
   const handleDirectRegister = async () => {
@@ -119,149 +262,88 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
         title: 'ลงทะเบียนสำเร็จ',
         message: `เพิ่มข้อมูลผู้ป่วย ${payload.patientName} (HN: ${payload.hn}) เข้าสู่ระบบทะเบียน Palliative Care เรียบร้อยแล้ว`,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPopupNotice({
         type: 'error',
         title: 'เกิดข้อผิดพลาด',
-        message: err?.message || 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง',
+        message: (err as Error)?.message || 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง',
       })
     } finally {
       setIsRegistering(false)
     }
   }
 
-  // Fetch VN clinical details
-  useEffect(() => {
-    if (!vn) {
-      setData(null)
-      setError(null)
-      return
-    }
-
-    let isMounted = true
-    setLoading(true)
-    setError(null)
-
-    fetch(`/api/service/dashboard-rcm/palliative-care/vn-details?vn=${encodeURIComponent(vn)}`)
-      .then(async (res) => {
-        const json = await res.json()
-        if (!res.ok || !json.success) {
-          throw new Error(json.error || `Error ${res.status}: ไม่สามารถดึงข้อมูลได้`)
-        }
-        return json.data as VnClinicalDetails
-      })
-      .then((resData) => {
-        if (isMounted) {
-          setData(resData)
-          setLoading(false)
-        }
-      })
-      .catch((err: Error) => {
-        if (isMounted) {
-          setError(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
-          setLoading(false)
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [vn])
-
-  // ESC key handler
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (popupNotice) {
-          setPopupNotice(null)
-        } else {
-          onClose()
-        }
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [popupNotice, onClose])
-
-  // Filtered orders
-  const filteredOrders = useMemo(() => {
-    if (!data?.orders?.items) return []
-    if (selectedCategory === 'ALL') return data.orders.items
-    return data.orders.items.filter((item) => item.category_group === selectedCategory)
-  }, [data, selectedCategory])
-
   if (!vn) return null
+
+  const header = data?.header
+  const registerDisabled =
+    !header?.hn || isRegistering || isRegisteredSuccess || Boolean(header?.isLtc)
+
+  const registerLabel = isRegistering
+    ? 'กำลังลงทะเบียน...'
+    : isRegisteredSuccess
+      ? 'ลงทะเบียนแล้ว'
+      : header?.isLtc
+        ? 'มีทะเบียนใน LTC'
+        : 'เพิ่มลงทะเบียน'
 
   return (
     <div
       className="vn-modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="vn-modal-title"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
     >
-      <div className="vn-modal-container">
-        {/* Header / Patient Banner */}
-        <div className="vn-modal-header">
+      <div className="vn-modal-container" ref={containerRef} tabIndex={-1}>
+        {/* ── 1. Patient Banner ───────────────────────────────────────── */}
+        <header className="vn-modal-header">
           <div className="vn-modal-header-top">
             <div className="vn-modal-patient-info">
               <div className="vn-modal-patient-title">
                 <span className="vn-badge-vn">VN: {vn}</span>
-                <span className="vn-modal-patient-name" id="vn-modal-title">
-                  {data?.header?.ptname || 'กำลังโหลดข้อมูลผู้ป่วย...'}
-                </span>
-                {data?.header && (
-                  <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>
-                    ({data.header.sex} • อายุ {data.header.age} ปี)
-                    {data.header.isLtc && (
-                      <span
-                        style={{
-                          marginLeft: '0.45rem',
-                          color: '#b45309',
-                          fontWeight: 600,
-                          backgroundColor: '#fef3c7',
-                          padding: '0.15rem 0.5rem',
-                          borderRadius: '4px',
-                          display: 'inline-block',
-                          border: '1px solid #fde68a',
-                        }}
-                      >
-                        เป็นผู้มีทะเบียนใน LTC
-                      </span>
-                    )}
+                <h3 className="vn-modal-patient-name" id="vn-modal-title">
+                  {header?.ptname || 'กำลังโหลดข้อมูลผู้ป่วย...'}
+                </h3>
+                {header && (
+                  <span className="vn-modal-patient-demo">
+                    {header.sex} · อายุ {header.age} ปี
                   </span>
                 )}
+                {header?.isLtc && <span className="vn-badge is-warn">มีทะเบียน LTC</span>}
               </div>
 
-              {data?.header && (
-                <div className="vn-modal-meta-row">
+              {header && (
+                <dl className="vn-modal-meta-row">
                   <div className="vn-modal-meta-item">
-                    <span className="vn-modal-meta-label">HN:</span>
-                    <span className="vn-modal-meta-val">{data.header.hn}</span>
+                    <dt className="vn-modal-meta-label">HN</dt>
+                    <dd className="vn-modal-meta-val vn-mono">{header.hn}</dd>
                   </div>
                   <div className="vn-modal-meta-item">
-                    <span className="vn-modal-meta-label">CID:</span>
-                    <span className="vn-modal-meta-val">{data.header.cid || '-'}</span>
+                    <dt className="vn-modal-meta-label">CID</dt>
+                    <dd className="vn-modal-meta-val vn-mono">{header.cid || '-'}</dd>
                   </div>
                   <div className="vn-modal-meta-item">
-                    <span className="vn-modal-meta-label">วันที่รับบริการ:</span>
-                    <span className="vn-modal-meta-val">
-                      {formatThaiDate(data.header.vstdate)} {data.header.vsttime ? `(${data.header.vsttime} น.)` : ''}
-                    </span>
+                    <dt className="vn-modal-meta-label">วันที่รับบริการ</dt>
+                    <dd className="vn-modal-meta-val">
+                      {formatThaiDate(header.vstdate)}
+                      {header.vsttime ? ` ${header.vsttime.slice(0, 5)} น.` : ''}
+                    </dd>
                   </div>
                   <div className="vn-modal-meta-item">
-                    <span className="vn-modal-meta-label">สิทธิ:</span>
-                    <span className="vn-modal-meta-val">{data.header.pttypename || '-'}</span>
+                    <dt className="vn-modal-meta-label">สิทธิ</dt>
+                    <dd className="vn-modal-meta-val">{header.pttypename || '-'}</dd>
                   </div>
                   <div className="vn-modal-meta-item">
-                    <span className="vn-modal-meta-label">แผนก:</span>
-                    <span className="vn-modal-meta-val">
-                      {data.header.clinic} {data.header.department ? `(${data.header.department})` : ''}
-                    </span>
+                    <dt className="vn-modal-meta-label">แผนก</dt>
+                    <dd className="vn-modal-meta-val">
+                      {header.clinic || '-'}
+                      {header.department ? ` (${header.department})` : ''}
+                    </dd>
                   </div>
-                </div>
+                </dl>
               )}
             </div>
 
@@ -272,252 +354,168 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
               aria-label="ปิดหน้าต่าง"
               title="ปิด (Esc)"
             >
-              ✕
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Tab Navigation */}
-        <div className="vn-modal-tabs">
+        {/* ── 2. Tabs ─────────────────────────────────────────────────── */}
+        <div className="vn-modal-tabs" role="group" aria-label="แท็บรายละเอียดคลินิก">
           <button
             type="button"
             className={`vn-modal-tab-btn ${activeTab === 'screen' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('screen')}
+            aria-pressed={activeTab === 'screen'}
           >
-            🩺 ซักประวัติ &amp; สัญญาณชีพ (opdscreen)
+            <Stethoscope size={16} className="vn-modal-tab-icon" aria-hidden="true" />
+            <span>ซักประวัติและสัญญาณชีพ</span>
           </button>
           <button
             type="button"
             className={`vn-modal-tab-btn ${activeTab === 'diag' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('diag')}
+            aria-pressed={activeTab === 'diag'}
           >
-            📋 การวินิจฉัยโรค (ovstdiag)
-            {data?.diagnoses && (
-              <span className="vn-modal-tab-pill">{data.diagnoses.length}</span>
-            )}
+            <ClipboardList size={16} className="vn-modal-tab-icon" aria-hidden="true" />
+            <span>การวินิจฉัยโรค</span>
+            {data?.diagnoses && <span className="vn-modal-tab-pill">{data.diagnoses.length}</span>}
           </button>
           <button
             type="button"
             className={`vn-modal-tab-btn ${activeTab === 'orders' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('orders')}
+            aria-pressed={activeTab === 'orders'}
           >
-            💊 รายการยาและค่ารักษา (opitemrece)
+            <Pill size={16} className="vn-modal-tab-icon" aria-hidden="true" />
+            <span>รายการยาและค่ารักษา</span>
             {data?.orders && (
               <span className="vn-modal-tab-pill">{data.orders.items.length}</span>
             )}
           </button>
         </div>
 
-        {/* Modal Body */}
+        {/* ── 3. Body ─────────────────────────────────────────────────── */}
         <div className="vn-modal-body">
           {loading ? (
-            <div className="vn-modal-loading">
-              <div className="vn-modal-spinner" />
-              <div style={{ color: '#64748b', fontSize: '0.925rem', fontWeight: 500 }}>
+            <div className="vn-modal-loading" role="status" aria-live="polite">
+              <div className="vn-modal-spinner" aria-hidden="true" />
+              <p className="vn-state-text">
                 กำลังดึงข้อมูลการรับบริการ VN: {vn} จากฐานข้อมูล HOSxP...
-              </div>
+              </p>
             </div>
           ) : error ? (
-            <div className="vn-modal-error">
-              <div style={{ fontSize: '2.5rem' }}>⚠️</div>
-              <div style={{ color: '#991b1b', fontWeight: 600 }}>{error}</div>
-              <button
-                type="button"
-                className="vn-btn-close"
-                onClick={() => {
-                  setError(null)
-                  setLoading(true)
-                  fetch(`/api/service/dashboard-rcm/palliative-care/vn-details?vn=${encodeURIComponent(vn)}`)
-                    .then((r) => r.json())
-                    .then((j) => {
-                      if (j.success) setData(j.data)
-                      else setError(j.error)
-                    })
-                    .finally(() => setLoading(false))
-                }}
-              >
-                ลองใหม่อีกครั้ง
+            <div className="vn-modal-error" role="alert">
+              <CircleAlert size={32} className="vn-state-icon" aria-hidden="true" />
+              <p className="vn-state-title">โหลดข้อมูลการรับบริการไม่สำเร็จ</p>
+              <p className="vn-state-text">{error}</p>
+              <button type="button" className="vn-btn-secondary" onClick={() => loadDetails()}>
+                ลองอีกครั้ง
               </button>
             </div>
           ) : !data ? (
             <div className="vn-modal-loading">
-              <div style={{ color: '#64748b' }}>ไม่พบข้อมูล</div>
+              <p className="vn-state-text">ไม่พบข้อมูลการรับบริการของ VN นี้</p>
             </div>
           ) : (
             <>
               {/* TAB 1: opdscreen */}
               {activeTab === 'screen' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  {/* Vital Signs Grid */}
-                  <div>
-                    <h4 style={{ margin: '0 0 0.65rem 0', fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>
-                      สัญญาณชีพและคัดกรองกายภาพ (Vital Signs)
-                    </h4>
+                <div className="vn-tab-panel">
+                  <section className="vn-section">
+                    <h4 className="vn-section-title">สัญญาณชีพและคัดกรองกายภาพ</h4>
                     <div className="vn-vitals-grid">
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">ความดันโลหิต (BP)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.bps != null && data.screen?.bpd != null
-                            ? `${data.screen.bps}/${data.screen.bpd}`
-                            : '-'}
-                          <span className="vn-vital-unit">mmHg</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">ชีพจร (Pulse)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.pulse ?? '-'}
-                          <span className="vn-vital-unit">bpm</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">หายใจ (RR)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.rr ?? '-'}
-                          <span className="vn-vital-unit">/min</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">อุณหภูมิ (Temp)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.temperature ?? '-'}
-                          <span className="vn-vital-unit">°C</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">น้ำหนัก (BW)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.bw ?? '-'}
-                          <span className="vn-vital-unit">kg</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">ส่วนสูง (Height)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.height ?? '-'}
-                          <span className="vn-vital-unit">cm</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">ดัชนีมวลกาย (BMI)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.bmi != null ? data.screen.bmi.toFixed(2) : '-'}
-                          <span className="vn-vital-unit">kg/m²</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">ออกซิเจน (SpO2)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.spo2 ?? '-'}
-                          <span className="vn-vital-unit">%</span>
-                        </span>
-                      </div>
-                      <div className="vn-vital-card">
-                        <span className="vn-vital-label">น้ำตาลในเลือด (FBS)</span>
-                        <span className="vn-vital-value">
-                          {data.screen?.fbs ? data.screen.fbs : '-'}
-                          <span className="vn-vital-unit">mg/dL</span>
-                        </span>
-                      </div>
+                      {buildVitalItems(data.screen).map((vital) => (
+                        <div className="vn-vital-card" key={vital.key}>
+                          <span className="vn-vital-label">{vital.label}</span>
+                          <span className="vn-vital-value">
+                            {vital.value}
+                            <span className="vn-vital-unit">{vital.unit}</span>
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  </section>
 
-                  {/* History & Notes Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem' }}>
-                    <div className="vn-clinical-notes-card">
-                      <div className="vn-note-title">
-                        <span>💬 อาการสำคัญ (Chief Complaint)</span>
-                      </div>
-                      <div className="vn-note-content">
-                        {data.screen?.cc || 'ไม่ได้ระบุ'}
-                      </div>
+                  <section className="vn-section">
+                    <h4 className="vn-section-title">บันทึกทางคลินิก</h4>
+                    <div className="vn-notes-grid">
+                      {NOTE_SECTIONS.map((note) => {
+                        const noteText = data.screen?.[note.key]
+                        return (
+                          <article className="vn-clinical-notes-card" key={note.key}>
+                            <h5 className="vn-note-title">{note.title}</h5>
+                            <p className={`vn-note-content ${noteText ? '' : 'is-empty'}`}>
+                              {noteText || note.emptyText}
+                            </p>
+                          </article>
+                        )
+                      })}
                     </div>
+                  </section>
 
-                    <div className="vn-clinical-notes-card">
-                      <div className="vn-note-title">
-                        <span>📝 ประวัติความเจ็บป่วยปัจจุบัน (HPI)</span>
-                      </div>
-                      <div className="vn-note-content">
-                        {data.screen?.hpi || 'ไม่ได้ระบุ'}
-                      </div>
-                    </div>
-
-                    <div className="vn-clinical-notes-card">
-                      <div className="vn-note-title">
-                        <span>🏥 ประวัติความเจ็บป่วยในอดีต / โรคประจำตัว (PMH)</span>
-                      </div>
-                      <div className="vn-note-content">
-                        {data.screen?.pmh || 'ไม่ได้ระบุ'}
-                      </div>
-                    </div>
-
-                    <div className="vn-clinical-notes-card">
-                      <div className="vn-note-title">
-                        <span>🔍 การตรวจร่างกาย (Physical Exam)</span>
-                      </div>
-                      <div className="vn-note-content">
-                        {data.screen?.pe || 'ไม่มีบันทึกผลการตรวจร่างกาย'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Screening metadata */}
                   {data.screen?.screen_dep_name && (
-                    <div style={{ fontSize: '0.8125rem', color: '#64748b', display: 'flex', gap: '0.5rem' }}>
-                      <span>จุดคัดกรอง:</span>
-                      <span style={{ fontWeight: 600, color: '#334155' }}>{data.screen.screen_dep_name}</span>
-                    </div>
+                    <p className="vn-screen-dep">
+                      จุดคัดกรอง: <strong>{data.screen.screen_dep_name}</strong>
+                    </p>
                   )}
                 </div>
               )}
 
               {/* TAB 2: ovstdiag */}
               {activeTab === 'diag' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="vn-diag-table">
+                <div className="vn-tab-panel">
+                  <div className="vn-table-wrap">
+                    <table className="vn-diag-table" aria-label="รายการวินิจฉัยของ visit นี้">
                       <thead>
                         <tr>
-                          <th style={{ width: 45, textAlign: 'center' }}>ลำดับ</th>
-                          <th style={{ width: 100 }}>รหัสโรค (ICD-10)</th>
-                          <th>ชื่อการวินิจฉัย (Diagnosis Name)</th>
-                          <th style={{ width: 220 }}>ประเภทการวินิจฉัย (Diag Type)</th>
-                          <th style={{ width: 200 }}>แพทย์ผู้วินิจฉัย</th>
+                          <th className="col-center" style={{ width: 56 }}>
+                            ลำดับ
+                          </th>
+                          <th className="col-center" style={{ width: 130 }}>
+                            รหัสโรค (ICD-10)
+                          </th>
+                          <th className="col-left">ชื่อการวินิจฉัย</th>
+                          <th className="col-left" style={{ width: 320 }}>
+                            ประเภทการวินิจฉัย
+                          </th>
+                          <th className="col-left" style={{ width: 190 }}>
+                            แพทย์ผู้วินิจฉัย
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {data.diagnoses.length === 0 ? (
                           <tr>
-                            <td colSpan={5} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
-                              ไม่พบข้อมูลการวินิจฉัยใน visit นี้
+                            <td colSpan={5}>
+                              <div className="vn-table-empty">
+                                ไม่พบข้อมูลการวินิจฉัยใน visit นี้
+                              </div>
                             </td>
                           </tr>
                         ) : (
-                          data.diagnoses.map((d, idx) => (
-                            <tr key={`${d.icd10}-${idx}`}>
-                              <td style={{ textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
-                              <td>
+                          data.diagnoses.map((diag, idx) => (
+                            <tr key={`${diag.icd10}-${idx}`}>
+                              <td className="col-center vn-cell-muted">{idx + 1}</td>
+                              <td className="col-center">
                                 <span
                                   className={`vn-icd-badge ${
-                                    d.diagtype === '1' ? 'vn-icd-pdx' : 'vn-icd-sdx'
+                                    diag.diagtype === '1' ? 'vn-icd-pdx' : ''
                                   }`}
                                 >
-                                  {d.icd10}
+                                  {diag.icd10}
                                 </span>
                               </td>
-                              <td style={{ fontWeight: 600 }}>{d.icd_name}</td>
-                              <td>
+                              <td className="col-left">{diag.icd_name}</td>
+                              <td className="col-left">
                                 <span
-                                  style={{
-                                    fontSize: '0.8125rem',
-                                    fontWeight: d.diagtype === '1' ? 700 : 500,
-                                    color: d.diagtype === '1' ? '#1d4ed8' : '#334155',
-                                  }}
+                                  className={`vn-diagtype ${
+                                    diag.diagtype === '1' ? 'is-primary' : ''
+                                  }`}
                                 >
-                                  {d.diagtype_name}
+                                  {diag.diagtype_name}
                                 </span>
                               </td>
-                              <td style={{ color: '#475569' }}>{d.doctor_name || '-'}</td>
+                              <td className="col-left vn-cell-muted">{diag.doctor_name || '-'}</td>
                             </tr>
                           ))
                         )}
@@ -529,125 +527,137 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
 
               {/* TAB 3: opitemrece */}
               {activeTab === 'orders' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  {/* Financial Summary Bar */}
+                <div className="vn-tab-panel">
                   <div className="vn-financial-bar">
                     <div className="vn-fin-stat">
                       <span className="vn-fin-stat-label">ยอดรวมค่าบริการทั้งหมด</span>
-                      <span className="vn-fin-stat-value vn-fin-total">
-                        {data.orders.total_price.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        จำนวน {data.orders.items.length} รายการ ({data.orders.total_items} หน่วย)
+                      <span className="vn-fin-stat-value">{`${formatMoney(data.orders.total_price)} ฿`}</span>
+                      <span className="vn-fin-stat-sub">
+                        {data.orders.items.length} รายการ · {data.orders.total_items} หน่วย
                       </span>
                     </div>
 
                     <div className="vn-fin-stat">
-                      <span className="vn-fin-stat-label">ลูกหนี้สิทธิเบิกได้ (กองทุน/สิทธิ)</span>
-                      <span className="vn-fin-stat-value vn-fin-claim">
-                        {data.orders.total_claim.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        {((data.orders.total_claim / (data.orders.total_price || 1)) * 100).toFixed(1)}% ของยอดรวม
+                      <span className="vn-fin-stat-label">ลูกหนี้สิทธิเบิกได้</span>
+                      <span className="vn-fin-stat-value">{`${formatMoney(data.orders.total_claim)} ฿`}</span>
+                      <span className="vn-fin-stat-sub">
+                        {((data.orders.total_claim / (data.orders.total_price || 1)) * 100).toFixed(
+                          1
+                        )}
+                        % ของยอดรวม
                       </span>
                     </div>
 
                     <div className="vn-fin-stat">
                       <span className="vn-fin-stat-label">ชำระเงินเอง</span>
-                      <span className="vn-fin-stat-value vn-fin-paid">
-                        {data.orders.total_paid.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        เงินสด / ชำระเองเบิกได้
-                      </span>
+                      <span className="vn-fin-stat-value">{`${formatMoney(data.orders.total_paid)} ฿`}</span>
+                      <span className="vn-fin-stat-sub">เงินสด / ชำระเองเบิกได้</span>
                     </div>
                   </div>
 
-                  {/* Category Filter Pills */}
-                  <div className="vn-category-pills">
+                  <div className="vn-category-pills" role="group" aria-label="กรองตามหมวดรายการ">
                     <button
                       type="button"
                       className={`vn-cat-pill-btn ${selectedCategory === 'ALL' ? 'is-active' : ''}`}
                       onClick={() => setSelectedCategory('ALL')}
+                      aria-pressed={selectedCategory === 'ALL'}
                     >
-                      ทั้งหมด <span className="vn-cat-pill-count">{data.orders.items.length}</span>
+                      ทั้งหมด
+                      <span className="vn-cat-pill-count">{data.orders.items.length}</span>
                     </button>
 
-                    {data.orders.categories.map((cat) => (
+                    {data.orders.categories.map((category) => (
                       <button
-                        key={cat.category_group}
+                        key={category.category_group}
                         type="button"
-                        className={`vn-cat-pill-btn ${selectedCategory === cat.category_group ? 'is-active' : ''}`}
-                        onClick={() => setSelectedCategory(cat.category_group)}
+                        className={`vn-cat-pill-btn ${
+                          selectedCategory === category.category_group ? 'is-active' : ''
+                        }`}
+                        onClick={() => setSelectedCategory(category.category_group)}
+                        aria-pressed={selectedCategory === category.category_group}
                       >
-                        {cat.title} <span className="vn-cat-pill-count">{cat.item_count}</span>
+                        {category.title}
+                        <span className="vn-cat-pill-count">{category.item_count}</span>
                       </button>
                     ))}
                   </div>
 
-                  {/* Order Items Table */}
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="vn-order-table">
+                  <div className="vn-table-wrap">
+                    <table className="vn-order-table" aria-label="รายการยาและค่ารักษาของ visit นี้">
                       <thead>
                         <tr>
-                          <th style={{ width: 40, textAlign: 'center' }}>ลำดับ</th>
-                          <th style={{ width: 90 }}>รหัส</th>
-                          <th>รายการยา / เวชภัณฑ์ / บริการ</th>
-                          <th>วิธีใช้ / คำแนะนำ (Drug Usage)</th>
-                          <th style={{ width: 150 }}>หมวดรายได้</th>
-                          <th style={{ width: 60, textAlign: 'center' }}>จำนวน</th>
-                          <th style={{ width: 85, textAlign: 'right' }}>ราคา/หน่วย</th>
-                          <th style={{ width: 95, textAlign: 'right' }}>รวมเงิน (฿)</th>
-                          <th style={{ width: 110, textAlign: 'center' }}>การชำระ</th>
+                          <th className="col-center" style={{ width: 56 }}>
+                            ลำดับ
+                          </th>
+                          <th className="col-center" style={{ width: 100 }}>
+                            รหัส
+                          </th>
+                          <th className="col-left" style={{ minWidth: 220 }}>
+                            รายการยา / เวชภัณฑ์ / บริการ
+                          </th>
+                          <th className="col-left" style={{ minWidth: 210 }}>
+                            วิธีใช้ / คำแนะนำ
+                          </th>
+                          <th className="col-left" style={{ width: 170 }}>
+                            หมวดรายได้
+                          </th>
+                          <th className="col-center" style={{ width: 72 }}>
+                            จำนวน
+                          </th>
+                          <th className="col-right" style={{ width: 110 }}>
+                            ราคา/หน่วย
+                          </th>
+                          <th className="col-right" style={{ width: 120 }}>
+                            รวมเงิน (บาท)
+                          </th>
+                          <th className="col-center" style={{ width: 120 }}>
+                            การชำระ
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredOrders.length === 0 ? (
                           <tr>
-                            <td colSpan={9} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
-                              ไม่พบรายการในหมวดนี้
+                            <td colSpan={9}>
+                              <div className="vn-table-empty">ไม่พบรายการในหมวดนี้</div>
                             </td>
                           </tr>
                         ) : (
-                          filteredOrders.map((o, idx) => (
-                            <tr key={`${o.icode}-${idx}`}>
-                              <td style={{ textAlign: 'center', color: '#64748b' }}>{idx + 1}</td>
-                              <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.8rem' }}>
-                                {o.icode}
-                              </td>
-                              <td>
-                                <div style={{ fontWeight: 600 }}>{o.item_name}</div>
-                                {(o.strength || o.units) && (
-                                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                    {[o.strength, o.units].filter(Boolean).join(' • ')}
-                                  </div>
+                          filteredOrders.map((order, idx) => (
+                            <tr key={`${order.icode}-${idx}`}>
+                              <td className="col-center vn-cell-muted">{idx + 1}</td>
+                              <td className="col-center vn-mono vn-cell-muted">{order.icode}</td>
+                              <td className="col-left">
+                                <span className="vn-cell-title">{order.item_name}</span>
+                                {(order.strength || order.units) && (
+                                  <span className="vn-cell-sub">
+                                    {[order.strength, order.units].filter(Boolean).join(' · ')}
+                                  </span>
                                 )}
                               </td>
-                              <td style={{ fontSize: '0.8125rem', color: o.drugusage_text ? '#0f172a' : '#94a3b8' }}>
-                                {o.drugusage_text || '-'}
-                              </td>
-                              <td style={{ fontSize: '0.8125rem', color: '#475569' }}>
-                                {o.income_name || o.income_code || '-'}
-                              </td>
-                              <td style={{ textAlign: 'center', fontWeight: 600 }}>{o.qty}</td>
-                              <td style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace' }}>
-                                {o.unitprice.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace', fontWeight: 700 }}>
-                                {o.sum_price.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
+                              <td className="col-left">
                                 <span
-                                  className={`vn-paidst-badge ${
-                                    o.paidst === '02'
-                                      ? 'vn-paidst-claim'
-                                      : o.paidst === '01' || o.paidst === '03'
-                                      ? 'vn-paidst-paid'
-                                      : 'vn-paidst-unpaid'
-                                  }`}
-                                  title={`รหัส paidst: ${o.paidst}`}
+                                  className={`vn-cell-usage ${order.drugusage_text ? '' : 'is-empty'}`}
                                 >
-                                  {o.paidst_name || o.paidst || '-'}
+                                  {order.drugusage_text || '-'}
+                                </span>
+                              </td>
+                              <td className="col-left vn-cell-muted">
+                                {order.income_name || order.income_code || '-'}
+                              </td>
+                              <td className="col-center vn-mono">{order.qty}</td>
+                              <td className="col-right vn-cell-money">
+                                {formatMoney(order.unitprice)}
+                              </td>
+                              <td className="col-right vn-cell-money is-strong">
+                                {formatMoney(order.sum_price)}
+                              </td>
+                              <td className="col-center">
+                                <span
+                                  className={`vn-badge ${getPaidstTone(order.paidst)}`}
+                                  title={`รหัส paidst: ${order.paidst}`}
+                                >
+                                  {order.paidst_name || order.paidst || '-'}
                                 </span>
                               </td>
                             </tr>
@@ -662,59 +672,60 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="vn-modal-footer">
+        {/* ── 4. Footer ───────────────────────────────────────────────── */}
+        <footer className="vn-modal-footer">
           <button
             type="button"
-            className={`vn-btn-register ${isRegisteredSuccess ? 'is-success' : ''} ${
-              data?.header?.isLtc ? 'is-disabled' : ''
-            }`}
+            className={`vn-btn-register ${isRegisteredSuccess ? 'is-success' : ''}`}
             onClick={handleDirectRegister}
-            disabled={!data?.header?.hn || isRegistering || isRegisteredSuccess || Boolean(data?.header?.isLtc)}
+            disabled={registerDisabled}
             title={
-              data?.header?.isLtc
+              header?.isLtc
                 ? 'ผู้ป่วยรายนี้มีรายชื่อในทะเบียน Long Term Care (LTC) แล้ว ไม่สามารถลงทะเบียน Palliative Care ได้'
                 : isRegisteredSuccess
-                ? 'ลงทะเบียนผู้ป่วยรายนี้เรียบร้อยแล้ว'
-                : data?.header?.hn
-                ? `ดึงข้อมูลและบันทึกลงทะเบียน HN: ${data.header.hn} เข้าสู่ระบบทันที`
-                : 'กำลังโหลดข้อมูล...'
-            }
-            style={
-              data?.header?.isLtc
-                ? {
-                    backgroundColor: '#e2e8f0',
-                    color: '#64748b',
-                    cursor: 'not-allowed',
-                    border: '1px solid #cbd5e1',
-                  }
-                : undefined
+                  ? 'ลงทะเบียนผู้ป่วยรายนี้เรียบร้อยแล้ว'
+                  : header?.hn
+                    ? `บันทึก HN: ${header.hn} เข้าสู่ทะเบียน Palliative Care`
+                    : 'กำลังโหลดข้อมูล...'
             }
           >
-            {isRegistering
-              ? 'กำลังลงทะเบียน...'
-              : isRegisteredSuccess
-              ? 'ลงทะเบียนแล้ว ✓'
-              : data?.header?.isLtc
-              ? 'มีทะเบียนใน LTC (ห้ามลงทะเบียน)'
-              : 'เพิ่มลงทะเบียน'}
+            {isRegisteredSuccess ? (
+              <Check size={16} aria-hidden="true" />
+            ) : (
+              <UserPlus size={16} aria-hidden="true" />
+            )}
+            <span>{registerLabel}</span>
           </button>
           <button type="button" className="vn-btn-close" onClick={onClose}>
             ปิดหน้าต่าง
           </button>
-        </div>
+        </footer>
 
-        {/* Registration Alert Popup */}
+        {/* ── 5. Registration Alert Dialog ────────────────────────────── */}
         {popupNotice && (
-          <div className="vn-popup-backdrop" role="alertdialog" aria-modal="true">
+          <div
+            className="vn-popup-backdrop"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="vn-popup-title"
+            aria-describedby="vn-popup-message"
+          >
             <div className="vn-popup-card">
-              <div className={`vn-popup-icon vn-popup-icon-${popupNotice.type}`}>
-                {popupNotice.type === 'success' && '✓'}
-                {popupNotice.type === 'warning' && 'ℹ'}
-                {popupNotice.type === 'error' && '✕'}
-              </div>
-              <h3 className="vn-popup-title">{popupNotice.title}</h3>
-              <p className="vn-popup-message">{popupNotice.message}</p>
+              <span className={`vn-popup-icon vn-popup-icon-${popupNotice.type}`}>
+                {popupNotice.type === 'success' ? (
+                  <Check size={22} aria-hidden="true" />
+                ) : popupNotice.type === 'warning' ? (
+                  <Info size={22} aria-hidden="true" />
+                ) : (
+                  <X size={22} aria-hidden="true" />
+                )}
+              </span>
+              <h3 className="vn-popup-title" id="vn-popup-title">
+                {popupNotice.title}
+              </h3>
+              <p className="vn-popup-message" id="vn-popup-message">
+                {popupNotice.message}
+              </p>
               <div className="vn-popup-actions">
                 <button
                   type="button"

@@ -1,0 +1,13 @@
+{
+  "name": "Action menu",
+  "summary": "A More button with its dropdown shown open: grouped actions with icons and shortcuts, a submenu, a disabled item and a danger action at the end. Positioning is the project's.",
+  "use": "when a row or record has more actions than fit as buttons",
+  "type": "overlay",
+  "style": "dense",
+  "industries": ["any"],
+  "tags": ["menu", "dropdown", "actions", "shortcuts", "context menu"],
+  "states": ["open", "closed", "hover", "focus", "disabled", "danger", "submenu"],
+  "source": null,
+  "a11y": "A menu button with aria-expanded; items are menuitems with roving focus (arrow keys, Home, End), Escape closes and returns focus to the button, and the disabled item is aria-disabled.",
+  "width": "narrow"
+}

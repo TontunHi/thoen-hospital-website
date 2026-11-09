@@ -1,0 +1,83 @@
+{
+  "name": "Live chat",
+  "summary": "A live stream with its chat: the stream frame with a LIVE tag and viewer count, the title, host and Follow, then a chat panel with a pinned message, messages with host, moderator and member badges, and a composer.",
+  "use": "on a live stream, live class or event broadcast page",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "media",
+    "games",
+    "events",
+    "social"
+  ],
+  "tags": [
+    "live",
+    "stream",
+    "chat",
+    "badges",
+    "viewers"
+  ],
+  "states": [
+    "live",
+    "pinned",
+    "new message",
+    "following",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The messages are a log region that announces new ones politely and scrolls inside itself; the composer is a labelled form that sends with Enter, Follow is a toggle with aria-pressed, and the LIVE dot stops pulsing with reduced motion.",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1470229722913-7c0e2dbbafd3",
+      "author": "Yvette de Wit",
+      "page": "NYrVisodQ2M"
+    },
+    {
+      "img": "photo-1525599428495-0441bd5c67de",
+      "author": "Mosoianu Bogdan",
+      "page": "eY1_nQs9aNI"
+    },
+    {
+      "img": "photo-1543949806-2c9935e6aa78",
+      "author": "Ronny Sison",
+      "page": "4lnzxFIgTmg"
+    },
+    {
+      "img": "photo-1518725522904-4b3939358342",
+      "author": "Arjunsyah",
+      "page": "TBUA5KHJn6k"
+    },
+    {
+      "img": "photo-1614273867161-22da2cd8ab39",
+      "author": "Andrés Rodríguez",
+      "page": "r0Sua2EUKh4"
+    },
+    {
+      "img": "photo-1770058428159-50cca6566c19",
+      "author": "Beatriz Cattel",
+      "page": "qCqJC380gLw"
+    },
+    {
+      "img": "photo-1564866657311-e9cc905d29cf",
+      "author": "Norbert Kundrak",
+      "page": "f383ZVoV6b8"
+    },
+    {
+      "img": "photo-1617309644714-89d2ab1c9e19",
+      "author": "Joshua Salva",
+      "page": "tlZA8w-z-IY"
+    },
+    {
+      "img": "photo-1573497019940-1c28c88b4f3e",
+      "author": "Christina @ wocintechchat.com M",
+      "page": "SJvDxw0azqw"
+    },
+    {
+      "img": "photo-1611403119860-57c4937ef987",
+      "author": "Hà Nguyễn",
+      "page": "OFSQ6bHjFjs"
+    }
+  ]
+}

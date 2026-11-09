@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { apiGateway } from '@/lib/apiGateway'
 import { queryMemberDb } from '@/lib/memberDb'
 import { queryClinicalDb } from '@/lib/clinicalDb'
 import { querySalaryDb } from '@/lib/salaryDb'
@@ -40,17 +41,42 @@ export async function GET() {
       return rateCheck.response!
     }
 
-    const [primaryDb, hosxpDb, salaryDb] = await Promise.all([
-      checkService(async () => {
-        await queryMemberDb('SELECT 1')
-      }),
-      checkService(async () => {
-        await queryClinicalDb('SELECT 1')
-      }),
-      checkService(async () => {
-        await querySalaryDb('SELECT 1')
-      }),
-    ])
+    let primaryDb: ServiceCheck
+    let hosxpDb: ServiceCheck
+    let salaryDb: ServiceCheck
+
+    try {
+      const gwHealth = await apiGateway.health()
+      const dbs = gwHealth?.databases
+      primaryDb = {
+        status: dbs?.website?.connected ? 'UP' : 'DOWN',
+        latencyMs: dbs?.website?.latencyMs ?? 0,
+      }
+      hosxpDb = {
+        status: dbs?.hosxp?.connected ? 'UP' : 'DOWN',
+        latencyMs: dbs?.hosxp?.latencyMs ?? 0,
+      }
+      salaryDb = {
+        status: dbs?.salary?.connected ? 'UP' : 'DOWN',
+        latencyMs: dbs?.salary?.latencyMs ?? 0,
+      }
+    } catch {
+      // Graceful fallback to individual probes if Gateway health endpoint is unavailable
+      const [p, h, s] = await Promise.all([
+        checkService(async () => {
+          await queryMemberDb('SELECT 1')
+        }),
+        checkService(async () => {
+          await queryClinicalDb('SELECT 1')
+        }),
+        checkService(async () => {
+          await querySalaryDb('SELECT 1')
+        }),
+      ])
+      primaryDb = p
+      hosxpDb = h
+      salaryDb = s
+    }
 
     const allUp = primaryDb.status === 'UP' && hosxpDb.status === 'UP' && salaryDb.status === 'UP'
     const primaryUp = primaryDb.status === 'UP'

@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Types: หัวข้อที่ 3 รายชื่อผู้รับบริการแพทย์แผนไทยรวม ────────────────────────
 
@@ -36,6 +38,7 @@ export type Ttm3SortField =
 export interface Ttm3ReportParams extends FiscalDateRangeParams {
   cardFilter?: Ttm3CardFilter
   place?: Ttm3PlaceFilter
+  pttypes?: string
   ucOnly?: boolean
   treatmentType?: string // '1'..'7'
   search?: string
@@ -75,6 +78,7 @@ export interface Ttm3Item {
   servicedate: string | null
   authencode: string | null
   maininscl: string
+  pttype_eclaim_id: string
   isUc: boolean
   pttypename: string
   department: string | null
@@ -174,6 +178,8 @@ export type Ttm11SortField =
 
 export interface Ttm11ReportParams extends FiscalDateRangeParams {
   cardFilter?: Ttm11CardFilter
+  pttypes?: string
+  ucOnly?: boolean
   search?: string
   sortBy?: Ttm11SortField
   sortOrder?: 'asc' | 'desc'
@@ -212,6 +218,8 @@ export interface Ttm11Item {
   authenEndpoint: string | null
   hipdataCode: string
   hipdataLabel: string
+  pttype_eclaim_id: string
+  isUc: boolean
   pttypename: string
   department: string | null
   hospmain: string | null
@@ -278,7 +286,8 @@ export interface Ttm11ReportResult {
 
 // ── 3. Helper Functions ──────────────────────────────────────────────────────────
 
-function checkIsUc(maininscl?: string | null, pttypename?: string | null): boolean {
+function checkIsUc(maininscl?: string | null, pttypename?: string | null, pttypeEclaimId?: string | null): boolean {
+  if (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) return true
   if (maininscl) {
     const code = maininscl.toUpperCase().trim()
     if (code === 'UCS' || code === 'WEL' || code === 'UC') return true
@@ -333,6 +342,17 @@ export class RcmThaiTraditionalMedicineService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getRcmFundData('thai-traditional-medicine-3', { ds1, ds2 })
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return gwRes.data.rawRows
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         const sql = `
           SELECT 
             o.vn,
@@ -345,8 +365,9 @@ export class RcmThaiTraditionalMedicineService {
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
             DATE_FORMAT(s.service_date, '%Y-%m-%d') AS servicedate,
-            COALESCE(cc.AuthenCode, vi.auth_code, '') AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vi.auth_code), ''), NULLIF(TRIM(vi.claim_code), '')) AS authencode,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             IFNULL(ptt.name, o.pttype) AS pttypename,
             IFNULL(dep.department, o.main_dep) AS department,
             IFNULL(spc.name, o.spclty) AS clinic,
@@ -410,7 +431,7 @@ export class RcmThaiTraditionalMedicineService {
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -423,7 +444,7 @@ export class RcmThaiTraditionalMedicineService {
                    GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
                    GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -434,7 +455,7 @@ export class RcmThaiTraditionalMedicineService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           LEFT JOIN rcmdb.seamless sm ON sm.vn = o.vn AND sm.rep REGEXP 'DTTM'
@@ -445,7 +466,6 @@ export class RcmThaiTraditionalMedicineService {
           ds1, ds2, // hd oo.vstdate
           ds1, ds2, // nhso admdate
           ds1, ds2, // rep admdate
-          ds1, ds2, // m dateadm
           ds1, ds2, // o.vstdate
         ]
 
@@ -456,7 +476,8 @@ export class RcmThaiTraditionalMedicineService {
 
     // Map rows to typed items
     const allItems: Ttm3Item[] = (rawRows || []).map((row, idx) => {
-      const isUc = checkIsUc(row.maininscl, row.pttypename)
+      const pttypeEclaimId = String(row.pttype_eclaim_id || '').trim()
+      const isUc = checkIsUc(row.maininscl, row.pttypename, pttypeEclaimId)
       const place = row.place === 'N' ? 'N' : 'Y'
       const compensated = Number(row.compensated || 0)
       const isCompensated = compensated > 0
@@ -475,6 +496,7 @@ export class RcmThaiTraditionalMedicineService {
         servicedate: row.servicedate ? String(row.servicedate).trim() : null,
         authencode: row.authencode ? String(row.authencode).trim() : null,
         maininscl: String(row.maininscl || '').trim(),
+        pttype_eclaim_id: pttypeEclaimId,
         isUc,
         pttypename: String(row.pttypename || '').trim(),
         department: row.department ? String(row.department).trim() : null,
@@ -507,8 +529,18 @@ export class RcmThaiTraditionalMedicineService {
       }
     })
 
-    // Compute Summary across ALL visits before applying filters
-    const totalVisits = allItems.length
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Summary across summaryCohort
+    const totalVisits = summaryCohort.length
     const uniquePatientSet = new Set<string>()
     let treatmentDrugCount = 0
     let treatmentMassageCount = 0
@@ -522,7 +554,7 @@ export class RcmThaiTraditionalMedicineService {
     let ucCount = 0
     let totalIncome = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniquePatientSet.add(item.hn)
       if (item.treatment1 === 'Y') treatmentDrugCount++
       if (item.treatment2 === 'Y') treatmentMassageCount++
@@ -572,7 +604,7 @@ export class RcmThaiTraditionalMedicineService {
     }
 
     // Apply Filters
-    let filtered = allItems
+    let filtered = summaryCohort
 
     // 1. Card Filter
     if (cardFilter === 'TREATMENT_DRUG') {
@@ -613,11 +645,6 @@ export class RcmThaiTraditionalMedicineService {
       else if (treatmentType === '5') filtered = filtered.filter((i) => i.treatment5 === 'Y')
       else if (treatmentType === '6') filtered = filtered.filter((i) => i.treatment6 === 'Y')
       else if (treatmentType === '7') filtered = filtered.filter((i) => i.treatment7 === 'Y')
-    }
-
-    // 4. UC Only
-    if (ucOnly) {
-      filtered = filtered.filter((i) => i.isUc)
     }
 
     // 5. Global Search across HN, CID, Name, VN, PDX, Authen Code, Rep, Treatment
@@ -714,6 +741,17 @@ export class RcmThaiTraditionalMedicineService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getRcmFundData('thai-traditional-medicine-11', { ds1, ds2 })
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return gwRes.data.rawRows
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         const sql = `
           SELECT 
             o.vn,
@@ -726,9 +764,10 @@ export class RcmThaiTraditionalMedicineService {
             IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            COALESCE(cc.AuthenCode, vs.auth_code, '') AS auth_code,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vs.auth_code), ''), NULLIF(TRIM(vs.claim_code), '')) AS auth_code,
             IFNULL(cp.nhso_authen_code, '') AS authen_endpoint,
             IFNULL(ptt.hipdata_code, '') AS hipdata_code,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             CONCAT(IFNULL(ptt.pttype, ''), ': ', IFNULL(ptt.name, '')) AS pttypename,
             IFNULL(dep.department, o.main_dep) AS department,
             IF(hm.hospcode IS NOT NULL, CONCAT(hm.hospcode, ' ', hm.name), v.hospmain) AS hospmain,
@@ -793,7 +832,7 @@ export class RcmThaiTraditionalMedicineService {
               GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
               GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) re ON re.vn = o.vn
           LEFT JOIN (
@@ -803,7 +842,7 @@ export class RcmThaiTraditionalMedicineService {
               SUM(compensated) AS compensated,
               'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) rd ON rd.vn = o.vn
@@ -832,6 +871,9 @@ export class RcmThaiTraditionalMedicineService {
       const isCompensated = compensated > 0 || (compensatedInvoice != null && compensatedInvoice > 0)
       const hasInvoice = Boolean(row.rep_invoice)
       const hipdataCode = String(row.hipdata_code || '').trim().toUpperCase()
+      const pttypename = String(row.pttypename || '').trim()
+      const pttypeEclaimId = String(row.pttype_eclaim_id || '').trim()
+      const isUc = checkIsUc(hipdataCode, pttypename, pttypeEclaimId)
       const hipdataLabel =
         hipdataCode === 'UCS'
           ? 'บัตรทอง (UCS)'
@@ -855,7 +897,9 @@ export class RcmThaiTraditionalMedicineService {
         authenEndpoint: row.authen_endpoint ? String(row.authen_endpoint).trim() : null,
         hipdataCode,
         hipdataLabel,
-        pttypename: String(row.pttypename || '').trim(),
+        pttype_eclaim_id: pttypeEclaimId,
+        isUc,
+        pttypename,
         department: row.department ? String(row.department).trim() : null,
         hospmain: row.hospmain ? String(row.hospmain).trim() : null,
         hospsub: row.hospsub ? String(row.hospsub).trim() : null,
@@ -886,8 +930,18 @@ export class RcmThaiTraditionalMedicineService {
       }
     })
 
-    // Compute summary across ALL items before filtering
-    const totalVisits = allItems.length
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute summary across summaryCohort
+    const totalVisits = summaryCohort.length
     const uniquePatientSet = new Set<string>()
     let totalDispensedUnits = 0
     let totalDrugAmount = 0
@@ -898,7 +952,7 @@ export class RcmThaiTraditionalMedicineService {
     let welCount = 0
     let invoiceCount = 0
 
-    for (const item of allItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniquePatientSet.add(item.hn)
       totalDispensedUnits += item.totalQty
       totalDrugAmount += item.totalDrugAmount
@@ -935,7 +989,7 @@ export class RcmThaiTraditionalMedicineService {
     }
 
     // Filter
-    let filtered = allItems
+    let filtered = summaryCohort
 
     // 1. Card Filter
     if (cardFilter === 'COMPENSATED') {

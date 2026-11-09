@@ -1,0 +1,47 @@
+{
+  "name": "Trip search",
+  "summary": "Where, when and who for a trip: a stays or flights switch, a destination field with suggestions, a two-month date range, and steppers for adults, children and pets.",
+  "use": "at the top of a travel app or booking site, for starting a search for a stay or a flight",
+  "type": "form",
+  "style": "friendly",
+  "industries": [
+    "travel"
+  ],
+  "tags": [
+    "search",
+    "date range",
+    "guests",
+    "destination",
+    "booking"
+  ],
+  "states": [
+    "stays",
+    "flights",
+    "suggestions open",
+    "range chosen",
+    "check-in only",
+    "stepper at minimum",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The destination is a combobox with a listbox (arrows move, Enter picks, Escape closes); each day is a button named with its full date and aria-pressed on check-in and check-out, the range summary is a live region, and stepper buttons disable at their limits.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1578771792482-1e7eb2b8b447",
+      "author": "Sander Jeurissen",
+      "page": "AB0Ndb2UtnA"
+    },
+    {
+      "img": "photo-1446038202205-1c96430dbdab",
+      "author": "Ian Schneider",
+      "page": "XJfHMPJ0e-g"
+    },
+    {
+      "img": "photo-1605096048662-5ab61695a122",
+      "author": "Zoltan Tasi",
+      "page": "_snNw0rqRVs"
+    }
+  ]
+}

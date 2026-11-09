@@ -22,6 +22,7 @@ import {
 import { DentalDoctorSummaryItem, SssDentalResult } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTH_NAMES = [
@@ -256,8 +257,8 @@ export default function SssDentalClient({ initialData, initialRange }: SssDental
     })
   }, [doctors, searchDoctor, sortField, sortOrder])
 
-  // CSV Export
-  const exportCSV = () => {
+  // Modern Excel (.xlsx) Export
+  const exportExcel = async () => {
     const isYearMode = dateMode === 'year'
     const headers = [
       'รหัสแพทย์',
@@ -279,8 +280,8 @@ export default function SssDentalClient({ initialData, initialRange }: SssDental
         : months.map((m) => doc.monthly_income[m] || 0)
 
       return [
-        `"${doc.doctor_code}"`,
-        `"${doc.doctor_name}"`,
+        doc.doctor_code,
+        doc.doctor_name,
         doc.total_visits,
         doc.total_income,
         doc.total_uc_money,
@@ -291,16 +292,13 @@ export default function SssDentalClient({ initialData, initialRange }: SssDental
       ]
     })
 
-    const csvContent =
-      '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `sss_dental_report_${ds1}_to_${ds2}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    await exportRcmExcel({
+      filename: `sss_dental_report_${ds1}_to_${ds2}.xlsx`,
+      title: 'รายงานการให้บริการทันตกรรม สิทธิ์ประกันสังคม จำแนกตามทันตแพทย์',
+      subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+      headers,
+      rows,
+    })
   }
 
   const formatNumber = (num: number) => num.toLocaleString('th-TH')
@@ -352,10 +350,10 @@ export default function SssDentalClient({ initialData, initialRange }: SssDental
             </button>
             <button
               type="button"
-              onClick={exportCSV}
+              onClick={exportExcel}
               disabled={loading || processedDoctors.length === 0}
               className="dental-btn dental-btn-primary"
-              title="ดาวน์โหลดไฟล์ตารางในรูปแบบ CSV"
+              title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
             >
               <Download size={14} />
               <span>ส่งออก Excel</span>

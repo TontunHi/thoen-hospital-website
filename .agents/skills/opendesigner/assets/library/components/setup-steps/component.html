@@ -1,0 +1,55 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-setup-steps { box-sizing: border-box; inline-size: 100%; max-inline-size: 440px; container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-setup-steps header { display: grid; gap: var(--ds-space-stack-sm); }
+.odl-setup-steps h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-setup-steps .odl-count { display: flex; align-items: center; gap: var(--ds-space-inline-md); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-setup-steps progress { flex: 1; appearance: none; block-size: var(--ds-space-6); border: 0; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); overflow: hidden; }
+.odl-setup-steps progress::-webkit-progress-bar { background: var(--ds-color-bg-neutral-subtle); }
+.odl-setup-steps progress::-webkit-progress-value { background: var(--ds-color-bg-action-primary); border-radius: var(--ds-radius-full); }
+.odl-setup-steps progress::-moz-progress-bar { background: var(--ds-color-bg-action-primary); border-radius: var(--ds-radius-full); }
+.odl-setup-steps ol { list-style: none; margin: 0; padding: 0; display: grid; }
+.odl-setup-steps li { display: grid; grid-template-columns: var(--ds-size-control-sm) minmax(0, 1fr); gap: 0 var(--ds-space-inset-lg); padding-block: var(--ds-space-stack-md); }
+.odl-setup-steps li:first-child { padding-block-start: 0; }
+.odl-setup-steps li:last-child { padding-block-end: 0; }
+.odl-setup-steps li + li { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-setup-steps .odl-mark { grid-row: span 3; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); display: grid; place-items: center; border-radius: var(--ds-radius-full);
+  border: var(--ds-border-width-emphasis) solid var(--ds-color-border-default); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-setup-steps .odl-mark svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-lg); }
+.odl-setup-steps .is-done .odl-mark { background: var(--ds-color-bg-success-subtle); border-color: transparent; color: var(--ds-color-text-success); }
+.odl-setup-steps .is-done .odl-title { color: var(--ds-color-text-secondary); }
+.odl-setup-steps .is-now .odl-mark { background: var(--ds-color-bg-action-primary); border-color: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-setup-steps .odl-title { align-self: center; min-block-size: var(--ds-size-control-sm); display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); }
+.odl-setup-steps .is-now .odl-title { font-weight: var(--ds-font-weight-heading); }
+.odl-setup-steps .odl-title small { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-body); white-space: nowrap; }
+.odl-setup-steps .odl-detail { margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-setup-steps .odl-acts { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); align-items: center; margin-block-start: var(--ds-space-stack-md); }
+
+.odl-setup-steps button { min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg);
+  font-weight: var(--ds-font-weight-label); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-setup-steps .odl-primary { border: 0; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-setup-steps .odl-primary:hover { background: var(--ds-color-bg-action-primary-hover); }
+/* a quiet text action: when it wraps under the primary button it still starts at the same left edge */
+.odl-setup-steps .odl-quiet { padding-inline: var(--ds-space-inset-xs); border: 0; background: transparent; color: var(--ds-color-text-secondary); text-decoration: underline; text-decoration-color: var(--ds-color-border-default); text-underline-offset: var(--ds-space-4); }
+.odl-setup-steps .odl-quiet:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-setup-steps button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@media (max-width: 30rem) { .odl-setup-steps { padding: var(--ds-space-inset-lg); } }
+@media (prefers-reduced-motion: reduce) { .odl-setup-steps, .odl-setup-steps *, .odl-setup-steps *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-setup-steps" aria-label="Set up your workspace">
+  <header><h3>Set up your workspace</h3>
+    <div class="odl-count"><progress max="4" value="2" aria-label="2 of 4 steps done"></progress><span>2 of 4 done</span></div></header>
+  <ol>
+    <li class="is-done"><span class="odl-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="odl-title">Create your workspace <small>Done</small></span></li>
+    <li class="is-done"><span class="odl-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="odl-title">Invite your team <small>4 invited</small></span></li>
+    <li class="is-now" aria-current="step"><span class="odl-mark">3</span>
+      <span class="odl-title">Connect your bank <small>About 2 min</small></span>
+      <p class="odl-detail">Read-only access. We never move money without your approval.</p>
+      <div class="odl-acts"><button type="button" class="odl-primary">Connect a bank</button><button type="button" class="odl-quiet">Skip for now</button></div></li>
+    <li><span class="odl-mark">4</span><span class="odl-title">Send your first invoice</span></li>
+  </ol>
+</section>

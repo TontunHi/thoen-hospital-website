@@ -106,10 +106,10 @@ describe('PalliativeCareClient PC.3 Component', () => {
     expect(screen.getByText(/Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด/)).toBeInTheDocument()
     expect(screen.getByText('PC.3')).toBeInTheDocument()
 
-    // Date mode buttons
-    expect(screen.getByText('กำหนดเอง (วันถึงวัน)')).toBeInTheDocument()
+    // Date mode buttons (single-row ribbon: กำหนดเอง | รายเดือน | ปีงบประมาณ)
+    expect(screen.getByText('กำหนดเอง')).toBeInTheDocument()
     expect(screen.getByText('รายเดือน')).toBeInTheDocument()
-    expect(screen.getByText('รายปีงบประมาณ')).toBeInTheDocument()
+    expect(screen.getByText('ปีงบประมาณ')).toBeInTheDocument()
 
     await waitFor(() => {
       expect(screen.getByText('นายธวัชชัย คำมา')).toBeInTheDocument()
@@ -137,8 +137,58 @@ describe('PalliativeCareClient PC.3 Component', () => {
     })
   })
 
-  it('has UC checkbox checked by default and allows toggling', async () => {
+  it('exports modern Excel (.xlsx) file with full columns and downloaded workbook', async () => {
+    let downloadedName = ''
+    const origCreateElement = document.createElement.bind(document)
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = origCreateElement(tagName)
+      if (tagName === 'a') {
+        el.click = () => {
+          downloadedName = el.getAttribute('download') || ''
+        }
+      }
+      return el
+    })
+
+    Object.defineProperty(URL, 'createObjectURL', {
+      writable: true,
+      configurable: true,
+      value: vi.fn(() => 'blob:pc3'),
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      writable: true,
+      configurable: true,
+      value: vi.fn(),
+    })
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...mockPalliativeResponse,
+        items: [
+          {
+            ...mockPalliativeResponse.items[0],
+            ptname: 'ทดสอบชื่อ',
+          },
+        ],
+      }),
+    } as any)
+
     render(<PalliativeCareClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/ทดสอบชื่อ/)).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /ส่งออก Excel/ }))
+
+    await waitFor(() => {
+      expect(downloadedName).toContain('Palliative_Care_PC3_')
+      expect(downloadedName.endsWith('.xlsx')).toBe(true)
+    }, { timeout: 4000 })
+  })
+
+  it('has UC checkbox checked by default and allows toggling', async () => {    render(<PalliativeCareClient />)
 
     await waitFor(() => {
       expect(screen.getByText('เฉพาะสิทธิ UC')).toBeInTheDocument()
@@ -159,16 +209,16 @@ describe('PalliativeCareClient PC.3 Component', () => {
   it('switches between date modes properly', async () => {
     render(<PalliativeCareClient />)
 
-    // Click 'รายปีงบประมาณ'
-    const fiscalBtn = screen.getByText('รายปีงบประมาณ')
+    // Click 'ปีงบประมาณ'
+    const fiscalBtn = screen.getByText('ปีงบประมาณ')
     fireEvent.click(fiscalBtn)
 
     await waitFor(() => {
       expect(screen.getAllByText(/ปีงบประมาณ/).length).toBeGreaterThan(1)
     })
 
-    // Click 'กำหนดเอง (วันถึงวัน)'
-    const customBtn = screen.getByText('กำหนดเอง (วันถึงวัน)')
+    // Click 'กำหนดเอง'
+    const customBtn = screen.getByText('กำหนดเอง')
     fireEvent.click(customBtn)
 
     await waitFor(() => {
@@ -183,8 +233,10 @@ describe('PalliativeCareClient PC.3 Component', () => {
       expect(screen.getByText('นายธวัชชัย คำมา')).toBeInTheDocument()
     })
 
-    const infoButtons = screen.getAllByTitle('ดูรายละเอียดผู้ป่วย')
-    fireEvent.click(infoButtons[0])
+    // คลิกทั้งแถวเพื่อเปิดรายละเอียด (Row-clickable record)
+    const patientRow = screen.getByText('นายธวัชชัย คำมา').closest('tr')
+    expect(patientRow).not.toBeNull()
+    fireEvent.click(patientRow as HTMLElement)
 
     await waitFor(() => {
       expect(screen.getByText(/รายละเอียดผู้ป่วย: นายธวัชชัย คำมา/)).toBeInTheDocument()
@@ -204,7 +256,7 @@ describe('PalliativeCareClient PC.3 Component', () => {
     })
 
     // Filter dropdown for deathStatus
-    const deathSelect = screen.getByDisplayValue('สถานะการมีชีวิต: ทั้งหมด')
+    const deathSelect = screen.getByLabelText('สถานะการมีชีวิต')
     fireEvent.change(deathSelect, { target: { value: 'Y' } })
 
     await waitFor(() => {
@@ -212,7 +264,7 @@ describe('PalliativeCareClient PC.3 Component', () => {
     })
 
     // Filter dropdown for compensatedFilter
-    const paidSelect = screen.getByDisplayValue('เงินชดเชย: ทั้งหมด')
+    const paidSelect = screen.getByLabelText('เงินชดเชย')
     fireEvent.change(paidSelect, { target: { value: 'PAID' } })
 
     await waitFor(() => {
@@ -255,8 +307,8 @@ describe('PalliativeCareClient PC.3 Component', () => {
       expect(z515Card).toHaveClass('is-active')
     })
 
-    // Click 'เสียชีวิต (ชมพู)' card
-    const deathCard = screen.getByRole('button', { name: /เสียชีวิต \(ชมพู\)/ })
+    // Click 'เสียชีวิต' chip
+    const deathCard = screen.getByRole('button', { name: /เสียชีวิต/ })
     fireEvent.click(deathCard)
 
     await waitFor(() => {

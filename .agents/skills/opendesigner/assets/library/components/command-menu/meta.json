@@ -1,0 +1,13 @@
+{
+  "name": "Command menu",
+  "summary": "A search-first menu for every action and page, grouped, with keyboard shortcuts, live filtering and an empty result that says what to try.",
+  "use": "as the keyboard-first way to reach any page or action in a work app",
+  "type": "navigation",
+  "style": "technical",
+  "industries": ["devtools", "saas", "productivity"],
+  "tags": ["command palette", "search", "keyboard", "shortcuts", "cmd k"],
+  "states": ["active option", "hover", "filtered", "no results"],
+  "source": "brand/showcase/components/02-command-palette",
+  "a11y": "A combobox with a listbox: arrow keys move the active option through aria-activedescendant, and groups hide when nothing in them matches.",
+  "width": "medium"
+}

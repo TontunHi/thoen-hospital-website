@@ -1,0 +1,632 @@
+{
+ "v": 1,
+ "url": "file:///fixtures/broken.html",
+ "title": "Broken fixture",
+ "at": "2026-10-04T00:00:00.000Z",
+ "viewport": {
+  "w": 390,
+  "h": 800,
+  "innerW": 390,
+  "innerH": 800,
+  "dpr": 1,
+  "docW": 922,
+  "docH": 2266,
+  "scale": 1
+ },
+ "media": {
+  "colorScheme": "light",
+  "reducedMotion": false,
+  "forcedColors": false,
+  "pointer": "fine",
+  "hover": true
+ },
+ "doc": {
+  "lang": null,
+  "dir": "ltr",
+  "viewportMeta": "width=device-width, initial-scale=1, user-scalable=no",
+  "blocksZoom": true,
+  "dataTheme": null,
+  "colorScheme": "normal",
+  "hOverflow": 532,
+  "rootClipsX": false,
+  "elements": 36,
+  "truncated": false
+ },
+ "type": {
+  "sizes": {
+   "13": {
+    "n": 1,
+    "ex": [
+     "main > p.low:nth-of-type(1)"
+    ],
+    "chars": 52
+   },
+   "15": {
+    "n": 8,
+    "ex": [
+     "main > div.wide:nth-of-type(1)"
+    ],
+    "chars": 540
+   },
+   "20": {
+    "n": 1,
+    "ex": [
+     "header > h1"
+    ],
+    "chars": 14
+   },
+   "17.6": {
+    "n": 1,
+    "ex": [
+     "main > h3"
+    ],
+    "chars": 23
+   },
+   "13.3": {
+    "n": 1,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ],
+    "chars": 4
+   }
+  },
+  "lineHeights": {
+   "18": {
+    "n": 8,
+    "ex": [
+     "main > div.wide:nth-of-type(1)"
+    ],
+    "chars": 540
+   },
+   "24": {
+    "n": 1,
+    "ex": [
+     "header > h1"
+    ],
+    "chars": 14
+   },
+   "21.1": {
+    "n": 1,
+    "ex": [
+     "main > h3"
+    ],
+    "chars": 23
+   },
+   "15.6": {
+    "n": 1,
+    "ex": [
+     "main > p.low:nth-of-type(1)"
+    ],
+    "chars": 52
+   },
+   "normal": {
+    "n": 1,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ],
+    "chars": 4
+   }
+  },
+  "weights": {
+   "400": {
+    "n": 10,
+    "ex": [
+     "main > p.low:nth-of-type(1)"
+    ],
+    "chars": 596
+   },
+   "700": {
+    "n": 2,
+    "ex": [
+     "header > h1"
+    ],
+    "chars": 37
+   }
+  },
+  "families": {
+   "Nonexistent Brand Font": {
+    "n": 11,
+    "ex": [
+     "header > h1"
+    ],
+    "chars": 629
+   },
+   "Arial": {
+    "n": 1,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ],
+    "chars": 4
+   }
+  },
+  "letterSpacing": {},
+  "smallest": {
+   "px": 13,
+   "sel": "main > p.low:nth-of-type(1)",
+   "text": "Low contrast text that a screenshot make"
+  },
+  "lineHeightTight": [
+   {
+    "sel": "main > p.prose:nth-of-type(5)",
+    "ratio": 1.2,
+    "fs": 15,
+    "chars": 334
+   }
+  ],
+  "longLines": [],
+  "textElements": 12
+ },
+ "space": {
+  "values": {
+   "1": {
+    "n": 2,
+    "ex": [
+     "main > p:nth-of-type(3) > input"
+    ]
+   },
+   "2": {
+    "n": 5,
+    "ex": [
+     "main > p:nth-of-type(2) > button.tiny:nth-of-type(1)"
+    ]
+   },
+   "6": {
+    "n": 4,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ]
+   },
+   "7": {
+    "n": 2,
+    "ex": [
+     "main > div.card:nth-of-type(5)"
+    ]
+   },
+   "11": {
+    "n": 4,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ]
+   },
+   "13": {
+    "n": 8,
+    "ex": [
+     "header"
+    ]
+   },
+   "15": {
+    "n": 10,
+    "ex": [
+     "main > p:nth-of-type(2)"
+    ]
+   },
+   "18": {
+    "n": 4,
+    "ex": [
+     "main > div.card:nth-of-type(5)"
+    ]
+   },
+   "22": {
+    "n": 2,
+    "ex": [
+     "main"
+    ]
+   },
+   "17.55": {
+    "n": 2,
+    "ex": [
+     "main > h3"
+    ]
+   }
+  },
+  "negativeMargins": []
+ },
+ "radius": {
+  "7": {
+   "n": 2,
+   "ex": [
+    "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+   ]
+  },
+  "9": {
+   "n": 1,
+   "ex": [
+    "main > div.card:nth-of-type(5)"
+   ]
+  }
+ },
+ "shadows": {
+  "rgba(0, 0, 0, 0.2) 0px 1px 2px 0px": {
+   "n": 1,
+   "ex": [
+    "main > div.card:nth-of-type(5)"
+   ]
+  }
+ },
+ "colors": {
+  "text": {
+   "#222222": {
+    "n": 8,
+    "ex": [
+     "main > h3"
+    ]
+   },
+   "#ffffff": {
+    "n": 1,
+    "ex": [
+     "header > h1"
+    ]
+   },
+   "#aaaaaa": {
+    "n": 1,
+    "ex": [
+     "main > p.low:nth-of-type(1)"
+    ]
+   },
+   "#000000": {
+    "n": 1,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ]
+   },
+   "#0000ee": {
+    "n": 1,
+    "ex": [
+     "main > p:nth-of-type(3) > a"
+    ]
+   }
+  },
+  "bg": {
+   "#ffffff": {
+    "n": 4,
+    "ex": [
+     "body"
+    ]
+   },
+   "#0066cc": {
+    "n": 3,
+    "ex": [
+     "main > p:nth-of-type(2) > button.tiny:nth-of-type(1)"
+    ]
+   },
+   "#112233": {
+    "n": 1,
+    "ex": [
+     "header"
+    ]
+   },
+   "#dddddd": {
+    "n": 1,
+    "ex": [
+     "main > div.wide:nth-of-type(1)"
+    ]
+   },
+   "#cc6600": {
+    "n": 1,
+    "ex": [
+     "main > div.pulse:nth-of-type(3)"
+    ]
+   }
+  },
+  "border": {
+   "#0066cc": {
+    "n": 2,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ]
+   },
+   "#767676": {
+    "n": 1,
+    "ex": [
+     "main > p:nth-of-type(3) > input"
+    ]
+   },
+   "#cccccc": {
+    "n": 1,
+    "ex": [
+     "main > div.scroller:nth-of-type(4)"
+    ]
+   }
+  }
+ },
+ "contrast": {
+  "checked": 6,
+  "failing": [
+   {
+    "sel": "main > p.low:nth-of-type(1)",
+    "ratio": 2.32,
+    "fg": "#aaaaaa",
+    "bg": "#ffffff",
+    "fs": 13,
+    "large": false,
+    "backdrop": "solid",
+    "n": 1
+   }
+  ],
+  "lowest": [
+   {
+    "sel": "main > p.low:nth-of-type(1)",
+    "ratio": 2.32,
+    "fg": "#aaaaaa",
+    "bg": "#ffffff",
+    "fs": 13,
+    "large": false,
+    "backdrop": "solid",
+    "n": 1
+   },
+   {
+    "sel": "main > p:nth-of-type(3) > a",
+    "ratio": 9.4,
+    "fg": "#0000ee",
+    "bg": "#ffffff",
+    "fs": 15,
+    "large": false,
+    "backdrop": "solid",
+    "n": 1
+   },
+   {
+    "sel": "main > div.wide:nth-of-type(1)",
+    "ratio": 11.71,
+    "fg": "#222222",
+    "bg": "#dddddd",
+    "fs": 15,
+    "large": false,
+    "backdrop": "solid",
+    "n": 1
+   }
+  ]
+ },
+ "overflow": {
+  "list": [
+   {
+    "sel": "main > div.wide:nth-of-type(1)",
+    "left": 22,
+    "right": 922,
+    "over": 532
+   }
+  ],
+  "clipped": [
+   {
+    "sel": "main > p.clip:nth-of-type(4)",
+    "text": "This sentence is far too long to fit int",
+    "sw": 504,
+    "cw": 120,
+    "sh": 18,
+    "ch": 18,
+    "ellipsis": true,
+    "clamp": false
+   }
+  ],
+  "scrollers": [
+   {
+    "sel": "main > div.scroller:nth-of-type(4)",
+    "sw": 344,
+    "cw": 344,
+    "sh": 200,
+    "ch": 60
+   }
+  ]
+ },
+ "content": {
+  "placeholders": [
+   {
+    "sel": "main > p.prose:nth-of-type(5)",
+    "match": "Lorem ipsum",
+    "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed"
+   },
+   {
+    "sel": "main > p:nth-of-type(6)",
+    "match": "NaN",
+    "text": "Total: NaN items"
+   }
+  ]
+ },
+ "fixed": [
+  {
+   "sel": "header",
+   "position": "sticky",
+   "top": 0,
+   "bottom": 654,
+   "h": 146,
+   "w": 390
+  }
+ ],
+ "targets": {
+  "count": 6,
+  "small": [
+   {
+    "sel": "main > p:nth-of-type(2) > button.tiny:nth-of-type(1)",
+    "w": 16,
+    "h": 16,
+    "spacingException": false
+   },
+   {
+    "sel": "main > p:nth-of-type(2) > button.tiny:nth-of-type(2)",
+    "w": 16,
+    "h": 16,
+    "spacingException": false
+   },
+   {
+    "sel": "main > p:nth-of-type(3) > input",
+    "w": 153,
+    "h": 21,
+    "spacingException": true
+   }
+  ],
+  "noName": [
+   {
+    "sel": "main > p:nth-of-type(2) > button.plain:nth-of-type(4)",
+    "tag": "button"
+   }
+  ],
+  "hiddenFocusable": [
+   {
+    "sel": "main > p:nth-of-type(6) > button.plain",
+    "why": "opacity 0",
+    "x": 138.61,
+    "y": 747.73
+   }
+  ],
+  "coarse": false
+ },
+ "images": {
+  "total": 3,
+  "broken": [
+   "main > img:nth-of-type(1)"
+  ],
+  "noAlt": [
+   "main > img:nth-of-type(3)"
+  ],
+  "oversize": [],
+  "blurry": [
+   {
+    "sel": "main > img:nth-of-type(2)",
+    "natural": 10,
+    "shown": 80,
+    "dpr": 1
+   }
+  ],
+  "stretched": [
+   {
+    "sel": "main > img:nth-of-type(2)",
+    "natural": "10x10",
+    "shown": "80x40"
+   }
+  ],
+  "lazyPending": 0
+ },
+ "media_counts": {
+  "svg": 1,
+  "canvas": 0,
+  "video": 0,
+  "iframe": 0,
+  "iframeCross": 0,
+  "audio": 0,
+  "shadowHosts": 0,
+  "smil": 0,
+  "lottie": 0,
+  "autoplayVideo": 0
+ },
+ "a11y": {
+  "headings": {
+   "levels": [
+    1,
+    3
+   ],
+   "h1": 1,
+   "skips": [
+    {
+     "from": 1,
+     "to": 3,
+     "index": 1
+    }
+   ]
+  },
+  "landmarks": {
+   "main": 1,
+   "nav": 0
+  },
+  "duplicateIds": [],
+  "states": {
+   "noHover": [
+    "main > p:nth-of-type(2) > button.tiny:nth-of-type(1)",
+    "main > p:nth-of-type(2) > button.tiny:nth-of-type(2)",
+    "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)",
+    "main > p:nth-of-type(2) > button.plain:nth-of-type(4)",
+    "main > p:nth-of-type(3) > a",
+    "main > p:nth-of-type(3) > input"
+   ],
+   "noFocusStyle": [
+    "main > p:nth-of-type(3) > a",
+    "main > p:nth-of-type(3) > input"
+   ],
+   "focusRingRemoved": [
+    "main > p:nth-of-type(2) > button.tiny:nth-of-type(1)",
+    "main > p:nth-of-type(2) > button.tiny:nth-of-type(2)",
+    "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)",
+    "main > p:nth-of-type(2) > button.plain:nth-of-type(4)"
+   ],
+   "noActive": 6,
+   "blockedSheets": 0,
+   "checked": 6
+  }
+ },
+ "fonts": {
+  "faces": [],
+  "failed": 0,
+  "familyState": {
+   "Nonexistent Brand Font": "missing",
+   "Arial": "installed"
+  },
+  "ready": "loaded"
+ },
+ "motion": {
+  "running": 1,
+  "infinite": 1,
+  "animations": [
+   {
+    "type": "CSSAnimation",
+    "name": "pulse",
+    "target": "main > div.pulse:nth-of-type(3)",
+    "duration": 1000,
+    "delay": 0,
+    "iterations": "infinite",
+    "easing": "linear",
+    "state": "running",
+    "props": [
+     "opacity"
+    ],
+    "driven": "time"
+   }
+  ],
+  "transitionDurations": {
+   "300": {
+    "n": 1,
+    "ex": [
+     "main > div.grow.fade:nth-of-type(2)"
+    ]
+   },
+   "600": {
+    "n": 1,
+    "ex": [
+     "main > p:nth-of-type(2) > button.plain.fade:nth-of-type(3)"
+    ]
+   }
+  },
+  "transitionProps": {
+   "all": 1,
+   "width": 1
+  },
+  "declared": {
+   "transitionAll": 1,
+   "layoutProps": [
+    {
+     "sel": "main > div.grow.fade:nth-of-type(2)",
+     "prop": "width",
+     "ms": 300
+    }
+   ],
+   "willChange": 0,
+   "animatedNames": {
+    "pulse": 1
+   },
+   "infiniteDeclared": [
+    {
+     "sel": "main > div.pulse:nth-of-type(3)",
+     "name": "pulse",
+     "ms": 1000
+    }
+   ]
+  },
+  "reducedMotionRules": 0,
+  "blockedSheets": 0,
+  "libs": {},
+  "note": "Only CSS and Web Animations are listed. Canvas, WebGL, video, SMIL and script-driven (requestAnimationFrame) motion is not introspectable here: sample frames instead."
+ },
+ "stress": [],
+ "mode": {
+  "theme": null,
+  "density": null,
+  "motion": null
+ }
+}

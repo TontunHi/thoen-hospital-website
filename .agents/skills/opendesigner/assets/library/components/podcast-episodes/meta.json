@@ -1,0 +1,38 @@
+{
+  "name": "Podcast episodes",
+  "summary": "A show's episode list: date and length, a two-line description, a play button that shows how much is left of a half-played episode, a played mark, and a download button that goes from download to a progress ring to done.",
+  "use": "on a podcast or audio-course show page",
+  "type": "content",
+  "style": "editorial",
+  "industries": [
+    "media",
+    "education"
+  ],
+  "tags": [
+    "podcast",
+    "episodes",
+    "audio",
+    "download",
+    "progress"
+  ],
+  "states": [
+    "new",
+    "playing",
+    "half played",
+    "played",
+    "downloading",
+    "downloaded",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Each episode is a list item with its title as a heading; play names the episode and the time left, and the download button says its state (download, downloading with the percent, downloaded) in its name.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1478737270239-2f02b77fc618",
+      "author": "Jonathan Velasquez",
+      "page": "c1ZN57GfDB0"
+    }
+  ]
+}

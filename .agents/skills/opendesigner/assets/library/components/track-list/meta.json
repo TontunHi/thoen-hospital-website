@@ -1,0 +1,42 @@
+{
+  "name": "Track list",
+  "summary": "An album or playlist: a cover photo, title and artist, play, shuffle and save, then numbered tracks with their length, an explicit tag, a like heart and the playing one marked.",
+  "use": "on an album, playlist or mixtape page",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "media",
+    "events"
+  ],
+  "tags": [
+    "playlist",
+    "album",
+    "tracks",
+    "music",
+    "shuffle"
+  ],
+  "states": [
+    "playing",
+    "paused",
+    "current track",
+    "liked",
+    "shuffle on",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "An ordered list where each whole row is one button that names the track, number and length; the playing row has aria-current, and like, save and shuffle are toggle buttons with aria-pressed.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1708778002531-5bb1c27c4ea3",
+      "author": "Pawel Czerwinski",
+      "page": "H8kzolaZjIM"
+    },
+    {
+      "img": "photo-1613498382159-0972b7b4c9f1",
+      "author": "Good Faces",
+      "page": "lVhZ0aNzCWg"
+    }
+  ]
+}

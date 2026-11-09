@@ -1,0 +1,13 @@
+{
+  "name": "File dropzone",
+  "summary": "A calm drop area for statements or documents, with a browse link, the accepted types, and each file's state: uploaded, uploading with progress, or failed with a retry.",
+  "use": "where people upload documents or statements",
+  "type": "form",
+  "style": "quiet",
+  "industries": ["any"],
+  "tags": ["upload", "dropzone", "files", "progress", "attachments"],
+  "states": ["hover", "focus", "drag over", "uploaded", "uploading", "failed", "queued"],
+  "source": "brand/showcase/components/04-upload-brutal",
+  "a11y": "A real file input sits inside the browse label, so keyboard users can pick files; the list is a polite live region, the progress bar has role progressbar with a value, and every remove and retry button names its file.",
+  "width": "medium"
+}

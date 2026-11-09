@@ -1,0 +1,58 @@
+{
+  "name": "Itinerary",
+  "summary": "A trip day by day: day tabs, a drawn map with a numbered pin per stop, and a timeline of trains, stays, meals and plans with times, photos of the places, details and confirmation codes.",
+  "use": "in a travel app's trip view, for following a trip one day at a time",
+  "type": "data",
+  "style": "friendly",
+  "industries": [
+    "travel"
+  ],
+  "tags": [
+    "itinerary",
+    "trip",
+    "timeline",
+    "map",
+    "bookings"
+  ],
+  "states": [
+    "day 1 to 3",
+    "pin shown",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Days are a tablist (arrow keys move between them); each stop is a list item with its time, and its numbered button is a toggle named with the stop that highlights the matching pin on the map; the map is decorative and each place photo has alt text.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1611892440504-42a792e24d32",
+      "author": "visualsofdana",
+      "page": "T5pL6ciEn-I"
+    },
+    {
+      "img": "photo-1612927601601-6638404737ce",
+      "author": "ikhsan baihaqi",
+      "page": "RwAXb8Hv_sU"
+    },
+    {
+      "img": "photo-1503614472-8c93d56e92ce",
+      "author": "John Lee",
+      "page": "oMneOBYhJxY"
+    },
+    {
+      "img": "photo-1616141037618-d671075fd1a1",
+      "author": "Angela Lo",
+      "page": "kMyevb36Ak8"
+    },
+    {
+      "img": "photo-1601042879364-f3947d3f9c16",
+      "author": "Valentin BEAUVAIS",
+      "page": "yVUQlyRlJSw"
+    },
+    {
+      "img": "photo-1631049307264-da0ec9d70304",
+      "author": "Point3D Commercial Imaging Ltd.",
+      "page": "oxeCZrodz78"
+    }
+  ]
+}

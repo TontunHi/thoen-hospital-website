@@ -1,0 +1,100 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-calendar-agenda { box-sizing: border-box; inline-size: 100%; max-inline-size: 560px; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised);
+  font: var(--ds-text-body-md); text-wrap: pretty; container-type: inline-size; overflow: hidden; }
+.odl-calendar-agenda *, .odl-calendar-agenda *::before { box-sizing: border-box; }
+.odl-calendar-agenda svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-calendar-agenda .odl-head { display: flex; align-items: center; gap: var(--ds-space-inline-md); padding: var(--ds-space-inset-lg) var(--ds-space-inset-lg) var(--ds-space-inset-lg) var(--ds-space-inset-xl);
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-calendar-agenda .odl-date { flex: 1; min-inline-size: 0; display: flex; align-items: center; gap: var(--ds-space-inline-md); }
+.odl-calendar-agenda .odl-day-num { flex: none; display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: max(0px, calc(var(--ds-radius-container) - var(--ds-space-inset-lg)));
+  background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-accent); font: var(--ds-text-title-md); font-variant-numeric: tabular-nums; }
+.odl-calendar-agenda h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-calendar-agenda .odl-date p { margin: var(--ds-space-stack-xs) 0 0; text-wrap: balance; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-calendar-agenda .odl-nav { display: flex; align-items: center; border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); overflow: hidden; }
+.odl-calendar-agenda .odl-nav button { display: inline-grid; place-items: center; min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-xs); border: 0; background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-calendar-agenda .odl-nav button + button { border-inline-start: var(--ds-border-width-default) solid var(--ds-color-border-default); }
+.odl-calendar-agenda .odl-nav button:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-calendar-agenda button:focus-visible, .odl-calendar-agenda a:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: calc(-1 * var(--ds-focus-ring-width)); }
+.odl-calendar-agenda .odl-allday { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); align-items: center; gap: var(--ds-space-inline-md); padding: var(--ds-space-inset-sm) var(--ds-space-inset-xl) var(--ds-space-inset-sm) 0;
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-sunken); }
+.odl-calendar-agenda .odl-allday > span { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); text-align: end; white-space: nowrap; }
+.odl-calendar-agenda .odl-body { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: 0 var(--ds-space-inline-md); padding: var(--ds-space-inset-xl) var(--ds-space-inset-xl) var(--ds-space-inset-xl) 0; }
+.odl-calendar-agenda .odl-rail, .odl-calendar-agenda .odl-grid { display: grid; grid-template-rows: repeat(24, var(--ds-space-24)); }
+.odl-calendar-agenda .odl-rail { margin: 0; padding: 0; list-style: none; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; text-align: end; }
+.odl-calendar-agenda .odl-rail li { grid-column: 1; align-self: start; block-size: 0; display: flex; align-items: center; justify-content: flex-end; }
+.odl-calendar-agenda .odl-rail li:last-child { align-self: end; }
+.odl-calendar-agenda .odl-grid { position: relative; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--ds-space-inline-xs); }
+.odl-calendar-agenda .odl-line { grid-column: 1 / -1; border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-calendar-agenda .odl-line:last-of-type { border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-calendar-agenda .odl-event { position: relative; z-index: 1; display: flex; flex-direction: column; gap: var(--ds-space-stack-xs); min-inline-size: 0; min-block-size: var(--ds-size-target-min); margin-block: var(--ds-space-2);
+  padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm); border-radius: var(--ds-radius-detail);
+  border-inline-start: var(--ds-border-width-selected) solid var(--ds-color-border-accent); background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-primary); text-decoration: none;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-calendar-agenda .odl-event:hover { background: var(--ds-color-bg-accent-subtle-hover); }
+.odl-calendar-agenda .odl-event.is-info { border-inline-start-color: var(--ds-color-border-info); background: var(--ds-color-bg-info-subtle); }
+.odl-calendar-agenda .odl-event.is-warn { border-inline-start-color: var(--ds-color-border-warning); background: var(--ds-color-bg-warning-subtle); }
+.odl-calendar-agenda .odl-event.is-neutral { border-inline-start-color: var(--ds-color-border-strong); background: var(--ds-color-bg-neutral-subtle); }
+.odl-calendar-agenda .odl-event.is-past { background: var(--ds-color-surface-sunken); }
+.odl-calendar-agenda .odl-event.is-past strong { color: var(--ds-color-text-secondary); }
+.odl-calendar-agenda .odl-event strong { font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-heading); text-wrap: balance; }
+.odl-calendar-agenda .odl-event span { color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); font-variant-numeric: tabular-nums; }
+.odl-calendar-agenda .odl-allday .odl-event { margin: 0; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-2) var(--ds-space-inline-sm); }
+.odl-calendar-agenda .odl-now { position: absolute; z-index: 2; inset-inline: 0; inset-block-start: 46.67%; border-block-start: var(--ds-border-width-emphasis) solid var(--ds-color-border-danger); pointer-events: none; }
+.odl-calendar-agenda .odl-now::before { content: ""; position: absolute; inset-inline-start: calc(-1 * var(--ds-space-4)); inset-block-start: calc(-1 * var(--ds-space-4) - var(--ds-border-width-emphasis) / 2);
+  inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-danger-bold); }
+.odl-calendar-agenda .odl-now span { position: absolute; inset-inline-end: 0; inset-block-end: var(--ds-space-2); padding: 0 var(--ds-space-4); border-radius: var(--ds-radius-detail);
+  background: var(--ds-color-bg-danger-bold); color: var(--ds-color-text-on-danger); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+@container (max-width: 400px) { .odl-calendar-agenda .odl-day-num { display: none; } }
+@container (max-width: 300px) { .odl-calendar-agenda .odl-date p { display: none; } }
+@container (max-width: 440px) {
+  .odl-calendar-agenda .odl-allday, .odl-calendar-agenda .odl-body { grid-template-columns: 3rem minmax(0, 1fr); }
+  .odl-calendar-agenda .odl-head { padding: var(--ds-space-inset-md) var(--ds-space-inset-md) var(--ds-space-inset-md) var(--ds-space-inset-lg); }
+  .odl-calendar-agenda .odl-allday { padding-inline-end: var(--ds-space-inset-lg); }
+  .odl-calendar-agenda .odl-body { padding: var(--ds-space-inset-lg) var(--ds-space-inset-lg) var(--ds-space-inset-lg) 0; }
+  .odl-calendar-agenda .odl-event.is-half { padding-inline: var(--ds-space-inset-xs) var(--ds-space-4); }
+  .odl-calendar-agenda .odl-event.is-half strong { font: var(--ds-text-label-sm); font-weight: var(--ds-font-weight-heading); }
+  .odl-calendar-agenda .odl-event.is-half .odl-place { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-calendar-agenda, .odl-calendar-agenda *, .odl-calendar-agenda *::before { transition: none !important; animation: none !important; } }
+.odl-calendar-agenda .odl-event .odl-people { display: flex; align-items: center; gap: var(--ds-space-inline-sm); margin-block-start: var(--ds-space-stack-xs); }
+.odl-calendar-agenda .odl-who { display: flex; }
+.odl-calendar-agenda .odl-avatar { display: block; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); border-radius: var(--ds-radius-person); object-fit: cover;
+  background: var(--ds-color-bg-neutral-subtle); box-shadow: 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-surface-raised); }
+.odl-calendar-agenda .odl-avatar + .odl-avatar { margin-inline-start: calc(-1 * var(--ds-space-inline-xs)); }
+</style>
+<section class="odl-calendar-agenda" aria-labelledby="odl-ca-title">
+  <div class="odl-head">
+    <div class="odl-date"><span class="odl-day-num" aria-hidden="true">21</span>
+      <div><h3 id="odl-ca-title">Wednesday, Oct 21</h3><p>5 events · 4 h 30 min booked</p></div></div>
+    <div class="odl-nav">
+      <button type="button" aria-label="Previous day, Tuesday Oct 20"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <button type="button" aria-current="date">Today</button>
+      <button type="button" aria-label="Next day, Thursday Oct 22"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+  </div>
+  <div class="odl-allday">
+    <span>All day</span>
+    <a class="odl-event is-warn" href="#close"><strong>October close week</strong><span>Books lock Oct 23</span></a>
+  </div>
+  <div class="odl-body">
+    <ol class="odl-rail" aria-hidden="true">
+      <li style="grid-row: 1">09:00</li><li style="grid-row: 5">10:00</li><li style="grid-row: 9">11:00</li><li style="grid-row: 13">12:00</li>
+      <li style="grid-row: 17">13:00</li><li style="grid-row: 21">14:00</li><li style="grid-row: 24">15:00</li>
+    </ol>
+    <div class="odl-grid" role="list" aria-label="Timed events, 09:00 to 15:00">
+      <span class="odl-line" style="grid-row: 1 / 5" aria-hidden="true"></span><span class="odl-line" style="grid-row: 5 / 9" aria-hidden="true"></span>
+      <span class="odl-line" style="grid-row: 9 / 13" aria-hidden="true"></span><span class="odl-line" style="grid-row: 13 / 17" aria-hidden="true"></span>
+      <span class="odl-line" style="grid-row: 17 / 21" aria-hidden="true"></span><span class="odl-line" style="grid-row: 21 / 25" aria-hidden="true"></span>
+      <a role="listitem" class="odl-event is-neutral is-past" href="#standup" style="grid-row: 1 / 4; grid-column: 1 / -1"><strong>AP stand-up</strong><span>09:00–09:45 · Video call</span></a>
+      <a role="listitem" class="odl-event is-past is-half" href="#tressel" style="grid-row: 5 / 9; grid-column: 1"><strong>Vendor review: Tressel Freight</strong><span>10:00–11:00<span class="odl-place"> · Room 412</span></span></a>
+      <a role="listitem" class="odl-event is-info is-past is-half" href="#interview" style="grid-row: 7 / 11; grid-column: 2"><strong>Interview: AP specialist</strong><span>10:30–11:30<span class="odl-place"> · Video call</span></span></a>
+      <a role="listitem" class="odl-event is-neutral" href="#priya" style="grid-row: 14 / 17; grid-column: 1 / -1"><strong>1:1 with Nandini Iyer</strong><span>12:15–13:00 · Desk 3B</span></a>
+      <a role="listitem" class="odl-event" href="#review" style="grid-row: 19 / 25; grid-column: 1 / -1"><strong>October close review</strong><span>13:30–15:00 · Boardroom, 5th floor</span><span class="odl-people"><span class="odl-who" aria-hidden="true"><img class="odl-avatar" src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=faces&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"><img class="odl-avatar" src="https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?w=40&h=40&fit=crop&crop=faces&auto=format&q=70" alt="" width="20" height="20" loading="lazy" decoding="async"></span><span>Bettina Marangoni, Kwabena Asante and 4 others</span></span></a>
+      <div class="odl-now" role="img" aria-label="Now, 11:48"><span aria-hidden="true">11:48</span></div>
+    </div>
+  </div>
+</section>

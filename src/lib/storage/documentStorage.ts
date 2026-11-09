@@ -1,7 +1,17 @@
 import fs from 'fs/promises'
 import fsSync from 'fs'
 import path from 'path'
-import { isS3Configured, uploadToS3, deleteFromS3, getObjectFromS3, S3_CONFIG } from './s3Client'
+import {
+  isS3Configured,
+  uploadToS3,
+  deleteFromS3,
+  getObjectFromS3,
+  checkMinioHealth,
+  ensureStorageBucketsExist,
+  S3_CONFIG,
+} from './s3Client'
+
+export { checkMinioHealth, ensureStorageBucketsExist }
 
 export interface StorageSaveOptions {
   /**

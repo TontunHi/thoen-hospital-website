@@ -1,5 +1,7 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
+import { matchesPttypeFilter } from './pttypeConstants'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
@@ -61,6 +63,7 @@ export type TelemedSortField =
 export interface TelemedReportParams extends FiscalDateRangeParams {
   cardFilter?: TelemedCardFilter
   ucOnly?: boolean
+  pttypes?: string
   searchField?: TelemedSearchField
   search?: string
   sortBy?: TelemedSortField
@@ -86,6 +89,7 @@ export interface TelemedItem {
   ovstist_export_code: string
   authencode: string | null
   maininscl: string
+  pttype_eclaim_id?: string
   isUc: boolean
   pttypename: string
   hospmain: string | null
@@ -184,6 +188,7 @@ export type PostalDrugSortField =
 export interface PostalDrugReportParams extends FiscalDateRangeParams {
   cardFilter?: PostalDrugCardFilter
   ucOnly?: boolean
+  pttypes?: string
   searchField?: PostalDrugSearchField
   search?: string
   sortBy?: PostalDrugSortField
@@ -207,6 +212,7 @@ export interface PostalDrugItem {
   vsttime: string
   authencode: string | null
   maininscl: string
+  pttype_eclaim_id?: string
   isUc: boolean
   pttypename: string
   department: string | null
@@ -267,7 +273,15 @@ export interface PostalDrugReportResult {
 
 // ── 3. Helper Functions ───────────────────────────────────────────────────────
 
-export function isUniversalCoverageScheme(maininscl?: string | null, pttypename?: string | null): boolean {
+export function isUniversalCoverageScheme(
+  maininscl?: string | null,
+  pttypename?: string | null,
+  pttypeEclaimId?: string | null
+): boolean {
+  if (pttypeEclaimId) {
+    const num = parseInt(pttypeEclaimId.trim(), 10)
+    if (!isNaN(num) && num >= 1 && num <= 9) return true
+  }
   if (maininscl) {
     const code = maininscl.trim().toUpperCase()
     if (code === 'UCS' || code === 'WEL' || code === 'UC') return true
@@ -304,6 +318,27 @@ export class RcmTelemedDrugService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -388,8 +423,9 @@ export class RcmTelemedDrugService {
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
             CONCAT_WS(':', ov.export_code, ov.name) AS ovstist,
             IFNULL(ov.export_code, '') AS ovstist_export_code,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
             o.hospmain,
             o.hospsub,
@@ -427,6 +463,7 @@ export class RcmTelemedDrugService {
           LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT 
               oo.vn,
@@ -442,7 +479,7 @@ export class RcmTelemedDrugService {
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -454,7 +491,7 @@ export class RcmTelemedDrugService {
                    GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                    GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -465,29 +502,55 @@ export class RcmTelemedDrugService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           ORDER BY o.vstdate DESC, o.vsttime DESC;
         `
-        const [rows, adpCheck] = await Promise.all([
-          executor(
-            sql,
-            [
-              adpCode, ds1, ds2,
-              ds1, ds2,
-              adpCode, ds1, ds2,
-              ds1, ds2,
-              ds1, ds2,
-              ds1, ds2
-            ],
-            { timeoutMs: 90000 }
-          ),
-          RcmTelemedDrugService.checkAdpMapping('TELMED', executor, params.refresh),
-        ])
+        const sqlParams = [
+          adpCode, ds1, ds2,
+          ds1, ds2,
+          adpCode, ds1, ds2,
+          ds1, ds2,
+          ds1, ds2
+        ]
+
+        let rows: any[] = []
+        let adpCheck: AdpMappingCheck = {
+          adpCode: 'TELMED',
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmTelemedDrugService.checkAdpMapping('TELMED', executor, params.refresh),
+              apiGateway.clinical.getRcmFundData('telemed-drug', { ds1, ds2, adpCode: 'TELMED' }),
+            ])
+            adpCheck = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [dbRows, mRes] = await Promise.all([
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+            RcmTelemedDrugService.checkAdpMapping('TELMED', executor, params.refresh),
+          ])
+          rows = dbRows || []
+          adpCheck = mRes
+        }
 
         return {
-          rawRows: rows as any[],
+          rawRows: rows,
           adpMapping: adpCheck,
         }
       },
@@ -500,7 +563,8 @@ export class RcmTelemedDrugService {
       const sumPriceVal = parseFloat(String(row.sum_price || 0)) || 0
       const incomeVal = parseFloat(String(row.income || 0)) || 0
       const isComp = compensatedVal > 0 || String(row.status || '').toLowerCase().includes('rep')
-      const isUc = isUniversalCoverageScheme(row.maininscl, row.pttypename)
+      const pttypeEclaimId = String(row.pttype_eclaim_id || '').trim()
+      const isUc = isUniversalCoverageScheme(row.maininscl, row.pttypename, pttypeEclaimId)
 
       return {
         no: idx + 1,
@@ -517,6 +581,7 @@ export class RcmTelemedDrugService {
         ovstist_export_code: String(row.ovstist_export_code || ''),
         authencode: row.authencode ? String(row.authencode).trim() : null,
         maininscl: String(row.maininscl || '').trim(),
+        pttype_eclaim_id: pttypeEclaimId,
         isUc,
         pttypename: String(row.pttypename || '').trim(),
         hospmain: row.hospmain ? String(row.hospmain).trim() : null,
@@ -536,8 +601,18 @@ export class RcmTelemedDrugService {
       }
     })
 
-    // Calculate Summary Statistics across all records
-    const totalVisits = allRecords.length
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allRecords
+    if (params.pttypes) {
+      summaryCohort = allRecords.filter((rec) =>
+        matchesPttypeFilter(rec.pttypename || rec.pttype_eclaim_id, params.pttypes, rec.isUc, rec.pttype_eclaim_id)
+      )
+    } else if (ucOnly) {
+      summaryCohort = allRecords.filter((rec) => rec.isUc)
+    }
+
+    // Calculate Summary Statistics across summaryCohort
+    const totalVisits = summaryCohort.length
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -548,7 +623,7 @@ export class RcmTelemedDrugService {
     let totalSumPrice = 0
     let totalIncome = 0
 
-    for (const rec of allRecords) {
+    for (const rec of summaryCohort) {
       if (rec.hn) uniqueHnSet.add(rec.hn)
       if (rec.isCompensated) {
         compensatedVisits++
@@ -594,10 +669,7 @@ export class RcmTelemedDrugService {
     }
 
     // Filter records
-    let filtered = allRecords.filter((rec) => {
-      // 1. UC only filter
-      if (ucOnly && !rec.isUc) return false
-
+    let filtered = summaryCohort.filter((rec) => {
       // 2. Card filter
       switch (cardFilter) {
         case 'COMPENSATED':
@@ -779,8 +851,9 @@ export class RcmTelemedDrugService {
             IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
             dep.department AS department,
             spc.name AS clinic,
@@ -815,11 +888,12 @@ export class RcmTelemedDrugService {
           LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -831,7 +905,7 @@ export class RcmTelemedDrugService {
                    GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                    GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -842,27 +916,53 @@ export class RcmTelemedDrugService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           ORDER BY o.vstdate DESC, o.vsttime DESC;
         `
-        const [rows, adpCheck] = await Promise.all([
-          executor(
-            sql,
-            [
-              adpCode, ds1, ds2,
-              ds1, ds2,
-              ds1, ds2,
-              ds1, ds2
-            ],
-            { timeoutMs: 90000 }
-          ),
-          RcmTelemedDrugService.checkAdpMapping('DRUGP', executor, params.refresh),
-        ])
+        const sqlParams = [
+          adpCode, ds1, ds2,
+          ds1, ds2,
+          ds1, ds2
+        ]
+
+        let rows: any[] = []
+        let adpCheck: AdpMappingCheck = {
+          adpCode: 'DRUGP',
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmTelemedDrugService.checkAdpMapping('DRUGP', executor, params.refresh),
+              apiGateway.clinical.getRcmFundData('drug-post', { ds1, ds2, adpCode: 'DRUGP' }),
+            ])
+            adpCheck = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [dbRows, mRes] = await Promise.all([
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+            RcmTelemedDrugService.checkAdpMapping('DRUGP', executor, params.refresh),
+          ])
+          rows = dbRows || []
+          adpCheck = mRes
+        }
 
         return {
-          rawRows: rows as any[],
+          rawRows: rows,
           adpMapping: adpCheck,
         }
       },
@@ -875,7 +975,8 @@ export class RcmTelemedDrugService {
       const sumPriceVal = parseFloat(String(row.sum_price || 0)) || 0
       const incomeVal = parseFloat(String(row.income || 0)) || 0
       const isComp = compensatedVal > 0 || String(row.status || '').toLowerCase().includes('rep')
-      const isUc = isUniversalCoverageScheme(row.maininscl, row.pttypename)
+      const pttypeEclaimId = String(row.pttype_eclaim_id || '').trim()
+      const isUc = isUniversalCoverageScheme(row.maininscl, row.pttypename, pttypeEclaimId)
 
       return {
         no: idx + 1,
@@ -890,6 +991,7 @@ export class RcmTelemedDrugService {
         vsttime: String(row.vsttime || ''),
         authencode: row.authencode ? String(row.authencode).trim() : null,
         maininscl: String(row.maininscl || '').trim(),
+        pttype_eclaim_id: pttypeEclaimId,
         isUc,
         pttypename: String(row.pttypename || '').trim(),
         department: row.department ? String(row.department).trim() : null,
@@ -907,8 +1009,18 @@ export class RcmTelemedDrugService {
       }
     })
 
-    // Calculate Summary Statistics
-    const totalVisits = allRecords.length
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allRecords
+    if (params.pttypes) {
+      summaryCohort = allRecords.filter((rec) =>
+        matchesPttypeFilter(rec.pttypename || rec.pttype_eclaim_id, params.pttypes, rec.isUc, rec.pttype_eclaim_id)
+      )
+    } else if (ucOnly) {
+      summaryCohort = allRecords.filter((rec) => rec.isUc)
+    }
+
+    // Calculate Summary Statistics across summaryCohort
+    const totalVisits = summaryCohort.length
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -918,7 +1030,7 @@ export class RcmTelemedDrugService {
     let totalSumPrice = 0
     let totalIncome = 0
 
-    for (const rec of allRecords) {
+    for (const rec of summaryCohort) {
       if (rec.hn) uniqueHnSet.add(rec.hn)
       if (rec.isCompensated) {
         compensatedVisits++
@@ -964,10 +1076,7 @@ export class RcmTelemedDrugService {
     }
 
     // Filter records
-    let filtered = allRecords.filter((rec) => {
-      // 1. UC only filter
-      if (ucOnly && !rec.isUc) return false
-
+    let filtered = summaryCohort.filter((rec) => {
       // 2. Card filter
       switch (cardFilter) {
         case 'COMPENSATED':

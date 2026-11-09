@@ -1,0 +1,166 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-title-detail { box-sizing: border-box; inline-size: 100%; max-inline-size: 72rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-title-detail *, .odl-title-detail *::before, .odl-title-detail *::after { box-sizing: border-box; }
+.odl-title-detail svg { stroke-width: var(--ds-icon-stroke-md); }
+.odl-title-detail .odl-shell { overflow: hidden; background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-title-detail .odl-hero { position: relative; isolation: isolate; display: grid; align-content: end; background: var(--ds-color-neutral-dark-1); color: var(--ds-color-neutral-dark-12); }
+.odl-title-detail .odl-hero .odl-pic { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 4 / 3; object-fit: cover; }
+/* The scrim carries the title in every look: the photo fades into the band the text sits on. */
+.odl-title-detail .odl-hero::before { content: ""; position: absolute; z-index: 1; inset: 0; pointer-events: none; background: linear-gradient(to top, var(--ds-color-neutral-dark-1) 0%, var(--ds-color-neutral-dark-1) 22%, var(--ds-color-overlay-scrim) 46%, transparent 78%); }
+.odl-title-detail .odl-over { position: relative; z-index: 2; display: grid; gap: var(--ds-space-stack-xs); max-inline-size: 36rem; margin-block-start: calc(-3 * var(--ds-space-stack-xl)); padding: 0 var(--ds-space-inset-lg) var(--ds-space-inset-lg); }
+.odl-title-detail .odl-kicker { margin: 0; color: var(--ds-color-neutral-dark-11); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-title-detail h3 { margin: 0; font: var(--ds-text-headline-sm); text-wrap: balance; }
+.odl-title-detail .odl-facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-neutral-dark-11); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-title-detail .odl-age { padding: 0 var(--ds-space-6); border: var(--ds-border-width-default) solid var(--ds-color-neutral-alpha-dark-9); border-radius: var(--ds-radius-control-sm); color: var(--ds-color-neutral-dark-12); }
+.odl-title-detail .odl-score { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); color: var(--ds-color-neutral-dark-12); }
+.odl-title-detail .odl-score svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); fill: currentColor; }
+.odl-title-detail .odl-body { display: grid; gap: var(--ds-space-stack-xl); padding: var(--ds-space-inset-lg); }
+.odl-title-detail .odl-info { display: grid; align-content: start; gap: var(--ds-space-stack-lg); }
+.odl-title-detail .odl-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--ds-space-inline-sm); }
+.odl-title-detail .odl-actions .odl-play { grid-column: 1 / -1; }
+.odl-title-detail .odl-actions button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-inline-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid transparent; border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-title-detail .odl-actions svg { flex: none; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-title-detail .odl-play { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-title-detail .odl-play svg { fill: currentColor; }
+.odl-title-detail .odl-play:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-title-detail .odl-play:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-title-detail .odl-ghost { border-color: var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-title-detail .odl-ghost:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-title-detail .odl-icon { padding: 0; }
+.odl-title-detail .odl-list .is-on, .odl-title-detail .odl-list[aria-pressed="true"] .is-off { display: none; }
+.odl-title-detail .odl-list[aria-pressed="true"] .is-on { display: block; }
+.odl-title-detail .odl-rate[aria-pressed="true"] { background: var(--ds-color-bg-neutral-subtle); }
+.odl-title-detail .odl-rate[aria-pressed="true"] svg { fill: currentColor; }
+.odl-title-detail .odl-synopsis { margin: 0; color: var(--ds-color-text-primary); }
+.odl-title-detail h4 { margin: 0; font: var(--ds-text-title-md); }
+.odl-title-detail .odl-label { margin: 0 0 var(--ds-space-stack-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-title-detail .odl-people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto auto auto; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); margin: 0; padding: 0; list-style: none; }
+.odl-title-detail .odl-person { display: grid; grid-row: span 3; grid-template-rows: subgrid; align-content: start; justify-items: start; min-inline-size: 0; }
+.odl-title-detail .odl-face { display: block; inline-size: calc(var(--ds-size-control-lg) * 1.25); block-size: calc(var(--ds-size-control-lg) * 1.25); border-radius: var(--ds-radius-full); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-title-detail .odl-face { margin-block-end: var(--ds-space-stack-xs); }
+.odl-title-detail .odl-name { display: -webkit-box; overflow: hidden; align-self: start; font: var(--ds-text-label-lg); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.odl-title-detail .odl-role { align-self: start; }
+.odl-title-detail .odl-role { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-title-detail .odl-cast { display: grid; gap: var(--ds-space-stack-xs); margin: 0; font: var(--ds-text-body-md); }
+.odl-title-detail .odl-cast div { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: var(--ds-space-inline-md); }
+.odl-title-detail .odl-cast dt { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); line-height: inherit; }
+.odl-title-detail .odl-cast dd { margin: 0; color: var(--ds-color-text-primary); }
+.odl-title-detail .odl-eps { display: grid; align-content: start; gap: var(--ds-space-stack-md); min-inline-size: 0; }
+.odl-title-detail .odl-eps-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-stack-sm) var(--ds-space-inline-md); }
+.odl-title-detail fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.odl-title-detail .odl-seg { display: inline-flex; padding: var(--ds-space-2); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-sunken); }
+.odl-title-detail .odl-seg label { position: relative; }
+.odl-title-detail .odl-seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-title-detail .odl-seg span { display: inline-flex; align-items: center; min-block-size: max(var(--ds-size-control-sm), calc(var(--ds-size-target-min) - var(--ds-space-4))); padding: 0 var(--ds-space-inset-md);
+  border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); white-space: nowrap; }
+.odl-title-detail .odl-seg input:checked + span { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); box-shadow: var(--ds-elevation-raised); }
+.odl-title-detail .odl-seg input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-title-detail:has(.odl-seg input[value="2"]:checked) .odl-s1, .odl-title-detail:not(:has(.odl-seg input[value="2"]:checked)) .odl-s2 { display: none; }
+.odl-title-detail ol { display: grid; gap: var(--ds-space-stack-xs); margin: 0 calc(-1 * var(--ds-space-inset-sm)); padding: 0; list-style: none; }
+.odl-title-detail .odl-ep { display: grid; grid-template-columns: 9rem minmax(0, 1fr); align-items: start; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); inline-size: 100%; padding: var(--ds-space-inset-sm);
+  border: 0; border-radius: var(--ds-radius-nested); background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-title-detail .odl-ep:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-title-detail .odl-ep:focus-visible, .odl-title-detail .odl-actions button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-title-detail .odl-thumb { position: relative; grid-row: span 2; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-neutral-subtle); }
+.odl-title-detail .odl-thumb .odl-pic { position: absolute; inset: 0; display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-title-detail .odl-thumb .odl-go { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ds-color-neutral-dark-12); opacity: 0; background: var(--ds-color-overlay-scrim);
+  transition: opacity var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+/* The play icon sits on its own dark chip, so it reads on a light thumbnail too. */
+.odl-title-detail .odl-thumb .odl-go svg { box-sizing: content-box; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); padding: var(--ds-space-8);
+  border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-alpha-light-11); fill: currentColor; }
+.odl-title-detail .odl-ep:hover .odl-go, .odl-title-detail .odl-ep:focus-visible .odl-go { opacity: 1; }
+.odl-title-detail .odl-bar { position: absolute; inset-inline: var(--ds-space-inset-xs); inset-block-end: var(--ds-space-inset-xs); block-size: var(--ds-space-4); overflow: hidden; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-alpha-dark-7); }
+.odl-title-detail .odl-bar i { display: block; inline-size: var(--w); block-size: 100%; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-dark-12); }
+.odl-title-detail .odl-ep-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-inline-md); padding-block-start: var(--ds-space-2); }
+.odl-title-detail .odl-ep-t { font: var(--ds-text-label-lg); }
+.odl-title-detail .odl-ep-m { flex: none; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-title-detail .odl-ep-d { display: -webkit-box; overflow: hidden; color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.odl-title-detail .is-seen .odl-ep-t { color: var(--ds-color-text-secondary); }
+@container (max-width: 26rem) {
+  .odl-title-detail .odl-ep { grid-template-columns: 7.5rem minmax(0, 1fr); align-items: center; }
+  .odl-title-detail .odl-ep-d { grid-column: 1 / -1; }
+  .odl-title-detail .odl-thumb { grid-row: span 1; }
+  .odl-title-detail .odl-ep-head { display: grid; justify-content: start; gap: var(--ds-space-stack-xs); padding: 0; }
+}
+@container (min-width: 40rem) {
+  .odl-title-detail .odl-hero { block-size: clamp(18rem, 42cqi, 26rem); }
+  .odl-title-detail .odl-hero .odl-pic { position: absolute; inset: 0; block-size: 100%; aspect-ratio: auto; }
+  .odl-title-detail .odl-hero::before { background: linear-gradient(to top, var(--ds-color-neutral-dark-1) 0%, var(--ds-color-overlay-scrim) 35%, transparent 75%), linear-gradient(to top, var(--ds-color-overlay-scrim) 0%, transparent 50%), linear-gradient(to right, var(--ds-color-overlay-scrim), transparent 60%); }
+  .odl-title-detail .odl-over { margin: 0; padding: var(--ds-space-inset-xl); }
+  .odl-title-detail .odl-body { padding: var(--ds-space-inset-xl); }
+  .odl-title-detail .odl-actions { display: flex; }
+  .odl-title-detail .odl-play { min-inline-size: 11rem; }
+}
+@container (min-width: 56rem) {
+  .odl-title-detail .odl-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); column-gap: var(--ds-space-section-sm); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-title-detail, .odl-title-detail *, .odl-title-detail *::before, .odl-title-detail *::after { transition: none !important; animation: none !important; } }
+.odl-title-detail .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+<article class="odl-title-detail" aria-labelledby="odl-td-title">
+  <div class="odl-shell">
+    <div class="odl-hero">
+      <img class="odl-pic" src="https://images.unsplash.com/photo-1446038202205-1c96430dbdab?w=2304&h=832&fit=crop&auto=format&q=70" alt="Rocky coastline and blue ocean" width="2304" height="832" loading="lazy" decoding="async">
+      <div class="odl-over">
+        <p class="odl-kicker">Series · Mystery · Drama</p>
+        <h3 id="odl-td-title">The Ninth Lighthouse</h3>
+        <p class="odl-facts"><span>2026</span><span class="odl-age" aria-label="Rated 13 and over">13+</span><span>2 seasons</span><span>50 min episodes</span><span class="odl-score"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg><span><span class="odl-sr">Rated </span>4.7</span></span></p>
+      </div>
+    </div>
+    <div class="odl-body">
+      <div class="odl-info">
+        <div class="odl-actions">
+          <button type="button" class="odl-play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg><span>Resume S1 · E3</span></button>
+          <button type="button" class="odl-ghost odl-list" aria-pressed="false"><svg class="is-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg><svg class="is-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>My list</span></button>
+          <button type="button" class="odl-ghost odl-icon odl-rate" aria-label="I like this" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg></button>
+          <button type="button" class="odl-ghost odl-icon odl-share" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg></button>
+        </div>
+        <p class="odl-synopsis">A new keeper takes over a lighthouse on a tidal island and finds the logbook full of ships that never docked. Slow, salty and quietly unsettling.</p>
+        <section aria-labelledby="odl-td-cast">
+          <h4 class="odl-label" id="odl-td-cast">Starring</h4>
+          <ul class="odl-people">
+            <li class="odl-person"><img class="odl-face" src="https://images.unsplash.com/photo-1647082286159-16a43c39eab1?w=128&h=128&fit=crop&crop=faces&auto=format&q=70" alt="" width="128" height="128" loading="lazy" decoding="async"><span class="odl-name">Ottilie Brennholt</span><span class="odl-role">Keeper</span></li>
+            <li class="odl-person"><img class="odl-face" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=128&h=128&fit=crop&crop=faces&auto=format&q=70" alt="" width="128" height="128" loading="lazy" decoding="async"><span class="odl-name">Leandro Pires</span><span class="odl-role">Pier master</span></li>
+            <li class="odl-person"><img class="odl-face" src="https://images.unsplash.com/photo-1536766768598-e09213fdcf22?w=128&h=128&fit=crop&crop=faces&auto=format&q=70" alt="" width="128" height="128" loading="lazy" decoding="async"><span class="odl-name">Zainab Qureshi</span><span class="odl-role">Visitor</span></li>
+          </ul>
+        </section>
+        <dl class="odl-cast">
+          <div><dt>Genres</dt><dd>Mystery, Drama, Coastal</dd></div>
+          <div><dt>Audio</dt><dd>English, Portuguese</dd></div>
+          <div><dt>Subtitles</dt><dd>12 languages</dd></div>
+        </dl>
+      </div>
+      <section class="odl-eps" aria-labelledby="odl-td-eps">
+        <div class="odl-eps-top">
+          <h4 id="odl-td-eps">Episodes</h4>
+          <fieldset><legend class="odl-sr">Season</legend><div class="odl-seg">
+            <label><input type="radio" name="odl-td-season" value="1" checked><span>Season 1</span></label>
+            <label><input type="radio" name="odl-td-season" value="2"><span>Season 2</span></label>
+          </div></fieldset>
+        </div>
+        <ol class="odl-s1" aria-label="Season 1">
+          <li><button type="button" class="odl-ep is-seen" aria-label="Play episode 1: The keeper's ledger, watched"><span class="odl-thumb"><img class="odl-pic" src="https://images.unsplash.com/photo-1608126199278-50a5f584dbdd?w=320&h=180&fit=crop&auto=format&q=70" alt="" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 100%"></i></span></span><span class="odl-ep-head"><span class="odl-ep-t">1. The keeper's ledger</span><span class="odl-ep-m">54 min</span></span><span class="odl-ep-d">A new keeper arrives on the island and finds the last one's logbook stops mid-sentence.</span></button></li>
+          <li><button type="button" class="odl-ep is-seen" aria-label="Play episode 2: Fog signal, watched"><span class="odl-thumb"><img class="odl-pic" src="https://images.unsplash.com/photo-1578429827733-272eb6d7972e?w=320&h=180&fit=crop&auto=format&q=70" alt="" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 100%"></i></span></span><span class="odl-ep-head"><span class="odl-ep-t">2. Fog signal</span><span class="odl-ep-m">49 min</span></span><span class="odl-ep-d">Three ships report a light where none should be. The harbour master wants it kept quiet.</span></button></li>
+          <li><button type="button" class="odl-ep" aria-label="Play episode 3: Low water, 32 minutes left"><span class="odl-thumb"><img class="odl-pic" src="https://images.unsplash.com/photo-1505490096310-204ef067fe6b?w=320&h=180&fit=crop&auto=format&q=70" alt="" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 38%"></i></span></span><span class="odl-ep-head"><span class="odl-ep-t">3. Low water</span><span class="odl-ep-m">51 min</span></span><span class="odl-ep-d">The tide goes out further than anyone remembers, and the causeway shows something old.</span></button></li>
+          <li><button type="button" class="odl-ep" aria-label="Play episode 4: Salt in the gears, 47 minutes"><span class="odl-thumb"><img class="odl-pic" src="https://images.unsplash.com/photo-1625851823298-70d1151f5b71?w=320&h=180&fit=crop&auto=format&q=70" alt="" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span></span><span class="odl-ep-head"><span class="odl-ep-t">4. Salt in the gears</span><span class="odl-ep-m">47 min</span></span><span class="odl-ep-d">The lamp fails on the longest night. A visitor offers to help, for a price.</span></button></li>
+        </ol>
+<ol class="odl-s2" aria-label="Season 2">
+          <li><button type="button" class="odl-ep" aria-label="Play episode 1: Return crossing, 56 minutes"><span class="odl-thumb"><img class="odl-pic" src="https://images.unsplash.com/photo-1514565131-fce0801e5785?w=320&h=180&fit=crop&auto=format&q=70" alt="" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span></span><span class="odl-ep-head"><span class="odl-ep-t">1. Return crossing</span><span class="odl-ep-m">56 min</span></span><span class="odl-ep-d">A year later, a letter with no stamp brings the keeper back to the mainland.</span></button></li>
+          <li><button type="button" class="odl-ep" aria-label="Play episode 2: Two lights, 50 minutes"><span class="odl-thumb"><img class="odl-pic" src="https://images.unsplash.com/photo-1589194837853-340f4a2f6559?w=320&h=180&fit=crop&auto=format&q=70" alt="" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span></span><span class="odl-ep-head"><span class="odl-ep-t">2. Two lights</span><span class="odl-ep-m">50 min</span></span><span class="odl-ep-d">On the chart there is a second lighthouse. On the coast there is not.</span></button></li>
+          <li><button type="button" class="odl-ep" aria-label="Play episode 3: The ninth, 58 minutes"><span class="odl-thumb"><img class="odl-pic" src="https://images.unsplash.com/photo-1598760122223-45f0f18a1bbd?w=320&h=180&fit=crop&auto=format&q=70" alt="" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span></span><span class="odl-ep-head"><span class="odl-ep-t">3. The ninth</span><span class="odl-ep-m">58 min</span></span><span class="odl-ep-d">Every keeper's name is carved inside the tower. One space is still blank.</span></button></li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</article>
+<script>
+document.querySelectorAll(".odl-title-detail").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  root.querySelectorAll(".odl-list, .odl-rate").forEach((b) => b.addEventListener("click", () => b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"))));
+});
+</script>

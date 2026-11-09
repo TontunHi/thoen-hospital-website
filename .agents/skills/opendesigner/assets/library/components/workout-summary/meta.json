@@ -1,0 +1,34 @@
+{
+  "name": "Workout summary",
+  "summary": "A finished run: who ran it, a route drawn on a token map, distance, time, pace and heart rate, time in each heart-rate zone, splits per kilometre with the fastest marked, and save and share.",
+  "use": "after a run, ride or walk ends, for the summary screen people screenshot and share",
+  "type": "data",
+  "style": "friendly",
+  "industries": [
+    "fitness",
+    "health"
+  ],
+  "tags": [
+    "workout",
+    "run",
+    "splits",
+    "heart rate",
+    "route"
+  ],
+  "states": [
+    "finished",
+    "route saved",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The map is one image with a plain description; stats are a description list, splits a table with column headers, and Save route is a toggle button with aria-pressed.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1684598273404-2d94d7a7ce2f",
+      "author": "Hugo ROUQUETTE",
+      "page": "RhTXKh0UofQ"
+    }
+  ]
+}

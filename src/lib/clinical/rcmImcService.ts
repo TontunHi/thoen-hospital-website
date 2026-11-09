@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
+import { matchesPttypeFilter } from './pttypeConstants'
 
 // ── 1. Types & Constants ───────────────────────────────────────────────────────
 
@@ -48,6 +50,8 @@ export interface ImcReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  pttypes?: string
+  ucOnly?: boolean
 }
 
 export interface ImcItem {
@@ -74,6 +78,7 @@ export interface ImcItem {
   authencode: string | null
   maininscl: string | null
   pttypename: string | null
+  pttype_eclaim_id?: string | null
   department: string | null
   clinic: string | null
   ovstost: string | null
@@ -180,6 +185,17 @@ export class RcmImcService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getRcmFundData('imc', { ds1, ds2, patientType })
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return gwRes.data.rawRows
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         if (patientType === 'IPD') {
           return await this.fetchIpdData(ds1, ds2, executor, safeExecute)
         } else {
@@ -230,6 +246,7 @@ export class RcmImcService {
         authencode: r.authencode ? String(r.authencode).trim() : null,
         maininscl: r.maininscl ? String(r.maininscl).trim() : null,
         pttypename: r.pttypename ? String(r.pttypename).trim() : null,
+        pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         ovstost: r.ovstost ? String(r.ovstost).trim() : null,
@@ -251,20 +268,29 @@ export class RcmImcService {
     })
 
     // ── 4. Calculate Summary KPI ──────────────────────────────────────────────
-    const totalCases = allItems.length
-    const chronicCases = allItems.filter((i) => i.chronic === 'Y').length
-    const inWebCases = allItems.filter((i) => i.web === 'Y').length
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    const totalCases = summaryCohort.length
+    const chronicCases = summaryCohort.filter((i) => i.chronic === 'Y').length
+    const inWebCases = summaryCohort.filter((i) => i.web === 'Y').length
     const notInWebCases = totalCases - inWebCases
 
-    const compensatedCases = allItems.filter((i) => i.isCompensated).length
+    const compensatedCases = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedCases = totalCases - compensatedCases
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
-    const totalGetprice = allItems.reduce((acc, i) => acc + i.getprice, 0)
-    const totalIncome = allItems.reduce((acc, i) => acc + i.income, 0)
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
+    const totalGetprice = summaryCohort.reduce((acc, i) => acc + i.getprice, 0)
+    const totalIncome = summaryCohort.reduce((acc, i) => acc + i.income, 0)
 
-    const withAuthenCases = allItems.filter((i) => Boolean(i.authencode)).length
+    const withAuthenCases = summaryCohort.filter((i) => Boolean(i.authencode)).length
     const noAuthenCases = totalCases - withAuthenCases
-    const ucCases = allItems.filter((i) => i.isUc).length
+    const ucCases = summaryCohort.filter((i) => i.isUc).length
 
     const summary: ImcSummary = {
       totalCases,
@@ -287,7 +313,7 @@ export class RcmImcService {
     }
 
     // ── 5. Filtering ──────────────────────────────────────────────────────────
-    let filtered = [...allItems]
+    let filtered = [...summaryCohort]
 
     if (cardFilter === 'CHRONIC') {
       filtered = filtered.filter((i) => i.chronic === 'Y')
@@ -448,9 +474,10 @@ export class RcmImcService {
         DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS date,
         a.admdate AS los,
         i.prediag,
-        cc.AuthenCode AS authencode,
+        COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
         IFNULL(ptt.hipdata_code, '') AS maininscl,
         CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
+        ptt.pttype_eclaim_id,
         ds.name AS dchstts,
         dt.name AS dchtype,
         (
@@ -489,6 +516,7 @@ export class RcmImcService {
       LEFT JOIN dchstts ds ON ds.dchstts = i.dchstts
       LEFT JOIN dchtype dt ON dt.dchtype = i.dchtype
       LEFT JOIN rcmdb.authencode cc ON (cc.vn = i.an OR cc.vn = i.vn)
+      LEFT JOIN visit_pttype vt ON vt.vn = i.vn
       LEFT JOIN thaiaddress tmb ON tmb.chwpart = pt.chwpart AND tmb.amppart = pt.amppart AND tmb.tmbpart = pt.tmbpart
       LEFT JOIN thaiaddress amp ON amp.chwpart = pt.chwpart AND amp.amppart = pt.amppart AND amp.tmbpart = '00'
       LEFT JOIN clinicmember cm ON cm.hn = i.hn
@@ -644,9 +672,10 @@ export class RcmImcService {
         DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS date,
         TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
         s.cc,
-        cc.AuthenCode AS authencode,
+        COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
         IFNULL(ptt.hipdata_code, '') AS maininscl,
         CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
+        ptt.pttype_eclaim_id,
         IFNULL(dep.department, o.main_dep) AS department,
         IFNULL(spc.name, o.spclty) AS clinic,
         ost.name AS ovstost,
@@ -686,6 +715,7 @@ export class RcmImcService {
       LEFT JOIN spclty spc ON spc.spclty = o.spclty
       LEFT JOIN ovstost ost ON ost.ovstost = o.ovstost
       LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+      LEFT JOIN visit_pttype vt ON vt.vn = o.vn
       LEFT JOIN thaiaddress tmb ON tmb.chwpart = pt.chwpart AND tmb.amppart = pt.amppart AND tmb.tmbpart = pt.tmbpart
       LEFT JOIN thaiaddress amp ON amp.chwpart = pt.chwpart AND amp.amppart = pt.amppart AND amp.tmbpart = '00'
       LEFT JOIN clinicmember cm ON cm.hn = o.hn

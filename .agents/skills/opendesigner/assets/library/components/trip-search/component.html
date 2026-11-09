@@ -1,0 +1,182 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-trip-search { box-sizing: border-box; inline-size: 100%; max-inline-size: 46rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-trip-search *, .odl-trip-search *::before, .odl-trip-search *::after { box-sizing: border-box; }
+.odl-trip-search .odl-card { display: grid; padding: var(--ds-space-inset-lg); background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-trip-search fieldset { margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.odl-trip-search .odl-sec { display: grid; gap: var(--ds-space-stack-md); padding-block: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-trip-search .odl-sec:first-of-type { border-block-start: 0; padding-block-start: var(--ds-space-stack-lg); }
+.odl-trip-search legend, .odl-trip-search .odl-h { float: left; inline-size: 100%; margin: 0 0 var(--ds-space-stack-md); padding: 0; font: var(--ds-text-title-md); }
+.odl-trip-search .odl-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--ds-space-4) var(--ds-space-inline-sm); }
+.odl-trip-search .odl-h small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-trip-search .odl-sec > :not(legend) { clear: both; }
+/* The switch sits in the card's top corners, so its corners nest inside them (outer radius minus the card padding). */
+.odl-trip-search .odl-card { --pad: var(--ds-space-inset-lg); padding: var(--pad); }
+.odl-trip-search .odl-mode { display: grid; grid-template-columns: 1fr 1fr; padding: var(--ds-space-4); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: min(var(--ds-radius-control), max(0px, calc(var(--ds-radius-container) - var(--pad)))); background: var(--ds-color-surface-sunken); }
+.odl-trip-search .odl-mode label { position: relative; display: grid; }
+.odl-trip-search .odl-mode input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-trip-search .odl-mode span { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); border-radius: max(0px, calc(min(var(--ds-radius-control), max(0px, calc(var(--ds-radius-container) - var(--pad)))) - var(--ds-space-4)));
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-trip-search .odl-mode svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-trip-search .odl-mode input:checked + span { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); box-shadow: var(--ds-elevation-raised); }
+.odl-trip-search .odl-mode input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-trip-search .odl-field { position: relative; display: flex; align-items: center; }
+.odl-trip-search .odl-field svg { position: absolute; inset-inline-start: var(--ds-space-inset-md); inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); color: var(--ds-color-icon-subtle); stroke-width: var(--ds-icon-stroke-md); pointer-events: none; }
+.odl-trip-search .odl-field input { inline-size: 100%; min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md) 0 calc(var(--ds-space-inset-md) + var(--ds-size-icon-md) + var(--ds-space-inline-sm));
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); font-size: var(--ds-font-size-input); }
+.odl-trip-search .odl-field input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-trip-search .odl-field input:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* The suggestions are a raised list under the field, as a destination search shows them. */
+.odl-trip-search .odl-sugg { display: grid; gap: var(--ds-space-2); margin: calc(-1 * var(--ds-space-stack-xs)) 0 0; padding: var(--ds-space-inset-xs); list-style: none;
+  background: var(--ds-color-surface-overlay); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: min(var(--ds-radius-control), var(--ds-radius-container)); box-shadow: var(--ds-elevation-floating); }
+.odl-trip-search .odl-sugg[hidden] { display: none; }
+.odl-trip-search .odl-sugg li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: var(--ds-space-inset-xs); border-radius: max(0px, calc(min(var(--ds-radius-control), var(--ds-radius-container)) - var(--ds-space-inset-xs))); cursor: pointer; }
+.odl-trip-search .odl-sugg li:hover, .odl-trip-search .odl-sugg li.is-active { background: var(--ds-color-bg-neutral-subtle); }
+.odl-trip-search .odl-sugg img { display: block; inline-size: 3.75rem; block-size: 3.75rem;
+  border-radius: max(0px, calc(min(var(--ds-radius-control), var(--ds-radius-container)) - var(--ds-border-width-default) - 2 * var(--ds-space-inset-xs))); object-fit: cover; background: var(--ds-color-surface-sunken); }
+.odl-trip-search .odl-sugg b { display: block; font: var(--ds-text-label-lg); }
+.odl-trip-search .odl-sugg b mark { background: transparent; color: var(--ds-color-text-accent); font: inherit; }
+.odl-trip-search .odl-sugg small { display: block; margin-block-start: var(--ds-space-2); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-trip-search .odl-months { display: grid; gap: var(--ds-space-stack-lg); }
+.odl-trip-search .odl-month { display: grid; align-content: start; gap: var(--ds-space-stack-sm); }
+.odl-trip-search .odl-mname { margin: 0; font: var(--ds-text-label-lg); text-align: center; }
+.odl-trip-search .odl-week, .odl-trip-search .odl-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.odl-trip-search .odl-week abbr { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); text-align: center; text-decoration: none; }
+.odl-trip-search .odl-days { row-gap: var(--ds-space-2); }
+.odl-trip-search .odl-days button { position: relative; display: grid; place-items: center; min-block-size: var(--ds-size-target-min); padding: 0; border: 0; background: transparent; color: var(--ds-color-text-primary);
+  font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; cursor: pointer; isolation: isolate; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); }
+.odl-trip-search .odl-days button::before { content: ""; position: absolute; z-index: -1; inset: 50% auto auto 50%; inline-size: min(100%, max(var(--ds-size-control-md), var(--ds-size-target-min))); aspect-ratio: 1; transform: translate(-50%, -50%);
+  border-radius: var(--ds-radius-full); transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-trip-search .odl-days button:hover::before { background: var(--ds-color-bg-neutral-subtle); }
+.odl-trip-search .odl-days button.is-in { background: var(--ds-color-bg-accent-subtle); }
+.odl-trip-search .odl-days button.is-start { background: linear-gradient(to right, transparent 50%, var(--ds-color-bg-accent-subtle) 50%); }
+.odl-trip-search .odl-days button.is-end { background: linear-gradient(to left, transparent 50%, var(--ds-color-bg-accent-subtle) 50%); }
+.odl-trip-search .odl-days button.is-start.is-end, .odl-trip-search .odl-days button.is-start.is-open { background: transparent; }
+/* The band rounds off where a week wraps to the next row. */
+.odl-trip-search .odl-days button.is-in:nth-child(7n + 1) { border-start-start-radius: var(--ds-radius-full); border-end-start-radius: var(--ds-radius-full); }
+.odl-trip-search .odl-days button.is-in:nth-child(7n) { border-start-end-radius: var(--ds-radius-full); border-end-end-radius: var(--ds-radius-full); }
+.odl-trip-search .odl-days button.is-start:nth-child(7n), .odl-trip-search .odl-days button.is-end:nth-child(7n + 1) { background: transparent; }
+.odl-trip-search .odl-days button.is-start, .odl-trip-search .odl-days button.is-end { color: var(--ds-color-text-on-accent); }
+.odl-trip-search .odl-days button.is-start::before, .odl-trip-search .odl-days button.is-end::before { background: var(--ds-color-bg-accent-bold); }
+.odl-trip-search .odl-days button:focus-visible { outline: none; }
+.odl-trip-search .odl-days button:focus-visible::before { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-trip-search .odl-who { display: grid; margin: 0; padding: 0; list-style: none; }
+.odl-trip-search .odl-who li { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-md); min-block-size: var(--ds-size-row-two-line); padding-block: var(--ds-space-stack-md); }
+.odl-trip-search .odl-who li + li { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-trip-search .odl-who li[hidden] { display: none; }
+.odl-trip-search .odl-who b { display: block; font: var(--ds-text-label-lg); }
+.odl-trip-search .odl-who small { display: block; margin-block-start: var(--ds-space-2); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-trip-search .odl-step { display: flex; align-items: center; gap: var(--ds-space-inline-sm); }
+.odl-trip-search .odl-step output { min-inline-size: 2ch; text-align: center; font: var(--ds-text-title-sm); font-variant-numeric: tabular-nums; }
+.odl-trip-search .odl-step button { display: grid; place-items: center; inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0;
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); cursor: pointer; }
+.odl-trip-search .odl-step button:hover:not(:disabled) { border-color: var(--ds-color-border-strong); }
+.odl-trip-search .odl-step button:disabled { color: var(--ds-color-text-disabled); border-color: var(--ds-color-border-subtle); cursor: not-allowed; }
+.odl-trip-search .odl-step svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-trip-search .odl-go { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); inline-size: 100%; min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min));
+  margin-block-start: var(--ds-space-stack-md); padding: 0 var(--ds-space-inset-lg); border: 0; border-radius: var(--ds-radius-control); background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action);
+  font: var(--ds-text-label-lg); cursor: pointer; }
+.odl-trip-search .odl-go:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-trip-search .odl-go svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-trip-search .odl-step button:focus-visible, .odl-trip-search .odl-go:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-trip-search .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (min-width: 40rem) {
+  .odl-trip-search .odl-card { --pad: var(--ds-space-inset-xl); }
+  .odl-trip-search .odl-months { grid-template-columns: 1fr 1fr; column-gap: var(--ds-space-section-sm); }
+  .odl-trip-search .odl-go { inline-size: auto; justify-self: end; min-inline-size: 12rem; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-trip-search, .odl-trip-search *, .odl-trip-search *::before { transition: none !important; animation: none !important; } }
+</style>
+<form class="odl-trip-search" action="#" aria-label="Search trips">
+  <div class="odl-card">
+    <fieldset class="odl-mode">
+      <legend class="odl-sr">What are you booking?</legend>
+      <label><input type="radio" name="odl-trip-search-mode" value="stays" checked><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Stays</span></label>
+      <label><input type="radio" name="odl-trip-search-mode" value="flights"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>Flights</span></label>
+    </fieldset>
+    <div class="odl-sec">
+      <label class="odl-h" for="odl-ts-where"><span class="odl-where-label">Where to?</span></label>
+      <div class="odl-field">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="odl-ts-where" type="text" value="Lis" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="odl-ts-list" aria-autocomplete="list" placeholder="Search destinations">
+      </div>
+      <ul class="odl-sugg" id="odl-ts-list" role="listbox" aria-label="Suggestions">
+        <li role="option" id="odl-ts-o1" aria-selected="false" data-v="Lisbon, Portugal"><img src="https://images.unsplash.com/photo-1578771792482-1e7eb2b8b447?w=128&h=128&fit=crop&auto=format&q=70" alt="Narrow street in an old city" width="60" height="60" loading="lazy" decoding="async"><span><b><mark>Lis</mark>bon, Portugal</b><small>City · 1,240 stays</small></span></li>
+        <li role="option" id="odl-ts-o2" aria-selected="false" data-v="Lisbon Coast, Portugal"><img src="https://images.unsplash.com/photo-1446038202205-1c96430dbdab?w=128&h=128&fit=crop&auto=format&q=70" alt="Rocky coastline and blue ocean" width="60" height="60" loading="lazy" decoding="async"><span><b><mark>Lis</mark>bon Coast, Portugal</b><small>Beach · 380 stays</small></span></li>
+        <li role="option" id="odl-ts-o3" aria-selected="false" data-v="Lisieux, France"><img src="https://images.unsplash.com/photo-1605096048662-5ab61695a122?w=128&h=128&fit=crop&auto=format&q=70" alt="Hillside town houses" width="60" height="60" loading="lazy" decoding="async"><span><b><mark>Lis</mark>ieux, France</b><small>Town · 96 stays</small></span></li>
+      </ul>
+    </div>
+    <fieldset class="odl-sec">
+      <legend class="odl-h"><span>When</span><small class="odl-range" aria-live="polite">Sat 14 Nov to Thu 19 Nov · 5 nights</small></legend>
+      <div class="odl-months">
+<div class="odl-month"><p class="odl-mname">November 2026</p><div class="odl-week" aria-hidden="true"><abbr title="Monday">M</abbr><abbr title="Tuesday">T</abbr><abbr title="Wednesday">W</abbr><abbr title="Thursday">T</abbr><abbr title="Friday">F</abbr><abbr title="Saturday">S</abbr><abbr title="Sunday">S</abbr></div><div class="odl-days"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span><button type="button" data-d="2026-11-01" aria-pressed="false" aria-label="Sunday 1 November 2026">1</button><button type="button" data-d="2026-11-02" aria-pressed="false" aria-label="Monday 2 November 2026">2</button><button type="button" data-d="2026-11-03" aria-pressed="false" aria-label="Tuesday 3 November 2026">3</button><button type="button" data-d="2026-11-04" aria-pressed="false" aria-label="Wednesday 4 November 2026">4</button><button type="button" data-d="2026-11-05" aria-pressed="false" aria-label="Thursday 5 November 2026">5</button><button type="button" data-d="2026-11-06" aria-pressed="false" aria-label="Friday 6 November 2026">6</button><button type="button" data-d="2026-11-07" aria-pressed="false" aria-label="Saturday 7 November 2026">7</button><button type="button" data-d="2026-11-08" aria-pressed="false" aria-label="Sunday 8 November 2026">8</button><button type="button" data-d="2026-11-09" aria-pressed="false" aria-label="Monday 9 November 2026">9</button><button type="button" data-d="2026-11-10" aria-pressed="false" aria-label="Tuesday 10 November 2026">10</button><button type="button" data-d="2026-11-11" aria-pressed="false" aria-label="Wednesday 11 November 2026">11</button><button type="button" data-d="2026-11-12" aria-pressed="false" aria-label="Thursday 12 November 2026">12</button><button type="button" data-d="2026-11-13" aria-pressed="false" aria-label="Friday 13 November 2026">13</button><button type="button" data-d="2026-11-14" class="is-start" aria-pressed="true" aria-label="Saturday 14 November 2026">14</button><button type="button" data-d="2026-11-15" class="is-in" aria-pressed="false" aria-label="Sunday 15 November 2026">15</button><button type="button" data-d="2026-11-16" class="is-in" aria-pressed="false" aria-label="Monday 16 November 2026">16</button><button type="button" data-d="2026-11-17" class="is-in" aria-pressed="false" aria-label="Tuesday 17 November 2026">17</button><button type="button" data-d="2026-11-18" class="is-in" aria-pressed="false" aria-label="Wednesday 18 November 2026">18</button><button type="button" data-d="2026-11-19" class="is-end" aria-pressed="true" aria-label="Thursday 19 November 2026">19</button><button type="button" data-d="2026-11-20" aria-pressed="false" aria-label="Friday 20 November 2026">20</button><button type="button" data-d="2026-11-21" aria-pressed="false" aria-label="Saturday 21 November 2026">21</button><button type="button" data-d="2026-11-22" aria-pressed="false" aria-label="Sunday 22 November 2026">22</button><button type="button" data-d="2026-11-23" aria-pressed="false" aria-label="Monday 23 November 2026">23</button><button type="button" data-d="2026-11-24" aria-pressed="false" aria-label="Tuesday 24 November 2026">24</button><button type="button" data-d="2026-11-25" aria-pressed="false" aria-label="Wednesday 25 November 2026">25</button><button type="button" data-d="2026-11-26" aria-pressed="false" aria-label="Thursday 26 November 2026">26</button><button type="button" data-d="2026-11-27" aria-pressed="false" aria-label="Friday 27 November 2026">27</button><button type="button" data-d="2026-11-28" aria-pressed="false" aria-label="Saturday 28 November 2026">28</button><button type="button" data-d="2026-11-29" aria-pressed="false" aria-label="Sunday 29 November 2026">29</button><button type="button" data-d="2026-11-30" aria-pressed="false" aria-label="Monday 30 November 2026">30</button></div></div>
+<div class="odl-month"><p class="odl-mname">December 2026</p><div class="odl-week" aria-hidden="true"><abbr title="Monday">M</abbr><abbr title="Tuesday">T</abbr><abbr title="Wednesday">W</abbr><abbr title="Thursday">T</abbr><abbr title="Friday">F</abbr><abbr title="Saturday">S</abbr><abbr title="Sunday">S</abbr></div><div class="odl-days"><span aria-hidden="true"></span><button type="button" data-d="2026-12-01" aria-pressed="false" aria-label="Tuesday 1 December 2026">1</button><button type="button" data-d="2026-12-02" aria-pressed="false" aria-label="Wednesday 2 December 2026">2</button><button type="button" data-d="2026-12-03" aria-pressed="false" aria-label="Thursday 3 December 2026">3</button><button type="button" data-d="2026-12-04" aria-pressed="false" aria-label="Friday 4 December 2026">4</button><button type="button" data-d="2026-12-05" aria-pressed="false" aria-label="Saturday 5 December 2026">5</button><button type="button" data-d="2026-12-06" aria-pressed="false" aria-label="Sunday 6 December 2026">6</button><button type="button" data-d="2026-12-07" aria-pressed="false" aria-label="Monday 7 December 2026">7</button><button type="button" data-d="2026-12-08" aria-pressed="false" aria-label="Tuesday 8 December 2026">8</button><button type="button" data-d="2026-12-09" aria-pressed="false" aria-label="Wednesday 9 December 2026">9</button><button type="button" data-d="2026-12-10" aria-pressed="false" aria-label="Thursday 10 December 2026">10</button><button type="button" data-d="2026-12-11" aria-pressed="false" aria-label="Friday 11 December 2026">11</button><button type="button" data-d="2026-12-12" aria-pressed="false" aria-label="Saturday 12 December 2026">12</button><button type="button" data-d="2026-12-13" aria-pressed="false" aria-label="Sunday 13 December 2026">13</button><button type="button" data-d="2026-12-14" aria-pressed="false" aria-label="Monday 14 December 2026">14</button><button type="button" data-d="2026-12-15" aria-pressed="false" aria-label="Tuesday 15 December 2026">15</button><button type="button" data-d="2026-12-16" aria-pressed="false" aria-label="Wednesday 16 December 2026">16</button><button type="button" data-d="2026-12-17" aria-pressed="false" aria-label="Thursday 17 December 2026">17</button><button type="button" data-d="2026-12-18" aria-pressed="false" aria-label="Friday 18 December 2026">18</button><button type="button" data-d="2026-12-19" aria-pressed="false" aria-label="Saturday 19 December 2026">19</button><button type="button" data-d="2026-12-20" aria-pressed="false" aria-label="Sunday 20 December 2026">20</button><button type="button" data-d="2026-12-21" aria-pressed="false" aria-label="Monday 21 December 2026">21</button><button type="button" data-d="2026-12-22" aria-pressed="false" aria-label="Tuesday 22 December 2026">22</button><button type="button" data-d="2026-12-23" aria-pressed="false" aria-label="Wednesday 23 December 2026">23</button><button type="button" data-d="2026-12-24" aria-pressed="false" aria-label="Thursday 24 December 2026">24</button><button type="button" data-d="2026-12-25" aria-pressed="false" aria-label="Friday 25 December 2026">25</button><button type="button" data-d="2026-12-26" aria-pressed="false" aria-label="Saturday 26 December 2026">26</button><button type="button" data-d="2026-12-27" aria-pressed="false" aria-label="Sunday 27 December 2026">27</button><button type="button" data-d="2026-12-28" aria-pressed="false" aria-label="Monday 28 December 2026">28</button><button type="button" data-d="2026-12-29" aria-pressed="false" aria-label="Tuesday 29 December 2026">29</button><button type="button" data-d="2026-12-30" aria-pressed="false" aria-label="Wednesday 30 December 2026">30</button><button type="button" data-d="2026-12-31" aria-pressed="false" aria-label="Thursday 31 December 2026">31</button></div></div>
+      </div>
+    </fieldset>
+    <fieldset class="odl-sec">
+      <legend class="odl-h">Who</legend>
+      <ul class="odl-who">
+        <li><span><b id="odl-ts-a">Adults</b><small>Ages 13 or above</small></span><span class="odl-step" data-min="1"><button type="button" data-d="-1" aria-label="Fewer adults"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><output aria-labelledby="odl-ts-a" data-guests="a" aria-live="polite">2</output><button type="button" data-d="1" aria-label="More adults"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></span></li>
+        <li><span><b id="odl-ts-c">Children</b><small>Ages 2 to 12</small></span><span class="odl-step" data-min="0"><button type="button" data-d="-1" aria-label="Fewer children"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><output aria-labelledby="odl-ts-c" data-guests="c" aria-live="polite">1</output><button type="button" data-d="1" aria-label="More children"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></span></li>
+        <li class="odl-pets"><span><b id="odl-ts-p">Pets</b><small>Service animals welcome</small></span><span class="odl-step" data-min="0"><button type="button" data-d="-1" aria-label="Fewer pets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><output aria-labelledby="odl-ts-p" data-guests="p" aria-live="polite">0</output><button type="button" data-d="1" aria-label="More pets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></span></li>
+      </ul>
+    </fieldset>
+    <button type="submit" class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="odl-go-text">Search · 3 guests</span></button>
+  </div>
+</form>
+<script>
+document.querySelectorAll(".odl-trip-search").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  root.addEventListener("submit", (e) => e.preventDefault());
+  // Stays or flights: flights drop the pets row and ask where you fly to.
+  const pets = root.querySelector(".odl-pets"), whereLabel = root.querySelector(".odl-where-label");
+  root.querySelectorAll(".odl-mode input").forEach((r) => r.addEventListener("change", () => {
+    const fly = r.value === "flights" && r.checked;
+    pets.hidden = fly; whereLabel.textContent = fly ? "Flying to" : "Where to?"; count();
+  }));
+  // Destination: filter the suggestions as you type; arrows move, Enter picks.
+  const input = root.querySelector(".odl-field input"), list = root.querySelector(".odl-sugg"), opts = [...list.querySelectorAll("li")];
+  let active = -1;
+  const visible = () => opts.filter((o) => !o.hidden);
+  const mark = (i) => { const v = visible(); active = i; opts.forEach((o) => o.classList.remove("is-active"));
+    if (v[i]) { v[i].classList.add("is-active"); input.setAttribute("aria-activedescendant", v[i].id); } else input.removeAttribute("aria-activedescendant"); };
+  const filter = () => { const q = input.value.trim().toLowerCase();
+    opts.forEach((o) => { o.hidden = !!q && !o.dataset.v.toLowerCase().includes(q); });
+    const open = !!q && visible().length > 0; list.hidden = !open; input.setAttribute("aria-expanded", String(open)); mark(-1); };
+  const pick = (o) => { input.value = o.dataset.v; list.hidden = true; input.setAttribute("aria-expanded", "false"); opts.forEach((x) => x.setAttribute("aria-selected", String(x === o))); mark(-1); };
+  input.addEventListener("input", filter);
+  input.addEventListener("keydown", (e) => { const v = visible();
+    if (e.key === "ArrowDown" && !list.hidden) { e.preventDefault(); mark((active + 1) % v.length); }
+    else if (e.key === "ArrowUp" && !list.hidden) { e.preventDefault(); mark((active - 1 + v.length) % v.length); }
+    else if (e.key === "Enter" && v[active]) { e.preventDefault(); pick(v[active]); }
+    else if (e.key === "Escape") { list.hidden = true; input.setAttribute("aria-expanded", "false"); } });
+  opts.forEach((o) => o.addEventListener("click", () => pick(o)));
+  // Dates: the first tap sets check-in, the second check-out.
+  const days = [...root.querySelectorAll(".odl-days button")], range = root.querySelector(".odl-range");
+  let start = "2026-11-14", end = "2026-11-19";
+  const fmt = (s) => new Date(s + "T12:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const paint = () => {
+    days.forEach((b) => { const d = b.dataset.d;
+      b.classList.toggle("is-start", d === start); b.classList.toggle("is-end", !!end && d === end); b.classList.toggle("is-open", d === start && !end);
+      b.classList.toggle("is-in", !!end && d > start && d < end); b.setAttribute("aria-pressed", String(d === start || d === end)); });
+    const n = end ? Math.round((new Date(end) - new Date(start)) / 864e5) : 0;
+    range.textContent = end ? `${fmt(start)} to ${fmt(end)} · ${n} night${n === 1 ? "" : "s"}` : `${fmt(start)} · choose check-out`;
+  };
+  days.forEach((b) => b.addEventListener("click", () => { const d = b.dataset.d;
+    if (!start || end || d <= start) { start = d; end = null; } else end = d; paint(); }));
+  // Guests.
+  const go = root.querySelector(".odl-go-text");
+  const count = () => { const v = (id) => Number(root.querySelector(`[data-guests="${id}"]`).textContent);
+    const n = v("a") + v("c"), p = pets.hidden ? 0 : v("p");
+    go.textContent = `Search · ${n} guest${n === 1 ? "" : "s"}${p ? `, ${p} pet${p === 1 ? "" : "s"}` : ""}`; };
+  root.querySelectorAll(".odl-step").forEach((s) => {
+    const out = s.querySelector("output"), [less, more] = s.querySelectorAll("button"), min = Number(s.dataset.min);
+    const set = (v) => { out.textContent = v; less.disabled = v <= min; more.disabled = v >= 10; count(); };
+    [less, more].forEach((b) => b.addEventListener("click", () => set(Number(out.textContent) + Number(b.dataset.d))));
+    set(Number(out.textContent));
+  });
+});
+</script>

@@ -1,0 +1,13 @@
+{
+  "name": "Weather now",
+  "summary": "Current weather and what comes next: the place, a big temperature, the condition drawn as an icon, an hourly row with rain chances, and a 7-day list with min and max bars.",
+  "use": "in a weather, travel or home app, for the forecast at a glance",
+  "type": "data",
+  "style": "friendly",
+  "industries": ["travel", "home"],
+  "tags": ["weather", "forecast", "hourly", "temperature", "week"],
+  "states": ["day", "rain later", "scrolling hours", "focus"],
+  "source": null,
+  "a11y": "Hours and days are ordered lists; each item has a hidden text with its condition and rain chance, the drawn icons and bars are decorative, and the hourly row scrolls with the keyboard when focused.",
+  "width": "narrow"
+}

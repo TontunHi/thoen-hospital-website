@@ -981,5 +981,339 @@ fastify.get('/api/v1/app/slides/active', {
   }
 })
 
+// 4.15 LTC (Long-Term Care) Registries Management
+// 4.15.1 Get all LTC HNs
+fastify.get('/api/v1/app/ltc/hns', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายชื่อ HN ทั้งหมดในทะเบียน LTC เพื่อใช้ตรวจสอบความซ้ำซ้อน'
+  }
+}, async (req, reply) => {
+  try {
+    const [rows] = await appPool.query('SELECT hn FROM long_term_care_registries WHERE hn IS NOT NULL')
+    const hns = rows.map(r => r.hn).filter(Boolean)
+    return { success: true, count: hns.length, data: hns }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.15.2 Get LTC Registries list with filtering and stats
+fastify.get('/api/v1/app/ltc/registries', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายชื่อทะเบียน Long-Term Care (LTC) พร้อมการค้นหาและสถิติ',
+    querystring: {
+      type: 'object',
+      properties: {
+        search: { type: 'string' },
+        areaZone: { type: 'string' },
+        page: { type: 'integer', default: 1 },
+        limit: { type: 'integer', default: 50 },
+        exportAll: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { search = '', areaZone = '', page = 1, limit = 50, exportAll = 'false' } = req.query || {}
+  try {
+    const [rows] = await appPool.query(`
+      SELECT
+        id,
+        hn,
+        cid,
+        patient_name AS patientName,
+        address,
+        moo,
+        tambon,
+        age,
+        adl_score AS adlScore,
+        area_zone AS areaZone,
+        created_by AS createdBy,
+        updated_by AS updatedBy,
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS createdAt,
+        DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') AS updatedAt
+      FROM long_term_care_registries
+      ORDER BY id DESC
+    `)
+
+    const zoneSet = new Set()
+    for (const r of rows) {
+      if (r.areaZone && r.areaZone.trim()) {
+        zoneSet.add(r.areaZone.trim())
+      }
+    }
+    const availableAreaZones = Array.from(zoneSet).sort()
+
+    let filtered = rows
+    const searchTrimmed = (search || '').trim().toLowerCase()
+    if (searchTrimmed) {
+      filtered = filtered.filter(r => {
+        const hnMatch = r.hn && r.hn.toLowerCase().includes(searchTrimmed)
+        const cidMatch = r.cid && r.cid.toLowerCase().includes(searchTrimmed)
+        const nameMatch = r.patientName && r.patientName.toLowerCase().includes(searchTrimmed)
+        const tambonMatch = r.tambon && r.tambon.toLowerCase().includes(searchTrimmed)
+        return hnMatch || cidMatch || nameMatch || tambonMatch
+      })
+    }
+
+    if (areaZone && areaZone !== 'ALL') {
+      filtered = filtered.filter(r => r.areaZone === areaZone)
+    }
+
+    const total = filtered.length
+    const numLimit = parseInt(limit, 10) || 50
+    const totalPages = Math.max(1, Math.ceil(total / numLimit))
+    const isExport = exportAll === 'true'
+
+    const pageNum = parseInt(page, 10) || 1
+    const pagedItems = isExport ? filtered : filtered.slice((pageNum - 1) * numLimit, pageNum * numLimit)
+
+    let totalAdl = 0
+    let countWithAdl = 0
+    const zoneCounts = {}
+    for (const r of filtered) {
+      if (r.adlScore !== null && r.adlScore !== undefined) {
+        totalAdl += Number(r.adlScore)
+        countWithAdl++
+      }
+      if (r.areaZone && r.areaZone.trim()) {
+        const z = r.areaZone.trim()
+        zoneCounts[z] = (zoneCounts[z] || 0) + 1
+      }
+    }
+    const avgAdl = countWithAdl > 0 ? Math.round((totalAdl / countWithAdl) * 10) / 10 : 0
+
+    return {
+      success: true,
+      items: pagedItems,
+      total,
+      page: isExport ? 1 : pageNum,
+      limit: isExport ? total : numLimit,
+      totalPages,
+      availableAreaZones,
+      stats: {
+        total,
+        avgAdl,
+        zoneCounts
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.15.3 Get LTC Registry by ID
+fastify.get('/api/v1/app/ltc/registries/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงข้อมูลทะเบียน LTC รายบุคคลตาม ID',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [rows] = await appPool.query(`
+      SELECT
+        id,
+        hn,
+        cid,
+        patient_name AS patientName,
+        address,
+        moo,
+        tambon,
+        age,
+        adl_score AS adlScore,
+        area_zone AS areaZone,
+        created_by AS createdBy,
+        updated_by AS updatedBy,
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS createdAt,
+        DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') AS updatedAt
+      FROM long_term_care_registries
+      WHERE id = ?
+      LIMIT 1
+    `, [id])
+    if (rows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูล LTC' }
+    }
+    return { success: true, data: rows[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.15.4 Get LTC Registry by HN
+fastify.get('/api/v1/app/ltc/registries/by-hn/:hn', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงข้อมูลทะเบียน LTC รายบุคคลตาม HN',
+    params: {
+      type: 'object',
+      properties: { hn: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { hn } = req.params
+  const cleanHn = /^\d+$/.test(hn.trim()) ? hn.trim().padStart(7, '0') : hn.trim()
+  try {
+    const [rows] = await appPool.query(`
+      SELECT
+        id,
+        hn,
+        cid,
+        patient_name AS patientName,
+        address,
+        moo,
+        tambon,
+        age,
+        adl_score AS adlScore,
+        area_zone AS areaZone,
+        created_by AS createdBy,
+        updated_by AS updatedBy,
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS createdAt,
+        DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') AS updatedAt
+      FROM long_term_care_registries
+      WHERE hn = ?
+      LIMIT 1
+    `, [cleanHn])
+    if (rows.length === 0) {
+      return { success: true, exists: false, data: null }
+    }
+    return { success: true, exists: true, data: rows[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.15.5 Create LTC Registry
+fastify.post('/api/v1/app/ltc/registries', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'เพิ่มผู้ป่วยในทะเบียน Long-Term Care (LTC)',
+    body: {
+      type: 'object',
+      required: ['hn', 'patientName'],
+      properties: {
+        hn: { type: 'string' },
+        cid: { type: ['string', 'null'] },
+        patientName: { type: 'string' },
+        address: { type: ['string', 'null'] },
+        moo: { type: ['string', 'null'] },
+        tambon: { type: ['string', 'null'] },
+        age: { type: ['number', 'null'] },
+        adlScore: { type: ['number', 'null'] },
+        areaZone: { type: ['string', 'null'] },
+        createdBy: { type: ['string', 'null'] }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const {
+    hn, cid = null, patientName, address = null, moo = null,
+    tambon = null, age = null, adlScore = null, areaZone = null,
+    createdBy = 'system'
+  } = req.body || {}
+  const cleanHn = /^\d+$/.test(hn.trim()) ? hn.trim().padStart(7, '0') : hn.trim()
+  try {
+    const [existing] = await appPool.query('SELECT id FROM long_term_care_registries WHERE hn = ? LIMIT 1', [cleanHn])
+    if (existing.length > 0) {
+      reply.code(409); return { success: false, error: `ผู้ป่วย HN: ${cleanHn} มีรายชื่อในทะเบียน LTC อยู่แล้ว` }
+    }
+    const [res] = await appPool.query(`
+      INSERT INTO long_term_care_registries (
+        hn, cid, patient_name, address, moo, tambon, age, adl_score, area_zone, created_by, updated_by, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `, [
+      cleanHn, cid ? String(cid).trim() : null, patientName.trim(),
+      address ? String(address).trim() : null, moo ? String(moo).trim() : null,
+      tambon ? String(tambon).trim() : null, age !== null ? Number(age) : null,
+      adlScore !== null ? Number(adlScore) : null, areaZone ? String(areaZone).trim() : null,
+      createdBy, createdBy
+    ])
+    return { success: true, insertId: res.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.15.6 Update LTC Registry
+fastify.put('/api/v1/app/ltc/registries/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขข้อมูลทะเบียน LTC ตาม ID',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const body = req.body || {}
+  const updates = []
+  const params = []
+
+  const colMap = {
+    patientName: 'patient_name',
+    cid: 'cid',
+    address: 'address',
+    moo: 'moo',
+    tambon: 'tambon',
+    age: 'age',
+    adlScore: 'adl_score',
+    areaZone: 'area_zone',
+    updatedBy: 'updated_by'
+  }
+
+  for (const [key, col] of Object.entries(colMap)) {
+    if (body[key] !== undefined) {
+      updates.push(`${col} = ?`)
+      params.push(body[key] !== null ? body[key] : null)
+    }
+  }
+
+  if (updates.length === 0) {
+    reply.code(400); return { success: false, error: 'ไม่มีข้อมูลที่ต้องการอัปเดต' }
+  }
+
+  updates.push('updated_at = NOW()')
+  params.push(id)
+
+  try {
+    const [res] = await appPool.query(
+      `UPDATE long_term_care_registries SET ${updates.join(', ')} WHERE id = ?`,
+      params
+    )
+    return { success: true, affectedRows: res.affectedRows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.15.7 Delete LTC Registry
+fastify.delete('/api/v1/app/ltc/registries/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบข้อมูลทะเบียน LTC ตาม ID',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [res] = await appPool.query('DELETE FROM long_term_care_registries WHERE id = ?', [id])
+    if (res.affectedRows === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลที่ต้องการลบ' }
+    }
+    return { success: true, message: 'ลบข้อมูลสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
 }
 

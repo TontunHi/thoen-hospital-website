@@ -177,7 +177,7 @@ describe('HepatitisC232Client Component', () => {
     render(<HepatitisC232Client initialData={mockInitialData} />)
 
     const searchInput = screen.getByPlaceholderText(
-      'ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, Authen Code, Rep, ผล Lab...'
+      'ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ClaimCode, Rep, ผล Lab...'
     )
     fireEvent.change(searchInput, { target: { value: 'สมชาย' } })
     expect(searchInput).toHaveValue('สมชาย')

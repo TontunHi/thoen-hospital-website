@@ -1,0 +1,33 @@
+{
+  "name": "Event ticket",
+  "summary": "A wallet-style concert or match ticket: a concert photo with the act and venue, date, doors and show time, section, row and seat, a scannable code drawn with tokens, and add to wallet.",
+  "use": "in a ticketing or events app, for the ticket a fan shows at the door",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "events"
+  ],
+  "tags": [
+    "ticket",
+    "concert",
+    "wallet",
+    "qr code",
+    "seat"
+  ],
+  "states": [
+    "not in wallet",
+    "in wallet",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The ticket is an article named with the act, venue and date; times and the seat are description lists, the photo has alt text, the code is an image named with the ticket number, and add to wallet is a toggle button with aria-pressed.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1470229722913-7c0e2dbbafd3",
+      "author": "Yvette de Wit",
+      "page": "NYrVisodQ2M"
+    }
+  ]
+}

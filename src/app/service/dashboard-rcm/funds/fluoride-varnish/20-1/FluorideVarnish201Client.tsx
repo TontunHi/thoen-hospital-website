@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -33,6 +34,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -112,6 +114,7 @@ export default function FluorideVarnish201Client({
   )
 
   // Filter & Search states
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [cardFilter, setCardFilter] = useState<FluorideVarnishCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
@@ -216,6 +219,7 @@ export default function FluorideVarnish201Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -261,6 +265,7 @@ export default function FluorideVarnish201Client({
       sortOrder,
       currentPage,
       pageSize,
+      pttypes,
     ]
   )
 
@@ -389,6 +394,7 @@ export default function FluorideVarnish201Client({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/fluoride-varnish/service-20-1?${queryParams.toString()}`
@@ -412,7 +418,7 @@ export default function FluorideVarnish201Client({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -452,19 +458,13 @@ export default function FluorideVarnish201Client({
         `"${r.subfund || ''}"`,
       ])
 
-      const csvString =
-        '\uFEFF' +
-        [headers.join(','), ...csvContent.map((row) => row.join(','))].join('\r\n')
-
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `fluoride-varnish-15001-${ds1}-to-${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `fluoride-varnish-15001-${ds1}-to-${ds2}.xlsx`,
+        title: 'การทาฟลูออไรด์วานิช (20.1 / ADP 15001)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvContent,
+      })
     } catch (err: any) {
       alert(err.message || 'ส่งออกไฟล์ไม่สำเร็จ')
     } finally {
@@ -512,10 +512,10 @@ export default function FluorideVarnish201Client({
             className="fluoride-btn fluoride-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || isExporting || items.length === 0}
-            title="ดาวน์โหลดข้อมูลเป็นไฟล์ CSV (Excel ภาษาไทย UTF-8)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -807,17 +807,17 @@ export default function FluorideVarnish201Client({
           </div>
         </div>
 
-        {/* Card 7: มี Authen Code */}
+        {/* Card 7: มี ClaimCode */}
         <div
           role="button"
           tabIndex={0}
           className={`fluoride-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('WITH_AUTHEN')}
           onKeyDown={(e) => e.key === 'Enter' && handleCardFilter('WITH_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะผู้รับบริการที่มี Claim Authen Code"
+          title="คลิกเพื่อกรองเฉพาะผู้รับบริการที่มี ClaimCode"
         >
           <div className="fluoride-kpi-header">
-            <span className="fluoride-kpi-title">มี Authen Code</span>
+            <span className="fluoride-kpi-title">มี ClaimCode</span>
             <span className="fluoride-kpi-icon" style={{ color: '#059669', backgroundColor: '#d1fae5' }}>
               <ShieldCheck size={16} />
             </span>
@@ -832,17 +832,17 @@ export default function FluorideVarnish201Client({
           </div>
         </div>
 
-        {/* Card 8: ไม่มี Authen Code */}
+        {/* Card 8: ไม่มี ClaimCode */}
         <div
           role="button"
           tabIndex={0}
           className={`fluoride-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('NO_AUTHEN')}
           onKeyDown={(e) => e.key === 'Enter' && handleCardFilter('NO_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะผู้รับบริการที่ไม่มี Claim Authen Code"
+          title="คลิกเพื่อกรองเฉพาะผู้รับบริการที่ไม่มี ClaimCode"
         >
           <div className="fluoride-kpi-header">
-            <span className="fluoride-kpi-title">ไม่มี Authen Code</span>
+            <span className="fluoride-kpi-title">ไม่มี ClaimCode</span>
             <span className="fluoride-kpi-icon" style={{ color: '#ef4444', backgroundColor: '#fee2e2' }}>
               <AlertTriangle size={16} />
             </span>
@@ -883,6 +883,16 @@ export default function FluorideVarnish201Client({
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="fluoride-secondary-filters">
           <label className="fluoride-checkbox-label">
@@ -1032,7 +1042,7 @@ export default function FluorideVarnish201Client({
                     </button>
                   </th>
                   <th className="col-center" style={{ width: '110px' }}>
-                    Authen Code
+                    ClaimCode
                   </th>
                   <th className="col-left" style={{ minWidth: '150px' }}>
                     สิทธิการรักษา
@@ -1260,7 +1270,7 @@ export default function FluorideVarnish201Client({
                     </div>
 
                     <div className="fluoride-detail-item">
-                      <span className="fluoride-detail-label">Authen Code</span>
+                      <span className="fluoride-detail-label">ClaimCode:</span>
                       <span className="fluoride-detail-value font-mono">
                         {selectedItem.authencode || 'ไม่มี'}
                         {selectedItem.authencode && (
@@ -1268,7 +1278,7 @@ export default function FluorideVarnish201Client({
                             type="button"
                             className="fluoride-copy-btn"
                             onClick={() => handleCopyText(selectedItem.authencode!, 'authen')}
-                            title="คัดลอก Authen Code"
+                            title="คัดลอก ClaimCode"
                           >
                             {copiedField === 'authen' ? <Check size={14} color="#059669" /> : <Copy size={14} />}
                           </button>

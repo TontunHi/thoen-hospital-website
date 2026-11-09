@@ -23,6 +23,7 @@ const service81ParamsSchema = z.object({
       'NO_AUTHEN',
     ])
     .optional(),
+  pttypes: z.string().max(300).optional(),
   ucOnly: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),

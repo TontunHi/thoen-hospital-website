@@ -37,6 +37,7 @@ const mockItem = {
   authencode: 'AUTH13001',
   maininscl: 'UCS',
   isUc: true,
+  pttype_eclaim_id: 'UCS',
   pttypename: 'บัตรทอง',
   department: 'กลุ่มงานเวชปฏิบัติครอบครัว',
   clinic: 'ตรวจโรคทั่วไป',

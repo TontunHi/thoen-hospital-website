@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -31,6 +32,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -94,6 +96,7 @@ export default function PostpartumService30016Client({
 
   // Filter & Search states
   const [compensationFilter, setCompensationFilter] = useState<PostpartumCompensationFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [searchField, setSearchField] = useState<PostpartumSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -196,6 +199,10 @@ export default function PostpartumService30016Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           q.set('refresh', 'true')
         }
@@ -227,7 +234,7 @@ export default function PostpartumService30016Client({
         }
       }
     },
-    [ds1, ds2, compensationFilter, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, compensationFilter, pttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -313,6 +320,10 @@ export default function PostpartumService30016Client({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/postpartum/service-30016?${q.toString()}`
       )
@@ -334,7 +345,7 @@ export default function PostpartumService30016Client({
         'ชื่อ-สกุล',
         'อายุ',
         'สัญชาติ',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -360,58 +371,49 @@ export default function PostpartumService30016Client({
         'กองทุนย่อย',
       ]
 
-      const csvRows = [headers.join(',')]
+      const rows = exportItems.map((it) => [
+        it.no,
+        it.vstdate,
+        it.vsttime || '',
+        it.vn,
+        it.hn,
+        it.cid,
+        it.ptname || '',
+        it.age ?? '',
+        it.nation || '',
+        it.authencode || '',
+        it.pttypename || '',
+        it.department || '',
+        it.clinic || '',
+        it.pdx || '',
+        it.dx0 || '',
+        it.dx1 || '',
+        it.dx2 || '',
+        it.dx3 || '',
+        it.dx4 || '',
+        it.dx5 || '',
+        it.op0 || '',
+        it.op1 || '',
+        it.op2 || '',
+        it.op3 || '',
+        it.op4 || '',
+        it.op5 || '',
+        it.listname || '',
+        it.listname1 || '',
+        it.status || '',
+        it.rep || '',
+        it.compensated,
+        it.fund || '',
+        it.subfund || '',
+      ])
 
-      for (const it of exportItems) {
-        const row = [
-          it.no,
-          `"${it.vstdate}"`,
-          `"${it.vsttime || ''}"`,
-          `"${it.vn}"`,
-          `"${it.hn}"`,
-          `"${it.cid}"`,
-          `"${(it.ptname || '').replace(/"/g, '""')}"`,
-          it.age ?? '',
-          `"${it.nation || ''}"`,
-          `"${it.authencode || ''}"`,
-          `"${(it.pttypename || '').replace(/"/g, '""')}"`,
-          `"${(it.department || '').replace(/"/g, '""')}"`,
-          `"${(it.clinic || '').replace(/"/g, '""')}"`,
-          `"${it.pdx || ''}"`,
-          `"${it.dx0 || ''}"`,
-          `"${it.dx1 || ''}"`,
-          `"${it.dx2 || ''}"`,
-          `"${it.dx3 || ''}"`,
-          `"${it.dx4 || ''}"`,
-          `"${it.dx5 || ''}"`,
-          `"${it.op0 || ''}"`,
-          `"${it.op1 || ''}"`,
-          `"${it.op2 || ''}"`,
-          `"${it.op3 || ''}"`,
-          `"${it.op4 || ''}"`,
-          `"${it.op5 || ''}"`,
-          `"${(it.listname || '').replace(/"/g, '""')}"`,
-          `"${(it.listname1 || '').replace(/"/g, '""')}"`,
-          `"${(it.status || '').replace(/"/g, '""')}"`,
-          `"${it.rep || ''}"`,
-          it.compensated,
-          `"${it.fund || ''}"`,
-          `"${it.subfund || ''}"`,
-        ]
-        csvRows.push(row.join(','))
-      }
-
-      // Add UTF-8 BOM so Excel opens Thai correctly
-      const csvContent = '\uFEFF' + csvRows.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rcm_postpartum_7_3_30016_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `rcm_postpartum_7_3_30016_${ds1}_to_${ds2}.xlsx`,
+        title: 'การจ่ายยา Triforine ADP (รหัสบริการ 30016)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(`ไม่สามารถส่งออกข้อมูลได้: ${e.message}`)
@@ -449,10 +451,10 @@ export default function PostpartumService30016Client({
             className="pp3-btn-primary"
             onClick={handleExport}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกรายงานทั้งหมดเป็นไฟล์ CSV (เปิดใน Excel ได้)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก…' : 'ส่งออก Excel / CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก…' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -658,15 +660,15 @@ export default function PostpartumService30016Client({
             setCompensationFilter(compensationFilter === 'HAS_AUTHEN' ? 'ALL' : 'HAS_AUTHEN')
             setCurrentPage(1)
           }}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Claim / Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="pp3-kpi-header">
-            <span className="pp3-kpi-title">มี Authen Code</span>
+            <span className="pp3-kpi-title">มี ClaimCode</span>
             <Check size={18} className="pp3-kpi-icon text-sky-600" />
           </div>
           <div className="pp3-kpi-value">{summary.withAuthenCount.toLocaleString('th-TH')}</div>
           <div className="pp3-kpi-subtext">
-            ไม่มี Authen: <strong>{summary.withoutAuthenCount.toLocaleString('th-TH')}</strong> ครั้ง
+            ไม่มี ClaimCode: <strong>{summary.withoutAuthenCount.toLocaleString('th-TH')}</strong> ครั้ง
           </div>
         </button>
 
@@ -726,11 +728,26 @@ export default function PostpartumService30016Client({
               <option value="ALL">ทั้งหมด ({summary.totalVisits})</option>
               <option value="COMPENSATED">ชดเชยแล้ว ({summary.compensatedVisits})</option>
               <option value="UNCOMPENSATED">ยังไม่ชดเชย ({summary.uncompensatedVisits})</option>
-              <option value="HAS_AUTHEN">มี Authen Code ({summary.withAuthenCount})</option>
-              <option value="NO_AUTHEN">ไม่มี Authen Code ({summary.withoutAuthenCount})</option>
+              <option value="HAS_AUTHEN">มี ClaimCode ({summary.withAuthenCount})</option>
+              <option value="NO_AUTHEN">ไม่มี ClaimCode ({summary.withoutAuthenCount})</option>
               <option value="HAS_PDX">มีรหัสวินิจฉัย PDx ({summary.withPdxCount})</option>
               <option value="HAS_OP">มีรหัสหัตถการ OP ({summary.withOpCount})</option>
             </select>
+          </div>
+
+          <div className="pp3-input-group">
+            <label className="pp3-label">
+              <span>สิทธิการรักษา:</span>
+            </label>
+            <PttypeMultiSelect
+              selectedCodes={pttypes}
+              onChange={(codes) => {
+                setPttypes(codes)
+                setCurrentPage(1)
+            }}
+            items={items}
+            
+          />
           </div>
 
           <div className="pp3-search-box">
@@ -791,14 +808,13 @@ export default function PostpartumService30016Client({
         <div className="pp3-table-scroll">
           <table className="pp3-table">
             <thead>
-              {/* Row 1: Merged Headers according to FoxPro .MergeHeader specification */}
+              {/* Single Tier Centered Header */}
               <tr>
-                <th rowSpan={2} className="pp3-sticky-col-no">
+                <th className="pp3-col-center pp3-sticky-col-no">
                   ลำดับ
                 </th>
                 <th
-                  rowSpan={2}
-                  className="sortable"
+                  className="sortable pp3-col-center"
                   onClick={() => handleSort('vstdate')}
                   title="คลิกเพื่อเรียงตามวันที่รับบริการ"
                 >
@@ -811,10 +827,9 @@ export default function PostpartumService30016Client({
                     )}
                   </div>
                 </th>
-                <th rowSpan={2}>เลขที่ VN</th>
+                <th className="pp3-col-center">เลขที่ VN</th>
                 <th
-                  rowSpan={2}
-                  className="sortable"
+                  className="sortable pp3-col-center"
                   onClick={() => handleSort('hn')}
                   title="คลิกเพื่อเรียงตาม HN"
                 >
@@ -828,8 +843,7 @@ export default function PostpartumService30016Client({
                   </div>
                 </th>
                 <th
-                  rowSpan={2}
-                  className="sortable"
+                  className="sortable pp3-col-center"
                   onClick={() => handleSort('cid')}
                   title="คลิกเพื่อเรียงตามเลขบัตรประชาชน"
                 >
@@ -843,8 +857,7 @@ export default function PostpartumService30016Client({
                   </div>
                 </th>
                 <th
-                  rowSpan={2}
-                  className="pp3-sticky-col-ptname sortable"
+                  className="pp3-sticky-col-ptname sortable pp3-col-center"
                   onClick={() => handleSort('ptname')}
                   title="คลิกเพื่อเรียงตามชื่อผู้รับบริการ"
                 >
@@ -858,8 +871,7 @@ export default function PostpartumService30016Client({
                   </div>
                 </th>
                 <th
-                  rowSpan={2}
-                  className="sortable"
+                  className="sortable pp3-col-center"
                   onClick={() => handleSort('age')}
                   title="คลิกเพื่อเรียงตามอายุ"
                 >
@@ -873,13 +885,12 @@ export default function PostpartumService30016Client({
                   </div>
                 </th>
                 <th
-                  rowSpan={2}
-                  className="sortable"
+                  className="sortable pp3-col-center"
                   onClick={() => handleSort('authencode')}
-                  title="คลิกเพื่อเรียงตาม Authen Code"
+                  title="คลิกเพื่อเรียงตาม ClaimCode"
                 >
                   <div className="pp3-th-content">
-                    <span>Authen Code</span>
+                    <span>ClaimCode</span>
                     {sortBy === 'authencode' ? (
                       sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                     ) : (
@@ -887,30 +898,47 @@ export default function PostpartumService30016Client({
                     )}
                   </div>
                 </th>
-                <th rowSpan={2}>สิทธิการรักษา</th>
-                <th rowSpan={2}>แผนก / คลินิก</th>
-
-                {/* Merged Header 1: การวินิจฉัย (PDx, Dx0..Dx5) */}
-                <th colSpan={7} className="merged-header">
-                  การวินิจฉัย (PDx, Dx0 - Dx5)
-                </th>
-
-                {/* Merged Header 2: หัตถการ (Op0..Op5) */}
-                <th colSpan={6} className="merged-header">
-                  หัตถการ (Op0 - Op5)
-                </th>
-
-                <th rowSpan={2}>รายการยา ADP 30016</th>
-                <th rowSpan={2}>รายการอื่นๆ (Non-drug)</th>
-                <th rowSpan={2}>สถานะ E-Claim</th>
-                <th rowSpan={2}>เลขที่ Rep</th>
+                <th className="pp3-col-center">สิทธิการรักษา</th>
+                <th className="pp3-col-center">แผนก / คลินิก</th>
                 <th
-                  rowSpan={2}
-                  className="sortable text-right"
+                  className="sortable pp3-col-center"
+                  onClick={() => handleSort('pdx')}
+                >
+                  <div className="pp3-th-content">
+                    <span className="pp3-th-line">PDx</span>
+                    <span className="pp3-th-sub">การวินิจฉัย</span>
+                    {sortBy === 'pdx' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                    ) : (
+                      <ArrowUpDown size={14} className="opacity-40" />
+                    )}
+                  </div>
+                </th>
+                <th className="pp3-col-center">Dx0</th>
+                <th className="pp3-col-center">Dx1</th>
+                <th className="pp3-col-center">Dx2</th>
+                <th className="pp3-col-center">Dx3</th>
+                <th className="pp3-col-center">Dx4</th>
+                <th className="pp3-col-center">Dx5</th>
+                <th className="pp3-col-center">
+                  <span className="pp3-th-line">Op0</span>
+                  <span className="pp3-th-sub">หัตถการ</span>
+                </th>
+                <th className="pp3-col-center">Op1</th>
+                <th className="pp3-col-center">Op2</th>
+                <th className="pp3-col-center">Op3</th>
+                <th className="pp3-col-center">Op4</th>
+                <th className="pp3-col-center">Op5</th>
+                <th className="pp3-col-center">รายการยา ADP 30016</th>
+                <th className="pp3-col-center">รายการอื่นๆ (Non-drug)</th>
+                <th className="pp3-col-center">สถานะ E-Claim</th>
+                <th className="pp3-col-center">เลขที่ Rep</th>
+                <th
+                  className="sortable pp3-col-center"
                   onClick={() => handleSort('compensated')}
                   title="คลิกเพื่อเรียงตามยอดเงินชดเชย"
                 >
-                  <div className="pp3-th-content justify-end">
+                  <div className="pp3-th-content">
                     <span>ชดเชย (บาท)</span>
                     {sortBy === 'compensated' ? (
                       sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
@@ -919,27 +947,7 @@ export default function PostpartumService30016Client({
                     )}
                   </div>
                 </th>
-                <th rowSpan={2}>กองทุน</th>
-              </tr>
-
-              {/* Row 2: Sub-columns for Diagnoses and Procedures */}
-              <tr>
-                <th className="sortable" onClick={() => handleSort('pdx')}>
-                  PDx
-                </th>
-                <th>Dx0</th>
-                <th>Dx1</th>
-                <th>Dx2</th>
-                <th>Dx3</th>
-                <th>Dx4</th>
-                <th>Dx5</th>
-
-                <th>Op0</th>
-                <th>Op1</th>
-                <th>Op2</th>
-                <th>Op3</th>
-                <th>Op4</th>
-                <th>Op5</th>
+                <th className="pp3-col-center">กองทุน</th>
               </tr>
             </thead>
 
@@ -1182,14 +1190,14 @@ export default function PostpartumService30016Client({
                     </div>
 
                     <div className="pp3-info-row">
-                      <span className="pp3-info-label">Claim / Authen Code</span>
+                      <span className="pp3-info-label">ClaimCode</span>
                       <span className="pp3-info-val">
                         {selectedItem.authencode ? (
                           <span className="pp3-badge pp3-badge-primary font-mono">
                             {selectedItem.authencode}
                           </span>
                         ) : (
-                          'ไม่มีรหัส Authen'
+                          'ไม่มีรหัส ClaimCode'
                         )}
                       </span>
                     </div>

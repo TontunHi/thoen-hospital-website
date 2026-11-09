@@ -37,6 +37,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -118,6 +120,7 @@ export default function StreptokinaseRecipientsClient({
   const [cardFilter, setCardFilter] = useState<StreptokinaseCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<StreptokinaseSortField>(
@@ -364,6 +367,7 @@ export default function StreptokinaseRecipientsClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+        if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
         if (refresh) params.set('refresh', 'true')
 
         const res = await fetch(
@@ -394,7 +398,7 @@ export default function StreptokinaseRecipientsClient({
         }
       }
     },
-    [patientType, ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [patientType, ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch when filters or patientType change (skip initial mount if initialData is provided)
@@ -463,8 +467,8 @@ export default function StreptokinaseRecipientsClient({
     }
   }
 
-  // Handle Export CSV
-  const handleExportCsv = async () => {
+  // Handle Export Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const params = new URLSearchParams({
@@ -477,6 +481,7 @@ export default function StreptokinaseRecipientsClient({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/streptokinase/recipients?${params.toString()}`
@@ -549,82 +554,78 @@ export default function StreptokinaseRecipientsClient({
             'สถานะ E-Claim',
           ]
 
-      const csvRows = rows.map((r, i) => {
+      const excelRows = rows.map((r, i) => {
         if (isOpd) {
           return [
             i + 1,
-            `"${r.vn || ''}"`,
-            `"${r.hn}"`,
-            `"${r.cid}"`,
-            `"${r.ptname}"`,
-            `"${r.sex}"`,
+            r.vn || '',
+            r.hn,
+            r.cid,
+            r.ptname,
+            r.sex,
             r.age,
-            `"${r.vstdate || ''}"`,
-            `"${r.vsttime || ''}"`,
-            `"${r.pttypename}"`,
-            `"${r.department || ''}"`,
-            `"${r.clinic || ''}"`,
-            `"${r.drugname}"`,
+            r.vstdate || '',
+            r.vsttime || '',
+            r.pttypename,
+            r.department || '',
+            r.clinic || '',
+            r.drugname,
             r.money_hosxp,
             r.discount_money,
             r.rcpt_money,
             r.debit,
-            `"${r.rcpno}"`,
-            `"${r.dx || ''}"`,
-            `"${r.op || ''}"`,
-            `"${r.errorDx || 'ผ่าน'}"`,
-            `"${r.errorOp || 'ผ่าน'}"`,
+            r.rcpno,
+            r.dx || '',
+            r.op || '',
+            r.errorDx || 'ผ่าน',
+            r.errorOp || 'ผ่าน',
             r.money_eclaim,
             r.money_rep,
             r.money_invoice,
-            `"${r.rep || ''}"`,
-            `"${r.status}"`,
-          ].join(',')
+            r.rep || '',
+            r.status,
+          ]
         } else {
           return [
             i + 1,
-            `"${r.an || ''}"`,
-            `"${r.hn}"`,
-            `"${r.cid}"`,
-            `"${r.ptname}"`,
-            `"${r.sex}"`,
+            r.an || '',
+            r.hn,
+            r.cid,
+            r.ptname,
+            r.sex,
             r.age,
-            `"${r.admdate || ''}"`,
-            `"${r.dchdate || ''}"`,
-            `"${r.pttypename}"`,
-            `"${r.ward || ''}"`,
-            `"${r.drugname}"`,
+            r.admdate || '',
+            r.dchdate || '',
+            r.pttypename,
+            r.ward || '',
+            r.drugname,
             r.money_hosxp,
             r.discount_money,
             r.rcpt_money,
             r.debit,
-            `"${r.rcpno}"`,
-            `"${r.dx || ''}"`,
-            `"${r.op || ''}"`,
-            `"${r.errorDx || 'ผ่าน'}"`,
-            `"${r.errorOp || 'ผ่าน'}"`,
+            r.rcpno,
+            r.dx || '',
+            r.op || '',
+            r.errorDx || 'ผ่าน',
+            r.errorOp || 'ผ่าน',
             r.money_eclaim,
             r.money_rep,
             r.money_invoice,
-            `"${r.rep || ''}"`,
-            `"${r.status}"`,
-          ].join(',')
+            r.rep || '',
+            r.status,
+          ]
         }
       })
 
-      // Add UTF-8 BOM so Microsoft Excel on Windows parses Thai properly
-      const csvContent = '\uFEFF' + [headers.join(','), ...csvRows].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `streptokinase_${patientType.toLowerCase()}_${ds1}_${ds2}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `streptokinase_${patientType.toLowerCase()}_${ds1}_${ds2}.xlsx`,
+        title: `รายชื่อรับยา Streptokinase (${patientType})`,
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${rows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows: excelRows,
+      })
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ CSV')
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -662,12 +663,12 @@ export default function StreptokinaseRecipientsClient({
           <button
             type="button"
             className="stk-btn stk-btn-secondary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={isExporting || loading || items.length === 0}
-            title="ส่งออกข้อมูลเป็นไฟล์ CSV (รองรับ Excel ภาษาไทย)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
 
           <button
@@ -991,6 +992,16 @@ export default function StreptokinaseRecipientsClient({
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="stk-toolbar-meta">
           <span>

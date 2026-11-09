@@ -1,0 +1,48 @@
+{
+  "name": "Social post",
+  "summary": "A feed post: the author's photo with a follow button, a photo, like, comment, share and save, a like count that changes, a caption that opens with \"more\" and the top comment.",
+  "use": "in a social or creator feed, for one photo post",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "social",
+    "media"
+  ],
+  "tags": [
+    "feed",
+    "post",
+    "like",
+    "photo",
+    "caption",
+    "social"
+  ],
+  "states": [
+    "liked",
+    "saved",
+    "following",
+    "caption open",
+    "double-tap like",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Like, save and follow are toggle buttons with aria-pressed, the like count is announced politely when it changes, \"more\" opens the caption with aria-expanded, and the photo has a text description.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1512531123205-560f5974e686",
+      "author": "Shea Rouda",
+      "page": "Vtl6cOhO87Y"
+    },
+    {
+      "img": "photo-1705645930353-0e335311ef20",
+      "author": "Danny Postma",
+      "page": "zNxOw2JFNKs"
+    },
+    {
+      "img": "photo-1596580817363-a4a8f67d4bc8",
+      "author": "Dorrell Tibbs",
+      "page": "gisFZKWpKQ4"
+    }
+  ]
+}

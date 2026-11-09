@@ -27,6 +27,7 @@ import dynamic from 'next/dynamic'
 import { IPDRecord, IpdDepartmentAdjrwItem } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import '../sss-dental/page.css'
 import './page.css'
 
@@ -454,7 +455,7 @@ export default function IpdClient({
     setSearch('')
   }
 
-  const exportCSV = () => {
+  const exportExcel = async () => {
     const headers = [
       'ลำดับ', 'AN', 'HN', 'เลขประจำตัวประชาชน (CID)', 'ชื่อ-สกุลผู้ป่วย', 'เพศ', 'อายุ',
       'หอผู้ป่วย', 'แพทย์ Admit', 'แพทย์ D/C', 'สิทธิการรักษา',
@@ -464,34 +465,32 @@ export default function IpdClient({
 
     const rows = filteredData.map((d, idx) => [
       idx + 1,
-      `"${d.an}"`,
-      `"${d.hn}"`,
-      `"${d.cid}"`,
-      `"${d.ptname}"`,
+      d.an,
+      d.hn,
+      d.cid,
+      d.ptname,
       d.sex,
       d.age,
-      `"${d.ward_name || d.ward}"`,
-      `"${d.admdoctor || ''}"`,
-      `"${d.dchdoctor || ''}"`,
-      `"${d.pttypename || d.pttype}"`,
+      d.ward_name || d.ward,
+      d.admdoctor || '',
+      d.dchdoctor || '',
+      d.pttypename || d.pttype,
       d.los,
-      `"${d.pdx}"`,
-      `"${d.pdxname || ''}"`,
+      d.pdx,
+      d.pdxname || '',
       d.adjrw,
       d.income,
       d.debit,
       d.summary_days !== null ? d.summary_days : 'ยังไม่สรุป',
     ])
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `ipd_report_${ds1}_to_${ds2}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    await exportRcmExcel({
+      filename: `ipd_report_${ds1}_to_${ds2}.xlsx`,
+      title: 'รายงานสรุปการให้บริการผู้ป่วยในโรงพยาบาลเถิน (IPD)',
+      subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+      headers,
+      rows,
+    })
   }
 
   const formatNumber = (num: number) => num.toLocaleString('th-TH')
@@ -531,12 +530,13 @@ export default function IpdClient({
           {subTab !== 'department' && (
             <button
               type="button"
-              onClick={exportCSV}
+              onClick={exportExcel}
               disabled={loading || filteredData.length === 0}
               className="rcm-btn rcm-btn-primary"
+              title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
             >
               <Download size={14} />
-              <span>ส่งออก Excel (CSV)</span>
+              <span>ส่งออก Excel</span>
             </button>
           )}
         </div>

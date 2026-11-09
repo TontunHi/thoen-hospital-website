@@ -1,0 +1,110 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-ai-composer { box-sizing: border-box; inline-size: 100%; max-inline-size: 48rem; margin-inline: auto; container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-stack-lg); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-ai-composer *, .odl-ai-composer *::before { box-sizing: border-box; }
+.odl-ai-composer svg { flex: none; stroke-width: var(--ds-icon-stroke-md); }
+.odl-ai-composer .odl-box { --odl-pad: var(--ds-space-inset-md); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-md); margin: 0; padding: var(--odl-pad);
+  background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-floating);
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-ai-composer .odl-box:has(textarea:focus-visible) { border-color: var(--ds-color-border-focus); outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-ai-composer .odl-sources { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); margin: 0; padding: 0; list-style: none; }
+.odl-ai-composer .odl-sources li { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); max-inline-size: 100%; min-inline-size: 0;
+  padding-inline: var(--ds-space-inset-sm) 0; border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: calc(var(--ds-radius-overlay) - var(--odl-pad) - var(--ds-border-width-default)); /* parallel to the box's corner */
+  background: var(--ds-color-surface-sunken); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-ai-composer .odl-sources li > svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); }
+.odl-ai-composer .odl-sources .odl-name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.odl-ai-composer .odl-sources small { flex: none; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-ai-composer .is-uploading > svg { animation: odl-ai-composer-spin var(--ds-motion-duration-extra) var(--ds-motion-easing-linear) infinite; }
+@keyframes odl-ai-composer-spin { to { transform: rotate(360deg); } }
+.odl-ai-composer textarea { box-sizing: border-box; inline-size: 100%; min-block-size: 4.5rem; max-block-size: 14rem; field-sizing: content; resize: none;
+  padding: var(--ds-space-inset-xs); border: 0; background: transparent; color: inherit; font: var(--ds-text-body-lg); outline: none; }
+.odl-ai-composer textarea::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-ai-composer .odl-bar { display: flex; align-items: center; gap: var(--ds-space-inline-sm); }
+.odl-ai-composer .odl-modes { display: flex; gap: var(--ds-space-2); padding: var(--ds-space-2); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-neutral-subtle); }
+.odl-ai-composer .odl-modes label { position: relative; }
+.odl-ai-composer .odl-modes input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-ai-composer .odl-modes span { display: grid; place-items: center; min-block-size: var(--ds-size-target-min); padding: 0 var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); white-space: nowrap; }
+.odl-ai-composer .odl-modes input:checked + span { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label);
+  box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-default), var(--ds-elevation-raised); }
+.odl-ai-composer .odl-modes input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-ai-composer .odl-spacer { flex: 1; }
+.odl-ai-composer .odl-hint { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-ai-composer .odl-hint kbd { padding: 0 var(--ds-space-4); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-detail);
+  background: var(--ds-color-surface-base); color: var(--ds-color-text-secondary); font: var(--ds-text-code-sm); }
+.odl-ai-composer button { display: inline-grid; place-items: center; flex: none; min-inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0; border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-icon-default); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-ai-composer button:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-ai-composer button svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-ai-composer .odl-send { border-radius: var(--ds-radius-full); background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-ai-composer .odl-send:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-ai-composer .odl-box:has(textarea:placeholder-shown) .odl-send { background: var(--ds-color-bg-disabled); color: var(--ds-color-text-disabled); cursor: default; }
+.odl-ai-composer button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-ai-composer .odl-remove { min-inline-size: var(--ds-size-target-min); min-block-size: var(--ds-size-target-min); color: var(--ds-color-icon-subtle); }
+.odl-ai-composer .odl-remove svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+/* Starter prompts under the box: quiet, one line each. */
+/* Starters: three even columns when there is room, one full-width stack on a phone. */
+.odl-ai-composer .odl-starters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-inline-sm); margin: 0; padding: 0; list-style: none; }
+.odl-ai-composer .odl-starters li { display: grid; }
+.odl-ai-composer .odl-starters button { display: flex; align-items: center; justify-content: start; gap: var(--ds-space-inline-sm); min-inline-size: 0; padding: var(--ds-space-inset-xs) var(--ds-space-inset-md); text-align: start;
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); background: var(--ds-color-surface-raised); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); }
+.odl-ai-composer .odl-starters button:hover { border-color: var(--ds-color-border-default); color: var(--ds-color-text-primary); background: var(--ds-color-surface-raised); }
+.odl-ai-composer .odl-starters svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); }
+/* Wide: more room to write, the roomiest padding. */
+@container (min-width: 36rem) {
+  .odl-ai-composer .odl-box { --odl-pad: var(--ds-space-inset-lg); }
+  .odl-ai-composer textarea { min-block-size: 7rem; }
+}
+/* Narrow: the shortcut hint goes (phones have no Enter key habit); starters stack full width. */
+@container (max-width: 30rem) {
+  .odl-ai-composer .odl-hint, .odl-ai-composer .odl-sources li:not(.is-uploading) small { display: none; }
+  .odl-ai-composer .odl-starters { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 22rem) {
+  .odl-ai-composer .odl-bar { flex-wrap: wrap; }
+  .odl-ai-composer .odl-modes { order: -1; flex: 1 1 100%; }
+  .odl-ai-composer .odl-modes label { flex: 1 1 0; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-ai-composer, .odl-ai-composer *, .odl-ai-composer *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-ai-composer">
+  <form class="odl-box" aria-label="Ask about your sources">
+    <ul class="odl-sources" aria-label="Attached sources">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="odl-name">Quay commission minutes 1952–60</span><small>212 pages</small>
+        <button type="button" class="odl-remove" aria-label="Remove Quay commission minutes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></li>
+      <li class="is-uploading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><span class="odl-name">foreshore-order.pdf</span><small>Reading, 64%</small>
+        <button type="button" class="odl-remove" aria-label="Cancel foreshore-order.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></li>
+    </ul>
+    <textarea rows="2" aria-label="Your question" placeholder="Ask about these sources, or type @ to mention one"></textarea>
+    <div class="odl-bar">
+      <button type="button" aria-label="Attach a source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+      <div class="odl-modes" role="radiogroup" aria-label="Mode">
+        <label><input type="radio" name="odl-ai-composer-mode" value="ask" checked><span>Ask</span></label>
+        <label><input type="radio" name="odl-ai-composer-mode" value="research"><span>Research</span></label>
+        <label><input type="radio" name="odl-ai-composer-mode" value="draft"><span>Draft</span></label>
+      </div>
+      <span class="odl-spacer"></span>
+      <span class="odl-hint"><kbd>Enter</kbd> to send</span>
+      <button type="submit" class="odl-send" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg></button>
+    </div>
+  </form>
+  <ul class="odl-starters" aria-label="Suggested questions">
+    <li><button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>List every licence the board granted</button></li>
+    <li><button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/></svg>Compare both sources on 1956</button></li>
+    <li><button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>Summarise the closures</button></li>
+  </ul>
+</div>
+<script>
+document.querySelectorAll(".odl-ai-composer").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const form = root.querySelector("form"), box = form.querySelector("textarea");
+  form.addEventListener("submit", (e) => { e.preventDefault(); if (box.value.trim()) box.value = ""; });
+  box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+  root.querySelectorAll(".odl-starters button").forEach((b) => b.addEventListener("click", () => { box.value = b.textContent.trim(); box.focus(); }));
+});
+</script>

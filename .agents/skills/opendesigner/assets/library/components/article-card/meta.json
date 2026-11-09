@@ -1,0 +1,38 @@
+{
+  "name": "Article card",
+  "summary": "A card for one article or changelog post: a cover photo, the category and reading time, a headline, a two-line summary, the author's photo, name and date, and a button to save it.",
+  "use": "on a blog, changelog or help centre index",
+  "type": "content",
+  "style": "editorial",
+  "industries": [
+    "any"
+  ],
+  "tags": [
+    "article",
+    "blog",
+    "changelog",
+    "post",
+    "card"
+  ],
+  "states": [
+    "hover",
+    "focus",
+    "saved",
+    "not saved"
+  ],
+  "source": null,
+  "a11y": "The headline is the one link and its click area covers the card; Save sits above it as a separate toggle button with aria-pressed; the cover has alt text and the author photo is decorative because the name sits beside it.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1762983870490-63e5ba07105b",
+      "author": "Faizur Rehman",
+      "page": "xqh-RlfJVx4"
+    },
+    {
+      "img": "photo-1522529599102-193c0d76b5b6",
+      "author": "Elizeu Dias",
+      "page": "2EGNqazbAMk"
+    }
+  ]
+}

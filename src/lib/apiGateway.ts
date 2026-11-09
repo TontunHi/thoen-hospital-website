@@ -256,6 +256,44 @@ export class ApiGatewayClient {
       return this.get<Array<Record<string, unknown>>>('/api/v1/clinical/appointments/mismatches')
     },
 
+    getAppointmentsByCid: (cid: string) => {
+      return this.get<Array<{
+        hn: string
+        ptname: string
+        appoint_date: string
+        appoint_time: string
+        clinic_name: string
+        doctor_name: string
+        appoint_note: string
+        app_no: string | null
+      }>>(`/api/v1/clinical/appointments/by-cid/${encodeURIComponent(cid)}`)
+    },
+
+    searchPatientVisits: (query: string) => {
+      return this.get<Array<{
+        hn: string
+        cid: string
+        ptname: string
+        vn: string
+        an: string | null
+        dateText: string
+        department: string
+        cc: string
+        statusName: string
+        opdDrugsCount: number
+        opdLabsCount: number
+        ipdDrugsCount: number
+        ipdLabsCount: number
+      }>>(`/api/v1/clinical/records/visits?query=${encodeURIComponent(query)}`)
+    },
+
+    getVisitClinicalDetails: (params: { vn?: string | null; an?: string | null }) => {
+      const q = new URLSearchParams()
+      if (params.vn) q.set('vn', params.vn)
+      if (params.an) q.set('an', params.an)
+      return this.get<any>(`/api/v1/clinical/records/visit-details?${q.toString()}`)
+    },
+
     getLabTracker: (params?: { date?: string; vn?: string; hn?: string }) => {
       const q = new URLSearchParams()
       if (params?.date) q.set('date', params.date)
@@ -271,6 +309,10 @@ export class ApiGatewayClient {
         reported: Array<Record<string, unknown>>
         pending: Array<Record<string, unknown>>
       }>(`/api/v1/clinical/lab/detail/${encodeURIComponent(hn)}`)
+    },
+
+    getLabDetailByHn: (hn: string) => {
+      return this.clinical.getLabDetail(hn)
     },
 
     getDrugDispenseStatus: () => {
@@ -441,8 +483,147 @@ export class ApiGatewayClient {
       if (params?.hospcode) q.set('hospcode', params.hospcode)
       const qs = q.toString() ? `?${q.toString()}` : ''
       return this.get<Record<string, number>>(`/api/v1/clinical/mok/summary${qs}`)
+    },
+
+    // ── RCM Clinical Specific Funds ──
+    getRcmFundData: async <T = Record<string, unknown>>(
+      fundKey: string,
+      params?: {
+        startDate?: string
+        endDate?: string
+        ds1?: string
+        ds2?: string
+        adpCode?: string
+        patientType?: 'OPD' | 'IPD'
+        serviceType?: string
+        [key: string]: unknown
+      }
+    ) => {
+      const q = new URLSearchParams()
+      const s = params?.startDate || params?.ds1
+      const e = params?.endDate || params?.ds2
+      if (s) q.set('startDate', s as string)
+      if (e) q.set('endDate', e as string)
+      if (params?.adpCode) q.set('adpCode', params.adpCode as string)
+      if (params?.patientType) q.set('patientType', params.patientType as string)
+      if (params?.serviceType) q.set('serviceType', params.serviceType as string)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<any>(`/api/v1/clinical/rcm/funds/${encodeURIComponent(fundKey)}${qs}`)
+
+      const rawRows: T[] = Array.isArray(res?.rawRows)
+        ? res.rawRows
+        : Array.isArray(res?.data?.rawRows)
+        ? res.data.rawRows
+        : Array.isArray(res)
+        ? res
+        : []
+
+      return {
+        success: true,
+        fundKey,
+        data: {
+          rawRows,
+          adpMapping: res?.adpMapping || res?.data?.adpMapping
+        },
+        rawRows
+      }
+    },
+
+    getAdpMapping: (adpCode: string) => {
+      return this.get<{
+        success: boolean
+        adpCode: string
+        isMapped: boolean
+        mappedCount: number
+        items: Array<{ icode: string; name: string; strength: string | null; nhso_adp_code: string }>
+      }>(`/api/v1/clinical/rcm/funds/adp-mapping/${encodeURIComponent(adpCode.trim())}`)
+    },
+
+    // ── RCM Rep Statement & Fund Group Named APIs ──
+    getRepFundsYears: async () => {
+      const res = await this.get<any>('/api/v1/clinical/rcm/rep-funds/years')
+      const data: string[] = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
+      return { success: true, data }
+    },
+
+    getRepFundsSummary: async (params?: {
+      fiscalYear?: string
+      ds1?: string
+      ds2?: string
+      department?: string
+      fund?: string
+      subFund?: string
+      status?: string
+      errorCode?: string
+      search?: string
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.fiscalYear) q.set('fiscalYear', params.fiscalYear)
+      if (params?.ds1) q.set('ds1', params.ds1)
+      if (params?.ds2) q.set('ds2', params.ds2)
+      if (params?.department) q.set('department', params.department)
+      if (params?.fund) q.set('fund', params.fund)
+      if (params?.subFund) q.set('subFund', params.subFund)
+      if (params?.status) q.set('status', params.status)
+      if (params?.errorCode) q.set('errorCode', params.errorCode)
+      if (params?.search) q.set('search', params.search)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<any>(`/api/v1/clinical/rcm/rep-funds/summary${qs}`)
+      const data = res?.data || res || {}
+      return { success: true, data }
+    },
+
+    getRepFundsCases: async (params?: {
+      rep?: string
+      fund?: string
+      subFund?: string
+      department?: string
+      fiscalYear?: string
+      ds1?: string
+      ds2?: string
+      hn?: string
+      status?: string
+      errorCode?: string
+      search?: string
+      limit?: number
+      offset?: number
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.rep) q.set('rep', params.rep)
+      if (params?.fund) q.set('fund', params.fund)
+      if (params?.subFund) q.set('subFund', params.subFund)
+      if (params?.department) q.set('department', params.department)
+      if (params?.fiscalYear) q.set('fiscalYear', params.fiscalYear)
+      if (params?.ds1) q.set('ds1', params.ds1)
+      if (params?.ds2) q.set('ds2', params.ds2)
+      if (params?.hn) q.set('hn', params.hn)
+      if (params?.status) q.set('status', params.status)
+      if (params?.errorCode) q.set('errorCode', params.errorCode)
+      if (params?.search) q.set('search', params.search)
+      if (params?.limit !== undefined) q.set('limit', String(params.limit))
+      if (params?.offset !== undefined) q.set('offset', String(params.offset))
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<any>(`/api/v1/clinical/rcm/rep-funds/cases${qs}`)
+      const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
+      return { success: true, data }
+    },
+
+    lookupPatientClaims: async (params: {
+      hn?: string
+      ptName?: string
+      serviceDate?: string
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.hn) q.set('hn', params.hn)
+      if (params?.ptName) q.set('ptName', params.ptName)
+      if (params?.serviceDate) q.set('serviceDate', params.serviceDate)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<any>(`/api/v1/clinical/rcm/rep-funds/lookup${qs}`)
+      const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
+      return { success: true, data }
     }
   }
+
 
 
   // ================================================================
@@ -800,6 +981,63 @@ export class ApiGatewayClient {
 
     deletePalliativeRegistry: (id: string | number) => {
       return this.delete<{ message: string }>(`/api/v1/app/palliative-care/registries/${id}`)
+    },
+
+    // ── LTC (Long-Term Care) Registry ──
+    getLtcHns: () => {
+      return this.get<{ success: boolean; count: number; data: string[] }>('/api/v1/app/ltc/hns')
+    },
+
+    getLtcRegistries: (params?: {
+      search?: string
+      areaZone?: string
+      page?: number
+      limit?: number
+      exportAll?: boolean
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.areaZone) q.set('areaZone', params.areaZone)
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.limit) q.set('limit', String(params.limit))
+      if (params?.exportAll) q.set('exportAll', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        success: boolean
+        items: Array<any>
+        total: number
+        page: number
+        limit: number
+        totalPages: number
+        availableAreaZones: string[]
+        stats: {
+          total: number
+          avgAdl: number
+          zoneCounts: Record<string, number>
+        }
+      }>(`/api/v1/app/ltc/registries${qs}`)
+    },
+
+    getLtcRegistryById: (id: string | number) => {
+      return this.get<{ success: boolean; data: any }>(`/api/v1/app/ltc/registries/${id}`)
+    },
+
+    getLtcRegistryByHn: (hn: string) => {
+      return this.get<{ success: boolean; exists: boolean; data: any | null }>(
+        `/api/v1/app/ltc/registries/by-hn/${encodeURIComponent(hn.trim())}`
+      )
+    },
+
+    createLtcRegistry: (record: Record<string, unknown>) => {
+      return this.post<{ success: boolean; insertId: number }>('/api/v1/app/ltc/registries', record)
+    },
+
+    updateLtcRegistry: (id: string | number, updates: Record<string, unknown>) => {
+      return this.put<{ success: boolean; affectedRows: number }>(`/api/v1/app/ltc/registries/${id}`, updates)
+    },
+
+    deleteLtcRegistry: (id: string | number) => {
+      return this.delete<{ success: boolean; message: string }>(`/api/v1/app/ltc/registries/${id}`)
     }
   }
 

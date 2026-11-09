@@ -270,4 +270,33 @@ describe('RcmAmedHomewardService', () => {
     expect(res.items[0].income).toBe(8000)
     expect(res.items[1].income).toBe(12500)
   })
+
+  it('filters correctly by pttypes and recalculates summary', async () => {
+    const res = await RcmAmedHomewardService.getHomewardReport(
+      {
+        startDate: '2026-10-01',
+        endDate: '2027-09-30',
+        pttypes: '01',
+      },
+      mockExecutor
+    )
+
+    // Items with pttype_eclaim_id '01' only
+    expect(res.items.every((i) => i.pttype_eclaim_id === '01')).toBe(true)
+    expect(res.summary.totalCases).toBe(res.items.length)
+  })
+
+  it('falls back to ucOnly when pttypes is omitted', async () => {
+    const res = await RcmAmedHomewardService.getHomewardReport(
+      {
+        startDate: '2026-10-01',
+        endDate: '2027-09-30',
+        ucOnly: true,
+      },
+      mockExecutor
+    )
+
+    expect(res.items.every((i) => i.isUc)).toBe(true)
+    expect(res.summary.totalCases).toBe(res.items.length)
+  })
 })

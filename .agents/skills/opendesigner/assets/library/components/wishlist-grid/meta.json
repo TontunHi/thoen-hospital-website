@@ -1,0 +1,55 @@
+{
+  "name": "Wishlist grid",
+  "summary": "Saved items in a two-column grid that widens on larger screens: product photos, price drops marked, a sold-out item, Move to bag and remove, and a slot that hints where the next saved item goes.",
+  "use": "on a saved-items or wishlist tab of a shop",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": [
+    "retail"
+  ],
+  "tags": [
+    "wishlist",
+    "saved",
+    "favourites",
+    "price drop",
+    "grid"
+  ],
+  "states": [
+    "price drop",
+    "in bag",
+    "sold out",
+    "removed",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Move to bag is a toggle with aria-pressed and the sold-out one is disabled; each heart names the item it removes and moves focus on, changes are announced, and old prices are read as \"was\".",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1581655353564-df123a1eb820",
+      "author": "Haryo Setyadi",
+      "page": "acn5ERAeSb4"
+    },
+    {
+      "img": "photo-1605733513597-a8f8341084e6",
+      "author": "mostafa mahmoudi",
+      "page": "J4DnKxz_3sA"
+    },
+    {
+      "img": "photo-1603808033192-082d6919d3e1",
+      "author": "Mojtaba Fahiminia",
+      "page": "t4g1gctAaKk"
+    },
+    {
+      "img": "photo-1570974802254-4b0ad1a755f5",
+      "author": "Brina Blum",
+      "page": "mNXTZu7AeGA"
+    },
+    {
+      "img": "photo-1782351076283-73aa35f76058",
+      "author": "Adam Rasheed",
+      "page": "BGEqCc-bQHg"
+    }
+  ]
+}

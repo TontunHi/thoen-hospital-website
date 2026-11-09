@@ -1,0 +1,85 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-alert-banners { box-sizing: border-box; inline-size: 100%; max-inline-size: 42rem; margin: 0 auto; padding: 0; list-style: none; display: grid; gap: var(--ds-space-stack-md);
+  container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-alert-banners *, .odl-alert-banners *::before { box-sizing: border-box; }
+.odl-alert-banners svg { flex: none; fill: none; stroke: currentColor; stroke-width: var(--ds-icon-stroke-md); }
+.odl-alert-banners li { display: grid; grid-template-columns: var(--ds-size-control-sm) minmax(0, 1fr) auto; column-gap: var(--ds-space-inline-md); align-items: start;
+  padding: var(--ds-space-inset-lg) var(--ds-space-inset-xs) var(--ds-space-inset-lg) var(--ds-space-inset-lg);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); background: var(--ds-color-surface-raised); }
+.odl-alert-banners .odl-icon { box-sizing: content-box; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); padding: calc((var(--ds-size-control-sm) - var(--ds-size-icon-sm)) / 2);
+  margin-block-start: calc((1lh - var(--ds-size-control-sm)) / 2); border-radius: var(--ds-radius-full); }
+.odl-alert-banners .is-info .odl-icon { background: var(--ds-color-bg-info-subtle); color: var(--ds-color-text-info); }
+.odl-alert-banners .is-success .odl-icon { background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); }
+.odl-alert-banners .is-warning .odl-icon { background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-warning); }
+.odl-alert-banners .is-danger .odl-icon { background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); }
+.odl-alert-banners .odl-body { display: grid; justify-items: start; gap: var(--ds-space-stack-sm); min-inline-size: 0; padding-inline-end: var(--ds-space-inline-xs); }
+.odl-alert-banners p { margin: 0; display: grid; gap: var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); }
+.odl-alert-banners p strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-heading); }
+.odl-alert-banners .odl-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-inline-sm); margin-block-start: var(--ds-space-stack-xs); }
+.odl-alert-banners button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-xs);
+  min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm); border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-hover); }
+.odl-alert-banners .odl-act:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-alert-banners .odl-act-strong { border-color: transparent; background: var(--ds-color-bg-danger-bold); color: var(--ds-color-text-on-danger); }
+.odl-alert-banners .odl-act-strong:hover { background: var(--ds-color-bg-danger-bold-hover); }
+.odl-alert-banners .odl-close { min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); margin-block: calc((1lh - max(var(--ds-size-control-sm), var(--ds-size-target-min))) / 2) 0;
+  padding: 0; border-color: transparent; background: transparent; color: var(--ds-color-icon-subtle); }
+.odl-alert-banners .odl-close:hover { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-alert-banners button svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-alert-banners button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-alert-banners li[hidden] { display: none; }
+@container (min-width: 30rem) {
+  .odl-alert-banners li { padding-inline-start: var(--ds-space-inset-xl); }
+}
+@container (max-width: 30rem) {
+  .odl-alert-banners .odl-acts button { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-alert-banners, .odl-alert-banners *, .odl-alert-banners *::before { transition: none !important; animation: none !important; } }
+</style>
+<ul class="odl-alert-banners" aria-label="Notices">
+  <li class="is-info" role="status">
+    <svg class="odl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    <div class="odl-body">
+      <p><strong>Bank feed paused tonight.</strong> Transactions from Oct 23, 1:00–3:00 AM will sync when the bank finishes maintenance.</p>
+      <span class="odl-acts"><button type="button" class="odl-act">See schedule</button></span>
+    </div>
+    <button type="button" class="odl-close" aria-label="Dismiss notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </li>
+  <li class="is-success" role="status">
+    <svg class="odl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+    <div class="odl-body">
+      <p><strong>September books closed.</strong> 318 bills paid and 1,204 receipts matched. Bettina Marangoni signed off on Oct 2.</p>
+    </div>
+    <button type="button" class="odl-close" aria-label="Dismiss notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </li>
+  <li class="is-warning" role="status">
+    <svg class="odl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <div class="odl-body">
+      <p><strong>14 receipts are missing a GL account.</strong> They will not export to the ledger until each one has a category.</p>
+      <span class="odl-acts"><button type="button" class="odl-act">Review receipts</button></span>
+    </div>
+    <button type="button" class="odl-close" aria-label="Dismiss notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </li>
+  <li class="is-danger" role="alert">
+    <svg class="odl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+    <div class="odl-body">
+      <p><strong>ACH payment to Penderel Fleet Maintenance failed.</strong> The bank returned R03: no account found. $1,947.52 is back in Operating ··4410.</p>
+      <span class="odl-acts"><button type="button" class="odl-act odl-act-strong">Update bank details</button><button type="button" class="odl-act">Pay by check</button></span>
+    </div>
+    <button type="button" class="odl-close" aria-label="Dismiss notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </li>
+</ul>
+<script>
+document.querySelectorAll(".odl-alert-banners").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  root.querySelectorAll(".odl-close").forEach((b) => b.addEventListener("click", () => {
+    const li = b.closest("li"), next = li.nextElementSibling || li.previousElementSibling;
+    li.hidden = true;
+    const f = next && !next.hidden ? next.querySelector(".odl-close") : null;
+    if (f) f.focus();
+  }));
+});
+</script>

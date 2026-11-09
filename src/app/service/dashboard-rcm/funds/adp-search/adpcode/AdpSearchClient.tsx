@@ -40,6 +40,8 @@ import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import AdpMultiSelect from './AdpMultiSelect'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -140,6 +142,7 @@ export default function AdpSearchClient({
   const [cardFilter, setCardFilter] = useState<AdpSearchCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<string>(
@@ -228,6 +231,10 @@ export default function AdpSearchClient({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          queryParams.set('pttypes', pttypes.join(','))
+        }
+
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -267,6 +274,7 @@ export default function AdpSearchClient({
       ds1,
       ds2,
       cardFilter,
+      pttypes,
       debouncedSearch,
       sortBy,
       sortOrder,
@@ -411,8 +419,8 @@ export default function AdpSearchClient({
     setCurrentPage(1)
   }
 
-  // Handle Export to CSV
-  const handleExportCsv = async () => {
+  // Handle Export to Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
@@ -426,6 +434,10 @@ export default function AdpSearchClient({
         sortOrder,
         exportAll: 'true',
       })
+
+      if (pttypes.length > 0) {
+        queryParams.set('pttypes', pttypes.join(','))
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/adp-search?${queryParams.toString()}`
@@ -457,7 +469,7 @@ export default function AdpSearchClient({
         'ชดเชย (บาท)',
         'ยอดค้างชำระ (บาท)',
         'สถานะการชดเชย',
-        'Authen Code',
+        'ClaimCode',
         'เลข Rep',
         'กองทุน (Fund)',
       ]
@@ -469,15 +481,15 @@ export default function AdpSearchClient({
         it.vstdate,
         it.hn,
         it.patientType === 'IPD' ? it.an || '' : it.vn,
-        `="${it.cid}"`,
-        `"${it.ptname.replace(/"/g, '""')}"`,
+        it.cid,
+        it.ptname,
         it.sex,
         it.age,
-        `"${(it.pttypename || '').replace(/"/g, '""')}"`,
-        `"${(it.name || '').replace(/"/g, '""')}"`,
+        it.pttypename || '',
+        it.name || '',
         it.icode,
-        `"${(it.diag || it.pdx || '').replace(/"/g, '""')}"`,
-        `"${(it.operation || it.proc || '').replace(/"/g, '""')}"`,
+        it.diag || it.pdx || '',
+        it.operation || it.proc || '',
         it.income,
         it.compensated,
         it.nee,
@@ -487,26 +499,16 @@ export default function AdpSearchClient({
         it.fund || '',
       ])
 
-      const csvContent =
-        '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
       const sanitizedAdp = appliedAdpCode.replace(/[^A-Za-z0-9]/g, '_')
-      link.setAttribute(
-        'href',
-        url
-      )
-      link.setAttribute(
-        'download',
-        `adp-search-${patientType.toLowerCase()}-${sanitizedAdp}-${ds1}-to-${ds2}.csv`
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `adp-search-${patientType.toLowerCase()}-${sanitizedAdp}-${ds1}-to-${ds2}.xlsx`,
+        title: `ค้นหาจากรหัส ADPCODE (${patientType}) - ${appliedAdpCode}`,
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportItems.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ CSV')
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -569,12 +571,12 @@ export default function AdpSearchClient({
             <button
               type="button"
               className="adp-btn adp-btn-secondary"
-              onClick={handleExportCsv}
+              onClick={handleExportExcel}
               disabled={loading || isExporting || totalCount === 0}
-              title="ส่งออกรายงานเป็นไฟล์ CSV"
+              title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
             >
               <Download size={16} />
-              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
             </button>
           </div>
         </div>
@@ -804,7 +806,7 @@ export default function AdpSearchClient({
               </div>
             </div>
 
-            {/* 4. มี Authen Code */}
+            {/* 4. มี ClaimCode */}
             <div
               className={`adp-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
               onClick={() => {
@@ -813,7 +815,7 @@ export default function AdpSearchClient({
               }}
             >
               <div className="adp-kpi-header">
-                <span className="adp-kpi-title">มี Authen Code</span>
+                <span className="adp-kpi-title">มี ClaimCode</span>
                 <div className="adp-kpi-icon">
                   <ShieldCheck size={16} />
                 </div>
@@ -824,7 +826,7 @@ export default function AdpSearchClient({
               </div>
             </div>
 
-            {/* 5. ไม่มี Authen Code */}
+            {/* 5. ไม่มี ClaimCode */}
             <div
               className={`adp-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
               onClick={() => {
@@ -833,7 +835,7 @@ export default function AdpSearchClient({
               }}
             >
               <div className="adp-kpi-header">
-                <span className="adp-kpi-title">ไม่มี Authen Code</span>
+                <span className="adp-kpi-title">ไม่มี ClaimCode</span>
                 <div className="adp-kpi-icon">
                   <AlertTriangle size={16} />
                 </div>
@@ -1044,6 +1046,18 @@ export default function AdpSearchClient({
               <X size={14} />
             </button>
           )}
+        </div>
+
+        <div style={{ minWidth: '220px' }}>
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
         </div>
 
         <div className="adp-toolbar-info">
@@ -1516,14 +1530,14 @@ export default function AdpSearchClient({
 
                       {selectedItem.authencode && (
                         <div className="adp-field-row">
-                          <span className="adp-field-label">Authen Code</span>
+                          <span className="adp-field-label">ClaimCode:</span>
                           <div className="adp-field-value">
                             <span>{selectedItem.authencode}</span>
                             <button
                               type="button"
                               className="adp-copy-btn"
                               onClick={() => handleCopyText(selectedItem.authencode!, 'authen')}
-                              title="คัดลอก Authen Code"
+                              title="คัดลอก ClaimCode"
                             >
                               {copiedField === 'authen' ? <Check size={14} /> : <Copy size={14} />}
                             </button>

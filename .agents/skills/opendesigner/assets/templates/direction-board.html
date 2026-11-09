@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Direction board</title>
+<!--
+OpenDesigner visual template: Direction board. Three directions after the research: the positioning, what the category
+does, then each direction drawn as a small page in its own ground, type pairing, photo grade, accent use and layout rhythm,
+with its licensed stock photos and the references it learns from (references/research.md section 9).
+research.py directions board fills it from research/directions.json; the photos load from research/photos/ beside it.
+Feed it JSON in one of three ways: replace the contents of <script id="od-data">, set window.OD_DATA before the
+last script runs, or open the file with #data=<url-encoded JSON>. The sample payload below documents every field.
+"Copy my choice" produces OD: lines: OD:direction "<id>" [--why "..."] and OD:remix <axis>="<id>". The agent runs
+research.py directions pick <id> [--remix <axis>=<id>] --why "...".
+Each photo shows its author, licence and grade (the full credit line on hover); a photo made with AI is named in the notes, never in a caption.
+No network requests, no dependencies. Fonts show in a local stand-in when they are not installed.
+-->
+<style>:root{--c-bg:#f6f6f7;--c-surface:#fff;--c-fg:#18181b;--c-muted:#585862;--c-border:#dcdce1;--c-strong:#18181b;--c-on-strong:#fff;--r:8px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--font)}
+h1{font-size:16px;margin:0;font-weight:600}h2{font-size:13px;margin:0 0 8px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em}
+a{color:inherit}
+.od-h{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
+.sub{color:var(--c-muted);font-size:13px;margin:4px 0 0;max-width:72ch}
+main{max-width:1280px;margin:0 auto;padding:20px;display:grid;gap:24px}
+.kv{font:12px/1.4 var(--mono);color:var(--c-muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.lbl{min-width:110px;color:var(--c-muted);font-size:13px}
+button{font:inherit;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);cursor:pointer}
+button.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong);font-weight:600}
+button[aria-pressed=true]{background:var(--c-strong);color:var(--c-on-strong)}
+:focus-visible{outline:2px solid var(--c-strong);outline-offset:2px}
+input[type=text]{font:inherit;min-height:44px;padding:0 10px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-fg)}
+input[type=radio]{accent-color:var(--c-strong);width:18px;height:18px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--c-border);border-radius:var(--r);overflow:hidden;background:var(--c-surface)}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--c-border)}.seg button:last-child{border-right:0}
+.od-f{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--c-surface);border-top:1px solid var(--c-border)}
+.od-f label{display:inline-flex;gap:6px;align-items:center;min-height:44px}
+.od-out{flex:1 1 320px;min-height:44px;font:12px/1.4 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg);resize:vertical}
+.rec{display:inline-block;margin-left:6px;font:600 11px var(--font);padding:1px 6px;border:1px solid var(--c-border);border-radius:6px;color:var(--c-muted);vertical-align:2px}
+.box{border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);padding:14px 16px}
+.pos{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0;padding:14px 16px;list-style:none}
+.pos li{display:grid;gap:2px}.pos b{font-size:12px;color:var(--c-muted);font-weight:600}
+.cat{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.cat ul{margin:0;padding-left:18px}
+.sw{display:flex;flex-wrap:wrap;gap:8px}.sw span{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.sw i{width:18px;height:18px;border-radius:4px;border:1px solid rgba(128,128,128,.4);display:inline-block}
+.notes{margin:0;padding:10px 14px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);font-size:13px}
+.dirs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.dc{border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:12px;min-width:0}
+.dc>*{min-width:0}
+.dc:has(input:checked){border-color:var(--c-strong);box-shadow:inset 0 0 0 1px var(--c-strong)}
+.dc h3{margin:0;font-size:15px}.dc p{margin:0}
+.ax{border-collapse:collapse;width:100%;font-size:13px}.ax th,.ax td{border-bottom:1px solid var(--c-border);padding:6px 4px;text-align:left;vertical-align:top;overflow-wrap:anywhere}.ax th{color:var(--c-muted);font-weight:600;width:42%}
+.refs{margin:0;padding-left:18px;font-size:13px;overflow-wrap:anywhere}.refs li{margin:4px 0}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.acts label{display:inline-flex;gap:6px;align-items:center;min-height:44px;font-weight:600}
+.ph{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ph figure{margin:0;display:grid;gap:4px}.ph figcaption{font-size:11px;color:var(--c-muted);line-height:1.3;overflow-wrap:anywhere}
+.img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;background:#ccc}
+/* the specimen: a small page in the direction's own colours and type */
+.pg{--g:#fff;--ink:#111;--acc:#2456e8;--on:#fff;--mut:rgba(17,17,17,.62);--line:rgba(17,17,17,.14);--disp:system-ui;--text:system-ui;--rad:6px;
+ background:var(--g);color:var(--ink);font-family:var(--text);border-radius:6px;overflow:hidden;border:1px solid rgba(128,128,128,.35);font-size:11px;line-height:1.45}
+.pg .nav{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);min-width:0}.pg .nav span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg .mark{width:22px;height:22px;border:1px dashed var(--mut);border-radius:4px;font:8px var(--mono);display:flex;align-items:center;justify-content:center;color:var(--mut)}
+.pg .nav b{font-family:var(--disp);font-size:12px}.pg .nav span{margin-left:auto;color:var(--mut)}
+.pg .hd{overflow-wrap:break-word;font-family:var(--disp);font-weight:650;line-height:1.08;margin:0;font-size:17px;letter-spacing:0}
+.pg .hd em{font-style:normal;color:var(--acc)}
+.pg p{margin:0;color:var(--mut)}
+.pg .cta{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:var(--rad);background:var(--acc);color:var(--on);font-weight:600;font-size:11px;font-family:var(--text);white-space:nowrap}
+.pg .sec{padding:14px 12px;display:grid;gap:8px}
+.pg .im{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#999}
+.pg .cells{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--line)}
+.pg .cells>div{padding:10px 12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;gap:4px}
+.pg .cells>div:nth-child(2n){border-right:0}
+.pg .split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.pg .split .im{aspect-ratio:auto;height:100%;min-height:120px}
+.pg .stack{text-align:center;justify-items:center}
+.pg .ed{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}.pg .ed .hd{font-size:20px}
+.pg .band{background:var(--acc);color:var(--on)}.pg .band p{color:inherit;opacity:.86}
+.pg .field{background:var(--acc);color:var(--on)}.pg .field p{color:inherit;opacity:.86}.pg .field .cta{background:var(--on);color:var(--acc)}
+.pg .bleed{position:relative}.pg .bleed .im{aspect-ratio:16/8}
+@media (max-width:960px){.dirs{grid-template-columns:1fr}.cat{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="od-h"><div><h1 id="t"></h1><p class="sub" id="st"></p></div><div class="seg" id="theme" role="group" aria-label="Color mode"></div></header>
+<main>
+<section aria-labelledby="h-pos" id="s-pos"><h2 id="h-pos">Positioning, confirmed</h2><ul class="pos box" id="pos"></ul></section>
+<section aria-labelledby="h-cat" id="s-cat"><h2 id="h-cat">What the category does</h2><div class="cat box"><ul id="catl"></ul><div><div class="kv" style="margin-bottom:6px">Competitors' accents</div><div class="sw" id="sw"></div></div></div></section>
+<p class="notes" id="notes" hidden></p>
+<section aria-labelledby="h-d"><h2 id="h-d">Three directions</h2><div class="dirs" id="dirs" role="radiogroup" aria-labelledby="h-d"></div></section>
+<section aria-labelledby="h-rx"><h2 id="h-rx">Mix (optional): take one part from another direction</h2><div id="rx" style="display:grid;gap:8px"></div></section>
+</main>
+<footer class="od-f">
+<label>Note <input type="text" id="note" placeholder="optional reason" size="24"></label>
+<textarea id="out" class="od-out" rows="2" readonly aria-label="Your choice as OD lines"></textarea>
+<button type="button" class="primary" id="copy">Copy my choice</button>
+<span id="live" class="kv" role="status" aria-live="polite"></span>
+</footer>
+<script type="application/json" id="od-data">
+{
+ "title": "Acme: three directions",
+ "product": "Acme",
+ "subtitle": "Sample data for an invented product. Each direction changes the ground, the type, the photo grade, how the accent is used and the layout rhythm.",
+ "positioning": [
+  "Who it's for: operations leads at mid-size freight firms",
+  "The problem: quotes take a day because the numbers live in email",
+  "The one claim: a priced quote in ten minutes, from the email it came in",
+  "The proof: (needs you: a number, a customer, a demo)"
+ ],
+ "category": {
+  "lines": ["Grounds: dark 5, light 3 (of 8)", "Accents: blue 4, green 2, violet 1", "Calls to action: rounded 5, pill 2, square 1", "Type: grotesk 7, serif 1", "Nobody uses: orange, yellow, pink accents; a tinted ground"],
+  "swatches": [{"name": "Competitor one", "hex": "#2F6BFF"}, {"name": "Competitor two", "hex": "#1FA36B"}, {"name": "Competitor three", "hex": "#7E57FF"}]
+ },
+ "axes": [{"key": "ground", "label": "Ground"}, {"key": "type", "label": "Type pairing"}, {"key": "photo_grade", "label": "Photo grade"}, {"key": "accent_use", "label": "Accent use"}, {"key": "rhythm", "label": "Layout rhythm"}],
+ "fixed": [],
+ "recommended": "A",
+ "why": "Buyers compare vendors at a desk in daylight; a light, ruled page reads like a dependable tool.",
+ "notes": [],
+ "directions": [
+  {"id": "A", "name": "Daylight ledger", "idea": "A light, ruled page that reads like a well-kept record.",
+   "ground": "light", "type": {"display": "Inter Tight", "text": "Inter", "class": "grotesk"}, "photo_grade": "natural", "accent_use": "actions-only", "rhythm": "grid",
+   "colors": {"ground": "#FFFFFF", "ink": "#111111", "accent": "#C2410C"}, "cta": {"shape": "subtle", "label": "Book a demo"},
+   "references": [{"name": "A shipped analytics site", "url": "https://example.com/analytics", "takes": "closed ruled cells for every block", "signature": "dashed edge rails"},
+                  {"name": "A shipped payroll site", "url": "https://example.com/payroll", "takes": "one accent, only on actions", "signature": "a hand-drawn mascot"}],
+   "devices": ["closed grid", "hairline rules"], "risks": "Can read plain without strong photos.",
+   "photos": [{"src": "", "title": "Warehouse aisle, daylight", "author": "Sample", "licence": "Unsplash License", "page": "", "credit": "", "grade": "natural", "ai": false},
+              {"src": "", "title": "Office at a window", "author": "Sample", "licence": "CC0", "page": "", "credit": "", "grade": "natural", "ai": false}]},
+  {"id": "B", "name": "Night shift", "idea": "A dark page with one bright band, for a team that works late.",
+   "ground": "dark", "type": {"display": "Space Grotesk", "text": "IBM Plex Sans", "class": "grotesk"}, "photo_grade": "cool", "accent_use": "one-band", "rhythm": "split",
+   "colors": {"ground": "#0E1116", "ink": "#F2F4F7", "accent": "#E9B949"}, "cta": {"shape": "square", "label": "Book a demo"},
+   "references": [{"name": "A shipped security site", "url": "https://example.com/security", "takes": "words left, proof picture right", "signature": "a glowing globe"},
+                  {"name": "A shipped data site", "url": "https://example.com/data", "takes": "one colour band per page", "signature": "isometric line art"}],
+   "devices": ["split hero", "one colour band"], "risks": "Dark pages need sharp photos and careful contrast.",
+   "photos": [{"src": "", "title": "Port cranes, blue hour", "author": "Sample", "licence": "CC BY 4.0", "page": "", "credit": "Photo by Sample, CC BY 4.0", "grade": "cool", "ai": false},
+              {"src": "", "title": "Control room screens", "author": "Sample", "licence": "Pexels License", "page": "", "credit": "", "grade": "cool", "ai": false}]},
+  {"id": "C", "name": "Field notes", "idea": "A warm, editorial page with large serif headings and a tinted ground.",
+   "ground": "tinted", "type": {"display": "Fraunces", "text": "Source Sans 3", "class": "serif"}, "photo_grade": "warm", "accent_use": "highlight", "rhythm": "editorial",
+   "colors": {"ground": "#E8DCC2", "ink": "#1C1A17", "accent": "#1D5C4A"}, "cta": {"shape": "rounded", "label": "Book a demo"},
+   "references": [{"name": "A shipped journal site", "url": "https://example.com/journal", "takes": "a wide heading over a narrow text column", "signature": "drop caps"},
+                  {"name": "A shipped legal-tech site", "url": "https://example.com/legal", "takes": "key words in the accent", "signature": "a seal-like badge"}],
+   "devices": ["narrow text column", "accent on key words"], "risks": "A serif can read slow for a tool; keep the text face plain.",
+   "photos": [{"src": "", "title": "Hands on a printed manifest", "author": "Sample", "licence": "Unsplash License", "page": "", "credit": "", "grade": "warm", "ai": false},
+              {"src": "", "title": "Dock at golden hour", "author": "Sample", "licence": "CC0", "page": "", "credit": "", "grade": "warm", "ai": false}]}
+ ]
+}
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadData(){let d={};try{d=JSON.parse($('#od-data').textContent)}catch(e){}
+ if(window.OD_DATA)d=window.OD_DATA;const m=location.hash.match(/[#&]data=([^&]+)/);
+ if(m){try{d=JSON.parse(decodeURIComponent(m[1]))}catch(e){console.warn('OpenDesigner: #data is not valid JSON')}}return d}
+const D=loadData();const dirs=D.directions||[];const axes=D.axes||[];const rate={},rx={};let sel=null;
+const STACK={grotesk:'"Helvetica Neue",Arial,system-ui,sans-serif',geometric:'"Avenir Next",Futura,"Century Gothic",system-ui,sans-serif',humanist:'"Gill Sans","Segoe UI",Calibri,system-ui,sans-serif',serif:'Georgia,"Times New Roman",serif',slab:'Rockwell,"Roboto Slab",Georgia,serif',mono:'ui-monospace,Menlo,Consolas,monospace',display:'"Helvetica Neue",Arial,system-ui,sans-serif'};
+const RAD={square:'0px',subtle:'4px',rounded:'8px',pill:'999px'};
+const GRADE={natural:'linear-gradient(180deg,#a9c7e3 0%,#d7e4ee 48%,#8c8f86 49%,#5f6a5c 100%)',warm:'linear-gradient(180deg,#f0b877 0%,#f6dcb2 45%,#8a6a4d 46%,#4d3a2b 100%)',cool:'linear-gradient(180deg,#203a5c 0%,#4f6f95 46%,#1d2733 47%,#0d131b 100%)','high-key':'linear-gradient(180deg,#f4f6f8 0%,#ffffff 50%,#dfe3e6 51%,#c9cfd3 100%)',mono:'linear-gradient(180deg,#bdbdbd 0%,#e0e0e0 46%,#5a5a5a 47%,#262626 100%)','low-key':'linear-gradient(180deg,#0c0f14 0%,#1b222c 50%,#07090c 51%,#000 100%)'};
+function hexv(h){h=String(h||'').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');return /^[0-9a-f]{6}$/i.test(h)?h:null}
+function lum(h){h=hexv(h)||'000000';const c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function onColor(bg){return ratio('#ffffff',bg)>=ratio('#111111',bg)?'#ffffff':'#111111'}
+function alpha(h,a){h=hexv(h)||'000000';return 'rgba('+[0,2,4].map(i=>parseInt(h.substr(i,2),16)).join(',')+','+a+')'}
+function short(s,n){s=String(s||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n-1).trimEnd()+'…':s}
+function web(u){return /^https?:\/\//i.test(String(u||''))}
+function fname(s){return String(s||'').replace(/["';{}<>\\]/g,'')}
+function fmtv(v){return JSON.stringify(String(v))}
+function photo(p,cls,i){if(p&&p.src)return '<img class="'+cls+'" src="'+esc(p.src)+'" alt="'+esc(p.alt||'')+'" loading="lazy">';
+ return '<span class="'+cls+'" role="img" aria-label="'+esc((p&&p.title)||'photo')+'" style="background:'+(GRADE[(p&&p.grade)]||GRADE.natural)+'"></span>'}
+function spec(d){const c=d.colors||{},t=d.type||{},st=STACK[t.class]||STACK.grotesk,u=d.accent_use;const acc=u==='none'?c.ink:c.accent;
+ const style='--g:'+c.ground+';--ink:'+c.ink+';--acc:'+acc+';--on:'+onColor(acc)+';--mut:'+alpha(c.ink,.66)+';--line:'+alpha(c.ink,.16)+';--disp:"'+fname(t.display)+'",'+st+';--text:"'+fname(t.text)+'",'+STACK.grotesk+';--rad:'+(RAD[(d.cta||{}).shape]||'6px');
+ const ph=d.photos||[],p0=ph[0],p1=ph[1]||ph[0];const cta='<span class="cta">'+esc((d.cta||{}).label||'Book a demo')+'</span>';
+ const claim=D.positioning&&D.positioning[2]?String(D.positioning[2]).replace(/^[^:]*:\s*/,''):'A clear claim in one line';const words=esc(claim.charAt(0).toUpperCase()+claim.slice(1));
+ const head=u==='highlight'?words.replace(/(\S+\s+\S+)$/,'<em>$1</em>'):words;
+ const nav='<div class="nav"><span class="mark" title="Your logo goes here (designer hook)">logo</span><b>'+esc(D.product||'Acme')+'</b><span>Product · Pricing</span></div>';
+ const body='<p>'+esc(d.idea||'')+'</p>';const fld=u==='field'?' field':'';let main='';
+ if(d.rhythm==='grid')main='<div class="sec'+fld+'"><div class="hd">'+head+'</div>'+body+'<div>'+cta+'</div></div><div class="cells"><div>'+photo(p0,'im')+'</div><div><b>Step one</b><p>Short line.</p></div><div><b>Step two</b><p>Short line.</p></div><div>'+photo(p1,'im')+'</div></div>';
+ else if(d.rhythm==='split')main='<div class="split'+fld+'"><div class="sec"><div class="hd">'+head+'</div>'+body+'<div>'+cta+'</div></div>'+photo(p0,'im')+'</div>';
+ else if(d.rhythm==='editorial')main='<div class="sec'+fld+'"><div class="ed"><div class="hd">'+head+'</div><div>'+body+'</div></div><div>'+cta+'</div></div>'+photo(p0,'im')+'<div class="sec"><p>'+esc(p1&&p1.title||'')+'</p></div>';
+ else if(d.rhythm==='stack')main='<div class="sec stack'+fld+'"><div class="hd">'+head+'</div>'+body+'<div>'+cta+'</div></div>'+photo(p0,'im');
+ else main='<div class="bleed">'+photo(p0,'im')+'</div><div class="sec'+fld+'"><div class="hd">'+head+'</div>'+body+'<div>'+cta+'</div></div>';
+ if(u==='one-band')main+='<div class="sec band"><b>One band in the accent</b><p>For the section that matters most.</p></div>';
+ return '<div class="pg" style="'+esc(style)+'">'+nav+main+'</div>'}
+function val(d,k){if(k==='type'){const t=d.type||{};return [t.display,t.text].filter(Boolean).join(' / ')+(t.class?' ('+t.class+')':'')}return d[k]||''}
+function card(d,i){const fx=D.fixed||[];
+ return '<article class="dc">'+spec(d)
+ +'<h3>'+esc(d.id)+'. '+esc(d.name)+(d.id==D.recommended?' <span class="rec">Recommended</span>':'')+'</h3><p class="sub">'+esc(d.idea||'')+'</p>'
+ +'<table class="ax"><tbody>'+axes.map(a=>'<tr><th scope="row">'+esc(a.label)+(fx.indexOf(a.key)>=0?' (settled)':'')+'</th><td>'+esc(val(d,a.key))+'</td></tr>').join('')
+ +'<tr><th scope="row">Colours</th><td>'+['ground','ink','accent'].map(k=>'<span class="kv">'+esc(k)+' '+esc((d.colors||{})[k]||'')+'</span>').join(' · ')+'</td></tr></tbody></table>'
+ +'<div class="ph">'+(d.photos||[]).map(p=>'<figure'+(p.credit?' title="'+esc(p.credit)+'"':'')+'>'+photo(p,'img')+'<figcaption>'+esc(short(p.author||p.title,36))+' · '+(web(p.page)?'<a href="'+esc(p.page)+'">'+esc(short(p.licence,24))+'</a>':esc(short(p.licence,24)))+(p.grade?' · '+esc(p.grade):'')+'</figcaption></figure>').join('')+'</div>'
+ +'<div><div class="kv">Learns from (structure only)</div><ul class="refs">'+(d.references||[]).map(r=>'<li>'+(web(r.url)?'<a href="'+esc(r.url)+'">'+esc(r.name)+'</a>':esc(r.name))+': '+esc(r.takes)+(r.signature?'. <span class="kv">Stays theirs: '+esc(r.signature)+'</span>':'')+'</li>').join('')+'</ul></div>'
+ +(d.risks?'<p class="sub">Risk: '+esc(d.risks)+'</p>':'')
+ +'<div class="acts"><label><input type="radio" name="dir" value="'+i+'"> Pick '+esc(d.id)+'</label><button type="button" data-r="like" data-i="'+i+'" aria-pressed="false">Like</button><button type="button" data-r="dislike" data-i="'+i+'" aria-pressed="false">Dislike</button></div></article>'}
+function lines(){const L=[];const why=[$('#note').value.trim()];const lk=[],dk=[];for(const i in rate){if(rate[i]==='like')lk.push(dirs[i].id);if(rate[i]==='dislike')dk.push(dirs[i].id)}
+ if(lk.length)why.push('liked: '+lk.join(', '));if(dk.length)why.push('disliked: '+dk.join(', '));const w=why.filter(Boolean).join('; ');
+ if(sel)L.push('OD:direction '+fmtv(sel.id)+(w?' --why '+JSON.stringify(w):''));
+ for(const k in rx)if(rx[k])L.push('OD:remix '+k+'='+fmtv(rx[k]));return L}
+function update(){$('#out').value=lines().join('\n')||'(nothing chosen yet)'}
+async function copy(){const t=$('#out').value;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){$('#out').select();try{ok=document.execCommand('copy')}catch(_){}}
+ $('#live').textContent=ok?'Copied. Paste it into the chat.':'Select the text and copy it by hand.'}
+function seg(el,values,cur,onPick,fmt=String){el.innerHTML=values.map(v=>'<button type="button" aria-pressed="'+(v==cur)+'" data-v="'+esc(v)+'">'+esc(fmt(v))+'</button>').join('');
+ el.onclick=e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));onPick(b.dataset.v)}}
+$('#t').textContent=D.title||document.title;$('#st').textContent=(D.subtitle||'')+(D.why?' Recommended: '+D.recommended+', because '+D.why.replace(/^[A-Z]/,c=>c.toLowerCase()):'');
+const pos=D.positioning||[];$('#pos').innerHTML=pos.map(l=>{const i=String(l).indexOf(':');return '<li><b>'+esc(i>0?l.slice(0,i):'')+'</b><span>'+esc(i>0?l.slice(i+1).trim():l)+'</span></li>'}).join('');if(!pos.length)$('#s-pos').hidden=true;
+const cat=D.category||{};$('#catl').innerHTML=(cat.lines||[]).map(l=>'<li>'+esc(l)+'</li>').join('');$('#sw').innerHTML=(cat.swatches||[]).map(s=>'<span><i style="background:'+esc(s.hex)+'"></i>'+esc(s.name)+' <span class="kv">'+esc(s.hex)+'</span></span>').join('');
+if(!(cat.lines||[]).length)$('#s-cat').hidden=true;
+if((D.notes||[]).length){$('#notes').hidden=false;$('#notes').textContent=D.notes.join(' ')}
+$('#dirs').innerHTML=dirs.map(card).join('');
+$('#dirs').onchange=e=>{if(e.target.name==='dir'){sel=dirs[+e.target.value];update()}};
+$('#dirs').onclick=e=>{const b=e.target.closest('button[data-r]');if(!b)return;const i=b.dataset.i,v=rate[i]===b.dataset.r?null:b.dataset.r;rate[i]=v;b.parentNode.querySelectorAll('button[data-r]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.r===v));update()};
+const free=axes.filter(a=>(D.fixed||[]).indexOf(a.key)<0);
+$('#rx').innerHTML=free.map(a=>'<div class="row"><span class="lbl" id="rx-'+esc(a.key)+'">'+esc(a.label)+'</span><div class="seg" role="group" aria-labelledby="rx-'+esc(a.key)+'" data-k="'+esc(a.key)+'"></div></div>').join('');
+$('#rx').querySelectorAll('.seg').forEach(el=>seg(el,['same'].concat(dirs.map(d=>d.id)),'same',v=>{rx[el.dataset.k]=v==='same'?null:v;update()},v=>v==='same'?'Same as pick':v));
+seg($('#theme'),['auto','light','dark'],'auto',v=>{if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v},v=>v[0].toUpperCase()+v.slice(1));
+const ri=Math.max(0,dirs.findIndex(d=>d.id==D.recommended));const rr=$('#dirs input[value="'+ri+'"]');if(rr){rr.checked=true;sel=dirs[ri]}
+$('#copy').onclick=copy;$('#note').oninput=update;update();
+if(dirs.length!==3)console.warn('OpenDesigner: a direction board shows exactly 3 directions');
+</script>
+</body>
+</html>

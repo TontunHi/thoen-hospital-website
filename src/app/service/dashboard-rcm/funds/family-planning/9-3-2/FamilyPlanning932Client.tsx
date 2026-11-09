@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -37,6 +38,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -100,6 +102,7 @@ export default function FamilyPlanning932Client({
 
   // Format state: NEW_ECLAIM (FP001, FP002) vs KRUNGTHAI (20003, 20004)
   const [format, setFormat] = useState<FamilyPlanning932Format>('NEW_ECLAIM')
+  const [pttypes, setPttypes] = useState<string[]>([])
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<FamilyPlanning932CardFilter>('ALL')
@@ -201,6 +204,10 @@ export default function FamilyPlanning932Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          queryParams.set('pttypes', pttypes.join(','))
+        }
+
         if (isRefresh) {
           queryParams.set('refresh', 'true')
         }
@@ -236,7 +243,7 @@ export default function FamilyPlanning932Client({
         }
       }
     },
-    [ds1, ds2, format, cardFilter, searchField, search, sortBy, sortOrder, page, pageSize]
+    [ds1, ds2, format, pttypes, cardFilter, searchField, search, sortBy, sortOrder, page, pageSize]
   )
 
   useEffect(() => {
@@ -321,6 +328,10 @@ export default function FamilyPlanning932Client({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        queryParams.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/family-planning/service-9-3-2?${queryParams.toString()}`
       )
@@ -343,7 +354,7 @@ export default function FamilyPlanning932Client({
         'เพศ',
         'อายุ (ปี)',
         'สิทธิการรักษา',
-        'Authen Code',
+        'ClaimCode',
         'แผนก',
         'คลินิก',
         'รายการยา',
@@ -392,22 +403,13 @@ export default function FamilyPlanning932Client({
         r.compensated || 0,
       ])
 
-      const csvContent =
-        '\uFEFF' +
-        [headers.join(','), ...csvRows.map((e) => e.join(','))].join('\r\n')
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.setAttribute('href', url)
-      link.setAttribute(
-        'download',
-        `FP-9-3-2-Contraception-Women-20Plus-${ds1}-to-${ds2}.csv`
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `FP-9-3-2-Contraception-Women-20Plus-${ds1}-to-${ds2}.xlsx`,
+        title: 'บริการคุมกำเนิดกึ่งถาวร หญิงอายุ 20 ปีขึ้นไป (9.3.2)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvRows,
+      })
     } catch (err) {
       alert('ไม่สามารถส่งออกไฟล์ได้: ' + (err as Error).message)
     }
@@ -466,6 +468,7 @@ export default function FamilyPlanning932Client({
             className="fp-btn fp-btn-primary"
             onClick={handleExport}
             disabled={loading || totalItems === 0}
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={15} />
             <span>ส่งออก Excel</span>
@@ -722,7 +725,7 @@ export default function FamilyPlanning932Client({
           tabIndex={0}
         >
           <div className="fp-kpi-top">
-            <span className="fp-kpi-title">มี Authen Code</span>
+            <span className="fp-kpi-title">มี ClaimCode</span>
             <div className="fp-kpi-icon" style={{ backgroundColor: 'var(--fp-ok-soft)', color: 'var(--fp-ok)' }}>
               <ShieldCheck size={18} />
             </div>
@@ -740,7 +743,7 @@ export default function FamilyPlanning932Client({
           tabIndex={0}
         >
           <div className="fp-kpi-top">
-            <span className="fp-kpi-title">ไม่มี Authen Code</span>
+            <span className="fp-kpi-title">ไม่มี ClaimCode</span>
             <div className="fp-kpi-icon" style={{ backgroundColor: 'var(--fp-warn-soft)', color: 'var(--fp-warn)' }}>
               <AlertTriangle size={18} />
             </div>
@@ -769,30 +772,6 @@ export default function FamilyPlanning932Client({
       {/* Controls Bar: Search & Filter Summary */}
       <div className="fp-controls-bar">
         <div className="fp-search-box">
-          <select
-            className="fp-search-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as FamilyPlanning932SearchField)
-              setPage(1)
-            }}
-          >
-            <option value="ALL">ค้นหาทุกคอลัมน์</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขบัตรประชาชน (CID)</option>
-            <option value="PTNAME">ชื่อ-สกุล</option>
-            <option value="VN">VN</option>
-            <option value="PTTYPE">สิทธิการรักษา</option>
-            <option value="DEPARTMENT">แผนก</option>
-            <option value="CLINIC">คลินิก</option>
-            <option value="DX">รหัสโรค (Dx)</option>
-            <option value="OP">หัตถการ (Op)</option>
-            <option value="DRUG">รายการยา</option>
-            <option value="SERVICE">รายการค่าบริการ</option>
-            <option value="ADP">รหัส ADP</option>
-            <option value="REP">เลขที่หนังสือ (REP)</option>
-          </select>
-
           <div className="fp-search-input-wrap">
             <Search size={15} className="fp-search-icon-left" />
             <input
@@ -820,6 +799,16 @@ export default function FamilyPlanning932Client({
           </div>
         </div>
 
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setPage(1)
+            }}
+            items={items}
+        
+          />
+
         <div className="fp-table-meta">
           {cardFilter !== 'ALL' && (
             <span className="fp-badge fp-badge-blue">
@@ -830,9 +819,10 @@ export default function FamilyPlanning932Client({
                   setCardFilter('ALL')
                   setPage(1)
                 }}
-                className="ml-1 text-xs cursor-pointer font-bold"
+                className="ml-1 cursor-pointer inline-flex items-center"
+                aria-label="ล้างตัวกรองการ์ด"
               >
-                ✕
+                <X size={12} />
               </button>
             </span>
           )}
@@ -875,13 +865,6 @@ export default function FamilyPlanning932Client({
           <div className="fp-table-wrap">
             <table className="fp-table">
               <thead>
-                <tr className="fp-table-th-group">
-                  <th colSpan={9}>ข้อมูลทั่วไปของผู้รับบริการ (หญิงอายุ 20 ปีขึ้นไป)</th>
-                  <th colSpan={6}>การให้บริการ & รหัสตรวจสอบ (Dx / Op / ADP)</th>
-                  <th colSpan={4}>สถานะ & เลขที่หนังสือ</th>
-                  <th colSpan={4}>ประมาณการชดเชยค่าบริการ (บาท)</th>
-                  <th colSpan={1}>จัดการ</th>
-                </tr>
                 <tr>
                   <th style={{ width: '45px' }}>ลำดับ</th>
                   <th className="fp-th-sortable" onClick={() => handleSort('vstdate')} style={{ width: '95px' }}>
@@ -893,7 +876,7 @@ export default function FamilyPlanning932Client({
                   <th style={{ width: '100px' }}>VN / AN</th>
                   <th className="fp-th-sortable" onClick={() => handleSort('cid')} style={{ width: '145px' }}>
                     <div className="fp-th-sortable-inner">
-                      <span>เลขบัตรประชาชน (CID)</span>
+                      <span>เลขบัตรประชาชน</span>
                       {renderSortIcon('cid')}
                     </div>
                   </th>
@@ -903,8 +886,8 @@ export default function FamilyPlanning932Client({
                       {renderSortIcon('hn')}
                     </div>
                   </th>
-                  <th className="th-left fp-th-sortable" onClick={() => handleSort('ptname')} style={{ minWidth: '160px' }}>
-                    <div className="fp-th-sortable-inner justify-start">
+                  <th className="fp-th-sortable" onClick={() => handleSort('ptname')} style={{ minWidth: '160px' }}>
+                    <div className="fp-th-sortable-inner">
                       <span>ชื่อ-สกุล</span>
                       {renderSortIcon('ptname')}
                     </div>
@@ -916,14 +899,14 @@ export default function FamilyPlanning932Client({
                     </div>
                   </th>
                   <th style={{ minWidth: '110px' }}>สิทธิ</th>
-                  <th style={{ width: '110px' }}>Authen Code</th>
+                  <th style={{ width: '110px' }}>ClaimCode</th>
                   <th style={{ minWidth: '140px' }}>รายการยาคุมกำเนิด</th>
                   <th style={{ minWidth: '140px' }}>รายการค่าบริการ</th>
                   <th style={{ width: '90px' }}>รหัส ADP</th>
                   <th style={{ width: '90px' }}>วินิจฉัย (Dx)</th>
                   <th style={{ width: '80px' }}>หัตถการ (Op)</th>
-                  <th className="th-right fp-th-sortable" onClick={() => handleSort('income')} style={{ width: '90px' }}>
-                    <div className="fp-th-sortable-inner justify-end">
+                  <th className="fp-th-sortable" onClick={() => handleSort('income')} style={{ width: '90px' }}>
+                    <div className="fp-th-sortable-inner">
                       <span>ค่ารักษา</span>
                       {renderSortIcon('income')}
                     </div>
@@ -937,36 +920,40 @@ export default function FamilyPlanning932Client({
                   <th style={{ width: '100px' }}>EClaim</th>
                   <th style={{ width: '100px' }}>Rep</th>
                   <th style={{ width: '100px' }}>Invoice</th>
-                  <th className="th-right fp-th-sortable" onClick={() => handleSort('compensated_eclaim')} style={{ width: '85px' }}>
-                    <div className="fp-th-sortable-inner justify-end">
+                  <th className="fp-th-sortable" onClick={() => handleSort('compensated_eclaim')} style={{ width: '85px' }}>
+                    <div className="fp-th-sortable-inner">
                       <span>EClaim</span>
                       {renderSortIcon('compensated_eclaim')}
                     </div>
                   </th>
-                  <th className="th-right fp-th-sortable" onClick={() => handleSort('compensated_rep')} style={{ width: '85px' }}>
-                    <div className="fp-th-sortable-inner justify-end">
+                  <th className="fp-th-sortable" onClick={() => handleSort('compensated_rep')} style={{ width: '85px' }}>
+                    <div className="fp-th-sortable-inner">
                       <span>Rep</span>
                       {renderSortIcon('compensated_rep')}
                     </div>
                   </th>
-                  <th className="th-right fp-th-sortable" onClick={() => handleSort('compensated_nhso')} style={{ width: '85px' }}>
-                    <div className="fp-th-sortable-inner justify-end">
+                  <th className="fp-th-sortable" onClick={() => handleSort('compensated_nhso')} style={{ width: '85px' }}>
+                    <div className="fp-th-sortable-inner">
                       <span>Invoice</span>
                       {renderSortIcon('compensated_nhso')}
                     </div>
                   </th>
-                  <th className="th-right fp-th-sortable" onClick={() => handleSort('compensated')} style={{ width: '95px' }}>
-                    <div className="fp-th-sortable-inner justify-end">
+                  <th className="fp-th-sortable" onClick={() => handleSort('compensated')} style={{ width: '95px' }}>
+                    <div className="fp-th-sortable-inner">
                       <span>ยอดชดเชย</span>
                       {renderSortIcon('compensated')}
                     </div>
                   </th>
-                  <th style={{ width: '70px' }}>ดูข้อมูล</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={row.vn || row.no}>
+                  <tr
+                    key={row.vn || row.no}
+                    onClick={() => openClinicalModal(row)}
+                    className="cursor-pointer hover:bg-slate-50 transition-colors"
+                    title="คลิกเพื่อดูรายละเอียดเวชระเบียน"
+                  >
                     <td className="font-mono text-slate-500">{row.no}</td>
                     <td className="whitespace-nowrap">{formatThaiDate(row.vstdate)}</td>
                     <td>
@@ -997,7 +984,7 @@ export default function FamilyPlanning932Client({
                           {row.authencode}
                         </span>
                       ) : (
-                        <span className="fp-badge fp-badge-warn text-[11px]">ไม่มี Authen</span>
+                        <span className="fp-badge fp-badge-warn text-[11px]">ไม่มี ClaimCode</span>
                       )}
                     </td>
                     <td className="text-xs td-left">
@@ -1080,16 +1067,6 @@ export default function FamilyPlanning932Client({
                     <td className="td-right font-semibold text-emerald-700">
                       {formatMoney(row.compensated)}
                     </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="fp-page-btn text-xs py-1 px-2"
-                        onClick={() => openClinicalModal(row)}
-                        title="ดูรายละเอียดเวชระเบียน"
-                      >
-                        ดูข้อมูล
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1147,7 +1124,7 @@ export default function FamilyPlanning932Client({
       {/* Clinical Details Modal */}
       {selectedItem && (
         <div className="fp-modal-overlay" onClick={closeClinicalModal}>
-          <div className="fp-modal-dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="fp-modal-dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="fp-modal-header">
               <div className="fp-modal-header-left">
                 <div className="fp-modal-icon-badge">
@@ -1206,7 +1183,7 @@ export default function FamilyPlanning932Client({
                     onClick={() => copyText(selectedItem.authencode || '', 'authen')}
                   >
                     {copiedField === 'authen' ? <Check size={12} /> : <Copy size={12} />}
-                    <span>Authen: {selectedItem.authencode}</span>
+                    <span>ClaimCode: {selectedItem.authencode}</span>
                   </button>
                 )}
               </div>
@@ -1250,7 +1227,7 @@ export default function FamilyPlanning932Client({
                     <span className="fp-modal-val">{selectedItem.clinic || '—'}</span>
                   </div>
                   <div className="fp-modal-row">
-                    <span className="fp-modal-label">Authen Claim Code:</span>
+                    <span className="fp-modal-label">ClaimCode:</span>
                     <span className="fp-modal-val font-mono">{selectedItem.authencode || '—'}</span>
                   </div>
                 </div>

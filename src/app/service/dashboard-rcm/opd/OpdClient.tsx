@@ -18,6 +18,7 @@ import dynamic from 'next/dynamic'
 import { OpdDepartmentSummaryItem } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const OpdChartCard = dynamic(() => import('./OpdChartCard'), {
@@ -211,29 +212,36 @@ export default function OpdClient({ initialData, initialRange }: OpdClientProps 
       }))
   }, [deptRows])
 
-  // Export CSV
-  const exportCSV = () => {
+  // Export to modern Excel (.xlsx)
+  const exportExcel = async () => {
     const headers = ['ลำดับ', 'แผนก', 'จำนวนคน (HN)', 'จำนวนครั้ง (VN)', 'เฉลี่ย (ครั้ง/คน)', 'สัดส่วน (% ของครั้งรวม)']
     const rows = filteredDeptRows.map((r, idx) => {
-      const avg = r.patients > 0 ? (r.visits / r.patients).toFixed(2) : '0.00'
+      const avg = r.patients > 0 ? Number((r.visits / r.patients).toFixed(2)) : 0
       const pct = stats.totalVisits > 0 ? ((r.visits / stats.totalVisits) * 100).toFixed(2) + '%' : '0.00%'
-      return [idx + 1, `"${cleanDeptName(r.dept_group)}"`, r.patients, r.visits, avg, pct]
+      return [idx + 1, cleanDeptName(r.dept_group), r.patients, r.visits, avg, pct]
     })
 
-    if (totalRow) {
-      const grandAvg = totalRow.patients > 0 ? (totalRow.visits / totalRow.patients).toFixed(2) : '0.00'
-      rows.push(['', '"รวมทั้งหมด"', totalRow.patients, totalRow.visits, grandAvg, '100.00%'])
-    }
+    const summaryRows = totalRow
+      ? [
+          [
+            '',
+            'รวมทั้งหมด',
+            totalRow.patients,
+            totalRow.visits,
+            totalRow.patients > 0 ? Number((totalRow.visits / totalRow.patients).toFixed(2)) : 0,
+            '100.00%',
+          ],
+        ]
+      : undefined
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `opd_dept_summary_${ds1}_to_${ds2}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    await exportRcmExcel({
+      filename: `opd_dept_summary_${ds1}_to_${ds2}.xlsx`,
+      title: 'รายงานสรุปการให้บริการผู้ป่วยนอกโรงพยาบาลเถิน (OPD) แยกรายแผนก',
+      subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+      headers,
+      rows,
+      summaryRows,
+    })
   }
 
   return (
@@ -266,12 +274,13 @@ export default function OpdClient({ initialData, initialRange }: OpdClientProps 
           </button>
           <button
             type="button"
-            onClick={exportCSV}
+            onClick={exportExcel}
             disabled={loading || filteredDeptRows.length === 0}
             className="rcm-btn rcm-btn-primary"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={14} />
-            <span>ส่งออก Excel (CSV)</span>
+            <span>ส่งออก Excel</span>
           </button>
         </div>
       </div>

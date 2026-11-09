@@ -163,8 +163,8 @@ describe('FamilyPlanning932Client Component', () => {
     expect(screen.getByText('ผู้รับบริการทั้งหมด')).toBeInTheDocument()
     expect(screen.getByText('ได้รับการชดเชยแล้ว')).toBeInTheDocument()
     expect(screen.getByText('ยังไม่ได้รับการชดเชย')).toBeInTheDocument()
-    expect(screen.getByText('มี Authen Code')).toBeInTheDocument()
-    expect(screen.getByText('ไม่มี Authen Code')).toBeInTheDocument()
+    expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
+    expect(screen.getAllByText('ไม่มี ClaimCode')[0]).toBeInTheDocument()
     expect(screen.getByText('พบข้อผิดพลาด')).toBeInTheDocument()
 
     // Table rows
@@ -226,6 +226,24 @@ describe('FamilyPlanning932Client Component', () => {
         expect.stringContaining('search='),
         expect.any(Object)
       )
+    })
+  })
+
+  it('opens clinical modal when clicking record row (no "ดูข้อมูล" button in table)', async () => {
+    render(<FamilyPlanning932Client />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมใจ ดีงาม')).toBeInTheDocument()
+    })
+
+    // Ensure there is NO "ดูข้อมูล" button
+    expect(screen.queryByRole('button', { name: 'ดูข้อมูล' })).toBeNull()
+
+    // Click on row
+    fireEvent.click(screen.getByText('นาง สมใจ ดีงาม'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
   })
 })

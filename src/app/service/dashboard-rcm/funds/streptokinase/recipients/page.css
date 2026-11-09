@@ -954,7 +954,7 @@
 
 /* Target Drug Clinical Spotlight Card */
 .stk-order-target-card {
-  background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+  background-color: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 12px;
   padding: 16px 20px;

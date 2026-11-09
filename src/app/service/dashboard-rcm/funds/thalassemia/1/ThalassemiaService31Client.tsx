@@ -32,6 +32,8 @@ import type {
 } from '@/lib/clinical/rcmThalassemiaService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -91,6 +93,7 @@ export default function ThalassemiaService31Client({
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<ThalassemiaCardFilter>('ALL')
   const [laborTypeFilter, setLaborTypeFilter] = useState<ThalassemiaLaborTypeFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [searchField, setSearchField] = useState<ThalassemiaSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -191,6 +194,10 @@ export default function ThalassemiaService31Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           q.set('refresh', 'true')
         }
@@ -227,6 +234,7 @@ export default function ThalassemiaService31Client({
       ds2,
       cardFilter,
       laborTypeFilter,
+      pttypes,
       searchField,
       debouncedSearch,
       sortBy,
@@ -281,8 +289,8 @@ export default function ThalassemiaService31Client({
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  // Export CSV
-  const handleExportCsv = async () => {
+  // Export Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const q = new URLSearchParams({
@@ -296,6 +304,10 @@ export default function ThalassemiaService31Client({
         sortOrder,
         exportAll: 'true',
       })
+
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/thalassemia/service-31?${q.toString()}`
@@ -327,41 +339,33 @@ export default function ThalassemiaService31Client({
         'รายการตรวจ ADP ที่สั่ง',
       ]
 
-      const csvRows = [
-        headers.join(','),
-        ...rows.map((r, idx) =>
-          [
-            idx + 1,
-            `"${formatThaiDate(r.labor_date)}"`,
-            `"${r.ancno}"`,
-            `"${r.hn}"`,
-            `"${r.cid}"`,
-            `"${r.ptname}"`,
-            r.age,
-            `"${(r.pttypename || '').replace(/"/g, '""')}"`,
-            `"${(r.address || '').replace(/"/g, '""')}"`,
-            `"${(r.labor_type || '').replace(/"/g, '""')}"`,
-            `"${(r.hospital || '').replace(/"/g, '""')}"`,
-            `"${(r.labcode || '').replace(/"/g, '""')}"`,
-            `"${(r.labname || '').replace(/"/g, '""')}"`,
-            `"${(r.labresult || '').replace(/"/g, '""')}"`,
-            `"${r.lab_order_date ? formatThaiDate(r.lab_order_date) : ''}"`,
-            `"${r.lab_status}"`,
-            `"${(r.ordered_adp_items || '').replace(/"/g, '""')}"`,
-          ].join(',')
-        ),
-      ]
+      const excelRows = rows.map((r, idx) => [
+        idx + 1,
+        formatThaiDate(r.labor_date),
+        r.ancno,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.age,
+        r.pttypename || '',
+        r.address || '',
+        r.labor_type || '',
+        r.hospital || '',
+        r.labcode || '',
+        r.labname || '',
+        r.labresult || '',
+        r.lab_order_date ? formatThaiDate(r.lab_order_date) : '',
+        r.lab_status,
+        r.ordered_adp_items || '',
+      ])
 
-      const csvContent = '\uFEFF' + csvRows.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `thalassemia-screening-3.1_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `thalassemia-screening-3.1_${ds1}_to_${ds2}.xlsx`,
+        title: '3.1 คัดกรองธาลัสซีเมีย - รายงานการตรวจคัดกรองโรคโลหิตจางธาลัสซีเมียในหญิงตั้งครรภ์',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${rows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows: excelRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(e.message)
@@ -400,12 +404,13 @@ export default function ThalassemiaService31Client({
           <button
             type="button"
             className="thal31-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={loading || isExporting || totalCount === 0}
             aria-busy={isExporting}
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} aria-hidden="true" />
-            {isExporting ? 'กำลังส่งออก...' : 'ส่งออกข้อมูล CSV'}
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -670,6 +675,17 @@ export default function ThalassemiaService31Client({
               <option value="CESAREAN">ผ่าตัดคลอด (CESAREAN)</option>
               <option value="OTHER">อื่นๆ / ท่าก้น / สูญญากาศ</option>
             </select>
+
+            {/* Pttype Multi-Select Filter */}
+            <PttypeMultiSelect
+              selectedCodes={pttypes}
+              onChange={(codes) => {
+                setPttypes(codes)
+                setCurrentPage(1)
+            }}
+            items={items}
+            
+          />
 
             <div className="thal31-search-box">
               <Search size={16} className="thal31-search-icon" aria-hidden="true" />

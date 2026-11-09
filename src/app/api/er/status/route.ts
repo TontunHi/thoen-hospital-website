@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { apiGateway } from '@/lib/apiGateway'
 import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
@@ -32,44 +33,67 @@ export async function GET(req: NextRequest) {
 
     // Fetch raw status with 8s in-memory cache to prevent HOSxP replica overload
     const erData = await getCachedData('er-live-status-data', async () => {
-      // 1. Fetch current active ER patients
-      const activePatientsQuery = `
-        SELECT 
-          pt.hn,
-          er.vn,
-          concat(coalesce(pt.pname, ''), coalesce(pt.fname, ''), ' ', coalesce(pt.lname, '')) as ptname,
-          YEAR(current_date)-YEAR(pt.birthday) as age,
-          i.bedno,
-          time(er.enter_er_time) as enter_time,
-          er.er_list,
-          eel.er_emergency_level_name,
-          er.er_emergency_level_id,
-          er.observe,
-          edt.name as dch_type_name,
-          w.name as wardname,
-          h.name as hosname 
-        FROM er_regist er 
-        left outer join vn_stat vn on er.vn=vn.vn 
-        left outer join patient pt on vn.hn=pt.hn 
-        left outer join er_emergency_level eel on er.er_emergency_level_id=eel.er_emergency_level_id 
-        left outer join er_dch_type edt on er.er_dch_type=edt.er_dch_type 
-        left outer join an_stat an on er.vn=an.vn 
-        left outer join iptadm i on an.an=i.an  
-        left outer join ward w on an.ward=w.ward   
-        left outer join referout r on vn.vn=r.vn 
-        left outer join hospcode h on r.refer_hospcode=h.hospcode 
-        WHERE er.vstdate = current_date 
-          and ((er.er_dch_type in ('2','3','5','6','7','8','9') and w.name is null) and h.name is null) 
-        ORDER BY er.enter_er_time DESC
-      `
-      const activePatients = await queryClinicalDb(activePatientsQuery)
+      // 1. Fetch current active ER patients & level counts
+      let activePatients: any[] | null = null
+      let criticalCount = 0
+      let emergencyCount = 0
+      let urgencyCount = 0
+      let semiUrgencyCount = 0
+      let nonUrgencyCount = 0
 
-      // 2. Fetch active critical patients count (level 1 = Resuscitate)
-      const criticalCount = activePatients.filter((p: any) => p.er_emergency_level_id === 1 || p.er_emergency_level_id === '1').length
-      const emergencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 2 || p.er_emergency_level_id === '2').length
-      const urgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 3 || p.er_emergency_level_id === '3').length
-      const semiUrgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 4 || p.er_emergency_level_id === '4').length
-      const nonUrgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 5 || p.er_emergency_level_id === '5').length
+      try {
+        const gwRes = await apiGateway.clinical.getErStatus('tv')
+        if (gwRes && Array.isArray(gwRes.activePatients)) {
+          activePatients = gwRes.activePatients
+          if (Array.isArray(gwRes.levels)) {
+            criticalCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 1)?.total) || 0
+            emergencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 2)?.total) || 0
+            urgencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 3)?.total) || 0
+            semiUrgencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 4)?.total) || 0
+            nonUrgencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 5)?.total) || 0
+          }
+        }
+      } catch {
+        // Fallback to queryClinicalDb
+      }
+
+      if (activePatients === null) {
+        const activePatientsQuery = `
+          SELECT 
+            pt.hn,
+            er.vn,
+            concat(coalesce(pt.pname, ''), coalesce(pt.fname, ''), ' ', coalesce(pt.lname, '')) as ptname,
+            YEAR(current_date)-YEAR(pt.birthday) as age,
+            i.bedno,
+            time(er.enter_er_time) as enter_time,
+            er.er_list,
+            eel.er_emergency_level_name,
+            er.er_emergency_level_id,
+            er.observe,
+            edt.name as dch_type_name,
+            w.name as wardname,
+            h.name as hosname 
+          FROM er_regist er 
+          left outer join vn_stat vn on er.vn=vn.vn 
+          left outer join patient pt on vn.hn=pt.hn 
+          left outer join er_emergency_level eel on er.er_emergency_level_id=eel.er_emergency_level_id 
+          left outer join er_dch_type edt on er.er_dch_type=edt.er_dch_type 
+          left outer join an_stat an on er.vn=an.vn 
+          left outer join iptadm i on an.an=i.an  
+          left outer join ward w on an.ward=w.ward   
+          left outer join referout r on vn.vn=r.vn 
+          left outer join hospcode h on r.refer_hospcode=h.hospcode 
+          WHERE er.vstdate = current_date 
+            and ((er.er_dch_type in ('2','3','5','6','7','8','9') and w.name is null) and h.name is null) 
+          ORDER BY er.enter_er_time DESC
+        `
+        activePatients = await queryClinicalDb(activePatientsQuery)
+        criticalCount = activePatients.filter((p: any) => p.er_emergency_level_id === 1 || p.er_emergency_level_id === '1').length
+        emergencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 2 || p.er_emergency_level_id === '2').length
+        urgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 3 || p.er_emergency_level_id === '3').length
+        semiUrgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 4 || p.er_emergency_level_id === '4').length
+        nonUrgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 5 || p.er_emergency_level_id === '5').length
+      }
 
       // 3. Fetch monthly statistics: Patient types
       const ptTypesQuery = `

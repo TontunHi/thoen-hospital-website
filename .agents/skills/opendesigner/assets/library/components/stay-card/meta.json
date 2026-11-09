@@ -1,0 +1,49 @@
+{
+  "name": "Stay card",
+  "summary": "A holiday rental or hotel listing: a swipeable photo carousel with dots, a favourite heart, the place, host and dates, the rating, and the price per night with the total.",
+  "use": "in a list or map of places to stay, for one listing a traveller can save or open",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": [
+    "travel"
+  ],
+  "tags": [
+    "rental",
+    "hotel",
+    "listing",
+    "carousel",
+    "favourite"
+  ],
+  "states": [
+    "photo 1 to 4",
+    "saved",
+    "discounted",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The title is the one link; previous and next photo buttons appear on hover or focus and announce the photo count, the heart is a toggle button with aria-pressed, and each photo has alt text.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1559310589-2673bfe16970",
+      "author": "Adam Vradenburg",
+      "page": "GA09PKfRIQY"
+    },
+    {
+      "img": "photo-1583847268964-b28dc8f51f92",
+      "author": "Minh Pham",
+      "page": "OtXADkUh3-I"
+    },
+    {
+      "img": "photo-1611892440504-42a792e24d32",
+      "author": "visualsofdana",
+      "page": "T5pL6ciEn-I"
+    },
+    {
+      "img": "photo-1618773928121-c32242e63f39",
+      "author": "Vojtech Bruzek",
+      "page": "Yrxr3bsPdS0"
+    }
+  ]
+}

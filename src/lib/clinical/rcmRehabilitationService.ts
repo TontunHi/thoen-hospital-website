@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
+import { matchesPttypeFilter } from './pttypeConstants'
 
 // ── 1. Constants ──────────────────────────────────────────────────────────────
 
@@ -72,6 +74,8 @@ export interface RehabReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  pttypes?: string
+  ucOnly?: boolean
 }
 
 export interface RehabAdpMappingItem {
@@ -102,6 +106,7 @@ export interface RehabServiceItem {
   authencode: string | null
   maininscl: string
   pttypename: string
+  pttype_eclaim_id?: string | null
   department: string | null
   clinic: string | null
   income: number
@@ -195,6 +200,27 @@ export class RcmRehabilitationService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping('REHAB')
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                totalTargetCodes: REHAB_ADP_CODES.length,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || ''),
+                  name: String(r.name || ''),
+                  strength: r.strength ? String(r.strength) : null,
+                  nhso_adp_code: String(r.nhso_adp_code || ''),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const placeholders = REHAB_ADP_CODES.map(() => '?').join(',')
           const sql = `
@@ -275,6 +301,23 @@ export class RcmRehabilitationService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmRehabilitationService.checkRehabAdpMapping(executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('rehabilitation', { ds1, ds2 }),
+            ])
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return {
+                rawRows: gwRes.data.rawRows,
+                adpMapping: mRes,
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         const placeholders = REHAB_ADP_CODES.map(() => '?').join(',')
 
         // 1. Parallel Discovery: Check ADP mapping + Candidate VNs from HOSxP and Web Disability
@@ -307,6 +350,7 @@ export class RcmRehabilitationService {
             NULL AS authencode,
             'UC' AS maininscl,
             'สิทธิ์จากเว็บ Disability' AS pttypename,
+            '01' AS pttype_eclaim_id,
             NULL AS department,
             NULL AS clinic,
             0 AS income,
@@ -387,9 +431,10 @@ export class RcmRehabilitationService {
                 CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
                 DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
                 TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-                cc.AuthenCode AS authencode,
+                COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
                 IFNULL(ptt.hipdata_code, '') AS maininscl,
                 CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
+                ptt.pttype_eclaim_id,
                 IFNULL(dep.department, o.main_dep) AS department,
                 IFNULL(spc.name, o.spclty) AS clinic,
                 v.income,
@@ -434,10 +479,10 @@ export class RcmRehabilitationService {
               LEFT JOIN spclty spc ON spc.spclty = o.spclty
               LEFT JOIN doctor doc ON doc.code = o.doctor
               LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+              LEFT JOIN visit_pttype vt ON vt.vn = o.vn
               ${includeRehabService ? 'LEFT JOIN rcmdb.rehab_service rs ON rs.vn = o.vn' : ''}
               LEFT JOIN rcmdb.seamless sm ON sm.vn = o.vn
               WHERE o.vn IN (${vnPlaceholders})
-                AND ptt.hipdata_code REGEXP 'UC|WEL'
               ORDER BY o.vstdate DESC, o.vsttime DESC;
             `
             return executor(sql, [...REHAB_ADP_CODES, ...REHAB_ADP_CODES, ...candidateVns], {
@@ -560,6 +605,11 @@ export class RcmRehabilitationService {
       const compensatedVal = Number(r.compensated || 0)
       const isCompensated = compensatedVal > 0 || Boolean(r.rep && String(r.rep).trim() !== '')
       const isUc = isUniversalCoverageScheme(r.maininscl, r.pttypename)
+      const pttypeEclaimId = r.pttype_eclaim_id
+        ? String(r.pttype_eclaim_id).trim()
+        : r.filetype === 'Web'
+          ? '01'
+          : null
 
       return {
         no: idx + 1,
@@ -573,6 +623,7 @@ export class RcmRehabilitationService {
         authencode: r.authencode ? String(r.authencode).trim() : null,
         maininscl: String(r.maininscl || ''),
         pttypename: String(r.pttypename || ''),
+        pttype_eclaim_id: pttypeEclaimId,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         income: Number(r.income || 0),
@@ -608,19 +659,28 @@ export class RcmRehabilitationService {
     })
 
     // ── 5. Calculate KPI Summary Cards ────────────────────────────────────────
-    const totalCases = allItems.length
-    const matchedCases = allItems.filter((i) => i.match_status === 'MATCHED').length
-    const notInWebCases = allItems.filter((i) => i.match_status === 'NOT_IN_WEB').length
-    const noRehabCodeCases = allItems.filter((i) => i.match_status === 'NO_REHAB_CODE').length
-    const noVnCases = allItems.filter((i) => i.match_status === 'NO_VN').length
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
 
-    const compensatedCases = allItems.filter((i) => i.isCompensated).length
-    const totalCompensated = allItems.reduce((acc, i) => acc + i.compensated, 0)
+    const totalCases = summaryCohort.length
+    const matchedCases = summaryCohort.filter((i) => i.match_status === 'MATCHED').length
+    const notInWebCases = summaryCohort.filter((i) => i.match_status === 'NOT_IN_WEB').length
+    const noRehabCodeCases = summaryCohort.filter((i) => i.match_status === 'NO_REHAB_CODE').length
+    const noVnCases = summaryCohort.filter((i) => i.match_status === 'NO_VN').length
+
+    const compensatedCases = summaryCohort.filter((i) => i.isCompensated).length
+    const totalCompensated = summaryCohort.reduce((acc, i) => acc + i.compensated, 0)
     const uncompensatedCases = totalCases - compensatedCases
 
-    const withAuthenCases = allItems.filter((i) => Boolean(i.authencode)).length
+    const withAuthenCases = summaryCohort.filter((i) => Boolean(i.authencode)).length
     const noAuthenCases = totalCases - withAuthenCases
-    const ucCases = allItems.filter((i) => i.isUc).length
+    const ucCases = summaryCohort.filter((i) => i.isUc).length
 
     const summary: RehabSummary = {
       totalCases,
@@ -643,7 +703,7 @@ export class RcmRehabilitationService {
     }
 
     // ── 6. Filtering ──────────────────────────────────────────────────────────
-    let filtered = [...allItems]
+    let filtered = [...summaryCohort]
 
     if (cardFilter === 'MATCHED') {
       filtered = filtered.filter((i) => i.match_status === 'MATCHED')

@@ -36,6 +36,8 @@ import type {
   InstrumentAdpMappingCheck,
 } from '@/lib/clinical/rcmInstrumentFundService'
 import { formatThaiDate } from '@/lib/formatters'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTH_OPTIONS = [
@@ -106,6 +108,7 @@ export default function InstrumentFundClient({
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<InstrumentCardFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
   const [sortBy, setSortBy] = useState<InstrumentSortField>('date')
@@ -196,6 +199,9 @@ export default function InstrumentFundClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+        if (pttypes.length > 0) {
+          queryParams.set('pttypes', pttypes.join(','))
+        }
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -237,6 +243,7 @@ export default function InstrumentFundClient({
       ds2,
       patientType,
       cardFilter,
+      pttypes,
       debouncedSearch,
       sortBy,
       sortOrder,
@@ -351,8 +358,8 @@ export default function InstrumentFundClient({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedItem])
 
-  // Safe CSV Export with Formula Injection Guard
-  const handleExportCsv = async () => {
+  // Safe Excel Export (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
@@ -365,6 +372,9 @@ export default function InstrumentFundClient({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) {
+        queryParams.set('pttypes', pttypes.join(','))
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/instrument?${queryParams.toString()}`
@@ -388,7 +398,7 @@ export default function InstrumentFundClient({
         patientType === 'OPD' ? 'เวลา' : 'วันที่รับไว้',
         patientType === 'OPD' ? 'แผนก/ห้องตรวจ' : 'ตึกผู้ป่วย',
         'สิทธิการรักษา',
-        'Authen Code',
+        'ClaimCode',
         'ค่าบริการ รพ.',
         'ลูกหนี้ Debit',
         'ค่าอวัยวะเทียม รพ.',
@@ -403,61 +413,42 @@ export default function InstrumentFundClient({
         'เลขที่ใบเสร็จ',
       ]
 
-      const sanitize = (val: any) => {
-        if (val == null) return '""'
-        let str = String(val).replace(/"/g, '""')
-        if (/^[=+\-@\t\r]/.test(str)) {
-          str = `'${str}`
-        }
-        return `"${str}"`
-      }
+      const rows = allRows.map((r, i) => [
+        i + 1,
+        r.patientType,
+        patientType === 'OPD' ? r.vn : r.an,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.sex,
+        patientType === 'OPD' ? r.vstdate : r.dchdate,
+        patientType === 'OPD' ? r.vsttime : r.admdate,
+        patientType === 'OPD' ? r.room : r.ward,
+        r.pttypename,
+        r.authencode || '',
+        r.money_hosxp,
+        r.debit,
+        r.instrument,
+        r.money_eclaim,
+        r.money_rep,
+        r.money_invoice,
+        r.diff_money,
+        r.status,
+        r.oa === 'Y' ? 'ใช่' : 'ไม่ใช่',
+        r.dm === 'Y' ? 'ใช่' : 'ไม่ใช่',
+        r.list || '',
+        r.rcpno || '',
+      ])
 
-      const csvRows = [
-        headers.join(','),
-        ...allRows.map((r, i) =>
-          [
-            i + 1,
-            r.patientType,
-            patientType === 'OPD' ? r.vn : r.an,
-            r.hn,
-            r.cid,
-            r.ptname,
-            r.sex,
-            patientType === 'OPD' ? r.vstdate : r.dchdate,
-            patientType === 'OPD' ? r.vsttime : r.admdate,
-            patientType === 'OPD' ? r.room : r.ward,
-            r.pttypename,
-            r.authencode || '',
-            r.money_hosxp.toFixed(2),
-            r.debit.toFixed(2),
-            r.instrument.toFixed(2),
-            r.money_eclaim.toFixed(2),
-            r.money_rep.toFixed(2),
-            r.money_invoice.toFixed(2),
-            r.diff_money.toFixed(2),
-            r.status,
-            r.oa === 'Y' ? 'ใช่' : 'ไม่ใช่',
-            r.dm === 'Y' ? 'ใช่' : 'ไม่ใช่',
-            r.list || '',
-            r.rcpno || '',
-          ]
-            .map(sanitize)
-            .join(',')
-        ),
-      ]
-
-      const csvString = '\uFEFF' + csvRows.join('\r\n')
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rcm_instrument_${patientType.toLowerCase()}_${ds1}_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `rcm_instrument_${patientType.toLowerCase()}_${ds1}_${ds2}.xlsx`,
+        title: `รายชื่อผู้รับบริการ อวัยวะเทียมและอุปกรณ์ (${patientType})`,
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${allRows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ CSV')
+      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -502,12 +493,12 @@ export default function InstrumentFundClient({
           <button
             type="button"
             className="inst-btn inst-btn-export"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={isExporting || items.length === 0}
-            title="ดาวน์โหลดไฟล์ CSV พร้อมภาษาไทย UTF-8 BOM"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -813,7 +804,7 @@ export default function InstrumentFundClient({
             <span className="inst-kpi-unit">ราย</span>
           </div>
           <div className="inst-kpi-subvalue">
-            มี Authen {(summary.authenRate ?? 0).toFixed(1)}% ({summary.authenCases} ราย)
+            มี ClaimCode {(summary.authenRate ?? 0).toFixed(1)}% ({summary.authenCases} ราย)
           </div>
         </button>
       </section>
@@ -839,6 +830,18 @@ export default function InstrumentFundClient({
               <X size={14} />
             </button>
           )}
+        </div>
+
+        <div style={{ minWidth: '220px' }}>
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
         </div>
 
         <div className="inst-filter-info">
@@ -951,8 +954,8 @@ export default function InstrumentFundClient({
                   สถานะการเคลม
                 </th>
                 <th className="col-center" style={{ width: '110px' }}>
-                  Authen Code
-                </th>
+                    ClaimCode
+                  </th>
               </tr>
             </thead>
             <tbody>
@@ -1172,7 +1175,7 @@ export default function InstrumentFundClient({
                     </span>
                   </div>
                   <div className="inst-detail-item">
-                    <span className="inst-detail-label">Authen Code</span>
+                    <span className="inst-detail-label">ClaimCode:</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="inst-detail-value" style={{ color: selectedItem.authencode ? '#0d7446' : '#94a3b8' }}>
                         {selectedItem.authencode || 'ไม่มี Authen Code'}
@@ -1182,7 +1185,7 @@ export default function InstrumentFundClient({
                           type="button"
                           onClick={() => handleCopyText(selectedItem.authencode!, 'authen')}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
-                          title="คัดลอก Authen Code"
+                          title="คัดลอก ClaimCode"
                         >
                           {copiedField === 'authen' ? <Check size={14} color="#0d7446" /> : <Copy size={14} color="#94a3b8" />}
                         </button>

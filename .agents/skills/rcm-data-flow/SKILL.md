@@ -1,6 +1,6 @@
 ---
 name: rcm-data-flow
-description: End-to-end data flow architecture for /service/dashboard-rcm clinical dashboards, fund reports, and financial ledgers (SSR prefetch, atomic client state, AbortController, SWR server cache, Zod validation, lazy modal details, CSV export, and HOSxP SQL rules). Read before building, editing, or refactoring any RCM page, client component, API route, or clinical service.
+description: End-to-end data flow architecture for /service/dashboard-rcm clinical dashboards, fund reports, and financial ledgers (SSR prefetch, atomic client state, AbortController, SWR server cache, Zod validation, lazy modal details, CSV export, Rep number display, and HOSxP SQL rules). Read before building, editing, or refactoring any RCM page, client component, API route, or clinical service.
 ---
 
 # RCM Dashboard Data Flow & Architecture
@@ -125,7 +125,7 @@ useEffect(() => {
   const ceYear = selectedBeYear - 543 // ❌ ห้ามใช้ today.getFullYear() แทนปีที่ผู้ใช้เลือก
   ```
 - **ลำดับแท็บช่วงเวลา (Date Selector):** `กำหนดเอง` | `เดือน` | `ปีงบประมาณ` (ไม่มีเลขลำดับนำหน้าและไม่มีวงเล็บช่วงวันที่)
-- **Unified Global Search:** ส่งพารามิเตอร์ `search` เดี่ยว (Debounce `300–350ms`) ค้นครอบคลุม HN, CID, ชื่อ-สกุล, VN/AN, `pdx`, สิทธิ, `authencode` พร้อมกันโดยไม่ต้องมีดรอปดาวน์เลือกฟิลด์ใน UI
+- **Unified Global Search:** ส่งพารามิเตอร์ `search` เดี่ยว (Debounce `300–350ms`) ค้นครอบคลุม HN, CID, ชื่อ-สกุล, VN/AN, `pdx`, สิทธิ, `authencode` และ `เลข Rep` พร้อมกันโดยไม่ต้องมีดรอปดาวน์เลือกฟิลด์ใน UI
 
 ---
 
@@ -222,6 +222,7 @@ const fetchData = useCallback(async (forceRefresh = false) => {
 2. **Lazy Clinical Fetch + Map Cache:** ดึงข้อมูลเชิงลึก (`/api/.../vn-details?vn=...` หรือ `an-details`) เฉพาะตอนเปิด Modal หรือเปลี่ยนแท็บข้อมูลคลินิก โดย:
    - ใช้ `detailAbortRef` แยกต่างหาก (ยกเลิกทันทีเมื่อปิด Modal หรือกดเลื่อนไปคนถัดไป)
    - เก็บผลลัพธ์ลง `useRef(new Map<string, VnClinicalDetails>())` (จำกัดขนาดไม่เกิน ~50 รายการ) เพื่อให้การกดย้อนดูคนเดิม (Prev/Next) ไม่ยิง API ซ้ำ
+3. **Rep Display in Modal:** ต้องมีฟิลด์แสดงเลข Rep / ใบตอบรับ e-Claim ไว้อย่างชัดเจน เช่น `เลข Rep: {selectedItem.rep || '—'}` เพื่อให้ตรวจสอบเทียบกับใบเสร็จ/สปสช. ได้ทันที
 
 ---
 
@@ -244,10 +245,87 @@ Route Handler (`src/app/api/service/dashboard-rcm/**/route.ts`) ต้องบ�
 - ดึงข้อมูลเต็มเฉพาะเมื่อกดส่งออก (`exportAll=true`) โดยใช้สถานะ `isExporting` แยกต่างหาก
 - ใส่ UTF-8 BOM (`\uFEFF`) นำหน้าไฟล์เสมอ เพื่อให้เปิดใน Excel บน Windows ภาษาไทยได้ไม่เพี้ยน
 - **CSV Formula Injection Guard:** ค่าข้อความที่ขึ้นต้นด้วย `=`, `+`, `-`, `@`, `\t`, `\r` ต้องเติม `'` นำหน้าก่อน Quote เป็น CSV cell เพื่อป้องกัน Excel Macro/Formula Injection
+- **รวมคอลัมน์เลข Rep เสมอ:** ทุกรายงานที่มีข้อมูลการชดเชย ต้องใส่คอลัมน์ `เลข Rep` หรือ `Rep No.` ในไฟล์ CSV ด้วยเสมอ (`row.rep || ''`) เพื่อนำไปใช้กระทบยอดบัญชี (Reconciliation) ในโปรแกรม Excel
 
 ---
 
-## 9. Internal RCM Full-Data & Testability Contract
+## 9. มาตรฐานการแสดงเลข Rep เมื่อมีข้อมูล Rep (Rep Display & Reconciliation Standard)
+
+> [!IMPORTANT]
+> **กฎเหล็กการกระทบยอด RCM: "ถ้ามี Rep ก็ต้องเอาเลข Rep มาแสดงด้วยเสมอ"**
+> ในกระบวนการ Revenue Cycle Management เจ้าหน้าที่การเงินและงานประกันสุขภาพต้องใช้ "เลขที่หนังสือแจ้งการโอนเงินชดเชย (Rep / Statement No. / เลขใบตอบรับ e-Claim)" เพื่อตรวจสอบยอดเงินโอนจริงกับระบบของ สปสช./กรมบัญชีกลาง และนำไปลงบัญชีรับเงินของโรงพยาบาล **ห้ามแสดงเพียงสถานะ "ชดเชยแล้ว" ลอยๆ โดยไม่มีเลข Rep กำกับหากมีข้อมูล Rep ในระบบ**
+
+### 1. การแสดงผลในตารางหลัก (Table Ledger)
+- **กรณีมีคอลัมน์สถานะ (Status / การชดเชย):**
+  - หากรายการนั้นมีเลข Rep (`item.rep` มีค่า): ให้แสดงสถานะควบคู่กับเลข Rep เสมอ เช่น แสดงสถานะและกำกับเลข Rep ในบรรทัดย่อยแบบ `font-mono text-xs` (หรือแสดง Badge ที่มีเลข Rep)
+  ```tsx
+  <div className="flex flex-col items-center gap-0.5">
+    <span className={item.isCompensated ? 'badge badge-success' : 'badge badge-warning'}>
+      {item.status || (item.rep ? 'ชดเชยแล้ว' : 'ยังไม่ชดเชย')}
+    </span>
+    {item.rep && (
+      <span className="font-mono text-xs text-slate-500 font-medium">
+        Rep: {item.rep}
+      </span>
+    )}
+  </div>
+  ```
+- **กรณีมีคอลัมน์ "เลข Rep" โดยเฉพาะ:**
+  - แสดงเลข Rep ด้วย `font-mono` ให้เห็นเด่นชัด
+  - หากยังไม่มีเลข Rep ให้ใช้เครื่องหมายขีดกลาง `'—'` (em dash) หรือ `'-'` เสมอ
+  ```tsx
+  <td className="text-center font-mono text-xs">
+    {item.rep ? (
+      <span className="text-teal-700 font-semibold">{item.rep}</span>
+    ) : (
+      <span className="text-slate-400">—</span>
+    )}
+  </td>
+  ```
+- **กรณีใช้ Badge Rep:**
+  - แสดง Badge โทนสีข้อมูล (Info/Teal/Emerald/Cyan) ระบุเลข Rep เช่น `<span className="badge badge-info font-mono">{item.rep}</span>`
+
+### 2. การแสดงผลใน Modal รายละเอียด (Lazy Detail Modal)
+เมื่อผู้ใช้คลิกแถวเพื่อดูรายละเอียดเชิงลึก:
+- ในกล่องข้อมูลสถานะการเคลม/การชดเชย ต้องมีฟิลด์แสดงเลข Rep ชัดเจน:
+  ```tsx
+  <div className="detail-field">
+    <span className="detail-label">เลข Rep / ใบตอบรับ:</span>
+    <span className="detail-value font-mono">{selectedItem.rep || '—'}</span>
+  </div>
+  ```
+- หรือระบุต่อท้ายสถานะ:
+  ```tsx
+  <span>
+    {selectedItem.status || '—'} {selectedItem.rep ? `(Rep: ${selectedItem.rep})` : ''}
+  </span>
+  ```
+
+### 3. การส่งออกไฟล์ CSV (`exportAll=true`)
+- Header ของ CSV ต้องมีคอลัมน์ `เลข Rep` หรือ `Rep No.` เสมอ
+- แถวข้อมูลต้องใส่ค่า `row.rep || ''` (ผ่านการป้องกัน CSV Formula Injection ด้วย) เพื่อให้เจ้าหน้าที่เปิดใน Excel แล้วสามารถ Filter, Sort หรือทำ VLOOKUP กระทบยอดรายการโอนเงินได้อย่างถูกต้อง
+
+### 4. การค้นหาแบบรวมศูนย์ (Unified Global Search)
+- พารามิเตอร์ `search` ใน Service Layer หรือฟิลเตอร์ฝั่ง Client ต้องรวมการค้นหาด้วยเลข Rep ด้วย:
+  ```typescript
+  const matchesSearch = !search || 
+    row.hn.toLowerCase().includes(term) ||
+    row.cid.toLowerCase().includes(term) ||
+    row.patientName.toLowerCase().includes(term) ||
+    (row.rep && row.rep.toLowerCase().includes(term)) // ✅ รองรับการค้นหาเลข Rep
+  ```
+
+### 5. สัญญาข้อมูลฝั่ง SQL และ Service Layer
+- **TypeScript Interface:** ทุก Model หรือ Interface ของรายการแถวตาราง (`*ReportItem` / `*Record`) ต้องกำหนด `rep: string | null` (หรือ `rep?: string | null`) ห้ามตัดฟิลด์นี้ออก
+- **SQL SELECT & COALESCE:** ต้องดึงเลข Rep จากตารางชดเชยที่เกี่ยวข้องเสมอ เช่น:
+  ```sql
+  COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep
+  ```
+- **DATETIME Boundary Guard:** ระวังเงื่อนไขเวลาของ `rcmdb.repdata` และ `rcmdb.repeclaim` ที่ต้องใช้ Half-open interval เพื่อไม่ให้เลข Rep ตกหล่นในวันสิ้นงวด
+
+---
+
+## 10. Internal RCM Full-Data & Testability Contract
 
 - **แสดงผลข้อมูลเต็มในพอร์ทัล RCM:** หน้า `/service/dashboard-rcm/**` เป็นระบบงานภายในที่คุมสิทธิ์ด้วย Member Role Auth และ `logThrottledAudit('READ', ...)` แล้ว — **แสดงเลขบัตรประชาชนครบ 13 หลัก** และ HN/VN/ชื่อ-สกุลเต็มเพื่อใช้กระทบยอด e-Claim/REP สปสช. ได้ทันที โดยไม่ต้อง Mask ดอกจันหรือทำปุ่มสลับซ่อน/แสดง
 - **Zero-DB & Dependency Injection:** ห้ามต่อ MySQL ตรงจาก Next.js; ทุก Service Function ต้องรับ `executor: QueryExecutor = queryClinicalDb` เป็นพารามิเตอร์ตัวสุดท้าย เพื่อให้เขียน Unit Test บน Vitest ได้ 100% โดยไม่ต้องต่อ DB จริง
@@ -267,17 +345,18 @@ Route Handler (`src/app/api/service/dashboard-rcm/**/route.ts`) ต้องบ�
 
 ---
 
-## 10. กฎ SQL, FoxPro Migration & Performance SLA
+## 11. กฎ SQL, FoxPro Migration & Performance SLA
 
 เมื่อต้องเขียนหรือแก้ไข SQL ใน Service Layer (`src/lib/clinical/**`) ให้เปิดอ่านคู่มือเฉพาะทางใน [references/sql-optimization.md](references/sql-optimization.md) ทุกครั้ง — ครอบคลุม:
-- `cc.AuthenCode` (ห้ามใช้ `cc.claimcode`), Lookup Join และลำดับ `COALESCE` ของ NHSO/REP/eClaim
+- **Two-Source ClaimCode Guard:** ห้ามดึง Authen Code จาก `rcmdb.authencode` เพียงแหล่งเดียว ต้องประกบ `COALESCE(cc.AuthenCode, vt.auth_code, vt.claim_code)` กับ `visit_pttype vt ON vt.vn = o.vn` เสมอ เพื่อให้เคสที่ทำ Authen ผ่าน KIOSK/ห้องบัตรหน้างานไม่หลุดกลายเป็น "ไม่มี ClaimCode"
+- **DATETIME Boundary Guard:** คอลัมน์ `admdate` ใน `rcmdb.repdata` และ `rcmdb.repeclaim` เป็น `DATETIME` ห้ามใช้ `BETWEEN ? AND ?` กับวันที่เพียวๆ (`'YYYY-MM-DD'`) เด็ดขาด เพราะจะตัดเคสในวันสุดท้ายหลังเที่ยงคืนทิ้งทั้งหมดกลายเป็น `'-:ยังไม่ได้ส่ง'` — ต้องใช้ `admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)` เสมอ
 - TIS-620 Safety (`formatThaiSex` ใน TypeScript แทนข้อความไทยใน SQL)
 - Driving Subquery Pattern สำหรับ `opitemrece` (ห้าม `OR` ข้ามตาราง, ห้ามสแกน `opitemrece` ซ้ำหลายรอบใน Query เดียว)
-- Checklist Refactor SQL ต้นทาง 6 ข้อ และเกณฑ์ SLA (`< 500ms` Tier 1, `< 1,000ms` Tier 2, `{ timeoutMs: 90000 }` สำหรับรายงานกองทุนข้ามเดือน)
+- Checklist Refactor SQL ต้นทาง 8 ข้อ และเกณฑ์ SLA (`< 500ms` Tier 1, `< 1,000ms` Tier 2, `{ timeoutMs: 90000 }` สำหรับรายงานกองทุนข้ามเดือน)
 
 ---
 
-## 11. Automated Verification Checklist
+## 12. Automated Verification Checklist
 
 ก่อนส่งมอบงานหรือเปิด PR ทุกครั้ง ให้รันคำสั่งตรวจสอบ:
 1. **Audit 5 เสาหลักทั่วทั้ง 50 Routes:**
@@ -298,7 +377,7 @@ Route Handler (`src/app/api/service/dashboard-rcm/**/route.ts`) ต้องบ�
 
 ---
 
-## 12. หลักการพัฒนาและแก้ไขโค้ดอย่างมีเสถียรภาพ (AI Reliability & Atomic Protocol)
+## 13. หลักการพัฒนาและแก้ไขโค้ดอย่างมีเสถียรภาพ (AI Reliability & Atomic Protocol)
 
 เพื่อป้องกันการหลุดโฟกัสหรือแก้ไขโค้ดผิดพลาด (Hallucination) เมื่อทำงานกับระบบ RCM ขนาดใหญ่:
 

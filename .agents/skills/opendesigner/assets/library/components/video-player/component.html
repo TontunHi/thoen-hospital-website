@@ -1,0 +1,155 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-video-player { --p: 22.5%; --b: 37.5%; box-sizing: border-box; inline-size: 100%; max-inline-size: 46rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-video-player *, .odl-video-player *::before, .odl-video-player *::after { box-sizing: border-box; }
+.odl-video-player .odl-frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); background: var(--ds-color-neutral-dark-2); color: var(--ds-color-neutral-dark-12); }
+.odl-video-player .odl-poster { position: absolute; inset: 0; display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+/* A soft scrim at the foot keeps the caption, time and icons readable on any frame of the film. */
+.odl-video-player .odl-frame::after { content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; block-size: 60%; pointer-events: none; background: linear-gradient(to top, var(--ds-color-overlay-scrim), transparent 70%), linear-gradient(to top, var(--ds-color-overlay-scrim), var(--ds-color-overlay-scrim) 30%, transparent); transition: opacity var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-video-player button { display: grid; place-items: center; min-inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0; border: 0; border-radius: var(--ds-radius-full); background: transparent; color: inherit; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-video-player button:hover { background: var(--ds-color-neutral-alpha-dark-5); }
+.odl-video-player button svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-video-player button:focus-visible, .odl-video-player input:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* One column over the picture: play in the free space, then the caption, then the controls, so nothing can overlap at any size. */
+.odl-video-player .odl-layer { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+.odl-video-player .odl-center { flex: 1; display: grid; place-items: center; min-block-size: 0; padding-block: var(--ds-space-stack-md); pointer-events: none; }
+.odl-video-player .odl-big { pointer-events: auto; min-inline-size: calc(var(--ds-size-control-lg) * 1.5); min-block-size: calc(var(--ds-size-control-lg) * 1.5);
+  background: var(--ds-color-neutral-dark-12); color: var(--ds-color-neutral-dark-1); box-shadow: var(--ds-elevation-floating); }
+.odl-video-player .odl-big:hover { background: var(--ds-color-neutral-dark-11); }
+.odl-video-player .odl-big svg { inline-size: var(--ds-size-icon-lg); block-size: var(--ds-size-icon-lg); fill: currentColor; }
+.odl-video-player .odl-play .is-play { fill: currentColor; }
+.odl-video-player .odl-play .is-pause { fill: currentColor; }
+.odl-video-player .odl-frame.is-playing .odl-center { visibility: hidden; }
+.odl-video-player .odl-caption { margin: 0 var(--ds-space-inset-xl) var(--ds-space-stack-sm); text-align: center;
+  transition: transform var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-video-player .odl-caption span { display: inline; padding: var(--ds-space-2) var(--ds-space-8); border-radius: var(--ds-radius-nested); background: var(--ds-color-neutral-alpha-light-11); color: var(--ds-color-neutral-dark-12);
+  font: var(--ds-text-body-md); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.odl-video-player .odl-frame:not(.has-cc) .odl-caption { display: none; }
+.odl-video-player .odl-bar { display: grid; gap: 0; padding: 0 var(--ds-space-inset-md) var(--ds-space-inset-sm); transition: opacity var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-video-player .odl-scrub { inline-size: 100%; min-block-size: var(--ds-size-target-min); margin: 0; padding-inline: var(--ds-space-inline-sm); background: transparent; cursor: pointer; appearance: none; -webkit-appearance: none; border-radius: var(--ds-radius-4); }
+.odl-video-player .odl-scrub::-webkit-slider-runnable-track { block-size: var(--ds-space-4); border-radius: var(--ds-radius-full);
+  background: linear-gradient(to right, var(--ds-color-accent-dark-11) var(--p), var(--ds-color-neutral-alpha-dark-9) var(--p) var(--b), var(--ds-color-neutral-alpha-dark-6) var(--b)); }
+.odl-video-player .odl-scrub::-moz-range-track { block-size: var(--ds-space-4); border-radius: var(--ds-radius-full);
+  background: linear-gradient(to right, var(--ds-color-accent-dark-11) var(--p), var(--ds-color-neutral-alpha-dark-9) var(--p) var(--b), var(--ds-color-neutral-alpha-dark-6) var(--b)); }
+.odl-video-player .odl-scrub::-webkit-slider-thumb { -webkit-appearance: none; inline-size: var(--ds-space-16); block-size: var(--ds-space-16); margin-block-start: calc((var(--ds-space-4) - var(--ds-space-16)) / 2);
+  border: 0; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-dark-12); box-shadow: var(--ds-elevation-raised); }
+.odl-video-player .odl-scrub::-moz-range-thumb { inline-size: var(--ds-space-16); block-size: var(--ds-space-16); border: 0; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-dark-12); }
+.odl-video-player .odl-row { display: flex; align-items: center; gap: var(--ds-space-inline-xs); }
+/* The time is text, so it gets its own dark chip: 4.5:1 on any frame, a white one included. */
+.odl-video-player .odl-time { margin-block: 0; margin-inline-start: var(--ds-space-inline-sm); padding: var(--ds-space-2) var(--ds-space-8); border-radius: var(--ds-radius-nested);
+  background: var(--ds-color-neutral-alpha-light-11); color: var(--ds-color-neutral-dark-12); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-video-player .odl-push { margin-inline-start: auto; }
+.odl-video-player .odl-vol { inline-size: 5.5rem; min-block-size: var(--ds-size-target-min); margin: 0; background: transparent; cursor: pointer; appearance: none; -webkit-appearance: none; border-radius: var(--ds-radius-4); }
+.odl-video-player .odl-vol::-webkit-slider-runnable-track { block-size: var(--ds-space-4); border-radius: var(--ds-radius-full);
+  background: linear-gradient(to right, var(--ds-color-neutral-dark-12) var(--v, 80%), var(--ds-color-neutral-alpha-dark-6) var(--v, 80%)); }
+.odl-video-player .odl-vol::-moz-range-track { block-size: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-alpha-dark-6); }
+.odl-video-player .odl-vol::-moz-range-progress { block-size: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-dark-12); }
+.odl-video-player .odl-vol::-webkit-slider-thumb { -webkit-appearance: none; inline-size: var(--ds-space-12); block-size: var(--ds-space-12); margin-block-start: calc((var(--ds-space-4) - var(--ds-space-12)) / 2); border: 0; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-dark-12); }
+.odl-video-player .odl-vol::-moz-range-thumb { inline-size: var(--ds-space-12); block-size: var(--ds-space-12); border: 0; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-dark-12); }
+.odl-video-player .odl-cc[aria-pressed="true"] { background: var(--ds-color-neutral-alpha-dark-5); }
+.odl-video-player .is-pause, .odl-video-player .is-playing .odl-play .is-play, .odl-video-player .is-muted .is-loud, .odl-video-player .odl-mute .is-off { display: none; }
+.odl-video-player .is-playing .odl-play .is-pause, .odl-video-player .is-muted .odl-mute .is-off { display: block; }
+/* Controls step aside only while playing, only for a mouse that hovers, and never for reduced motion. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .odl-video-player .odl-frame.is-playing:not(:hover):not(:focus-within) .odl-bar, .odl-video-player .odl-frame.is-playing:not(:hover):not(:focus-within)::after { opacity: 0; }
+  .odl-video-player .odl-frame.is-playing:not(:hover):not(:focus-within) .odl-caption { transform: translateY(calc(max(var(--ds-size-control-md), var(--ds-size-target-min)) + var(--ds-size-target-min) + var(--ds-space-inset-sm) - var(--ds-space-stack-md))); }
+}
+.odl-video-player .odl-info { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 0 var(--ds-space-inline-md); padding: var(--ds-space-stack-lg) var(--ds-space-inset-xs) 0; }
+.odl-video-player .odl-eyebrow { grid-column: 1 / -1; margin: 0 0 var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-video-player h3 { grid-row: 2; grid-column: 1; margin: 0; font: var(--ds-text-title-lg); }
+.odl-video-player .odl-sub { grid-column: 1 / -1; max-inline-size: 40rem; margin: var(--ds-space-stack-sm) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); }
+.odl-video-player .odl-tag { grid-row: 2; grid-column: 2; align-self: center; padding: var(--ds-space-2) var(--ds-space-8); border: var(--ds-border-width-default) solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); white-space: nowrap; }
+.odl-video-player .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Phone: a taller 4:3 frame gives the caption and controls room; the device sets the volume and a double tap skips, so those controls go. */
+@container (max-width: 34rem) {
+  .odl-video-player .odl-frame { aspect-ratio: 4 / 3; }
+  .odl-video-player .odl-vol, .odl-video-player .odl-skip { display: none; }
+  .odl-video-player .odl-caption { margin-inline: var(--ds-space-inset-lg); }
+  .odl-video-player .odl-caption span { font: var(--ds-text-body-sm); }
+  .odl-video-player .odl-bar { padding-inline: var(--ds-space-inset-xs); }
+  .odl-video-player .odl-big { min-inline-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); }
+  .odl-video-player .odl-big svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+  .odl-video-player .odl-info { padding-inline: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-video-player, .odl-video-player *, .odl-video-player *::before, .odl-video-player *::after { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-video-player" aria-label="Video player: Snowmelt">
+  <div class="odl-frame has-cc">
+    <img class="odl-poster" src="https://images.unsplash.com/photo-1559310589-2673bfe16970?w=1472&h=828&fit=crop&auto=format&q=70" alt="Turquoise lake below snowy mountains" width="1472" height="828" loading="lazy" decoding="async">
+    <div class="odl-layer">
+    <div class="odl-center"><button type="button" class="odl-big" aria-label="Play Snowmelt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></button></div>
+    <p class="odl-caption" aria-live="off"><span>Down here, the river already sounds different.</span></p>
+    <div class="odl-bar">
+      <input class="odl-scrub" type="range" min="0" max="1120" step="1" value="252" aria-label="Seek" aria-valuetext="4 minutes 12 seconds of 18 minutes 40 seconds">
+      <div class="odl-row">
+        <button type="button" class="odl-play" aria-label="Play"><svg class="is-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg><svg class="is-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg></button>
+        <button type="button" class="odl-skip odl-back" aria-label="Back 10 seconds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button type="button" class="odl-skip odl-fwd" aria-label="Forward 10 seconds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
+        <button type="button" class="odl-mute" aria-label="Mute" aria-pressed="false"><svg class="is-loud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg><svg class="is-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg></button>
+        <label><span class="odl-sr">Volume</span><input class="odl-vol" type="range" min="0" max="100" value="80"></label>
+        <p class="odl-time"><span class="odl-now">4:12</span> <span>/ 18:40</span></p>
+        <button type="button" class="odl-cc odl-push" aria-label="Captions" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="14" x="3" y="5" rx="2" ry="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/></svg></button>
+        <button type="button" class="odl-full" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+      </div>
+    </div>
+    </div>
+  </div>
+  <div class="odl-info">
+    <p class="odl-eyebrow">Field Notes from the Ridge · Episode 4</p>
+    <span class="odl-tag">CC · 4K</span>
+    <h3>Snowmelt</h3>
+    <p class="odl-sub">Teodor Okonjo follows one valley's water from the first trickle to the lake below. 18 min.</p>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-video-player").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const frame = root.querySelector(".odl-frame"), seek = root.querySelector(".odl-scrub"), now = root.querySelector(".odl-now");
+  const play = root.querySelector(".odl-play"), big = root.querySelector(".odl-big"), cap = root.querySelector(".odl-caption span");
+  const cc = root.querySelector(".odl-cc"), mute = root.querySelector(".odl-mute"), vol = root.querySelector(".odl-vol"), full = root.querySelector(".odl-full");
+  const total = Number(seek.max);
+  const cues = [[240, "The snow line moved forty metres up the valley this week."], [252, "Down here, the river already sounds different."],
+    [266, "Louder. Faster. Colder than you would think."], [280, "We follow it from the first trickle to the lake."], [296, "It takes the water eleven hours."]];
+  const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const unit = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const spoken = (s) => `${unit(Math.floor(s / 60), "minute")} ${unit(s % 60, "second")}`;
+  let timer = null, buffered = 420;
+  const show = () => {
+    const s = Number(seek.value);
+    buffered = Math.min(total, Math.max(buffered, s + 90));
+    root.style.setProperty("--p", (s / total) * 100 + "%");
+    root.style.setProperty("--b", (buffered / total) * 100 + "%");
+    now.textContent = clock(s);
+    seek.setAttribute("aria-valuetext", `${spoken(s)} of ${spoken(total)}`);
+    const cue = cues.filter(([t]) => t <= s).pop();
+    cap.textContent = cue && s - cue[0] < 14 ? cue[1] : "";
+    cap.parentElement.hidden = !cap.textContent;
+  };
+  const stop = () => { clearInterval(timer); timer = null; frame.classList.remove("is-playing"); play.setAttribute("aria-label", "Play"); };
+  const toggle = () => {
+    if (timer) return stop();
+    if (Number(seek.value) >= total) seek.value = 0;
+    frame.classList.add("is-playing"); play.setAttribute("aria-label", "Pause");
+    timer = setInterval(() => { seek.value = Number(seek.value) + 1; show(); if (Number(seek.value) >= total) stop(); }, 1000);
+    if (document.activeElement === big) play.focus();
+  };
+  play.addEventListener("click", toggle);
+  big.addEventListener("click", toggle);
+  seek.addEventListener("input", show);
+  root.querySelector(".odl-back").addEventListener("click", () => { seek.value = Math.max(0, Number(seek.value) - 10); show(); });
+  root.querySelector(".odl-fwd").addEventListener("click", () => { seek.value = Math.min(total, Number(seek.value) + 10); show(); });
+  cc.addEventListener("click", () => { const on = cc.getAttribute("aria-pressed") !== "true"; cc.setAttribute("aria-pressed", String(on)); frame.classList.toggle("has-cc", on); });
+  const level = () => vol.style.setProperty("--v", vol.value + "%");
+  vol.addEventListener("input", () => { level(); const off = Number(vol.value) === 0; frame.classList.toggle("is-muted", off); mute.setAttribute("aria-pressed", String(off)); });
+  mute.addEventListener("click", () => { const off = mute.getAttribute("aria-pressed") !== "true"; mute.setAttribute("aria-pressed", String(off)); frame.classList.toggle("is-muted", off); });
+  full.addEventListener("click", () => {
+    if (document.fullscreenElement === frame) document.exitFullscreen();
+    else if (frame.requestFullscreen) frame.requestFullscreen().catch(() => {});
+  });
+  show(); level();
+});
+</script>

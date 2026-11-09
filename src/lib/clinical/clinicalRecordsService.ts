@@ -1,4 +1,5 @@
 import { queryClinicalDb, fetchAppointmentMismatches } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
@@ -174,6 +175,32 @@ export const ClinicalRecordsService = {
       return []
     }
 
+    // Primary: Pure Named API via API Gateway
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.searchPatientVisits(trimmed)
+        if (Array.isArray(gwRes)) {
+          return gwRes.map((row: any) => ({
+            hn: String(row.hn || ''),
+            cid: String(row.cid || ''),
+            ptname: String(row.ptname || ''),
+            vn: String(row.vn || ''),
+            an: row.an ? String(row.an) : null,
+            dateText: String(row.dateText || ''),
+            department: String(row.department || ''),
+            cc: String(row.cc || ''),
+            statusName: String(row.statusName || ''),
+            opdDrugsCount: Number(row.opdDrugsCount) || 0,
+            opdLabsCount: Number(row.opdLabsCount) || 0,
+            ipdDrugsCount: Number(row.ipdDrugsCount) || 0,
+            ipdLabsCount: Number(row.ipdLabsCount) || 0,
+          }))
+        }
+      } catch {
+        // Graceful fallback to executor query
+      }
+    }
+
     const sql = `
       SELECT 
         o.cc,
@@ -247,6 +274,18 @@ export const ClinicalRecordsService = {
 
     if (!vn && !an) {
       return null
+    }
+
+    // Primary: Pure Named API via API Gateway
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getVisitClinicalDetails({ vn, an })
+        if (gwRes && gwRes.type && gwRes.patient) {
+          return gwRes as VisitClinicalDetails
+        }
+      } catch {
+        // Graceful fallback to executor query
+      }
     }
 
     if (vn) {
@@ -614,6 +653,41 @@ export const ClinicalRecordsService = {
     const trimmedHn = (hn || '').trim()
     if (!trimmedHn) return null
 
+    // Primary: Pure Named API via API Gateway
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getLabDetailByHn(trimmedHn)
+        if (gwRes && (Array.isArray(gwRes.reported) || Array.isArray(gwRes.pending))) {
+          const reportedList = gwRes.reported || []
+          const pendingList = gwRes.pending || []
+          let patientName = 'ไม่ระบุชื่อ'
+          if (reportedList.length > 0 && reportedList[0].ptname) {
+            patientName = String(reportedList[0].ptname)
+          } else if (pendingList.length > 0 && pendingList[0].ptname) {
+            patientName = String(pendingList[0].ptname)
+          }
+
+          return {
+            hn: trimmedHn,
+            patientName,
+            reported: reportedList.map((r: any) => ({
+              formName: r.form_name || null,
+              itemName: String(r.lab_items_name || ''),
+              result: String(r.lab_order_result || ''),
+              refValue: r.lab_items_normal_value || null,
+            })),
+            pending: pendingList.map((r: any) => ({
+              formName: r.form_name || null,
+              itemName: String(r.lab_items_name || ''),
+              isOutLab: String(r.items_is_outlab || 'N'),
+            })),
+          }
+        }
+      } catch {
+        // Graceful fallback to executor query
+      }
+    }
+
     const reportedSql = `
       SELECT lh.hn, concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
       l.lab_items_name, lo.lab_order_result, lh.form_name, l.lab_items_normal_value 
@@ -674,34 +748,49 @@ export const ClinicalRecordsService = {
     ageFilter: string = 'adult',
     executor: QueryExecutor = queryClinicalDb
   ): Promise<LoratadineDispenseSummary> {
-    let ageClause = ''
-    if (ageFilter === 'adult') {
-      ageClause = 'AND (YEAR(o.vstdate) - YEAR(p.birthday)) > 19'
+    // Primary: Pure Named API via API Gateway
+    let rows: any[] | null = null
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRows = await apiGateway.clinical.getLoratadineMonitor(ageFilter)
+        if (Array.isArray(gwRows)) {
+          rows = gwRows
+        }
+      } catch {
+        // Graceful fallback to executor query
+      }
     }
 
-    const sql = `
-      SELECT 
-        o.hn,
-        YEAR(o.vstdate) - YEAR(p.birthday) AS age,
-        CONCAT(p.pname, p.fname, ' ', p.lname) AS fullname,
-        IF(o.vn IS NULL, 'IPD', 'OPD') AS status,
-        o.vstdate,
-        o.rxdate,
-        TIME_FORMAT(o.rxtime, '%H:%i:%s') AS rxtime,
-        o.qty,
-        COALESCE(d.name, 'ไม่ระบุผู้สั่งตรวจ/จ่ายยา') AS doctor_name,
-        COALESCE(k.department, 'ไม่ระบุแผนก') AS department
-      FROM opitemrece o
-      LEFT JOIN patient p ON o.hn = p.hn
-      LEFT JOIN doctor d ON o.doctor = d.code
-      LEFT JOIN kskdepartment k ON o.dep_code = k.depcode
-      WHERE o.icode = '1460211'
-        AND o.vstdate = CURDATE()
-        ${ageClause}
-      ORDER BY o.rxtime DESC
-    `
+    if (rows === null) {
+      let ageClause = ''
+      if (ageFilter === 'adult') {
+        ageClause = 'AND (YEAR(o.vstdate) - YEAR(p.birthday)) > 19'
+      }
 
-    const rows = (await executor(sql)) || []
+      const sql = `
+        SELECT 
+          o.hn,
+          YEAR(o.vstdate) - YEAR(p.birthday) AS age,
+          CONCAT(p.pname, p.fname, ' ', p.lname) AS fullname,
+          IF(o.vn IS NULL, 'IPD', 'OPD') AS status,
+          o.vstdate,
+          o.rxdate,
+          TIME_FORMAT(o.rxtime, '%H:%i:%s') AS rxtime,
+          o.qty,
+          COALESCE(d.name, 'ไม่ระบุผู้สั่งตรวจ/จ่ายยา') AS doctor_name,
+          COALESCE(k.department, 'ไม่ระบุแผนก') AS department
+        FROM opitemrece o
+        LEFT JOIN patient p ON o.hn = p.hn
+        LEFT JOIN doctor d ON o.doctor = d.code
+        LEFT JOIN kskdepartment k ON o.dep_code = k.depcode
+        WHERE o.icode = '1460211'
+          AND o.vstdate = CURDATE()
+          ${ageClause}
+        ORDER BY o.rxtime DESC
+      `
+
+      rows = (await executor(sql)) || []
+    }
 
     const totalCount = rows.length
     const totalQty = rows.reduce((sum, item: any) => sum + (Number(item.qty) || 0), 0)

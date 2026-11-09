@@ -1,0 +1,115 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-daily-goals { box-sizing: border-box; inline-size: 100%; max-inline-size: 30rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-daily-goals *, .odl-daily-goals *::before, .odl-daily-goals *::after { box-sizing: border-box; }
+.odl-daily-goals .odl-card { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-daily-goals .odl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-daily-goals .odl-title { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-daily-goals h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-daily-goals .odl-date { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-daily-goals .odl-count { flex: none; margin: 0; padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-daily-goals .odl-goals { display: grid; gap: var(--ds-space-stack-md); margin: 0; padding: 0; list-style: none; }
+.odl-daily-goals .odl-goal { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--ds-space-inline-md); row-gap: var(--ds-space-stack-sm);
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); }
+.odl-daily-goals .odl-goal > svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-subtle); }
+.odl-daily-goals .odl-name { font: var(--ds-text-body-md); }
+.odl-daily-goals .odl-val { justify-self: end; font: var(--ds-text-title-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-daily-goals .odl-val small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-daily-goals .odl-done { display: none; vertical-align: middle; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin-inline-end: var(--ds-space-inline-xs);
+  stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-text-success); }
+.odl-daily-goals .is-met .odl-done { display: inline-block; }
+.odl-daily-goals .odl-bar { grid-column: 2 / 4; position: relative; block-size: var(--ds-space-8); overflow: hidden; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); }
+.odl-daily-goals .odl-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: var(--odl-p); border-radius: inherit; background: var(--ds-color-bg-accent-bold);
+  transition: inline-size var(--ds-motion-duration-long) var(--ds-motion-easing-standard); }
+.odl-daily-goals .odl-note { display: flex; align-items: flex-start; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-inset-md); border-radius: var(--ds-radius-nested);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); }
+.odl-daily-goals .odl-note svg { flex: none; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-subtle); }
+.odl-daily-goals .odl-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--ds-space-inline-xs); margin: 0; padding: var(--ds-space-stack-lg) 0 0; list-style: none;
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-daily-goals .odl-week button { display: grid; justify-items: center; gap: var(--ds-space-stack-xs); inline-size: 100%; min-block-size: var(--ds-size-target-touch); padding: var(--ds-space-inset-sm) 0 var(--ds-space-inset-xs);
+  border: 0; border-radius: var(--ds-radius-nested); background: transparent; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-daily-goals .odl-week button:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-daily-goals .odl-week button[aria-pressed="true"] { background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-primary); }
+/* each day's bar: how much of the step goal that day reached */
+.odl-daily-goals .odl-col { position: relative; inline-size: var(--ds-space-8); block-size: calc(var(--ds-size-icon-lg) * 1.5); overflow: hidden; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); }
+.odl-daily-goals .odl-col i { position: absolute; inset-inline: 0; inset-block-end: 0; block-size: var(--odl-p); border-radius: inherit; background: var(--ds-color-border-strong); }
+.odl-daily-goals .odl-week [aria-pressed="true"] .odl-col i { background: var(--ds-color-bg-accent-bold); }
+.odl-daily-goals button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-daily-goals .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (max-width: 26rem) {
+  .odl-daily-goals .odl-card { padding: var(--ds-space-inset-lg); }
+  .odl-daily-goals .odl-week { gap: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-daily-goals, .odl-daily-goals *, .odl-daily-goals *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-daily-goals" aria-labelledby="odl-dg-title">
+  <div class="odl-card">
+    <div class="odl-head">
+      <div class="odl-title"><h3 id="odl-dg-title">Daily goals</h3><p class="odl-date" aria-live="polite">Thursday, 22 Oct</p></div>
+      <p class="odl-count"><span class="odl-met">1</span> of 3 met</p>
+    </div>
+    <ul class="odl-goals">
+      <li class="odl-goal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg>
+        <span class="odl-name">Steps</span>
+        <span class="odl-val"><svg class="odl-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="odl-v">7,412</span><small> of 10,000</small></span>
+        <div class="odl-bar" role="meter" aria-valuemin="0" aria-valuemax="10000" aria-valuenow="7412" aria-label="Steps"><i style="--odl-p: 74%"></i></div>
+      </li>
+      <li class="odl-goal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>
+        <span class="odl-name">Active minutes</span>
+        <span class="odl-val"><svg class="odl-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="odl-v">24</span><small> of 30 min</small></span>
+        <div class="odl-bar" role="meter" aria-valuemin="0" aria-valuemax="30" aria-valuenow="24" aria-label="Active minutes"><i style="--odl-p: 80%"></i></div>
+      </li>
+      <li class="odl-goal is-met">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.116 4.104A1 1 0 0 1 6.11 3h11.78a1 1 0 0 1 .994 1.105L17.19 20.21A2 2 0 0 1 15.2 22H8.8a2 2 0 0 1-2-1.79z"/><path d="M6 12a5 5 0 0 1 6 0 5 5 0 0 0 6 0"/></svg>
+        <span class="odl-name">Water</span>
+        <span class="odl-val"><svg class="odl-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="odl-v">8</span><small> of 8 glasses</small></span>
+        <div class="odl-bar" role="meter" aria-valuemin="0" aria-valuemax="8" aria-valuenow="8" aria-label="Water"><i style="--odl-p: 100%"></i></div>
+      </li>
+    </ul>
+    <p class="odl-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg><span class="odl-nt">2,588 steps to go. A 25-minute walk would do it.</span></p>
+    <ul class="odl-week" aria-label="This week">
+      <li><button type="button" data-day="0" aria-pressed="false"><span class="odl-sr">Friday 16 Oct</span><span class="odl-col" aria-hidden="true"><i style="--odl-p: 100%"></i></span><span aria-hidden="true">F</span></button></li>
+      <li><button type="button" data-day="1" aria-pressed="false"><span class="odl-sr">Saturday 17 Oct</span><span class="odl-col" aria-hidden="true"><i style="--odl-p: 100%"></i></span><span aria-hidden="true">S</span></button></li>
+      <li><button type="button" data-day="2" aria-pressed="false"><span class="odl-sr">Sunday 18 Oct</span><span class="odl-col" aria-hidden="true"><i style="--odl-p: 46%"></i></span><span aria-hidden="true">S</span></button></li>
+      <li><button type="button" data-day="3" aria-pressed="false"><span class="odl-sr">Monday 19 Oct</span><span class="odl-col" aria-hidden="true"><i style="--odl-p: 99%"></i></span><span aria-hidden="true">M</span></button></li>
+      <li><button type="button" data-day="4" aria-pressed="false"><span class="odl-sr">Tuesday 20 Oct</span><span class="odl-col" aria-hidden="true"><i style="--odl-p: 100%"></i></span><span aria-hidden="true">T</span></button></li>
+      <li><button type="button" data-day="5" aria-pressed="false"><span class="odl-sr">Wednesday 21 Oct</span><span class="odl-col" aria-hidden="true"><i style="--odl-p: 69%"></i></span><span aria-hidden="true">W</span></button></li>
+      <li><button type="button" data-day="6" aria-pressed="true"><span class="odl-sr">Today</span><span class="odl-col" aria-hidden="true"><i style="--odl-p: 74%"></i></span><span aria-hidden="true">T</span></button></li>
+    </ul>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-daily-goals").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  // [steps, active minutes, glasses of water, date] for Friday to today; goals are 10,000 steps, 30 minutes and 8 glasses
+  const days = [[11240, 34, 8, "Friday, 16 Oct"], [12105, 41, 7, "Saturday, 17 Oct"], [4630, 6, 5, "Sunday, 18 Oct"], [9870, 30, 8, "Monday, 19 Oct"],
+    [10460, 45, 8, "Tuesday, 20 Oct"], [6915, 15, 6, "Wednesday, 21 Oct"], [7412, 24, 8, "Thursday, 22 Oct"]];
+  const goals = [10000, 30, 8], fmt = (n) => n.toLocaleString("en-US");
+  const rows = root.querySelectorAll(".odl-goal"), date = root.querySelector(".odl-date"), note = root.querySelector(".odl-nt"), met = root.querySelector(".odl-met");
+  const show = (i) => {
+    const d = days[i];
+    let count = 0;
+    rows.forEach((row, k) => {
+      const v = d[k], done = v >= goals[k];
+      count += done ? 1 : 0;
+      row.classList.toggle("is-met", done);
+      row.querySelector(".odl-v").textContent = fmt(v);
+      row.querySelector(".odl-bar").setAttribute("aria-valuenow", String(v));
+      row.querySelector(".odl-bar i").style.setProperty("--odl-p", `${Math.min(100, Math.round((v / goals[k]) * 100))}%`);
+    });
+    met.textContent = String(count);
+    date.textContent = d[3];
+    const left = goals[0] - d[0];
+    const steps = left === 1 ? "step" : "steps";
+    note.textContent = left > 0 ? (i === 6 ? `${fmt(left)} ${steps} to go. A 25-minute walk would do it.` : `${fmt(left)} ${steps} short of the goal that day.`) : `Step goal met, with ${fmt(-left)} to spare.`;
+    root.querySelectorAll(".odl-week button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.day) === i)));
+  };
+  root.querySelectorAll(".odl-week button").forEach((b) => b.addEventListener("click", () => show(Number(b.dataset.day))));
+});
+</script>

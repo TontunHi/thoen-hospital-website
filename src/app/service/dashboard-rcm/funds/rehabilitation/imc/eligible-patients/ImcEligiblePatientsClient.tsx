@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -36,6 +37,7 @@ import type {
 } from '@/lib/clinical/rcmImcService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -107,6 +109,7 @@ export default function ImcEligiblePatientsClient({
   const [cardFilter, setCardFilter] = useState<ImcCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<ImcSortField>(
@@ -192,6 +195,7 @@ export default function ImcEligiblePatientsClient({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -220,7 +224,18 @@ export default function ImcEligiblePatientsClient({
         }
       }
     },
-    [ds1, ds2, patientType, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [
+      ds1,
+      ds2,
+      patientType,
+      cardFilter,
+      pttypes,
+      debouncedSearch,
+      sortBy,
+      sortOrder,
+      currentPage,
+      pageSize,
+    ]
   )
 
   // Double-fetch guard on initial mount
@@ -340,6 +355,8 @@ export default function ImcEligiblePatientsClient({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/rehabilitation/imc/eligible-patients?${queryParams.toString()}`
       )
@@ -375,7 +392,7 @@ export default function ImcEligiblePatientsClient({
               'ชดเชยแล้ว',
               'สถานะชดเชย',
               'เลขที่ REP',
-              'Authen Code',
+              'ClaimCode',
               'ที่อยู่',
               'เบอร์โทรศัพท์',
             ]
@@ -402,19 +419,10 @@ export default function ImcEligiblePatientsClient({
               'ชดเชยแล้ว',
               'สถานะชดเชย',
               'เลขที่ REP',
-              'Authen Code',
+              'ClaimCode',
               'ที่อยู่',
               'เบอร์โทรศัพท์',
             ]
-
-      const escapeCsvCell = (val: any) => {
-        if (val == null) return '""'
-        let str = String(val).trim()
-        if (/^[=+\-@\t\r]/.test(str)) {
-          str = `'${str}`
-        }
-        return `"${str.replace(/"/g, '""')}"`
-      }
 
       const rows = exportItems.map((r, idx) => {
         if (patientType === 'IPD') {
@@ -443,7 +451,7 @@ export default function ImcEligiblePatientsClient({
             r.authencode || '',
             r.address || '',
             r.tel || '',
-          ].map(escapeCsvCell).join(',')
+          ]
         } else {
           return [
             idx + 1,
@@ -471,25 +479,19 @@ export default function ImcEligiblePatientsClient({
             r.authencode || '',
             r.address || '',
             r.tel || '',
-          ].map(escapeCsvCell).join(',')
+          ]
         }
       })
 
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute(
-        'download',
-        `รายงานผู้รับบริการตามเกณฑ์_IMC_${patientType}_${ds1}_${ds2}.csv`
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `รายงานผู้รับบริการตามเกณฑ์_IMC_${patientType}_${ds1}_${ds2}.xlsx`,
+        title: `รายงานผู้รับบริการตามเกณฑ์ IMC (${patientType})`,
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ CSV')
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -548,10 +550,10 @@ export default function ImcEligiblePatientsClient({
             className="imc-btn imc-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || totalCount === 0}
-            title="ส่งออกข้อมูลทั้งหมดเป็นไฟล์ CSV (UTF-8 BOM สำหรับ Excel)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} className={isExporting ? 'imc-spin' : ''} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -848,15 +850,15 @@ export default function ImcEligiblePatientsClient({
           </div>
         </button>
 
-        {/* Card 7: มี Authen Code */}
+        {/* Card 7: มี ClaimCode */}
         <button
           type="button"
           className={`imc-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardClick('WITH_AUTHEN')}
-          title="คลิกเพื่อกรองรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่มี ClaimCode"
         >
           <div className="imc-kpi-header">
-            <span className="imc-kpi-title">มี Authen Code</span>
+            <span className="imc-kpi-title">มี ClaimCode</span>
             <div className="imc-kpi-icon">
               <KeyRound size={18} />
             </div>
@@ -872,15 +874,15 @@ export default function ImcEligiblePatientsClient({
           </div>
         </button>
 
-        {/* Card 8: ไม่มี Authen Code */}
+        {/* Card 8: ไม่มี ClaimCode */}
         <button
           type="button"
           className={`imc-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardClick('NO_AUTHEN')}
-          title="คลิกเพื่อกรองรายการที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่ไม่มี ClaimCode"
         >
           <div className="imc-kpi-header">
-            <span className="imc-kpi-title">ไม่มี Authen Code</span>
+            <span className="imc-kpi-title">ไม่มี ClaimCode</span>
             <div className="imc-kpi-icon">
               <AlertCircle size={18} />
             </div>
@@ -927,6 +929,16 @@ export default function ImcEligiblePatientsClient({
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="imc-toolbar-info">
           แสดง <strong>{items.length}</strong> จากทั้งหมด <strong>{totalCount}</strong> รายการ
@@ -1422,7 +1434,10 @@ export default function ImcEligiblePatientsClient({
                     <span className="imc-modal-label">สถานะขึ้นทะเบียนโรคเรื้อรัง (Stroke Clinic)</span>
                     <span className="imc-modal-val">
                       {selectedItem.chronic === 'Y' ? (
-                        <span style={{ color: '#15803d', fontWeight: 600 }}>✓ ขึ้นทะเบียนแล้ว</span>
+                        <span style={{ color: '#15803d', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Check size={14} />
+                          <span>ขึ้นทะเบียนแล้ว</span>
+                        </span>
                       ) : (
                         <span style={{ color: '#64748b' }}>ยังไม่ได้ขึ้นทะเบียน</span>
                       )}
@@ -1433,7 +1448,10 @@ export default function ImcEligiblePatientsClient({
                     <span className="imc-modal-label">สถานะบันทึกในระบบ Web IMC</span>
                     <span className="imc-modal-val">
                       {selectedItem.web === 'Y' ? (
-                        <span style={{ color: '#15803d', fontWeight: 600 }}>✓ บันทึกในระบบ Web แล้ว</span>
+                        <span style={{ color: '#15803d', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Check size={14} />
+                          <span>บันทึกในระบบ Web แล้ว</span>
+                        </span>
                       ) : (
                         <span style={{ color: '#b45309', fontWeight: 600 }}>ยังไม่พบในระบบ Web</span>
                       )}
@@ -1463,7 +1481,7 @@ export default function ImcEligiblePatientsClient({
 
                 <div className="imc-modal-grid">
                   <div className="imc-modal-field">
-                    <span className="imc-modal-label">Authen Code</span>
+                    <span className="imc-modal-label">ClaimCode:</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span className="imc-modal-val font-mono">{selectedItem.authencode || '—'}</span>
                       {selectedItem.authencode && (
@@ -1477,7 +1495,7 @@ export default function ImcEligiblePatientsClient({
                             color: copiedField === 'authencode' ? '#15803d' : '#64748b',
                             padding: '2px',
                           }}
-                          title="คัดลอก Authen Code"
+                          title="คัดลอก ClaimCode"
                         >
                           {copiedField === 'authencode' ? <Check size={14} /> : <Copy size={14} />}
                         </button>

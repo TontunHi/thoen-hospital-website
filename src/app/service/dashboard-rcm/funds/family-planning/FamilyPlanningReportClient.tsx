@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -36,6 +37,7 @@ import type {
 } from '@/lib/clinical/rcmFamilyPlanningService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './familyPlanning.css'
 
 const THAI_MONTHS = [
@@ -117,6 +119,7 @@ export default function FamilyPlanningReportClient({
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<FamilyPlanningCardFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [searchField, setSearchField] = useState<FamilyPlanningSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -215,6 +218,10 @@ export default function FamilyPlanningReportClient({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          query.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           query.set('refresh', 'true')
         }
@@ -247,7 +254,7 @@ export default function FamilyPlanningReportClient({
         }
       }
     },
-    [apiEndpoint, ds1, ds2, patientType, cardFilter, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [apiEndpoint, ds1, ds2, patientType, cardFilter, pttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -294,6 +301,10 @@ export default function FamilyPlanningReportClient({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        query.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(`${apiEndpoint}?${query.toString()}`)
       const json = await res.json()
 
@@ -319,7 +330,7 @@ export default function FamilyPlanningReportClient({
         patientType === 'IPD' ? 'วันที่รับรักษา' : 'วันที่รับบริการ',
         patientType === 'IPD' ? 'วันที่จำหน่าย' : 'เวลา',
         'สิทธิการรักษา',
-        'Claim Code',
+        'ClaimCode',
         'แผนก',
         'คลินิก',
         'อาการสำคัญ',
@@ -366,20 +377,13 @@ export default function FamilyPlanningReportClient({
         `"${r.errorDrug || ''}"`,
       ])
 
-      const bom = '\uFEFF'
-      const csvString = bom + [headers.join(','), ...csvRows.map((e) => e.join(','))].join('\n')
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute(
-        'download',
-        `FamilyPlanning_${reportType}_${patientType}_${ds1}_${ds2}.csv`
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `FamilyPlanning_${reportType}_${patientType}_${ds1}_${ds2}.xlsx`,
+        title: `รายงานวางแผนครอบครัว (${reportType})`,
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(`เกิดข้อผิดพลาดในการส่งออก: ${e.message}`)
@@ -420,10 +424,10 @@ export default function FamilyPlanningReportClient({
             className="fp-btn fp-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกรายงานเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -720,17 +724,17 @@ export default function FamilyPlanningReportClient({
           <div className="fp-card-sub">ไม่พบรายการค่าบริการ ADP</div>
         </div>
 
-        {/* Card 8: มี Authen Code */}
+        {/* Card 8: มี ClaimCode */}
         <div
           className={`fp-card card-info ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => {
             setCardFilter('WITH_AUTHEN')
             setCurrentPage(1)
           }}
-          title="คลิกเพื่อกรองรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่มี ClaimCode"
         >
           <div className="fp-card-header">
-            <span className="fp-card-title">มี Authen Code</span>
+            <span className="fp-card-title">มี ClaimCode</span>
             <div className="fp-card-icon">
               <ShieldCheck size={16} />
             </div>
@@ -764,6 +768,17 @@ export default function FamilyPlanningReportClient({
             </button>
           )}
         </div>
+
+        {/* Pttype Multi-Select Filter */}
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="fp-filter-chips">
           <button
@@ -902,7 +917,7 @@ export default function FamilyPlanningReportClient({
                   </th>
                   <th>เพศ/อายุ</th>
                   <th>สิทธิการรักษา</th>
-                  <th>Authen Code</th>
+                  <th>ClaimCode</th>
                   <th>รหัสวินิจฉัย (Dx)</th>
                   <th>รายการยา / ค่าบริการ</th>
                   <th
@@ -1210,7 +1225,7 @@ export default function FamilyPlanningReportClient({
                     <span className="fp-modal-val">{selectedItem.pttypename}</span>
                   </div>
                   <div className="fp-modal-field">
-                    <span className="fp-modal-label">Authen / Claim Code:</span>
+                    <span className="fp-modal-label">ClaimCode:</span>
                     <span className="fp-modal-val fp-mono">
                       {selectedItem.claimcode || '—'}
                     </span>

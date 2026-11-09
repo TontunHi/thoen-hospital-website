@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Domain Types: กองทุน Walkin - รายชื่อผู้รับบริการจาก ADP (WALKIN) ──
 
@@ -43,6 +45,7 @@ export type WalkinFundSortField =
 export interface WalkinFundReportParams extends FiscalDateRangeParams {
   cardFilter?: WalkinFundCardFilter
   ucOnly?: boolean
+  pttypes?: string
   searchField?: WalkinFundSearchField
   search?: string
   sortBy?: WalkinFundSortField
@@ -82,6 +85,7 @@ export interface WalkinFundItem {
   authencode: string | null
   maininscl: string
   isUc: boolean
+  pttype_eclaim_id?: string
   pttypename: string
   department: string | null
   clinic: string | null
@@ -192,6 +196,27 @@ export class RcmWalkinFundService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -275,9 +300,10 @@ export class RcmWalkinFundService {
             IFNULL(nat.name, pt.nationality) AS nation,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
             ptt.name AS pttypename,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             dep.department AS department,
             spc.name AS clinic,
             v.pdx,
@@ -285,7 +311,7 @@ export class RcmWalkinFundService {
             v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
             IFNULL(v.income, 0) AS income,
             dd.name AS listname,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
             COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
             COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
             rep.transactiontype,
@@ -316,11 +342,12 @@ export class RcmWalkinFundService {
           LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -337,7 +364,7 @@ export class RcmWalkinFundService {
                    GROUP_CONCAT(DISTINCT remark SEPARATOR ',') AS remark,
                    GROUP_CONCAT(DISTINCT projectcode SEPARATOR ',') AS projectcode
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -348,23 +375,50 @@ export class RcmWalkinFundService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           ORDER BY o.hn ASC, o.vn ASC;
         `
 
-        const [rows, adpCheck] = await Promise.all([
-          executor(
-            sql,
-            [ds1, ds2, adpCode, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
-          ),
-          this.checkAdpMapping(executor, params.refresh),
-        ])
+        const queryParams = [ds1, ds2, adpCode, ds1, ds2, ds1, ds2]
+
+        let rows: any[] = []
+        let adpCheck: WalkinAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              this.checkAdpMapping(executor, params.refresh),
+              apiGateway.clinical.getRcmFundData('walkin', { ds1, ds2, adpCode }),
+            ])
+            adpCheck = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [dbRows, mRes] = await Promise.all([
+            executor(sql, queryParams, { timeoutMs: 90000 }),
+            this.checkAdpMapping(executor, params.refresh),
+          ])
+          rows = (dbRows as any[]) || []
+          adpCheck = mRes
+        }
 
         return {
-          rawRows: (rows || []) as any[],
+          rawRows: rows,
           adpMapping: adpCheck,
         }
       },
@@ -378,7 +432,8 @@ export class RcmWalkinFundService {
       const isComp = compensatedVal > 0 || (Boolean(row.rep) && String(row.rep).trim() !== '')
       const maininscl = String(row.maininscl || '').trim()
       const pttypename = String(row.pttypename || '').trim()
-      const isUc = isUniversalCoverageScheme(maininscl, pttypename)
+      const pttypeEclaimId = String(row.pttype_eclaim_id || '').trim()
+      const isUc = (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) || isUniversalCoverageScheme(maininscl, pttypename)
 
       return {
         no: index + 1,
@@ -395,6 +450,7 @@ export class RcmWalkinFundService {
         authencode: row.authencode ? String(row.authencode).trim() : null,
         maininscl,
         isUc,
+        pttype_eclaim_id: pttypeEclaimId,
         pttypename,
         department: row.department ? String(row.department).trim() : null,
         clinic: row.clinic ? String(row.clinic).trim() : null,
@@ -427,8 +483,18 @@ export class RcmWalkinFundService {
       }
     })
 
-    // Compute Summary from all records
-    const totalVisits = transformedItems.length
+    // กรองระดับ Cohort ด้วยสิทธิ์การรักษา (pttypes มาก่อน, รองรับ ucOnly fallback)
+    let summaryCohort = transformedItems
+    if (params.pttypes) {
+      summaryCohort = transformedItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = transformedItems.filter((i) => i.isUc)
+    }
+
+    // Compute Summary from summaryCohort
+    const totalVisits = summaryCohort.length
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -438,7 +504,7 @@ export class RcmWalkinFundService {
     let ucCount = 0
     let totalIncome = 0
 
-    for (const item of transformedItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniqueHnSet.add(item.hn)
       if (item.isCompensated) {
         compensatedVisits++
@@ -459,7 +525,7 @@ export class RcmWalkinFundService {
 
     const uniquePatients = uniqueHnSet.size
     const uncompensatedVisits = totalVisits - compensatedVisits
-    const unsentVisits = transformedItems.filter(
+    const unsentVisits = summaryCohort.filter(
       (it) => !it.isCompensated && !it.invoice && (!it.status || it.status === '')
     ).length
     const withoutAuthenCount = totalVisits - withAuthenCount
@@ -485,8 +551,8 @@ export class RcmWalkinFundService {
       totalIncome,
     }
 
-    // Apply Filter (Card Filter, UC Only)
-    let filteredItems = transformedItems
+    // Apply Filter (Card Filter)
+    let filteredItems = summaryCohort
 
     if (cardFilter === 'WITH_AUTHEN') {
       filteredItems = filteredItems.filter((it) => Boolean(it.authencode))

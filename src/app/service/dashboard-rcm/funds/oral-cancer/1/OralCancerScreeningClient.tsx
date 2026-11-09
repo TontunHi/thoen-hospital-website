@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -30,6 +31,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -198,6 +201,15 @@ export default function OralCancerScreeningClient({
   // Filter & Search States
   const [cardFilter, setCardFilter] = useState<OralCancerCardFilter>('ALL')
   const [ucOnly, setUcOnly] = useState<boolean>(false)
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(() => {
+    if (initialData?.pttypes) {
+      return initialData.pttypes.split(',').map((s: string) => s.trim()).filter(Boolean)
+    }
+    if (initialData?.ucOnly) {
+      return [...UC_ECLAIM_CODES]
+    }
+    return []
+  })
   const [searchField, setSearchField] = useState<OralCancerSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -305,7 +317,6 @@ export default function OralCancerScreeningClient({
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           searchField,
           search: debouncedSearch,
           sortBy,
@@ -313,6 +324,12 @@ export default function OralCancerScreeningClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          queryParams.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          queryParams.set('ucOnly', 'true')
+        }
 
         if (refresh) queryParams.set('refresh', 'true')
 
@@ -342,7 +359,7 @@ export default function OralCancerScreeningClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -375,13 +392,18 @@ export default function OralCancerScreeningClient({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         searchField,
         search: debouncedSearch,
         sortBy,
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        queryParams.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        queryParams.set('ucOnly', 'true')
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/oral-cancer/service-12-1?${queryParams.toString()}`
@@ -405,7 +427,7 @@ export default function OralCancerScreeningClient({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -419,43 +441,37 @@ export default function OralCancerScreeningClient({
         'เงินชดเชย',
       ]
 
-      const csvRows = [headers.join(',')]
-      exportRows.forEach((r, idx) => {
-        const row = [
-          idx + 1,
-          `"${r.vn}"`,
-          `"${r.hn}"`,
-          `"${r.cid}"`,
-          `"${r.ptname.replace(/"/g, '""')}"`,
-          r.age,
-          `"${r.nation || ''}"`,
-          `"${r.vstdate}"`,
-          `"${r.vsttime}"`,
-          `"${r.authencode || ''}"`,
-          `"${(r.pttypename || '').replace(/"/g, '""')}"`,
-          `"${(r.department || '').replace(/"/g, '""')}"`,
-          `"${(r.clinic || '').replace(/"/g, '""')}"`,
-          `"${r.pdx || ''}"`,
-          `"${(r.sdx || '').replace(/"/g, '""')}"`,
-          `"${(r.ops || '').replace(/"/g, '""')}"`,
-          r.income,
-          `"${(r.listname || '').replace(/"/g, '""')}"`,
-          `"${(r.status || '').replace(/"/g, '""')}"`,
-          `"${r.rep || ''}"`,
-          r.compensated,
-        ]
-        csvRows.push(row.join(','))
-      })
+      const rows = exportRows.map((r, idx) => [
+        idx + 1,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.age,
+        r.nation || '',
+        r.vstdate,
+        r.vsttime,
+        r.authencode || '',
+        r.pttypename || '',
+        r.department || '',
+        r.clinic || '',
+        r.pdx || '',
+        r.sdx || '',
+        r.ops || '',
+        r.income,
+        r.listname || '',
+        r.status || '',
+        r.rep || '',
+        r.compensated,
+      ])
 
-      const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `oral_cancer_screening_12_1_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `oral_cancer_screening_12_1_${ds1}_to_${ds2}.xlsx`,
+        title: 'คัดกรองรอยโรคมะเร็งช่องปาก 40 ปีขึ้นไป (12.1 / ADP 90004)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
       alert(`เกิดข้อผิดพลาดในการส่งออก: ${err.message}`)
     } finally {
@@ -530,10 +546,11 @@ export default function OralCancerScreeningClient({
             className="oral-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || items.length === 0}
-            aria-label="ส่งออก Excel / CSV"
+            aria-label="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} aria-hidden="true" />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel / CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -749,7 +766,7 @@ export default function OralCancerScreeningClient({
           </div>
         </button>
 
-        {/* Card 4: With Authen */}
+        {/* Card 4: With ClaimCode */}
         <button
           type="button"
           className={`oral-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
@@ -757,11 +774,11 @@ export default function OralCancerScreeningClient({
             setCardFilter('WITH_AUTHEN')
             setCurrentPage(1)
           }}
-          aria-label="ตัวกรอง: มี Authen Code"
+          aria-label="ตัวกรอง: มี ClaimCode"
         >
           <div className="oral-card-indicator" />
           <div className="oral-card-head">
-            <span className="oral-card-title">มี Authen Code</span>
+            <span className="oral-card-title">มี ClaimCode</span>
             <span className="oral-card-badge info">{summary.authenRate.toFixed(1)}%</span>
           </div>
           <div className="oral-card-value">{summary.withAuthenCount.toLocaleString('th-TH')} ราย</div>
@@ -771,7 +788,7 @@ export default function OralCancerScreeningClient({
           </div>
         </button>
 
-        {/* Card 5: Missing Authen */}
+        {/* Card 5: Missing ClaimCode */}
         <button
           type="button"
           className={`oral-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
@@ -779,16 +796,16 @@ export default function OralCancerScreeningClient({
             setCardFilter('NO_AUTHEN')
             setCurrentPage(1)
           }}
-          aria-label="ตัวกรอง: ไม่มี Authen Code"
+          aria-label="ตัวกรอง: ไม่มี ClaimCode"
         >
           <div className="oral-card-indicator" />
           <div className="oral-card-head">
-            <span className="oral-card-title">ไม่มี Authen Code</span>
-            <span className="oral-card-badge warning">ขาด Authen</span>
+            <span className="oral-card-title">ไม่มี ClaimCode</span>
+            <span className="oral-card-badge warning">ขาด ClaimCode</span>
           </div>
           <div className="oral-card-value">{summary.withoutAuthenCount.toLocaleString('th-TH')} ราย</div>
           <div className="oral-card-sub">
-            <span>ต้องขอ Claim Code ย้อนหลัง</span>
+            <span>ต้องขอ ClaimCode ย้อนหลัง</span>
           </div>
         </button>
 
@@ -818,25 +835,6 @@ export default function OralCancerScreeningClient({
       {/* ── 5. Search & Filters Bar ── */}
       <section className="oral-filter-bar" aria-label="ตัวกรองและค้นหา">
         <div className="oral-filter-left">
-          <select
-            className="oral-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as OralCancerSearchField)
-              setCurrentPage(1)
-            }}
-            aria-label="เลือกฟิลด์สำหรับค้นหา"
-          >
-            <option value="ALL">ค้นหาทุกฟิลด์</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขบัตรประชาชน</option>
-            <option value="PTNAME">ชื่อ-สกุล</option>
-            <option value="VN">VN</option>
-            <option value="DIAG">การวินิจฉัย (PDX/DX)</option>
-            <option value="OP">หัตถการ (OP)</option>
-            <option value="PTTYPE">สิทธิการรักษา</option>
-          </select>
-
           <div className="oral-search-box">
             <Search size={18} className="oral-search-icon" aria-hidden="true" />
             <input
@@ -859,19 +857,40 @@ export default function OralCancerScreeningClient({
           </div>
         </div>
 
-        <div className="oral-filter-right">
-          <label className="oral-checkbox-label">
-            <input
-              type="checkbox"
-              className="oral-checkbox"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
-              }}
-            />
-            <span>เฉพาะสิทธิบัตรทอง (UC)</span>
-          </label>
+        <div className="oral-filter-right" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
+          {selectedPttypes.length > 0 && (
+            <div className="oral-active-filter-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem' }}>
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะบัตรทอง (UC)'
+                  : `${selectedPttypes.length} สิทธิ`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                className="hover:opacity-75"
+                title="ล้างตัวกรองสิทธิ"
+                aria-label="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -941,7 +960,7 @@ export default function OralCancerScreeningClient({
                   </button>
                 </th>
                 <th className="col-left">สิทธิการรักษา</th>
-                <th className="col-center">Authen Code</th>
+                <th className="col-center">ClaimCode</th>
                 <th className="col-center">
                   <button
                     type="button"
@@ -1217,7 +1236,7 @@ export default function OralCancerScreeningClient({
                     <span className="oral-modal-val">{selectedItem.pttypename || '—'}</span>
                   </div>
                   <div className="oral-modal-item">
-                    <span className="oral-modal-label">Authen Code</span>
+                    <span className="oral-modal-label">ClaimCode:</span>
                     <span className="oral-modal-val font-semibold">
                       {selectedItem.authencode || 'ไม่มี Authen Code'}
                     </span>

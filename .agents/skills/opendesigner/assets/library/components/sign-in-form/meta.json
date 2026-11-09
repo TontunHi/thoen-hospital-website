@@ -1,0 +1,13 @@
+{
+  "name": "Sign-in form",
+  "summary": "Work email and password with show and hide, remember this device, and a single sign-on option, shown with a wrong-password error.",
+  "use": "on a work app's sign-in page",
+  "type": "form",
+  "style": "quiet",
+  "industries": ["saas", "any"],
+  "tags": ["sign in", "login", "password", "sso", "auth"],
+  "states": ["hover", "focus", "error", "password shown", "checked"],
+  "source": null,
+  "a11y": "Each input has a visible label; the error is tied to the password with aria-describedby and aria-invalid, and the show button is a toggle with aria-pressed.",
+  "width": "narrow"
+}

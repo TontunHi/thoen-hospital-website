@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -32,6 +33,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import '../health-screening.css'
 
 const THAI_MONTHS = [
@@ -93,6 +96,15 @@ export default function FastingPlasmaGlucoseClient({
     initialData?.cardFilter ?? 'ALL'
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(() => {
+    if (initialData?.pttypes) {
+      return initialData.pttypes.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    if (initialData?.ucOnly) {
+      return [...UC_ECLAIM_CODES]
+    }
+    return []
+  })
   const [searchField, setSearchField] = useState<HealthScreeningSearchField>(
     initialData?.searchField ?? 'ALL'
   )
@@ -232,7 +244,6 @@ export default function FastingPlasmaGlucoseClient({
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           searchField,
           search: debouncedSearch,
           sortBy,
@@ -240,6 +251,12 @@ export default function FastingPlasmaGlucoseClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          q.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          q.set('ucOnly', 'true')
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -271,7 +288,7 @@ export default function FastingPlasmaGlucoseClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -346,13 +363,18 @@ export default function FastingPlasmaGlucoseClient({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         searchField,
         search: debouncedSearch,
         sortBy,
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        q.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        q.set('ucOnly', 'true')
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/health-screening/service-14-5?${q.toString()}`
@@ -374,7 +396,7 @@ export default function FastingPlasmaGlucoseClient({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลารับบริการ',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -436,17 +458,13 @@ export default function FastingPlasmaGlucoseClient({
         `"${r.subfund || ''}"`,
       ])
 
-      const csvContent =
-        '\uFEFF' + [headers.join(','), ...csvRows.map((e) => e.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `rcm_fpg_14_5_12003_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `rcm_fpg_14_5_12003_${ds1}_to_${ds2}.xlsx`,
+        title: 'การตรวจระดับน้ำตาลในเลือด (Fasting Plasma Glucose 14.5)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(`เกิดข้อผิดพลาดในการส่งออกไฟล์: ${e.message}`)
@@ -466,7 +484,7 @@ export default function FastingPlasmaGlucoseClient({
           </div>
           <h1 className="hs-title">14.5 Fasting Plasma Glucose (FPG)</h1>
           <p className="hs-subtitle">
-            บริการตรวจระดับน้ำตาลในเลือดหลังอดอาหาร รหัส ADP <strong>12003</strong> ติดตามการขอรหัส Authen
+            บริการตรวจระดับน้ำตาลในเลือดหลังอดอาหาร รหัส ADP <strong>12003</strong> ติดตามการขอรหัส ClaimCode
             การตรวจซ้ำในปีงบประมาณ และสถานะการชดเชยค่าบริการ
           </p>
         </div>
@@ -488,10 +506,11 @@ export default function FastingPlasmaGlucoseClient({
             className="hs-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || items.length === 0}
-            aria-label="ส่งออกข้อมูลเป็นไฟล์ Excel / CSV"
+            aria-label="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} aria-hidden="true" />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel / CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -739,7 +758,7 @@ export default function FastingPlasmaGlucoseClient({
           </div>
         </button>
 
-        {/* Card 5: Authen Code */}
+        {/* Card 5: ClaimCode */}
         <button
           type="button"
           className={`hs-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
@@ -747,11 +766,11 @@ export default function FastingPlasmaGlucoseClient({
             setCardFilter('WITH_AUTHEN')
             setCurrentPage(1)
           }}
-          aria-label="ตัวกรอง: มีรหัส Authen Code"
+          aria-label="ตัวกรอง: มีรหัส ClaimCode"
         >
           <div className="hs-card-indicator" />
           <div className="hs-card-head">
-            <span className="hs-card-title">มีรหัส AUTHEN</span>
+            <span className="hs-card-title">มีรหัส ClaimCode</span>
             <span className="hs-card-badge info">{summary.authenRate.toFixed(1)}%</span>
           </div>
           <div className="hs-card-value text-sky-700">
@@ -759,7 +778,7 @@ export default function FastingPlasmaGlucoseClient({
           </div>
           <div className="hs-card-sub">
             <ShieldCheck size={14} aria-hidden="true" />
-            <span>ไม่มี Authen: {summary.withoutAuthenCount.toLocaleString('th-TH')} ครั้ง</span>
+            <span>ไม่มี ClaimCode: {summary.withoutAuthenCount.toLocaleString('th-TH')} ครั้ง</span>
           </div>
         </button>
       </section>
@@ -767,24 +786,6 @@ export default function FastingPlasmaGlucoseClient({
       {/* ── 5. Search Bar & Secondary Filters ── */}
       <section className="hs-filter-bar" aria-label="ค้นหาและตัวกรองตาราง">
         <div className="hs-filter-left">
-          <select
-            className="hs-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as HealthScreeningSearchField)
-              setCurrentPage(1)
-            }}
-            aria-label="ค้นหาจากคอลัมน์"
-          >
-            <option value="ALL">ทุกคอลัมน์</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขบัตรประชาชน</option>
-            <option value="PTNAME">ชื่อ-สกุล</option>
-            <option value="VN">VN</option>
-            <option value="DIAG">รหัสโรค (ICD-10)</option>
-            <option value="PTTYPE">สิทธิการรักษา</option>
-          </select>
-
           <div className="hs-search-box">
             <Search size={18} className="hs-search-icon" aria-hidden="true" />
             <input
@@ -807,19 +808,40 @@ export default function FastingPlasmaGlucoseClient({
           </div>
         </div>
 
-        <div className="hs-filter-right">
-          <label className="hs-checkbox-label">
-            <input
-              type="checkbox"
-              className="hs-checkbox"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
-              }}
-            />
-            <span>เฉพาะสิทธิบัตรทอง (UC)</span>
-          </label>
+        <div className="hs-filter-right" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
+          {selectedPttypes.length > 0 && (
+            <div className="hs-active-filter-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem' }}>
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะบัตรทอง (UC)'
+                  : `${selectedPttypes.length} สิทธิ`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                className="hover:opacity-75"
+                title="ล้างตัวกรองสิทธิ"
+                aria-label="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           <select
             className="hs-select"
@@ -888,7 +910,7 @@ export default function FastingPlasmaGlucoseClient({
                 </th>
                 <th className="col-center">
                   <button type="button" className="hs-table-sort-btn" onClick={() => handleSort('authencode')}>
-                    <span>Authen Code</span>
+                    <span>ClaimCode</span>
                     {renderSortIcon('authencode')}
                   </button>
                 </th>
@@ -1127,7 +1149,7 @@ export default function FastingPlasmaGlucoseClient({
                     </span>
                   </div>
                   <div className="hs-modal-item">
-                    <span className="hs-modal-label">รหัส Authen Code</span>
+                    <span className="hs-modal-label">รหัส ClaimCode</span>
                     <span className="hs-modal-val font-mono">
                       {selectedItem.authencode || '— ไม่มีรหัส —'}
                     </span>

@@ -1,0 +1,67 @@
+{
+  "name": "Cart drawer",
+  "summary": "A shopping bag open as a side sheet over the dimmed page: items with product photos, quantity steppers and Remove, a quiet bar towards free delivery, the subtotal and total, and Checkout.",
+  "use": "when someone opens their bag from any page of a shop",
+  "type": "overlay",
+  "style": "friendly",
+  "industries": [
+    "retail",
+    "food"
+  ],
+  "tags": [
+    "cart",
+    "bag",
+    "drawer",
+    "quantity",
+    "checkout",
+    "free delivery"
+  ],
+  "states": [
+    "items",
+    "free delivery reached",
+    "empty",
+    "minimum quantity",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The sheet is a labelled dialog; each stepper is a named group whose count is announced, Remove names its item and moves focus to the next one, and the free-delivery bar is a labelled progress bar.",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1620799140408-edc6dcb6d633",
+      "author": "Mediamodifier",
+      "page": "7cERndkOyDw"
+    },
+    {
+      "img": "photo-1570784332176-fdd73da66f03",
+      "author": "Samantha Ram",
+      "page": "Ha5_JcYArf0"
+    },
+    {
+      "img": "photo-1485955900006-10f4d324d411",
+      "author": "Galina N",
+      "page": "miziNqvJx5M"
+    },
+    {
+      "img": "photo-1646270968802-6bad28659329",
+      "author": "Meg MacDonald",
+      "page": "9cxiJMMUJZ4"
+    },
+    {
+      "img": "photo-1605733513597-a8f8341084e6",
+      "author": "mostafa mahmoudi",
+      "page": "J4DnKxz_3sA"
+    },
+    {
+      "img": "photo-1603808033192-082d6919d3e1",
+      "author": "Mojtaba Fahiminia",
+      "page": "t4g1gctAaKk"
+    },
+    {
+      "img": "photo-1570974802254-4b0ad1a755f5",
+      "author": "Brina Blum",
+      "page": "mNXTZu7AeGA"
+    }
+  ]
+}

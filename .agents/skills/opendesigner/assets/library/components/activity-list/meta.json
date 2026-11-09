@@ -1,0 +1,87 @@
+{
+  "name": "Activity list",
+  "summary": "Likes, follows and mentions grouped under Today and This week, each with the person's photo and a small badge for its kind, a thumbnail of the post or a quiet Follow back button, a dot on new items, and filter chips.",
+  "use": "on the notifications tab of a social or creator app",
+  "type": "feedback",
+  "style": "friendly",
+  "industries": [
+    "social",
+    "media"
+  ],
+  "tags": [
+    "activity",
+    "notifications",
+    "follow back",
+    "likes",
+    "mentions"
+  ],
+  "states": [
+    "new",
+    "read",
+    "following",
+    "filtered",
+    "empty",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The filter is a native radio group, each day is a labelled section, new items say \"New\" to screen readers, thumbnails have descriptions, and Follow back is a toggle with aria-pressed.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1506794778202-cad84cf45f1d",
+      "author": "Albert Dera",
+      "page": "ILip77SbmOE"
+    },
+    {
+      "img": "photo-1512531123205-560f5974e686",
+      "author": "Shea Rouda",
+      "page": "Vtl6cOhO87Y"
+    },
+    {
+      "img": "photo-1505490096310-204ef067fe6b",
+      "author": "Giammarco Boscaro",
+      "page": "UkOpMcslmX8"
+    },
+    {
+      "img": "photo-1531746020798-e6953c6e8e04",
+      "author": "Jimmy Fermin",
+      "page": "bqe0J0b26RQ"
+    },
+    {
+      "img": "photo-1578429827733-272eb6d7972e",
+      "author": "Keagan Henman",
+      "page": "Jfz6IdxMSuQ"
+    },
+    {
+      "img": "photo-1609194246158-702022cc4f13",
+      "author": "Juan Karmy",
+      "page": "r6msFtvtt74"
+    },
+    {
+      "img": "photo-1684598273404-2d94d7a7ce2f",
+      "author": "Hugo ROUQUETTE",
+      "page": "RhTXKh0UofQ"
+    },
+    {
+      "img": "photo-1596580817363-a4a8f67d4bc8",
+      "author": "Dorrell Tibbs",
+      "page": "gisFZKWpKQ4"
+    },
+    {
+      "img": "photo-1534751516642-a1af1ef26a56",
+      "author": "Mathias Huysmans",
+      "page": "U4JDjYmjn1g"
+    },
+    {
+      "img": "photo-1600603406200-5b2a104684ac",
+      "author": "Vicky Hladynets",
+      "page": "_gDoyVv5F4c"
+    },
+    {
+      "img": "photo-1607569708758-0270aa4651bd",
+      "author": "Meg Wagener",
+      "page": "M7fbJyBuAag"
+    }
+  ]
+}

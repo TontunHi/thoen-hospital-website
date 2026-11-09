@@ -1,0 +1,107 @@
+<style>
+.odl-receipts-table { box-sizing: border-box; inline-size: 100%; max-inline-size: 1040px; margin-inline: auto; position: relative; container-type: inline-size; background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); overflow: hidden; text-wrap: pretty; }
+.odl-receipts-table .odl-scroll { overflow-x: auto; padding-inline: var(--ds-space-inset-xs); }
+.odl-receipts-table .odl-top { display: grid; gap: var(--ds-space-stack-xs);
+  padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl); }
+.odl-receipts-table h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-receipts-table .odl-top p { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-receipts-table table { inline-size: 100%; min-inline-size: 40rem; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.odl-receipts-table th { text-align: start; padding: 0 var(--ds-space-inset-md); block-size: var(--ds-size-row-sm); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md);
+  background: var(--ds-color-surface-sunken); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); white-space: nowrap; }
+.odl-receipts-table td { padding: 0 var(--ds-space-inset-md); block-size: var(--ds-size-row-md); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-separator); white-space: nowrap; }
+.odl-receipts-table tr:last-child td { border-block-end: 0; }
+.odl-receipts-table th:first-child, .odl-receipts-table td:first-child { inline-size: 1%; padding-inline: var(--ds-space-inset-lg) 0; }
+.odl-receipts-table th:last-child, .odl-receipts-table td:last-child { padding-inline-end: var(--ds-space-inset-xl); }
+.odl-receipts-table .odl-num { text-align: end; }
+.odl-receipts-table .odl-num small { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); margin-inline-start: var(--ds-space-2); }
+.odl-receipts-table .odl-ref { color: var(--ds-color-text-secondary); font: var(--ds-text-code-sm); }
+/* Hover and selected fills sit inset from the card edge, with rounded ends. */
+.odl-receipts-table tbody td { transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-receipts-table tbody tr:hover td { background: var(--ds-color-bg-neutral-subtle); }
+.odl-receipts-table tbody tr:has(input:checked) td { background: var(--ds-color-bg-accent-subtle); }
+.odl-receipts-table tbody td:first-child { border-start-start-radius: var(--ds-radius-nested); border-end-start-radius: var(--ds-radius-nested); }
+.odl-receipts-table tbody td:last-child { border-start-end-radius: var(--ds-radius-nested); border-end-end-radius: var(--ds-radius-nested); }
+/* Checkbox drawn with tokens: a quiet box, filled with the action colour and a check when on. */
+.odl-receipts-table input { appearance: none; display: inline-grid; place-content: center; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin: 0;
+  border: var(--ds-border-width-emphasis) solid var(--ds-color-border-strong); border-radius: var(--ds-radius-detail); background: var(--ds-color-bg-field); cursor: pointer; vertical-align: middle; }
+.odl-receipts-table input::before { content: ""; inline-size: var(--ds-space-8); block-size: var(--ds-space-8); background: var(--ds-color-text-on-action); transform: scale(0);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+.odl-receipts-table input:hover { border-color: var(--ds-color-text-secondary); }
+.odl-receipts-table input:checked { border-color: var(--ds-color-bg-action-primary); background: var(--ds-color-bg-action-primary); }
+.odl-receipts-table input:checked::before { transform: scale(1); }
+.odl-receipts-table label { display: inline-grid; place-items: center; min-inline-size: var(--ds-size-target-min); min-block-size: var(--ds-size-target-min); margin: calc(-1 * var(--ds-space-4)) 0; cursor: pointer; }
+.odl-receipts-table input:focus-visible, .odl-receipts-table button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-receipts-table .odl-pill { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); padding: var(--ds-space-2) var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-receipts-table .odl-pill::before { content: ""; inline-size: var(--ds-space-6); block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: currentColor; }
+.odl-receipts-table .is-suggested { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); }
+.odl-receipts-table .is-short { background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-warning); }
+.odl-receipts-table .is-none { background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); }
+.odl-receipts-table .is-matched { background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); }
+@container (max-width: 40rem) {
+  .odl-receipts-table table { min-inline-size: 0; }
+  .odl-receipts-table thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+  .odl-receipts-table .odl-top { padding: var(--ds-space-inset-lg); }
+  .odl-receipts-table tbody { display: block; border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+  .odl-receipts-table tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-stack-xs) var(--ds-space-inline-sm);
+    padding: var(--ds-space-inset-md) var(--ds-space-inset-lg) var(--ds-space-inset-md) 0; }
+  .odl-receipts-table tbody tr + tr { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+  .odl-receipts-table td, .odl-receipts-table td:last-child { block-size: auto; padding: 0; border: 0; white-space: normal; }
+  .odl-receipts-table td:first-child { grid-row: span 2; align-self: start; margin-block-start: calc((1lh - var(--ds-size-target-min)) / 2); padding-inline-start: var(--ds-space-inset-xs); }
+  .odl-receipts-table tbody tr { margin-inline: var(--ds-space-inset-xs); border-radius: var(--ds-radius-nested); transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+  .odl-receipts-table tbody tr:hover td, .odl-receipts-table tbody tr:has(input:checked) td { background: transparent; }
+  .odl-receipts-table tbody tr:hover { background: var(--ds-color-bg-neutral-subtle); }
+  .odl-receipts-table tbody tr:has(input:checked) { background: var(--ds-color-bg-accent-subtle); }
+  .odl-receipts-table .odl-scroll { padding-inline: 0; }
+  .odl-receipts-table td:nth-child(2) { font-weight: var(--ds-font-weight-label); }
+  .odl-receipts-table td:nth-child(3) { display: none; }
+  .odl-receipts-table td:nth-child(5) { grid-column: 2 / 4; }
+  /* Phone: the count on its own line, the two buttons side by side under it. */
+  .odl-receipts-table div.odl-bulk { display: grid; grid-template-columns: auto minmax(0, 1fr); margin: 0 var(--ds-space-inset-md) var(--ds-space-inset-md); padding: var(--ds-space-inset-xs); gap: var(--ds-space-inline-xs) var(--ds-space-inline-sm); }
+  .odl-receipts-table div.odl-bulk output { grid-column: 1 / -1; padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm) 0; }
+  .odl-receipts-table div.odl-bulk span { display: none; }
+  .odl-receipts-table div.odl-bulk button { flex: 1 1 auto; min-inline-size: 0; padding-inline: var(--ds-space-inset-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+@container (40rem < width <= 52rem) {
+  /* Tablet width: the next smaller inset, so all five columns fit without scrolling sideways. */
+  .odl-receipts-table th, .odl-receipts-table td { padding-inline: var(--ds-space-inset-sm); }
+  .odl-receipts-table th:first-child, .odl-receipts-table td:first-child { padding-inline: var(--ds-space-inset-md) 0; }
+  .odl-receipts-table th:last-child, .odl-receipts-table td:last-child { padding-inline-end: var(--ds-space-inset-lg); }
+}
+.odl-receipts-table .odl-bulk { display: flex; align-items: center; gap: var(--ds-space-inline-sm); margin: var(--ds-space-inset-sm) var(--ds-space-inset-lg) var(--ds-space-inset-lg); padding: var(--ds-space-inset-xs) var(--ds-space-inset-xs) var(--ds-space-inset-xs) var(--ds-space-inset-lg);
+  border-radius: var(--ds-radius-container); background: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); box-shadow: var(--ds-elevation-floating); flex-wrap: wrap;
+  transition: opacity var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-receipts-table:not(:has(tbody input:checked)) .odl-bulk { opacity: 0; visibility: hidden; }
+.odl-receipts-table .odl-bulk output { font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-receipts-table .odl-bulk span { flex: 1; }
+.odl-receipts-table .odl-bulk button { min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); border: 0; border-radius: max(0px, calc(var(--ds-radius-container) - var(--ds-space-inset-xs))); background: transparent;
+  color: inherit; font: var(--ds-text-label-lg); cursor: pointer; }
+.odl-receipts-table .odl-bulk button:hover { background: var(--ds-color-neutral-alpha-dark-3); }
+.odl-receipts-table .odl-bulk .odl-go { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-receipts-table .odl-bulk .odl-go:hover { background: var(--ds-color-bg-neutral-subtle); }
+@media (prefers-reduced-motion: reduce) { .odl-receipts-table, .odl-receipts-table *, .odl-receipts-table *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-receipts-table">
+  <div class="odl-top"><h3 id="odl-rt-title">Receipts to match</h3><p>5 from the bank feed · $29,409.76</p></div>
+  <div class="odl-scroll">
+    <table aria-labelledby="odl-rt-title">
+      <thead><tr><th scope="col"><span hidden>Select</span></th><th scope="col">Customer</th><th scope="col">Their reference</th><th scope="col" class="odl-num">Amount</th><th scope="col">Match</th></tr></thead>
+      <tbody>
+        <tr><td><label><input type="checkbox" aria-label="Select Penmarrow Bay Hotel"></label></td><td>Penmarrow Bay Hotel</td><td class="odl-ref">CBH REFIT STAGE 2</td><td class="odl-num">$26,015.33<small>USD</small></td><td><span class="odl-pill is-short">Part payment</span></td></tr>
+        <tr><td><label><input type="checkbox" checked aria-label="Select Saffrey Coffee Co."></label></td><td>Saffrey Coffee Co.</td><td class="odl-ref">SAFFREY COFFEE</td><td class="odl-num">$452.08<small>USD</small></td><td><span class="odl-pill is-suggested">Suggested</span></td></tr>
+        <tr><td><label><input type="checkbox" checked aria-label="Select Gullwharf Oyster Bar"></label></td><td>Gullwharf Oyster Bar</td><td class="odl-ref">BRINE ST OYSTER BAR</td><td class="odl-num">$1,029.99<small>USD</small></td><td><span class="odl-pill is-suggested">Suggested</span></td></tr>
+        <tr><td><label><input type="checkbox" aria-label="Select Kettleby Catering Ltd"></label></td><td>Kettleby Catering Ltd</td><td class="odl-ref">—</td><td class="odl-num">$1,500.00<small>USD</small></td><td><span class="odl-pill is-none">No match</span></td></tr>
+        <tr><td><label><input type="checkbox" aria-label="Select Pendrick Telecom"></label></td><td>Pendrick Telecom</td><td class="odl-ref">BT-0098341</td><td class="odl-num">$412.36<small>USD</small></td><td><span class="odl-pill is-matched">Matched</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="odl-bulk" role="toolbar" aria-label="Selected receipts"><output aria-live="polite">2 selected</output><span></span><button type="button">Hold as credit</button><button type="button" class="odl-go">Confirm matches</button></div>
+</div>
+<script>
+document.querySelectorAll(".odl-receipts-table").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const out = root.querySelector(".odl-bulk output");
+  root.addEventListener("change", () => { out.textContent = root.querySelectorAll("tbody input:checked").length + " selected"; });
+});
+</script>

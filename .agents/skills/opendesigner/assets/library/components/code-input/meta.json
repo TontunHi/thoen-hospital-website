@@ -1,0 +1,13 @@
+{
+  "name": "Code input",
+  "summary": "Six boxes for a verification code that move to the next box as you type and fill all at once when you paste, with a resend countdown and a wrong-code error.",
+  "use": "for a one-time sign-in or verification code",
+  "type": "form",
+  "style": "quiet",
+  "industries": ["saas", "security", "finance", "any"],
+  "tags": ["verification code", "otp", "two-step", "pin", "sign in"],
+  "states": ["hover", "focus", "filled", "error", "resend waiting", "resend ready", "disabled verify"],
+  "source": null,
+  "a11y": "The boxes are a labelled group, each input says which digit it is and points to the message, arrows and Backspace move between boxes, the first box offers one-time-code autofill, and the message is a polite live region.",
+  "width": "narrow"
+}

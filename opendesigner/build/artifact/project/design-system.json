@@ -1,0 +1,25 @@
+{
+ "v": 3,
+ "layout": "files",
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-09T08:04:25Z"
+ },
+ "title": "Thoen Hospital Web Portal",
+ "namespace": "ThoenHospitalWebPortal",
+ "libraries": [],
+ "sections": {},
+ "groups": [],
+ "assetGroups": {},
+ "blobs": {},
+ "docs": {
+  "readme": "project/README.md",
+  "sections": []
+ },
+ "lastChange": {
+  "by": "OpenDesigner",
+  "at": "2026-11-09T08:04:25Z",
+  "via": "engine.py export --format artifact",
+  "note": "Rebuilt from the system's tokens"
+ }
+}

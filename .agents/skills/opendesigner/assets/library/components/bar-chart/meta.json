@@ -1,0 +1,13 @@
+{
+  "name": "Monthly spend chart",
+  "summary": "Six months of spend as bars, with the current month's forecast hatched on top, a dashed budget line and a tooltip on the bar you point at.",
+  "use": "for monthly spend or usage against a budget, with a forecast",
+  "type": "chart",
+  "style": "quiet",
+  "industries": ["saas", "finance", "devtools"],
+  "tags": ["bar chart", "spend", "budget", "forecast", "billing", "tooltip"],
+  "states": ["hover", "focus", "current month", "forecast over budget"],
+  "source": "brand/showcase/product/05-kilnworks-billing",
+  "a11y": "Each bar is a button whose name says the month, the amount and how it sits against the budget; Tab moves through the months and shows the same tooltip as hover.",
+  "width": "medium"
+}

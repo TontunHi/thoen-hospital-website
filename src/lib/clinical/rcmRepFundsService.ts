@@ -180,11 +180,76 @@ export function formatSubFundLabel(subFund: string | null | undefined): string {
 }
 
 export class RcmRepFundsService {
+  private static mapClaimRecord(r: any): PatientClaimRecord {
+    const income = Number(r.Income ?? r.income ?? 0)
+    const compensated = Number(r.Compensated ?? r.compensated ?? 0)
+    const diff = Number(r.Diff ?? r.diff ?? (compensated - income))
+    const percentPay = income > 0 ? Math.round((compensated / income) * 100) : (compensated > 0 ? 100 : 0)
+
+    let status: 'paid' | 'appeal' | 'denied' = 'paid'
+    const appealVal = r.Appeal ?? r.appeal
+    if (appealVal === 'Y') {
+      status = 'appeal'
+    } else if (compensated === 0 || compensated === null) {
+      status = 'denied'
+    } else if (compensated > 0) {
+      status = 'paid'
+    }
+
+    const sDate = r.AdmDate || r.DchDate || r.admdate || r.dchdate
+    const serviceDate = formatDateYMD(sDate)
+    const serviceDateThai = formatThaiDate(sDate)
+
+    const hn = String(r.HN ?? r.hn ?? '')
+    const rep = String(r.Rep ?? r.rep ?? '')
+    const fund = String(r.Fund ?? r.fund ?? '')
+    const subFund = String(r.SubFund ?? r.subFund ?? '-')
+    const dept = (r.Department ?? r.department) === 'IP' ? 'IP' : 'OP'
+
+    return {
+      id: String(r.ID ?? r.id ?? `${rep}:${hn}`),
+      rep,
+      hn,
+      maskedHn: maskHn(hn),
+      ptName: String(r.PtName ?? r.ptName ?? '').trim(),
+      serviceDate,
+      serviceDateThai,
+      department: dept,
+      departmentLabel: dept === 'IP' ? 'ผู้ป่วยใน (IPD)' : 'ผู้ป่วยนอก (OPD)',
+      mainInscl: resolveMainInscl(fund),
+      fund,
+      fundLabel: formatFundLabel(fund),
+      subFund,
+      subFundLabel: formatSubFundLabel(subFund),
+      projectCode: (r.ProjectCode ?? r.projectCode) ? String(r.ProjectCode ?? r.projectCode) : undefined,
+      income,
+      compensated,
+      diff,
+      percentPay,
+      errorCode: (r.ErrorCode ?? r.errorCode) ? String(r.ErrorCode ?? r.errorCode) : undefined,
+      appeal: appealVal === 'Y' ? 'Y' : 'N',
+      status,
+    }
+  }
+
   /**
    * Get list of available fiscal years from rcmdb.repdata
    */
   static async getAvailableYears(): Promise<string[]> {
     return getCachedData('rcm-rep-available-years', async () => {
+      // 1. Dual-Path: Named REST API first
+      if (typeof (apiGateway.clinical as any).getRepFundsYears === 'function') {
+        try {
+          const res = await (apiGateway.clinical as any).getRepFundsYears()
+          if (res?.success && Array.isArray(res?.data) && res.data.length > 0) {
+            return res.data
+          }
+        } catch {
+          // fallback to raw query
+        }
+      }
+
+      // 2. Fallback to SQL query
       try {
         const rows = await apiGateway.clinical.query<{ YearBudget: string }>(`
           SELECT DISTINCT YearBudget 
@@ -214,9 +279,109 @@ export class RcmRepFundsService {
     const cacheKey = `rcm-rep-summary-${fiscalYear}-${department}-${fund || ''}-${subFund || ''}-${search || ''}-${params.ds1 || ''}-${params.ds2 || ''}`
 
     return getCachedData(cacheKey, async () => {
-      // Base filters
-    const whereClauses: string[] = []
-    const queryParams: any[] = []
+      // 1. Dual-Path: Named REST API first
+      if (typeof (apiGateway.clinical as any).getRepFundsSummary === 'function') {
+        try {
+          const res = await (apiGateway.clinical as any).getRepFundsSummary({
+            fiscalYear,
+            department,
+            fund: fund || undefined,
+            subFund: subFund || undefined,
+            status: params.status || undefined,
+            errorCode: params.errorCode || undefined,
+            search: search || undefined,
+            ds1: params.ds1,
+            ds2: params.ds2,
+          })
+          if (res?.success && res?.data) {
+            const d = res.data
+            const m = (d.metrics || {}) as any
+            const totalIncome = Number(m.totalIncome || 0)
+            const totalCompensated = Number(m.totalCompensated || 0)
+            const rate = totalIncome > 0 ? ((totalCompensated / totalIncome) * 100).toFixed(1) : '0.0'
+
+            const metrics: RepFundsSummaryMetrics = {
+              totalCases: Number(m.totalCases || 0),
+              totalReps: Number(m.totalReps || 0),
+              totalIncome,
+              totalCompensated,
+              rate,
+              totalDiff: Number(m.totalDiff || 0),
+              pendingAppeals: Number(m.pendingAppeals || 0),
+              errorCount: Number(m.errorCount || 0),
+            }
+
+            const fundGroups: FundSummaryGroup[] = (d.fundGroups || []).map((r: any) => {
+              const inc = Number(r.totalIncome || 0)
+              const comp = Number(r.totalCompensated || 0)
+              const reimbRate = inc > 0 ? Math.round((comp / inc) * 1000) / 10 : 0
+              return {
+                fundKey: String(r.fundKey),
+                fundLabel: formatFundLabel(r.fundKey),
+                subFundKey: String(r.subFundKey),
+                subFundLabel: formatSubFundLabel(r.subFundKey),
+                department: r.department === 'IP' ? 'IP' : 'OP',
+                caseCount: Number(r.caseCount || 0),
+                totalIncome: inc,
+                totalCompensated: comp,
+                reimbursementRate: reimbRate,
+                netDiff: Number(r.netDiff || 0),
+                appealCount: Number(r.appealCount || 0),
+                errorCount: Number(r.errorCount || 0),
+              }
+            })
+
+            const repList: RepStatementSummary[] = (d.repList || []).map((r: any) => {
+              const inc = Number(r.totalIncome || 0)
+              const comp = Number(r.totalCompensated || 0)
+              const reimbRate = inc > 0 ? Math.round((comp / inc) * 1000) / 10 : 0
+              return {
+                rep: String(r.rep || ''),
+                yearBudget: String(r.yearBudget || fiscalYear),
+                department: r.department === 'IP' ? 'IP' : 'OP',
+                fund: String(r.fund || '-'),
+                fundLabel: formatFundLabel(r.fund),
+                caseCount: Number(r.caseCount || 0),
+                totalIncome: inc,
+                totalCompensated: comp,
+                reimbursementRate: reimbRate,
+                netDiff: Number(r.netDiff || 0),
+                minDate: r.minDate ? String(r.minDate) : null,
+                maxDate: r.maxDate ? String(r.maxDate) : null,
+                appealCount: Number(r.appealCount || 0),
+                errorCount: Number(r.errorCount || 0),
+              }
+            })
+
+            const availableFunds = (d.availableFunds || []).map((r: any) => ({
+              key: String(r.fundKey),
+              label: `${formatFundLabel(r.fundKey)} (${Number(r.cnt).toLocaleString('th-TH')})`,
+              count: Number(r.cnt || 0),
+            }))
+
+            const availableErrorCodes = (d.availableErrorCodes || []).map((r: any) => ({
+              code: String(r.code),
+              count: Number(r.cnt || 0),
+            }))
+
+            return {
+              metrics,
+              fundGroups,
+              repList,
+              availableYears,
+              availableFunds,
+              availableErrorCodes,
+            }
+          }
+        } catch {
+          // fallback to raw query
+        }
+      }
+
+      // 2. Fallback to SQL queries
+      const whereClauses: string[] = []
+      const queryParams: any[] = []
+
 
     if (params.ds1 && params.ds2) {
       whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
@@ -478,6 +643,19 @@ export class RcmRepFundsService {
    * Directly answers: "Rep นี้เป็นของใครเลย ได้เท่าไหร่ด้วย"
    */
   static async getRepCases(params: RepCasesParams): Promise<PatientClaimRecord[]> {
+    // 1. Dual-Path: Named REST API first
+    if (typeof (apiGateway.clinical as any).getRepFundsCases === 'function') {
+      try {
+        const res = await (apiGateway.clinical as any).getRepFundsCases(params)
+        if (res?.success && Array.isArray(res?.data)) {
+          return res.data.map((r: any) => this.mapClaimRecord(r))
+        }
+      } catch {
+        // fallback to raw query
+      }
+    }
+
+    // 2. Fallback to SQL query
     const whereClauses: string[] = []
     const queryParams: any[] = []
 
@@ -576,56 +754,26 @@ export class RcmRepFundsService {
 
     const rows = await apiGateway.clinical.query<any>(sql, queryParams)
 
-    return rows.map((r) => {
-      const income = Number(r.Income || 0)
-      const compensated = Number(r.Compensated || 0)
-      const diff = Number(r.Diff ?? (compensated - income))
-      const percentPay = income > 0 ? Math.round((compensated / income) * 100) : (compensated > 0 ? 100 : 0)
-
-      let status: 'paid' | 'appeal' | 'denied' = 'paid'
-      if (r.Appeal === 'Y') {
-        status = 'appeal'
-      } else if (compensated === 0 || compensated === null) {
-        status = 'denied'
-      } else if (compensated > 0) {
-        status = 'paid'
-      }
-
-      const sDate = r.AdmDate || r.DchDate
-      const serviceDate = formatDateYMD(sDate)
-      const serviceDateThai = formatThaiDate(sDate)
-
-      return {
-        id: String(r.ID || `${r.Rep}:${r.HN}`),
-        rep: String(r.Rep || ''),
-        hn: String(r.HN || ''),
-        maskedHn: maskHn(r.HN),
-        ptName: String(r.PtName || '').trim(),
-        serviceDate,
-        serviceDateThai,
-        department: r.Department === 'IP' ? 'IP' : 'OP',
-        departmentLabel: r.Department === 'IP' ? 'ผู้ป่วยใน (IPD)' : 'ผู้ป่วยนอก (OPD)',
-        mainInscl: resolveMainInscl(r.Fund),
-        fund: String(r.Fund || ''),
-        fundLabel: formatFundLabel(r.Fund),
-        subFund: String(r.SubFund || '-'),
-        subFundLabel: formatSubFundLabel(r.SubFund),
-        projectCode: r.ProjectCode ? String(r.ProjectCode) : undefined,
-        income,
-        compensated,
-        diff,
-        percentPay,
-        errorCode: r.ErrorCode ? String(r.ErrorCode) : undefined,
-        appeal: r.Appeal === 'Y' ? 'Y' : 'N',
-        status,
-      }
-    })
+    return rows.map((r) => this.mapClaimRecord(r))
   }
 
   /**
    * Search patient claims by HN, patient name, or service date
    */
   static async lookupPatientClaims(params: { hn?: string; ptName?: string; serviceDate?: string }): Promise<PatientClaimRecord[]> {
+    // 1. Dual-Path: Named REST API first
+    if (typeof (apiGateway.clinical as any).lookupPatientClaims === 'function') {
+      try {
+        const res = await (apiGateway.clinical as any).lookupPatientClaims(params)
+        if (res?.success && Array.isArray(res?.data)) {
+          return res.data.map((r: any) => this.mapClaimRecord(r))
+        }
+      } catch {
+        // fallback to raw query
+      }
+    }
+
+    // 2. Fallback to SQL query
     const whereClauses: string[] = []
     const queryParams: any[] = []
 
@@ -661,49 +809,7 @@ export class RcmRepFundsService {
 
     const rows = await apiGateway.clinical.query<any>(sql, queryParams)
 
-    return rows.map((r) => {
-      const income = Number(r.Income || 0)
-      const compensated = Number(r.Compensated || 0)
-      const diff = Number(r.Diff ?? (compensated - income))
-      const percentPay = income > 0 ? Math.round((compensated / income) * 100) : (compensated > 0 ? 100 : 0)
-
-      let status: 'paid' | 'appeal' | 'denied' = 'paid'
-      if (r.Appeal === 'Y') {
-        status = 'appeal'
-      } else if (compensated === 0 || compensated === null) {
-        status = 'denied'
-      } else if (compensated > 0) {
-        status = 'paid'
-      }
-
-      const sDate = r.AdmDate || r.DchDate
-      const serviceDate = formatDateYMD(sDate)
-      const serviceDateThai = formatThaiDate(sDate)
-
-      return {
-        id: String(r.ID || `${r.Rep}:${r.HN}`),
-        rep: String(r.Rep || ''),
-        hn: String(r.HN || ''),
-        maskedHn: maskHn(r.HN),
-        ptName: String(r.PtName || '').trim(),
-        serviceDate,
-        serviceDateThai,
-        department: r.Department === 'IP' ? 'IP' : 'OP',
-        departmentLabel: r.Department === 'IP' ? 'ผู้ป่วยใน (IPD)' : 'ผู้ป่วยนอก (OPD)',
-        mainInscl: resolveMainInscl(r.Fund),
-        fund: String(r.Fund || ''),
-        fundLabel: formatFundLabel(r.Fund),
-        subFund: String(r.SubFund || '-'),
-        subFundLabel: formatSubFundLabel(r.SubFund),
-        projectCode: r.ProjectCode ? String(r.ProjectCode) : undefined,
-        income,
-        compensated,
-        diff,
-        percentPay,
-        errorCode: r.ErrorCode ? String(r.ErrorCode) : undefined,
-        appeal: r.Appeal === 'Y' ? 'Y' : 'N',
-        status,
-      }
-    })
+    return rows.map((r) => this.mapClaimRecord(r))
   }
 }
+

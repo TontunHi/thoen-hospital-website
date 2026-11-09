@@ -1,0 +1,106 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+/* The rail uses the recessed surface, not --ds-color-surface-nav: some systems paint that one in the brand colour, and these items are written for dark text on a light surface. */
+.odl-sidebar-nav { box-sizing: border-box; inline-size: 100%; max-inline-size: 18rem; margin-inline: auto; display: flex; flex-direction: column; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-lg) var(--ds-space-inset-md);
+  background: var(--ds-color-surface-sunken); color: var(--ds-color-text-primary); border-inline-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  font: var(--ds-text-body-md); text-wrap: pretty; container-type: inline-size; }
+.odl-sidebar-nav *, .odl-sidebar-nav *::before { box-sizing: border-box; }
+.odl-sidebar-nav svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-sidebar-nav button, .odl-sidebar-nav a, .odl-sidebar-nav summary { color: inherit; font: inherit; text-decoration: none; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-sidebar-nav button:focus-visible, .odl-sidebar-nav a:focus-visible, .odl-sidebar-nav summary:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-sidebar-nav .odl-switcher { display: flex; align-items: center; gap: var(--ds-space-inline-md); inline-size: 100%; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-sm); border: 0; border-radius: var(--ds-radius-control); background: transparent; text-align: start; }
+.odl-sidebar-nav .odl-switcher:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-sidebar-nav .odl-mark { flex: none; display: grid; place-items: center; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm);
+  border-radius: var(--ds-radius-control-sm); background: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-heading); }
+.odl-sidebar-nav .odl-ws { flex: 1; min-inline-size: 0; display: grid; }
+.odl-sidebar-nav .odl-ws strong { font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); overflow-wrap: break-word; }
+.odl-sidebar-nav .odl-ws small { color: var(--ds-color-text-tertiary); font: var(--ds-text-body-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.odl-sidebar-nav .odl-switcher > svg { color: var(--ds-color-icon-subtle); }
+.odl-sidebar-nav .odl-search { display: flex; align-items: center; gap: var(--ds-space-inline-md); inline-size: 100%; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-sm); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-tertiary); text-align: start; }
+.odl-sidebar-nav .odl-search:hover { border-color: var(--ds-color-border-default); }
+.odl-sidebar-nav .odl-search span { flex: 1; }
+.odl-sidebar-nav .odl-search kbd + kbd { margin-inline-start: calc(var(--ds-space-inline-xs) - var(--ds-space-inline-md)); }
+.odl-sidebar-nav kbd { display: inline-grid; place-items: center; min-inline-size: var(--ds-space-20); padding: 0 var(--ds-space-4); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-detail); background: var(--ds-color-surface-base); color: var(--ds-color-text-secondary); font: var(--ds-text-code-sm); }
+.odl-sidebar-nav nav { display: grid; gap: var(--ds-space-stack-lg); }
+.odl-sidebar-nav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ds-space-2); }
+.odl-sidebar-nav .odl-heading { margin: 0; padding: 0 var(--ds-space-inset-sm) var(--ds-space-stack-xs); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-sidebar-nav .odl-item { display: flex; align-items: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm);
+  border-radius: var(--ds-radius-control); color: var(--ds-color-text-secondary); }
+.odl-sidebar-nav .odl-item svg { color: var(--ds-color-icon-subtle); }
+.odl-sidebar-nav .odl-item .odl-label { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-sidebar-nav .odl-item:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-text-primary); }
+.odl-sidebar-nav .odl-item[aria-current="page"] { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label);
+  box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-subtle); }
+.odl-sidebar-nav .odl-item[aria-current="page"] svg { color: var(--ds-color-icon-accent); }
+.odl-sidebar-nav .odl-count { flex: none; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-sidebar-nav .odl-count.is-new { min-inline-size: var(--ds-space-20); padding: 0 var(--ds-space-6); border-radius: var(--ds-radius-full); text-align: center;
+  background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-accent); }
+.odl-sidebar-nav details > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-xs);
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm); border-radius: var(--ds-radius-control); color: var(--ds-color-text-tertiary);
+  font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-sidebar-nav details > summary::-webkit-details-marker { display: none; }
+.odl-sidebar-nav details > summary:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-text-secondary); }
+.odl-sidebar-nav details > summary svg { transition: transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-sidebar-nav details[open] > summary svg { transform: rotate(90deg); }
+.odl-sidebar-nav .odl-person { display: flex; align-items: center; gap: var(--ds-space-inline-md); margin-block-start: auto; padding: var(--ds-space-inset-md) var(--ds-space-inset-sm) 0;
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); border: 0; border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: 0; background: transparent; inline-size: 100%; text-align: start; }
+.odl-sidebar-nav .odl-person:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-sidebar-nav .odl-avatar { flex: none; position: relative; display: grid; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); border-radius: var(--ds-radius-person); }
+.odl-sidebar-nav .odl-avatar img { inline-size: 100%; block-size: 100%; border-radius: inherit; object-fit: cover; }
+.odl-sidebar-nav .odl-avatar::after { content: ""; position: absolute; inset-block-end: calc(-1 * var(--ds-space-2)); inset-inline-end: calc(-1 * var(--ds-space-2));
+  inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-success-bold);
+  box-shadow: 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-surface-sunken); }
+.odl-sidebar-nav .odl-person > svg { color: var(--ds-color-icon-subtle); }
+@media (prefers-reduced-motion: reduce) { .odl-sidebar-nav, .odl-sidebar-nav *, .odl-sidebar-nav *::before { transition: none !important; animation: none !important; } }
+</style>
+<aside class="odl-sidebar-nav" aria-label="Sidebar">
+  <button type="button" class="odl-switcher" aria-haspopup="menu" aria-label="Switch workspace, current: Thistlecombe Foods">
+    <span class="odl-mark" aria-hidden="true">T</span>
+    <span class="odl-ws"><strong>Thistlecombe Foods</strong><small>Business · 38 members</small></span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+  </button>
+  <button type="button" class="odl-search" aria-keyshortcuts="Meta+K">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <span>Search</span><kbd>⌘</kbd><kbd>K</kbd>
+  </button>
+  <nav aria-label="Main">
+    <ul>
+      <li><a class="odl-item" href="#home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="odl-label">Home</span></a></li>
+      <li><a class="odl-item" href="#inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span class="odl-label">Inbox</span><span class="odl-count is-new" aria-label="3 unread">3</span></a></li>
+    </ul>
+    <div>
+      <p class="odl-heading" id="odl-sn-payables">Payables</p>
+      <ul aria-labelledby="odl-sn-payables">
+        <li><a class="odl-item" href="#bills" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span class="odl-label">Bills</span><span class="odl-count" aria-label="14 to approve">14</span></a></li>
+        <li><a class="odl-item" href="#payments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg><span class="odl-label">Payments</span><span class="odl-count" aria-label="22 scheduled">22</span></a></li>
+        <li><a class="odl-item" href="#vendors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg><span class="odl-label">Vendors</span></a></li>
+        <li><a class="odl-item" href="#reimbursements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg><span class="odl-label">Reimbursements</span><span class="odl-count" aria-label="5 waiting">5</span></a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="odl-heading" id="odl-sn-spend">Spend</p>
+      <ul aria-labelledby="odl-sn-spend">
+        <li><a class="odl-item" href="#cards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg><span class="odl-label">Cards</span><span class="odl-count" aria-label="11 cards">11</span></a></li>
+        <li><a class="odl-item" href="#budgets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg><span class="odl-label">Budgets</span></a></li>
+      </ul>
+    </div>
+    <details open>
+      <summary><span>Books</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
+      <ul>
+        <li><a class="odl-item" href="#accounting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span class="odl-label">Accounting</span></a></li>
+        <li><a class="odl-item" href="#policies"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg><span class="odl-label">Approval policies</span></a></li>
+      </ul>
+    </details>
+  </nav>
+  <button type="button" class="odl-person" aria-haspopup="menu">
+    <span class="odl-avatar"><img src="https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async"></span>
+    <span class="odl-ws"><strong>Kwabena Asante</strong><small>Controller · online</small></span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+  </button>
+</aside>

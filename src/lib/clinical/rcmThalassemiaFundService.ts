@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── Types: กองทุน Thalassemia (ผู้ป่วยนอก OPD & ผู้ป่วยใน IPD) ──────────────────────
 
@@ -56,6 +58,8 @@ export type ThalassemiaIpdSortField =
 
 export interface ThalassemiaFundReportParams extends FiscalDateRangeParams {
   cardFilter?: ThalassemiaFundCardFilter
+  pttypes?: string
+  ucOnly?: boolean
   searchField?: ThalassemiaFundSearchField
   search?: string
   sortBy?: string
@@ -78,6 +82,7 @@ export interface ThalassemiaOpdItem {
   vstdate: string
   vsttime: string
   pttypename: string
+  pttype_eclaim_id?: string | null
   department: string | null
   clinic: string | null
   icd10: string | null
@@ -115,6 +120,7 @@ export interface ThalassemiaIpdItem {
   admdate: string
   dchdate: string
   pttypename: string
+  pttype_eclaim_id?: string | null
   ward: string | null
   icd10: string | null
   icd9: string | null
@@ -259,6 +265,17 @@ export class RcmThalassemiaFundService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getRcmFundData('thalassemia-fund-opd', { ds1, ds2 })
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return gwRes.data.rawRows
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         const sql = `
           SELECT 
             t.vn,
@@ -271,6 +288,7 @@ export class RcmThalassemiaFundService {
             t.vstdate,
             t.vsttime,
             t.maininscl,
+            t.pttype_eclaim_id,
             t.pttypename,
             t.department,
             t.clinic,
@@ -286,7 +304,7 @@ export class RcmThalassemiaFundService {
             l.Hb_Date AS hb_date,
             l.Hct_Result AS hct_result,
             l.Hct_Date AS hct_date,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             GROUP_CONCAT(DISTINCT r.rep SEPARATOR ', ') AS seamless,
             GROUP_CONCAT(DISTINCT re.rep SEPARATOR ', ') AS rep,
             MAX(IF(re.rep IS NOT NULL AND re.rep <> '', 'มี Rep แล้ว', IF(r.rep IS NOT NULL AND r.rep <> '', 'มี Seamless', 'รอส่งเบิก'))) AS status,
@@ -303,6 +321,7 @@ export class RcmThalassemiaFundService {
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
+              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
               IFNULL(ptt.name, o.pttype) AS pttypename,
               IFNULL(dep.department, o.main_dep) AS department,
               IFNULL(spc.name, o.spclty) AS clinic,
@@ -351,6 +370,7 @@ export class RcmThalassemiaFundService {
             GROUP BY lh.vn
           ) l ON l.vn = t.vn
           LEFT JOIN rcmdb.authencode cc ON cc.vn = t.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = t.vn
           LEFT JOIN rcmdb.seamless r ON r.vn = t.vn
           LEFT JOIN rcmdb.repdata re ON re.vn = t.vn
           WHERE (t.drugname IS NOT NULL OR b.vn IS NOT NULL)
@@ -374,7 +394,12 @@ export class RcmThalassemiaFundService {
       const compensated = Number(r.compensated || 0)
       const rep = r.rep ? String(r.rep).trim() : null
       const isCompensated = compensated > 0 || Boolean(rep && rep.length > 0)
-      const isUc = String(r.maininscl || '').trim() === 'UCS' || String(r.pttypename || '').includes('บัตรทอง') || String(r.pttypename || '').includes('ประกันสุขภาพ')
+      const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+      const isUc =
+        (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) ||
+        String(r.maininscl || '').trim() === 'UCS' ||
+        String(r.pttypename || '').includes('บัตรทอง') ||
+        String(r.pttypename || '').includes('ประกันสุขภาพ')
 
       return {
         no: idx + 1,
@@ -388,6 +413,7 @@ export class RcmThalassemiaFundService {
         vstdate: String(r.vstdate || ''),
         vsttime: String(r.vsttime || ''),
         pttypename: String(r.pttypename || ''),
+        pttype_eclaim_id: pttypeEclaimId,
         department: r.department ? String(r.department) : null,
         clinic: r.clinic ? String(r.clinic) : null,
         icd10: r.icd10 ? String(r.icd10) : null,
@@ -414,19 +440,29 @@ export class RcmThalassemiaFundService {
       }
     })
 
-    // Compute Summary across all cases
-    const totalCases = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn)).size
-    const drugCases = allItems.filter((i) => i.hasDrug).length
-    const bloodCases = allItems.filter((i) => i.hasBlood).length
-    const totalBloodUnits = allItems.reduce((acc, cur) => acc + cur.bloodQty, 0)
-    const ferritinCases = allItems.filter((i) => Boolean(i.ferritinResult)).length
-    const hbHctCases = allItems.filter((i) => Boolean(i.hbResult || i.hctResult)).length
-    const compensatedCases = allItems.filter((i) => i.isCompensated).length
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Summary across summaryCohort
+    const totalCases = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn)).size
+    const drugCases = summaryCohort.filter((i) => i.hasDrug).length
+    const bloodCases = summaryCohort.filter((i) => i.hasBlood).length
+    const totalBloodUnits = summaryCohort.reduce((acc, cur) => acc + cur.bloodQty, 0)
+    const ferritinCases = summaryCohort.filter((i) => Boolean(i.ferritinResult)).length
+    const hbHctCases = summaryCohort.filter((i) => Boolean(i.hbResult || i.hctResult)).length
+    const compensatedCases = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedCases = totalCases - compensatedCases
-    const totalCompensated = allItems.reduce((acc, cur) => acc + cur.compensated, 0)
+    const totalCompensated = summaryCohort.reduce((acc, cur) => acc + cur.compensated, 0)
     const averageCompensated = compensatedCases > 0 ? totalCompensated / compensatedCases : 0
-    const ucCases = allItems.filter((i) => i.isUc).length
+    const ucCases = summaryCohort.filter((i) => i.isUc).length
 
     const summary: ThalassemiaFundSummary = {
       totalCases,
@@ -450,7 +486,7 @@ export class RcmThalassemiaFundService {
     }
 
     // Apply Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'WITH_DRUG') {
       filtered = filtered.filter((i) => i.hasDrug)
     } else if (cardFilter === 'WITH_BLOOD') {
@@ -560,6 +596,17 @@ export class RcmThalassemiaFundService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getRcmFundData('thalassemia-fund-ipd', { ds1, ds2 })
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              return gwRes.data.rawRows
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         const sql = `
           SELECT 
             t.an,
@@ -572,6 +619,7 @@ export class RcmThalassemiaFundService {
             t.admdate,
             t.dchdate,
             t.maininscl,
+            t.pttype_eclaim_id,
             t.pttypename,
             t.ward,
             t.icd10,
@@ -602,6 +650,7 @@ export class RcmThalassemiaFundService {
               DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
               DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
+              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
               IFNULL(ptt.name, i.pttype) AS pttypename,
               IFNULL(w.name, i.ward) AS ward,
               GROUP_CONCAT(DISTINCT dx.icd10 ORDER BY dx.diagtype SEPARATOR ', ') AS icd10,
@@ -671,7 +720,12 @@ export class RcmThalassemiaFundService {
       const compensated = Number(r.compensated || 0)
       const rep = r.rep ? String(r.rep).trim() : null
       const isCompensated = compensated > 0 || Boolean(rep && rep.length > 0)
-      const isUc = String(r.maininscl || '').trim() === 'UCS' || String(r.pttypename || '').includes('บัตรทอง') || String(r.pttypename || '').includes('ประกันสุขภาพ')
+      const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+      const isUc =
+        (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) ||
+        String(r.maininscl || '').trim() === 'UCS' ||
+        String(r.pttypename || '').includes('บัตรทอง') ||
+        String(r.pttypename || '').includes('ประกันสุขภาพ')
 
       return {
         no: idx + 1,
@@ -685,6 +739,7 @@ export class RcmThalassemiaFundService {
         admdate: String(r.admdate || ''),
         dchdate: String(r.dchdate || ''),
         pttypename: String(r.pttypename || ''),
+        pttype_eclaim_id: pttypeEclaimId,
         ward: r.ward ? String(r.ward) : null,
         icd10: r.icd10 ? String(r.icd10) : null,
         icd9: r.icd9 ? String(r.icd9) : null,
@@ -709,19 +764,29 @@ export class RcmThalassemiaFundService {
       }
     })
 
-    // Compute Summary across all admissions
-    const totalCases = allItems.length
-    const uniquePatients = new Set(allItems.map((i) => i.hn)).size
-    const drugCases = allItems.filter((i) => i.hasDrug).length
-    const bloodCases = allItems.filter((i) => i.hasBlood).length
-    const totalBloodUnits = allItems.reduce((acc, cur) => acc + cur.bloodQty, 0)
-    const ferritinCases = allItems.filter((i) => Boolean(i.ferritinResult)).length
-    const hbHctCases = allItems.filter((i) => Boolean(i.hbResult || i.hctResult)).length
-    const compensatedCases = allItems.filter((i) => i.isCompensated).length
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
+
+    // Compute Summary across summaryCohort
+    const totalCases = summaryCohort.length
+    const uniquePatients = new Set(summaryCohort.map((i) => i.hn)).size
+    const drugCases = summaryCohort.filter((i) => i.hasDrug).length
+    const bloodCases = summaryCohort.filter((i) => i.hasBlood).length
+    const totalBloodUnits = summaryCohort.reduce((acc, cur) => acc + cur.bloodQty, 0)
+    const ferritinCases = summaryCohort.filter((i) => Boolean(i.ferritinResult)).length
+    const hbHctCases = summaryCohort.filter((i) => Boolean(i.hbResult || i.hctResult)).length
+    const compensatedCases = summaryCohort.filter((i) => i.isCompensated).length
     const uncompensatedCases = totalCases - compensatedCases
-    const totalCompensated = allItems.reduce((acc, cur) => acc + cur.compensated, 0)
+    const totalCompensated = summaryCohort.reduce((acc, cur) => acc + cur.compensated, 0)
     const averageCompensated = compensatedCases > 0 ? totalCompensated / compensatedCases : 0
-    const ucCases = allItems.filter((i) => i.isUc).length
+    const ucCases = summaryCohort.filter((i) => i.isUc).length
 
     const summary: ThalassemiaFundSummary = {
       totalCases,
@@ -745,7 +810,7 @@ export class RcmThalassemiaFundService {
     }
 
     // Apply Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     if (cardFilter === 'WITH_DRUG') {
       filtered = filtered.filter((i) => i.hasDrug)
     } else if (cardFilter === 'WITH_BLOOD') {

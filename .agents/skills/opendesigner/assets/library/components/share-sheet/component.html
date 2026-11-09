@@ -1,0 +1,161 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-share-sheet { box-sizing: border-box; inline-size: 100%; max-inline-size: 30rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-share-sheet *, .odl-share-sheet *::before, .odl-share-sheet *::after { box-sizing: border-box; }
+.odl-share-sheet .odl-screen { position: relative; display: grid; align-content: end; min-block-size: 36rem; padding-block-start: calc(var(--ds-space-48) * 2.5); overflow: hidden; border-radius: var(--ds-radius-container);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); box-shadow: var(--ds-elevation-raised); background: var(--ds-color-surface-sunken); }
+.odl-share-sheet .odl-art { position: absolute; inset-inline: 0; inset-block-start: 0; block-size: 18rem; background: var(--ds-color-bg-neutral-subtle); }
+.odl-share-sheet .odl-art img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-share-sheet .odl-scrim { position: absolute; inset: 0; background: var(--ds-color-overlay-scrim); }
+.odl-share-sheet .odl-sheet { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-lg); padding: var(--ds-space-8) 0 var(--ds-space-inset-xl); background: var(--ds-color-surface-overlay);
+  border-start-start-radius: var(--ds-radius-overlay); border-start-end-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay);
+  animation: odl-share-sheet-up var(--ds-motion-duration-drawer) var(--ds-motion-easing-drawer); }
+@keyframes odl-share-sheet-up { from { transform: translateY(100%); } }
+.odl-share-sheet .odl-grab { justify-self: center; inline-size: var(--ds-space-40); block-size: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-border-strong); }
+.odl-share-sheet .odl-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); padding-inline: var(--ds-space-inset-xl) var(--ds-space-inset-sm); margin-block: calc(-1 * var(--ds-space-8)) calc(-1 * var(--ds-space-stack-sm)); }
+.odl-share-sheet h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-share-sheet button { display: inline-grid; place-items: center; min-inline-size: var(--ds-size-target-touch); min-block-size: var(--ds-size-target-touch); padding: 0; border: 0; border-radius: var(--ds-radius-full);
+  background: transparent; color: var(--ds-color-icon-default); font: var(--ds-text-label-md); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-share-sheet .odl-close:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-share-sheet button svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-share-sheet .odl-search { display: flex; align-items: center; gap: var(--ds-space-inline-sm); margin-inline: var(--ds-space-inset-xl); padding-inline: var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); color: var(--ds-color-icon-subtle); }
+.odl-share-sheet .odl-search:focus-within { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-share-sheet .odl-search svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-share-sheet .odl-search input { flex: 1; min-inline-size: 0; min-block-size: var(--ds-size-target-touch); padding: 0; border: 0; background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); outline: none; }
+.odl-share-sheet .odl-search input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-share-sheet .odl-label { margin: 0; padding-inline: var(--ds-space-inset-xl); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label); }
+.odl-share-sheet .odl-group { display: grid; gap: var(--ds-space-stack-sm); min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.odl-share-sheet legend.odl-label { float: inline-start; inline-size: 100%; }
+.odl-share-sheet .odl-people, .odl-share-sheet .odl-apps { display: flex; gap: var(--ds-space-inline-sm); margin: 0; padding: var(--ds-space-4) var(--ds-space-inset-xl); list-style: none; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.odl-share-sheet .odl-apps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+.odl-share-sheet .odl-apps .odl-app { inline-size: 100%; }
+.odl-share-sheet .odl-apps .odl-tile { inline-size: min(calc(var(--ds-size-control-lg) * 1.15), 100%); }
+.odl-share-sheet .odl-people::-webkit-scrollbar, .odl-share-sheet .odl-apps::-webkit-scrollbar { display: none; }
+.odl-share-sheet .odl-people li, .odl-share-sheet .odl-apps li { flex: none; }
+.odl-share-sheet .odl-person, .odl-share-sheet .odl-app { position: relative; display: grid; justify-items: center; align-content: start; gap: var(--ds-space-stack-sm); inline-size: calc(var(--ds-size-control-lg) * 1.6);
+  padding: var(--ds-space-2) 0; border-radius: var(--ds-radius-detail); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); text-align: center; cursor: pointer; }
+.odl-share-sheet .odl-person input { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.odl-share-sheet .odl-person > span:last-child, .odl-share-sheet .odl-app > span:last-child { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-share-sheet .odl-av { position: relative; display: grid; inline-size: calc(var(--ds-size-control-lg) * 1.15); aspect-ratio: 1; border-radius: var(--ds-radius-person); background: var(--ds-color-bg-neutral-subtle);
+  transition: box-shadow var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-share-sheet .odl-av img { display: block; inline-size: 100%; block-size: 100%; border-radius: var(--ds-radius-person); object-fit: cover; }
+.odl-share-sheet .odl-check { position: absolute; inset-inline-end: calc(-1 * var(--ds-space-2)); inset-block-end: calc(-1 * var(--ds-space-2)); display: grid; place-items: center; inline-size: 38%; aspect-ratio: 1;
+  border-radius: var(--ds-radius-full); background: var(--ds-color-bg-accent-bold); color: var(--ds-color-text-on-accent); border: var(--ds-border-width-emphasis) solid var(--ds-color-surface-overlay); opacity: 0; transform: scale(0.5);
+  transition: opacity var(--ds-motion-duration-short) var(--ds-motion-easing-standard), transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-share-sheet .odl-check svg { inline-size: 64%; block-size: 64%; stroke-width: var(--ds-icon-stroke-lg); }
+.odl-share-sheet .odl-person:has(input:checked) .odl-av { box-shadow: 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-surface-overlay), 0 0 0 calc(var(--ds-border-width-emphasis) * 2) var(--ds-color-border-accent); }
+.odl-share-sheet .odl-person:has(input:checked) .odl-check { opacity: 1; transform: none; }
+.odl-share-sheet .odl-person:has(input:focus-visible) { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-share-sheet .odl-app:hover .odl-tile { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-share-sheet .odl-tile { display: grid; place-items: center; inline-size: calc(var(--ds-size-control-lg) * 1.15); aspect-ratio: 1; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary);
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-share-sheet .odl-tile svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-share-sheet .odl-copy { display: grid; place-items: center start; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); margin: var(--ds-space-stack-sm) var(--ds-space-inset-xl) 0; padding: var(--ds-space-inset-sm) var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); background: var(--ds-color-surface-raised); text-align: start; color: var(--ds-color-text-primary); }
+.odl-share-sheet .odl-copy:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-share-sheet .odl-copy .odl-ic { display: grid; place-items: center; inline-size: var(--ds-size-control-md); aspect-ratio: 1; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-share-sheet .odl-copy .odl-ic svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-share-sheet .odl-copy b { display: block; font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-share-sheet .odl-copy small { display: block; overflow-wrap: anywhere; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-share-sheet .odl-copy .odl-done { display: none; }
+.odl-share-sheet .odl-copy.is-copied .odl-ic { background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); }
+.odl-share-sheet .odl-copy.is-copied b { color: var(--ds-color-text-success); }
+.odl-share-sheet .odl-copy.is-copied .odl-link, .odl-share-sheet .odl-copy:not(.is-copied) .odl-done { display: none; }
+.odl-share-sheet .odl-copy.is-copied .odl-done { display: block; }
+.odl-share-sheet .odl-send { display: none; gap: var(--ds-space-inline-sm); align-items: center; margin-inline: var(--ds-space-inset-xl); }
+.odl-share-sheet .odl-send input { flex: 1; min-inline-size: 0; min-block-size: var(--ds-size-target-touch); padding: 0 var(--ds-space-inset-md); border: var(--ds-border-width-default) solid var(--ds-color-border-input);
+  border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); }
+.odl-share-sheet .odl-send input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-share-sheet .odl-send button { padding-inline: var(--ds-space-inset-md); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-accent-bold); color: var(--ds-color-text-on-accent); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); white-space: nowrap; }
+.odl-share-sheet .odl-send button:hover { background: var(--ds-color-bg-accent-bold-hover); }
+.odl-share-sheet .odl-sheet:has(.odl-people input:checked) .odl-send { display: flex; }
+.odl-share-sheet .odl-sheet:has(.odl-people input:checked) .odl-more-area { display: none; }
+.odl-share-sheet .odl-toast { position: absolute; inset-inline: 0; inset-block-start: calc(-1 * var(--ds-space-48)); justify-self: center; inline-size: max-content; margin-inline: auto; padding: var(--ds-space-8) var(--ds-space-16);
+  border-radius: var(--ds-radius-control); background: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); font: var(--ds-text-label-md); box-shadow: var(--ds-elevation-floating); opacity: 0;
+  transition: opacity var(--ds-motion-duration-short) var(--ds-motion-easing-standard); pointer-events: none; }
+.odl-share-sheet .odl-toast.is-on { opacity: 1; }
+.odl-share-sheet button:focus-visible, .odl-share-sheet .odl-send input:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-share-sheet .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (inline-size < 26rem) {
+  .odl-share-sheet .odl-head { padding-inline-start: var(--ds-space-inset-lg); }
+  .odl-share-sheet .odl-search, .odl-share-sheet .odl-send { margin-inline: var(--ds-space-inset-lg); }
+  .odl-share-sheet .odl-copy { margin-inline: var(--ds-space-inset-lg); }
+  .odl-share-sheet .odl-label { padding-inline: var(--ds-space-inset-lg); }
+  .odl-share-sheet .odl-people, .odl-share-sheet .odl-apps { padding-inline: var(--ds-space-inset-lg); }
+  /* Four and a half people fit, so the fifth shows the row scrolls. */
+  .odl-share-sheet .odl-person { inline-size: calc((100cqi - var(--ds-space-inset-lg) - 4 * var(--ds-space-inline-sm)) / 4.5); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-share-sheet, .odl-share-sheet *, .odl-share-sheet *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-share-sheet">
+  <div class="odl-screen">
+    <div class="odl-art" aria-hidden="true"><img src="https://images.unsplash.com/photo-1559310589-2673bfe16970?w=960&h=576&fit=crop&auto=format&q=70" alt="" width="480" height="288" loading="lazy" decoding="async"></div>
+    <div class="odl-scrim" aria-hidden="true"></div>
+    <section class="odl-sheet" role="dialog" aria-modal="true" aria-labelledby="odl-ss-title">
+      <p class="odl-toast" role="status" aria-live="polite"></p>
+      <span class="odl-grab" aria-hidden="true"></span>
+      <div class="odl-head"><h3 id="odl-ss-title">Share post</h3>
+        <button type="button" class="odl-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+      <label class="odl-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span class="odl-sr">Search people</span><input type="search" placeholder="Search people" autocomplete="off"></label>
+      <fieldset class="odl-group"><legend class="odl-label">Recent</legend>
+        <ul class="odl-people">
+          <li><label class="odl-person"><input type="checkbox" value="kwesi"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1596580817363-a4a8f67d4bc8?w=112&h=112&fit=crop&auto=format&q=70" alt="" width="56" height="56" loading="lazy" decoding="async"><span class="odl-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></span><span>Kwesi</span></label></li>
+          <li><label class="odl-person"><input type="checkbox" value="ximena"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=112&h=112&fit=crop&auto=format&q=70" alt="" width="56" height="56" loading="lazy" decoding="async"><span class="odl-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></span><span>Ximena</span></label></li>
+          <li><label class="odl-person"><input type="checkbox" value="yuki"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1684598273404-2d94d7a7ce2f?w=112&h=112&fit=crop&auto=format&q=70" alt="" width="56" height="56" loading="lazy" decoding="async"><span class="odl-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></span><span>Yuki</span></label></li>
+          <li><label class="odl-person"><input type="checkbox" value="arash"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=112&h=112&fit=crop&auto=format&q=70" alt="" width="56" height="56" loading="lazy" decoding="async"><span class="odl-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></span><span>Arash</span></label></li>
+          <li><label class="odl-person"><input type="checkbox" value="mireille"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1607569708758-0270aa4651bd?w=112&h=112&fit=crop&auto=format&q=70" alt="" width="56" height="56" loading="lazy" decoding="async"><span class="odl-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></span><span>Mireille</span></label></li>
+          <li><label class="odl-person"><input type="checkbox" value="henrik"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1600603406200-5b2a104684ac?w=112&h=112&fit=crop&auto=format&q=70" alt="" width="56" height="56" loading="lazy" decoding="async"><span class="odl-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></span><span>Henrik</span></label></li>
+        </ul>
+      </fieldset>
+      <div class="odl-more-area odl-group">
+        <p class="odl-label" id="odl-ss-apps">Share to</p>
+        <ul class="odl-apps" aria-labelledby="odl-ss-apps">
+          <li><button type="button" class="odl-app"><span class="odl-tile is-story" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg></span><span>Story</span></button></li>
+          <li><button type="button" class="odl-app"><span class="odl-tile is-msg" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span><span>Texts</span></button></li>
+          <li><button type="button" class="odl-app"><span class="odl-tile is-mail" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span>Mail</span></button></li>
+          <li><button type="button" class="odl-app"><span class="odl-tile is-near" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg></span><span>Nearby</span></button></li>
+          <li><button type="button" class="odl-app"><span class="odl-tile is-more" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span><span>More</span></button></li>
+        </ul>
+        <button type="button" class="odl-copy"><span class="odl-ic" aria-hidden="true">
+          <svg class="odl-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <svg class="odl-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span><b class="odl-copy-label">Copy link</b><small class="odl-url">harbourlight.example/p/8kq2v</small></span></button>
+      </div>
+      <form class="odl-send"><label class="odl-sr" for="odl-ss-note">Add a message</label><input id="odl-ss-note" type="text" placeholder="Add a message…" autocomplete="off">
+        <button type="submit" class="odl-send-btn">Send</button></form>
+    </section>
+  </div>
+</div>
+<script>
+document.querySelectorAll(".odl-share-sheet").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const toast = root.querySelector(".odl-toast"), boxes = root.querySelectorAll(".odl-people input"), sendBtn = root.querySelector(".odl-send-btn");
+  const copy = root.querySelector(".odl-copy"), copyLabel = copy.querySelector(".odl-copy-label"), url = "https://" + copy.querySelector(".odl-url").textContent;
+  let t = null;
+  const say = (text) => { toast.textContent = text; toast.classList.add("is-on"); clearTimeout(t); t = setTimeout(() => toast.classList.remove("is-on"), 2400); };
+  const names = () => [...boxes].filter((b) => b.checked).map((b) => b.closest("label").querySelector("span:last-child").textContent);
+  boxes.forEach((b) => b.addEventListener("change", () => {
+    const n = names();
+    sendBtn.textContent = n.length > 1 ? `Send to ${n.length}` : "Send";
+  }));
+  root.querySelector(".odl-send").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const n = names();
+    say(n.length > 1 ? `Sent to ${n.length} people` : `Sent to ${n[0]}`);
+    boxes.forEach((b) => { b.checked = false; }); e.currentTarget.querySelector("input").value = ""; sendBtn.textContent = "Send";
+  });
+  // Copy link confirms in place only when the copy worked; otherwise it says how to copy by hand.
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      copy.classList.add("is-copied"); copyLabel.textContent = "Link copied"; say("Link copied");
+      setTimeout(() => { copy.classList.remove("is-copied"); copyLabel.textContent = "Copy link"; }, 2400);
+    } catch (err) {
+      say("Copying is blocked here: select the link and copy it");
+    }
+  });
+});
+</script>

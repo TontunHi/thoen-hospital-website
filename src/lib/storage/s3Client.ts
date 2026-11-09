@@ -4,6 +4,10 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CreateBucketCommand,
+  HeadBucketCommand,
+  PutBucketPolicyCommand,
+  ListBucketsCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import crypto from 'crypto'
@@ -192,4 +196,84 @@ export async function getPresignedDownloadUrl(params: {
   return await getSignedUrl(client, command, {
     expiresIn: params.expiresInSeconds || 3600, // Default 1 hour
   })
+}
+
+/**
+ * Checks connectivity and health of MinIO server.
+ * Enables zero-SSH health checking directly via S3 API.
+ */
+export async function checkMinioHealth(): Promise<{ healthy: boolean; error?: string; endpoint: string }> {
+  try {
+    const client = getS3Client()
+    await client.send(new ListBucketsCommand({}))
+    return { healthy: true, endpoint: S3_CONFIG.endpoint }
+  } catch (err: any) {
+    return { healthy: false, error: err?.message || String(err), endpoint: S3_CONFIG.endpoint }
+  }
+}
+
+/**
+ * Ensures required storage buckets exist on MinIO (192.168.1.24).
+ * If missing, automatically creates them and configures public read policy for public-assets.
+ * Replaces the need to SSH into 192.168.1.24 to run `mc mb`.
+ */
+export async function ensureStorageBucketsExist(): Promise<{
+  publicBucket: string
+  privateBucket: string
+  created: string[]
+}> {
+  const client = getS3Client()
+  const created: string[] = []
+
+  const buckets = [
+    { name: S3_CONFIG.publicBucket, isPublic: true },
+    { name: S3_CONFIG.privateBucket, isPublic: false },
+  ]
+
+  for (const b of buckets) {
+    let exists = false
+    try {
+      await client.send(new HeadBucketCommand({ Bucket: b.name }))
+      exists = true
+    } catch {
+      exists = false
+    }
+
+    if (!exists) {
+      try {
+        await client.send(new CreateBucketCommand({ Bucket: b.name }))
+        created.push(b.name)
+      } catch (createErr: any) {
+        if (createErr?.name !== 'BucketAlreadyOwnedByYou' && createErr?.name !== 'BucketAlreadyExists') {
+          throw createErr
+        }
+      }
+    }
+
+    if (b.isPublic) {
+      const publicPolicy = JSON.stringify({
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Sid: 'PublicReadGetObject',
+            Effect: 'Allow',
+            Principal: '*',
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${b.name}/*`],
+          },
+        ],
+      })
+      try {
+        await client.send(new PutBucketPolicyCommand({ Bucket: b.name, Policy: publicPolicy }))
+      } catch (policyErr) {
+        console.warn(`[S3] Warning: Failed to set public policy on ${b.name}:`, policyErr)
+      }
+    }
+  }
+
+  return {
+    publicBucket: S3_CONFIG.publicBucket,
+    privateBucket: S3_CONFIG.privateBucket,
+    created,
+  }
 }

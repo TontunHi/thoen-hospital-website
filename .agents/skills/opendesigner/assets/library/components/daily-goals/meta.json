@@ -1,0 +1,13 @@
+{
+  "name": "Daily goals",
+  "summary": "Today's steps, active minutes and water, each as a bar against its goal with a check when it's met, a hint for the step goal, and a week of small bars you can tap to see a past day.",
+  "use": "on the home screen of a fitness or health app, for today's progress against daily goals",
+  "type": "chart",
+  "style": "friendly",
+  "industries": ["fitness", "health"],
+  "tags": ["goals", "progress", "steps", "daily", "week"],
+  "states": ["today", "past day selected", "goal met", "hover", "focus"],
+  "source": null,
+  "a11y": "Each goal's bar is a meter named after the goal, with its value and maximum; the count of goals met and the date are text; each day in the week strip is a button with its date as its name and aria-pressed for the day shown.",
+  "width": "narrow"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Approval panel",
+  "summary": "One bill waiting for approval: the amount, the policy that applies, who has approved so far, and what the balance will be after paying.",
+  "use": "in finance and procurement tools, where one person approves a bill or request",
+  "type": "data",
+  "style": "quiet",
+  "industries": ["finance", "saas"],
+  "tags": ["approval", "timeline", "ledger", "invoice", "side panel"],
+  "states": ["hover", "pressed", "focus", "step done", "current step", "next step"],
+  "source": "brand/showcase/product/02-fennick-approvals",
+  "a11y": "The steps are an ordered list with the current one marked aria-current; both actions are real buttons with visible focus.",
+  "width": "narrow"
+}

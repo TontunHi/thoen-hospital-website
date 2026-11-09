@@ -1,0 +1,133 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-quiz-question { box-sizing: border-box; inline-size: 100%; max-inline-size: 30rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-quiz-question *, .odl-quiz-question *::before, .odl-quiz-question *::after { box-sizing: border-box; }
+.odl-quiz-question p, .odl-quiz-question h3 { margin: 0; }
+.odl-quiz-question .odl-card { display: grid; overflow: hidden; background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-quiz-question .odl-body { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); }
+.odl-quiz-question .odl-bar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); }
+.odl-quiz-question .odl-close { display: grid; place-items: center; inline-size: var(--ds-size-target-touch); block-size: var(--ds-size-target-touch); margin-inline-start: calc(-1 * var(--ds-space-8));
+  padding: 0; border: 0; border-radius: var(--ds-radius-full); background: transparent; color: var(--ds-color-text-secondary); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-quiz-question .odl-close:hover { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-quiz-question .odl-close svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-quiz-question .odl-progress { block-size: var(--ds-space-12); overflow: hidden; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); }
+.odl-quiz-question .odl-progress span { display: block; inline-size: var(--p); block-size: 100%; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-accent-bold);
+  transition: inline-size var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-quiz-question .odl-lives { display: flex; align-items: center; gap: var(--ds-space-inline-xs); color: var(--ds-color-text-danger); font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; }
+.odl-quiz-question .odl-lives svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); fill: currentColor; }
+.odl-quiz-question .odl-eyebrow { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-quiz-question h3 { margin-block-start: var(--ds-space-stack-sm); font: var(--ds-text-title-lg); }
+.odl-quiz-question .odl-pic { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 2 / 1; object-fit: cover; border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-neutral-subtle); }
+.odl-quiz-question fieldset { display: grid; gap: var(--ds-space-stack-md); margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.odl-quiz-question .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.odl-quiz-question .odl-choice { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md);
+  min-block-size: max(var(--ds-size-row-lg), var(--ds-size-target-touch)); padding: var(--ds-space-inset-sm) var(--ds-space-inset-md); cursor: pointer;
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-nested); background: var(--ds-color-surface-raised);
+  font: var(--ds-text-label-lg);
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-quiz-question .odl-choice input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-quiz-question .odl-key { display: grid; place-items: center; inline-size: var(--ds-size-control-sm); aspect-ratio: 1; border: var(--ds-border-width-default) solid var(--ds-color-border-default);
+  border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-quiz-question .odl-mark { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-lg); opacity: 0; }
+.odl-quiz-question .odl-choice:hover { border-color: var(--ds-color-border-strong); background: var(--ds-color-bg-neutral-subtle); }
+.odl-quiz-question .odl-choice:has(input:checked) { border-color: var(--ds-color-border-accent); background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-accent);
+  box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-accent); }
+.odl-quiz-question .odl-choice:has(input:checked) .odl-key { border-color: var(--ds-color-border-accent); color: var(--ds-color-text-accent); }
+.odl-quiz-question .odl-choice:has(input:focus-visible) { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* After Check: the right answer goes green, a wrong pick goes red, the rest step back. */
+.odl-quiz-question.is-checked .odl-choice { cursor: default; }
+.odl-quiz-question.is-checked .odl-choice:hover { background: var(--ds-color-surface-raised); border-color: var(--ds-color-border-default); }
+.odl-quiz-question.is-checked .odl-choice:not(.is-right):not(:has(input:checked)) { color: var(--ds-color-text-tertiary); }
+.odl-quiz-question.is-checked .odl-choice.is-right { border-color: var(--ds-color-border-success); background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-success); }
+.odl-quiz-question.is-checked .odl-choice.is-right .odl-key { border-color: var(--ds-color-border-success); color: var(--ds-color-text-success); }
+.odl-quiz-question.is-checked .odl-choice:not(.is-right):has(input:checked) { border-color: var(--ds-color-border-danger); background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-danger); }
+.odl-quiz-question.is-checked .odl-choice:not(.is-right):has(input:checked) .odl-key { border-color: var(--ds-color-border-danger); color: var(--ds-color-text-danger); }
+.odl-quiz-question.is-checked .odl-choice.is-right .odl-yes, .odl-quiz-question.is-checked .odl-choice:not(.is-right):has(input:checked) .odl-no { opacity: 1; }
+.odl-quiz-question .odl-no, .odl-quiz-question .odl-yes { grid-column: 3; grid-row: 1; }
+/* Footer: the Check button, then the feedback sheet */
+.odl-quiz-question .odl-foot { display: grid; gap: var(--ds-space-stack-md); padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl) var(--ds-space-inset-xl);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-quiz-question .odl-say { display: none; grid-template-columns: auto minmax(0, 1fr); gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); align-items: center; }
+.odl-quiz-question .odl-say > span { display: grid; place-items: center; grid-row: span 2; align-self: start; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); }
+.odl-quiz-question .odl-say svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-lg); }
+.odl-quiz-question .odl-say b { font: var(--ds-text-title-md); }
+.odl-quiz-question .odl-say p { color: var(--ds-color-text-primary); font: var(--ds-text-body-md); }
+.odl-quiz-question.is-pass .odl-foot { background: var(--ds-color-bg-success-subtle); border-color: transparent; }
+.odl-quiz-question.is-fail .odl-foot { background: var(--ds-color-bg-danger-subtle); border-color: transparent; }
+.odl-quiz-question.is-pass .odl-say.is-yes, .odl-quiz-question.is-fail .odl-say.is-no { display: grid; }
+.odl-quiz-question .odl-say.is-yes b, .odl-quiz-question .odl-say.is-yes > span { color: var(--ds-color-text-success); }
+.odl-quiz-question .odl-say.is-no b, .odl-quiz-question .odl-say.is-no > span { color: var(--ds-color-text-danger); }
+.odl-quiz-question .odl-go { min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-touch)); border: 0; border-radius: var(--ds-radius-control); background: var(--ds-color-bg-action-primary);
+  color: var(--ds-color-text-on-action); font: var(--ds-text-label-lg); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-quiz-question .odl-go:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-quiz-question .odl-go:disabled { background: var(--ds-color-bg-disabled); color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-quiz-question.is-pass .odl-go { background: var(--ds-color-bg-success-bold); color: var(--ds-color-text-on-success); }
+.odl-quiz-question.is-fail .odl-go { background: var(--ds-color-bg-danger-bold); color: var(--ds-color-text-on-danger); }
+.odl-quiz-question button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 26rem) { .odl-quiz-question .odl-body { padding: var(--ds-space-inset-lg); } .odl-quiz-question .odl-foot { padding: var(--ds-space-inset-md) var(--ds-space-inset-lg) var(--ds-space-inset-lg); } .odl-quiz-question h3 { font: var(--ds-text-title-md); } }
+@media (prefers-reduced-motion: reduce) { .odl-quiz-question, .odl-quiz-question *, .odl-quiz-question *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-quiz-question" aria-labelledby="odl-qq-q">
+  <div class="odl-card">
+    <div class="odl-body">
+      <div class="odl-bar">
+        <button type="button" class="odl-close" aria-label="Leave quiz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        <div class="odl-progress" role="progressbar" aria-label="Quiz progress" aria-valuemin="0" aria-valuemax="10" aria-valuenow="5" aria-valuetext="5 of 10 answered" style="--p: 50%"><span></span></div>
+        <p class="odl-lives"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span class="odl-sr">Lives left: </span><span class="odl-n">4</span></p>
+      </div>
+      <div>
+        <p class="odl-eyebrow">Question 6 of 10 · How plants grow</p>
+        <h3 id="odl-qq-q">Which gas do plants take in from the air to make their food?</h3>
+      </div>
+      <img class="odl-pic" src="https://images.unsplash.com/photo-1545239705-1564e58b9e4a?w=960&h=480&fit=crop&auto=format&q=70" alt="A leafy green plant in a white pot" width="960" height="480" loading="lazy" decoding="async">
+      <fieldset>
+        <legend class="odl-sr">Choose one answer</legend>
+        <label class="odl-choice"><input type="radio" name="odl-qq" value="oxygen"><span class="odl-key" aria-hidden="true">A</span><span>Oxygen</span>
+          <svg class="odl-mark odl-no" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></label>
+        <label class="odl-choice is-right"><input type="radio" name="odl-qq" value="co2"><span class="odl-key" aria-hidden="true">B</span><span>Carbon dioxide</span>
+          <svg class="odl-mark odl-yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></label>
+        <label class="odl-choice"><input type="radio" name="odl-qq" value="nitrogen"><span class="odl-key" aria-hidden="true">C</span><span>Nitrogen</span>
+          <svg class="odl-mark odl-no" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></label>
+        <label class="odl-choice"><input type="radio" name="odl-qq" value="helium"><span class="odl-key" aria-hidden="true">D</span><span>Helium</span>
+          <svg class="odl-mark odl-no" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></label>
+      </fieldset>
+    </div>
+    <div class="odl-foot">
+      <div class="odl-say is-yes" role="status"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <b>Correct</b><p>Plants take in carbon dioxide and, with sunlight and water, turn it into sugar. The oxygen is what they give back.</p></div>
+      <div class="odl-say is-no" role="status"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+        <b>Not quite</b><p>The answer is carbon dioxide. Plants turn it into sugar with sunlight and water, and give off oxygen.</p></div>
+      <button type="button" class="odl-go" disabled>Check</button>
+    </div>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-quiz-question").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const go = root.querySelector(".odl-go"), inputs = [...root.querySelectorAll(".odl-choice input")], lives = root.querySelector(".odl-n");
+  const bar = root.querySelector(".odl-progress");
+  let checked = false;
+  inputs.forEach((i) => i.addEventListener("change", () => { if (!checked) go.disabled = false; }));
+  go.addEventListener("click", () => {
+    if (!checked) {
+      const pick = inputs.find((i) => i.checked);
+      if (!pick) return;
+      checked = true;
+      const right = pick.closest(".odl-choice").classList.contains("is-right");
+      root.classList.add("is-checked", right ? "is-pass" : "is-fail");
+      inputs.forEach((i) => { i.disabled = true; });
+      if (!right) lives.textContent = String(Math.max(0, Number(lives.textContent) - 1));
+      bar.style.setProperty("--p", "60%"); bar.setAttribute("aria-valuenow", "6"); bar.setAttribute("aria-valuetext", "6 of 10 answered");
+      go.textContent = right ? "Continue" : "Got it";
+    } else { // the demo starts the same question again
+      checked = false;
+      root.classList.remove("is-checked", "is-pass", "is-fail");
+      inputs.forEach((i) => { i.disabled = false; i.checked = false; });
+      bar.style.setProperty("--p", "50%"); bar.setAttribute("aria-valuenow", "5"); bar.setAttribute("aria-valuetext", "5 of 10 answered");
+      go.textContent = "Check"; go.disabled = true;
+    }
+  });
+});
+</script>

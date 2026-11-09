@@ -1,0 +1,101 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-story-rail { box-sizing: border-box; inline-size: 100%; max-inline-size: 44rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); }
+.odl-story-rail *, .odl-story-rail *::before, .odl-story-rail *::after { box-sizing: border-box; }
+.odl-story-rail .odl-card { --sz: calc(var(--ds-size-control-lg) * 1.5); display: grid; gap: var(--ds-space-stack-md); padding-block: var(--ds-space-inset-lg) var(--ds-space-inset-md);
+  background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); overflow: hidden; }
+.odl-story-rail .odl-head { display: flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: var(--ds-size-target-touch); padding-inline: var(--ds-space-inset-xl) var(--ds-space-inset-md); }
+.odl-story-rail h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-story-rail .odl-new { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-story-rail .odl-arrows { display: flex; gap: var(--ds-space-inline-xs); margin-inline-start: auto; }
+.odl-story-rail .odl-arrow { display: grid; place-items: center; min-inline-size: var(--ds-size-target-touch); min-block-size: var(--ds-size-target-touch); padding: 0; border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-story-rail .odl-arrow:hover:not(:disabled) { background: var(--ds-color-bg-neutral-subtle); }
+.odl-story-rail .odl-arrow:disabled { color: var(--ds-color-text-disabled); cursor: default; }
+.odl-story-rail .odl-arrow svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-story-rail .odl-rail { display: flex; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-4) var(--ds-space-inset-xl) var(--ds-space-8); list-style: none; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity; scroll-padding-inline: var(--ds-space-inset-xl); scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, var(--ds-color-black) calc(100% - var(--ds-space-40)), transparent); mask-image: linear-gradient(to right, var(--ds-color-black) calc(100% - var(--ds-space-40)), transparent); }
+.odl-story-rail .odl-rail::-webkit-scrollbar { display: none; }
+.odl-story-rail .odl-rail.is-end { -webkit-mask-image: none; mask-image: none; }
+.odl-story-rail .odl-rail li { flex: none; scroll-snap-align: start; }
+.odl-story-rail .odl-story { display: grid; justify-items: center; gap: var(--ds-space-stack-sm); inline-size: calc(var(--sz) + var(--ds-space-12)); padding: var(--ds-space-2) 0; border: 0; border-radius: var(--ds-radius-detail);
+  background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-label-md); cursor: pointer; }
+/* Unseen: an accent ring; seen and your own: a thin grey one. A white gap keeps the photo apart from the ring. */
+.odl-story-rail .odl-ring { position: relative; display: grid; inline-size: var(--sz); aspect-ratio: 1; padding: var(--ds-border-width-emphasis); border-radius: var(--ds-radius-person);
+  background: var(--ds-color-bg-accent-bold); transition: transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-story-rail .odl-story:hover .odl-ring { transform: scale(1.04); }
+.odl-story-rail .odl-story:active .odl-ring { transform: scale(var(--ds-motion-scale-press)); }
+.odl-story-rail .odl-story.is-seen .odl-ring, .odl-story-rail .odl-story.is-own .odl-ring { padding: var(--ds-border-width-default); background: var(--ds-color-border-default); }
+.odl-story-rail .odl-gap { display: grid; padding: var(--ds-border-width-emphasis); border-radius: var(--ds-radius-person); background: var(--ds-color-surface-raised); }
+.odl-story-rail .odl-story.is-seen .odl-gap, .odl-story-rail .odl-story.is-own .odl-gap { padding: calc(var(--ds-border-width-emphasis) * 2 - var(--ds-border-width-default)); }
+.odl-story-rail .odl-av { display: block; inline-size: 100%; block-size: 100%; aspect-ratio: 1; border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-story-rail .odl-plus { position: absolute; inset-inline-end: 0; inset-block-end: 0; display: grid; place-items: center; inline-size: calc(var(--sz) * 0.36); aspect-ratio: 1; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); border: var(--ds-border-width-emphasis) solid var(--ds-color-surface-raised); }
+.odl-story-rail .odl-plus svg { inline-size: 62%; block-size: 62%; stroke-width: var(--ds-icon-stroke-lg); }
+.odl-story-rail .odl-plus.is-star svg { fill: currentColor; stroke-width: var(--ds-icon-stroke-sm); }
+.odl-story-rail .odl-live { position: absolute; inset-inline: 0; inset-block-end: calc(-1 * var(--ds-space-6)); inline-size: max-content; margin-inline: auto; padding: 0 var(--ds-space-6); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-danger-bold); color: var(--ds-color-text-on-danger); border: var(--ds-border-width-emphasis) solid var(--ds-color-surface-raised); font: var(--ds-text-label-sm); font-weight: var(--ds-font-weight-heading); letter-spacing: var(--ds-text-label-sm-tracking); }
+.odl-story-rail .odl-name { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-story-rail .odl-story.is-seen .odl-name { color: var(--ds-color-text-secondary); }
+.odl-story-rail .odl-story:focus-visible, .odl-story-rail .odl-arrow:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-story-rail .odl-story:focus-visible { outline-offset: calc(-1 * var(--ds-focus-ring-width)); }
+.odl-story-rail .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Phones swipe the rail, so the arrows go. */
+@container (max-width: 30rem) {
+  .odl-story-rail .odl-arrows { display: none; }
+  .odl-story-rail .odl-head { padding-inline: var(--ds-space-inset-lg); }
+  .odl-story-rail .odl-rail { padding-inline: var(--ds-space-inset-lg); scroll-padding-inline: var(--ds-space-inset-lg); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-story-rail, .odl-story-rail *, .odl-story-rail *::before { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+<section class="odl-story-rail" aria-labelledby="odl-sr-title">
+  <div class="odl-card">
+    <div class="odl-head">
+      <h3 id="odl-sr-title">Stories</h3><span class="odl-new">7 new</span>
+      <div class="odl-arrows">
+        <button type="button" class="odl-arrow" data-dir="-1" aria-label="Scroll stories back" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        <button type="button" class="odl-arrow" data-dir="1" aria-label="Scroll stories forward"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+    </div>
+    <ul class="odl-rail">
+      <li><button type="button" class="odl-story is-own" aria-label="Add to your story"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1611403119860-57c4937ef987?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span>
+        <span class="odl-plus" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span></span><span class="odl-name">Your story</span></button></li>
+      <li><button type="button" class="odl-story" aria-label="Mireille Vasseur, live now"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1607569708758-0270aa4651bd?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span><span class="odl-live" aria-hidden="true">LIVE</span></span><span class="odl-name">mireille.v</span></button></li>
+      <li><button type="button" class="odl-story" aria-label="Rafał Ostrowiak, new story"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1705645930353-0e335311ef20?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span></span><span class="odl-name">rafal.makes</span></button></li>
+      <li><button type="button" class="odl-story is-close" aria-label="Yuki Hanabusa, close friends story"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1684598273404-2d94d7a7ce2f?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span><span class="odl-plus is-star" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></span></span><span class="odl-name">yuki_h</span></button></li>
+      <li><button type="button" class="odl-story" aria-label="Kwesi Boateng-Ansah, new story"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1596580817363-a4a8f67d4bc8?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span></span><span class="odl-name">kwesi.frames</span></button></li>
+      <li><button type="button" class="odl-story" aria-label="Ximena Quintana, new story"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span></span><span class="odl-name">ximena.q</span></button></li>
+      <li><button type="button" class="odl-story" aria-label="Arash Tehrani, new story"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span></span><span class="odl-name">arash.t</span></button></li>
+      <li><button type="button" class="odl-story is-seen" aria-label="Leilani Kahale, seen"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1534751516642-a1af1ef26a56?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span></span><span class="odl-name">leilani.k</span></button></li>
+      <li><button type="button" class="odl-story is-seen" aria-label="Henrik Strandberg, seen"><span class="odl-ring"><span class="odl-gap"><img class="odl-av" src="https://images.unsplash.com/photo-1600603406200-5b2a104684ac?w=168&h=168&fit=crop&auto=format&q=70" alt="" width="84" height="84" loading="lazy" decoding="async"></span></span><span class="odl-name">henrik.sb</span></button></li>
+    </ul>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-story-rail").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const rail = root.querySelector(".odl-rail"), arrows = root.querySelectorAll(".odl-arrow"), badge = root.querySelector(".odl-new");
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const edges = () => {
+    const max = rail.scrollWidth - rail.clientWidth - 1;
+    arrows[0].disabled = rail.scrollLeft <= 0;
+    arrows[1].disabled = rail.scrollLeft >= max;
+    rail.classList.toggle("is-end", rail.scrollLeft >= max);
+  };
+  arrows.forEach((b) => b.addEventListener("click", () => {
+    rail.scrollBy({ left: Number(b.dataset.dir) * rail.clientWidth * 0.8, behavior: still.matches ? "auto" : "smooth" });
+  }));
+  rail.addEventListener("scroll", edges, { passive: true });
+  // Opening a story marks it seen: the ring turns grey and the "new" count drops.
+  root.querySelectorAll(".odl-story:not(.is-own)").forEach((s) => s.addEventListener("click", () => {
+    if (s.classList.contains("is-seen")) return;
+    s.classList.add("is-seen");
+    s.setAttribute("aria-label", s.getAttribute("aria-label").replace(/, .*$/, ", seen"));
+    const left = root.querySelectorAll(".odl-story:not(.is-own):not(.is-seen)").length;
+    badge.textContent = left ? `${left} new` : "All seen";
+  }));
+  edges();
+});
+</script>

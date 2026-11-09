@@ -1,0 +1,13 @@
+{
+  "name": "Selectable table",
+  "summary": "A dense table with row checkboxes, status pills and a bar of bulk actions that appears, with a live count, as soon as a row is picked.",
+  "use": "for dense lists people review and act on in bulk",
+  "type": "data",
+  "style": "dense",
+  "industries": ["finance", "logistics", "saas"],
+  "tags": ["table", "bulk actions", "selection", "status", "reconciliation"],
+  "states": ["hover", "selected", "no selection", "focus", "four statuses"],
+  "source": "brand/showcase/product/01-quoin-payments",
+  "a11y": "Each checkbox is named after its row and has a 24 px target; the bulk bar is a labelled toolbar whose count is a polite live region; the table scrolls sideways in its own box on narrow screens.",
+  "width": "wide"
+}

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Component sheet</title>
+<!--
+OpenDesigner visual template: Component sheet. Core components and their states rendered from token variables, light and dark side by side (stages 17, 20-23).
+Three voices: an option's "label" and "note" are plain; optional "short" shows the one-line
+"Designers: X · Code: Y" pointer, and optional "more" holds the full designer and engineer notes (tooltip).
+Feed it JSON in one of three ways: replace the contents of <script id="od-data">, set window.OD_DATA before the
+last script runs, or open the file with #data=<url-encoded JSON>. The sample payload below documents every field.
+"Copy my choice" produces OD: lines (grammar in references/rules.md): OD:<action> <target>=<value> <status>.
+No network requests, no dependencies. The shared chrome is repeated in every template on purpose so each file stands alone.
+-->
+<style>:root{--c-bg:#f6f6f7;--c-surface:#fff;--c-fg:#18181b;--c-muted:#585862;--c-border:#dcdce1;--c-strong:#18181b;--c-on-strong:#fff;--c-ok:#166534;--c-bad:#b42318;--r:8px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--font)}
+h1{font-size:16px;margin:0;font-weight:600}h2{font-size:13px;margin:0 0 8px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em}
+.od-h{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
+.sub{color:var(--c-muted);font-size:13px;margin:4px 0 0;max-width:72ch}
+main{max-width:1120px;margin:0 auto;padding:20px;display:grid;gap:24px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;border:0;padding:0;margin:0;min-width:0}
+.opt{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);padding:12px;cursor:pointer;min-height:44px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt:has(input:checked){border-color:var(--c-strong);box-shadow:inset 0 0 0 1px var(--c-strong)}
+.opt:has(input:focus-visible){outline:2px solid var(--c-strong);outline-offset:2px}
+.opt-t{font-weight:600}.opt-n{color:var(--c-muted);font-size:13px}
+.rec{display:inline-block;margin-left:6px;font:600 11px var(--font);padding:1px 6px;border:1px solid var(--c-border);border-radius:99px;color:var(--c-muted);vertical-align:1px}
+.specimen{position:relative;border:1px solid var(--c-border);border-radius:var(--r);background:var(--s-bg,var(--c-surface));color:var(--s-fg,var(--c-fg));padding:30px 16px 16px;overflow-x:auto}
+.specimen::before{content:attr(data-label);position:absolute;top:8px;left:12px;font:11px var(--mono);color:inherit;opacity:.6}
+.kv{font:12px/1.4 var(--mono);color:var(--c-muted)}.num{font-family:var(--mono);text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.lbl{min-width:84px;color:var(--c-muted);font-size:13px}
+button{font:inherit;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);cursor:pointer}
+button.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong);font-weight:600}
+:focus-visible{outline:2px solid var(--c-strong);outline-offset:2px}
+input[type=text],input[type=number]{font:inherit;min-height:44px;padding:0 10px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-fg)}
+input[type=range]{min-height:44px;accent-color:var(--c-strong);flex:1 1 120px;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--c-border);border-radius:var(--r);overflow:hidden;background:var(--c-surface)}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--c-border)}.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--c-strong);color:var(--c-on-strong)}
+.tbl{border-collapse:collapse;width:100%;font-size:13px}.tbl th,.tbl td{border-bottom:1px solid var(--c-border);padding:8px;text-align:left}.tbl th{color:var(--c-muted);font-weight:600}
+.ok{color:var(--c-ok);font-weight:600}.bad{color:var(--c-bad);font-weight:600}
+.od-f{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--c-surface);border-top:1px solid var(--c-border)}
+.od-f label{display:inline-flex;gap:6px;align-items:center;min-height:44px}
+.od-out{flex:1 1 320px;min-height:44px;font:12px/1.4 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg);resize:vertical}
+input[type=radio],input[type=checkbox]{accent-color:var(--c-strong);width:18px;height:18px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tk{--t-bg:#fff;--t-surface:#fff;--t-surface-2:#f4f4f5;--t-fg:#18181b;--t-fg-muted:#52525b;--t-border:#d4d4d8;--t-border-strong:#71717a;--t-accent:#0f766e;--t-accent-hover:#115e59;--t-accent-pressed:#134e4a;--t-on-accent:#fff;--t-accent-subtle:#ccfbf1;--t-danger:#b42318;--t-on-danger:#fff;--t-danger-subtle:#fee4e2;--t-success-subtle:#dcfce7;--t-on-success-subtle:#14532d;--t-warning-subtle:#fef3c7;--t-on-warning-subtle:#78350f;--t-focus:#0f766e;--t-font:system-ui,sans-serif;--t-size:14px;--t-radius-control:6px;--t-radius-container:10px;--t-control-h:40px;--t-pad-x:14px;--t-gap:12px;--t-shadow-1:0 1px 2px rgba(0,0,0,.08);--t-shadow-2:0 8px 24px rgba(0,0,0,.14)}
+.tk{background:var(--t-bg);color:var(--t-fg);font-family:var(--t-font);font-size:var(--t-size);line-height:1.5}
+.tk h3{font-size:12px;font-weight:600;color:var(--t-fg-muted);margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em}
+.tk .r{display:flex;flex-wrap:wrap;gap:var(--t-gap);align-items:center}
+.tk .b{display:inline-flex;align-items:center;gap:8px;height:var(--t-control-h);min-height:0;padding:0 var(--t-pad-x);border-radius:var(--t-radius-control);border:1px solid transparent;font:600 var(--t-size)/1 var(--t-font);cursor:pointer}
+.tk .b-p{background:var(--t-accent);color:var(--t-on-accent)}.tk .b-p:hover,.tk .b-p.is-h{background:var(--t-accent-hover)}.tk .b-p:active,.tk .b-p.is-a{background:var(--t-accent-pressed)}
+.tk .b-s{background:var(--t-surface);color:var(--t-fg);border-color:var(--t-border-strong)}.tk .b-s:hover{background:var(--t-surface-2)}
+.tk .b-g{background:transparent;color:var(--t-fg)}.tk .b-g:hover{background:var(--t-surface-2)}
+.tk .b-d{background:var(--t-danger);color:var(--t-on-danger)}
+.tk .b:focus-visible,.tk .is-f{outline:2px solid var(--t-focus);outline-offset:2px}
+.tk .b:disabled,.tk .is-d{opacity:.45;cursor:not-allowed}
+.tk .spin{width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;display:inline-block}
+.tk .f{display:grid;gap:4px;max-width:280px}.tk .f>span{font-weight:600;font-size:13px}.tk .f small{color:var(--t-fg-muted);font-size:12px}
+.tk .i{height:var(--t-control-h);padding:0 12px;border:1px solid var(--t-border-strong);border-radius:var(--t-radius-control);background:var(--t-surface);color:var(--t-fg);font:inherit;min-height:0}
+.tk .i:focus-visible{outline:2px solid var(--t-focus);outline-offset:1px}
+.tk .err .i{border-color:var(--t-danger)}.tk .err small{color:var(--t-danger)}
+.tk .c{display:inline-flex;align-items:center;gap:8px;min-height:32px}.tk .c input{accent-color:var(--t-accent);width:18px;height:18px}
+.tk .tg{width:44px;height:26px;border-radius:13px;background:var(--t-accent);position:relative;display:inline-block;cursor:pointer;border:0;padding:0;min-height:0}
+.tk .tg i{position:absolute;top:3px;left:21px;width:20px;height:20px;border-radius:50%;background:var(--t-on-accent)}.tk .tg[aria-checked=false]{background:var(--t-border-strong)}.tk .tg[aria-checked=false] i{left:3px}
+.tk .tabs{display:flex;gap:4px;border-bottom:1px solid var(--t-border)}.tk .tabs span{padding:8px 12px;color:var(--t-fg-muted)}.tk .tabs .on{color:var(--t-fg);box-shadow:inset 0 -2px 0 var(--t-accent);font-weight:600}
+.tk .card{background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--t-radius-container);padding:calc(var(--t-gap)*1.5);box-shadow:var(--t-shadow-1);display:grid;gap:var(--t-gap)}
+.tk .card p{margin:0;color:var(--t-fg-muted)}
+.tk .badge{display:inline-flex;height:22px;align-items:center;padding:0 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--t-surface-2);color:var(--t-fg)}
+.tk .badge.ok{background:var(--t-success-subtle);color:var(--t-on-success-subtle)}.tk .badge.warn{background:var(--t-warning-subtle);color:var(--t-on-warning-subtle)}.tk .badge.danger{background:var(--t-danger-subtle);color:var(--t-danger)}
+.tk .alert{border:1px solid var(--t-border);border-left:0;background:var(--t-accent-subtle);color:var(--t-fg);border-radius:var(--t-radius-control);padding:10px 12px}
+.tk .toast{display:inline-flex;gap:16px;align-items:center;background:var(--t-fg);color:var(--t-bg);border-radius:var(--t-radius-control);padding:10px 14px;box-shadow:var(--t-shadow-2)}.tk .toast u{font-weight:600}
+.tk .li{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--t-border)}
+.tk .av{width:32px;height:32px;border-radius:50%;background:var(--t-surface-2);border:1px solid var(--t-border)}
+.tk .mut{color:var(--t-fg-muted);font-size:12px}
+
+.pair2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:18px}
+@media (max-width:480px){.pair2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="od-h"><div><h1 id="t"></h1><p class="sub" id="st"></p></div><div class="seg" id="theme" role="group" aria-label="Color mode"></div></header>
+<main>
+<fieldset class="opts" id="opts"></fieldset>
+<section><div class="pair2"><div id="sl" class="specimen tk" data-label="light"></div><div id="sd" class="specimen tk" data-label="dark"></div></div></section>
+</main>
+<footer class="od-f">
+<label><input type="checkbox" id="lock"> Lock this decision</label>
+<label>Note <input type="text" id="note" placeholder="optional reason" size="24"></label>
+<textarea id="out" class="od-out" rows="2" readonly aria-label="Your choice as OD lines"></textarea>
+<button type="button" class="primary" id="copy">Copy my choice</button>
+<span id="live" class="kv" role="status" aria-live="polite"></span>
+</footer>
+<script type="application/json" id="od-data">
+{
+ "title": "Component sheet",
+ "subtitle": "Sample data. Every part here uses only your design tokens (the --t-* variables). Hover, press Tab to move the keyboard focus, and flip the switch. The states row shows each state side by side.",
+ "question": "Q-dir-01",
+ "recommended": "flat2",
+ "options": [
+  {
+   "value": "flat2",
+   "label": "Teal, subtle corners",
+   "note": "the direction picked in stage 06",
+   "vars": {
+    "shared": {
+     "font": "system-ui, sans-serif",
+     "size": "14px",
+     "radius-control": "6px",
+     "radius-container": "10px",
+     "control-h": "40px",
+     "pad-x": "14px",
+     "gap": "12px"
+    },
+    "light": {
+     "bg": "#F8FAFA",
+     "surface": "#FFFFFF",
+     "surface-2": "#EEF3F3",
+     "fg": "#141B1B",
+     "fg-muted": "#4E5959",
+     "border": "#D5DEDE",
+     "border-strong": "#788686",
+     "accent": "#0F766E",
+     "accent-hover": "#115E59",
+     "accent-pressed": "#134E4A",
+     "on-accent": "#FFFFFF",
+     "accent-subtle": "#DDF4F1",
+     "focus": "#0F766E"
+    },
+    "dark": {
+     "bg": "#0E1414",
+     "surface": "#151D1D",
+     "surface-2": "#1C2626",
+     "fg": "#E6EEEE",
+     "fg-muted": "#9DAEAE",
+     "border": "#2A3636",
+     "border-strong": "#5F7272",
+     "accent": "#2BB3A3",
+     "accent-hover": "#3CC4B4",
+     "accent-pressed": "#1E9486",
+     "on-accent": "#06201D",
+     "accent-subtle": "#123331",
+     "focus": "#5ED6C7",
+     "danger": "#F97066",
+     "on-danger": "#2A0A07",
+     "danger-subtle": "#3A1614",
+     "success-subtle": "#12301D",
+     "on-success-subtle": "#A7F3C0",
+     "warning-subtle": "#352A0F",
+     "on-warning-subtle": "#FDE68A",
+     "shadow-1": "0 0 0 1px rgba(255,255,255,.06)",
+     "shadow-2": "0 8px 24px rgba(0,0,0,.5)"
+    }
+   }
+  }
+ ]
+}
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadData(){let d={};try{d=JSON.parse($('#od-data').textContent)}catch(e){}
+ if(window.OD_DATA)d=window.OD_DATA;const m=location.hash.match(/[#&]data=([^&]+)/);
+ if(m){try{d=JSON.parse(decodeURIComponent(m[1]))}catch(e){console.warn('OpenDesigner: #data is not valid JSON')}}return d}
+const D=loadData();
+const OD={sel:null,extra:null,draw:()=>{}};
+// OD: line grammar (spec 3.7, DC-L18-07): OD:set <path>=<json-value> [--why "reason"], OD:lock <path>
+function fmtv(v){return typeof v==='number'||typeof v==='boolean'?String(v):JSON.stringify(String(v))}
+function fill(tpl,v){return tpl.replace('{v}',fmtv(v))}
+function lines(){let L=[];const o=OD.sel;
+ if(o){if(o.od)L=[].concat(o.od);else if(D.question)L=['OD:set '+D.question+'='+fmtv(o.value)];else if(D.path)L=['OD:set '+D.path+'='+fmtv(o.value)]}
+ if(OD.extra)L=L.concat(OD.extra());
+ const why=[$('#note').value.trim()].concat(OD.why?OD.why():[]).filter(Boolean).join('; ');
+ L=L.map(x=>why&&/^OD:set /.test(x)&&x.indexOf(' --why ')<0?x+' --why '+JSON.stringify(why):x);
+ if($('#lock').checked)L=L.concat(L.filter(x=>/^OD:set /.test(x)).map(x=>'OD:lock '+x.slice(7).split('=')[0]));
+ return L}
+function update(){OD.draw();$('#out').value=lines().join('\n')||'(nothing chosen yet)'}
+async function copy(){const t=$('#out').value;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){$('#out').select();try{ok=document.execCommand('copy')}catch(_){}}
+ $('#live').textContent=ok?'Copied. Paste it into the chat.':'Select the text and copy it by hand.'}
+function mode(){const t=document.documentElement.dataset.theme;return t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
+function lum(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+ const c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function fix(r){return (Math.floor(r*100)/100).toFixed(2)} // WCAG: no rounding up
+function band(bands,v){for(const b of bands)if(v>=b[0]&&v<=b[1])return b[2];return bands[bands.length-1][2]}
+function seg(el,values,cur,onPick,fmt=String){el.innerHTML=values.map(v=>'<button type="button" aria-pressed="'+(v==cur)+'" data-v="'+esc(v)+'">'+esc(fmt(v))+'</button>').join('');
+ el.onclick=e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));onPick(b.dataset.v)}}
+function mountOptions(inner){const box=$('#opts');const opts=D.options||[];
+ box.innerHTML='<legend class="vh">'+esc(D.title||'Options')+'</legend>'+opts.map((o,i)=>'<label class="opt"'+(o.more?' title="'+esc(o.more)+'"':'')+'><input type="radio" name="opt" value="'+i+'"><span class="opt-t">'+esc(o.label||o.value)+(o.value==D.recommended?'<span class="rec">Recommended</span>':'')+'</span>'+(o.note?'<span class="opt-n">'+esc(o.note)+'</span>':'')+(o.short?'<span class="kv">'+esc(o.short)+'</span>':'')+(inner?inner(o):'')+'</label>').join('');
+ box.onchange=e=>{if(e.target.name==='opt'){OD.sel=opts[+e.target.value];if(OD.onPick)OD.onPick(OD.sel);update()}};
+ const i=Math.max(0,opts.findIndex(o=>o.value==D.recommended));const r=box.querySelector('input[value="'+i+'"]');if(r){r.checked=true;OD.sel=opts[i]}}
+function boot(){$('#t').textContent=D.title||document.title;$('#st').textContent=D.subtitle||'';
+ seg($('#theme'),['auto','light','dark'],'auto',v=>{if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;update()},v=>v[0].toUpperCase()+v.slice(1));
+ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+ $('#copy').onclick=copy;$('#lock').onchange=update;$('#note').oninput=update;update()}
+function applyVars(el,o,m){const v=Object.assign({},(o.vars||{}).shared||{},((o.vars||{})[m])||((o.vars||{}).light)||{});
+ for(const k in v)el.style.setProperty('--t-'+k,v[k])}
+
+const H=$('#sl').innerHTML='<div class="sheet" style="display:grid;gap:22px">\n<section><h3>Buttons</h3><div class="r"><button type="button" class="b b-p">Save</button><button type="button" class="b b-s">Cancel</button><button type="button" class="b b-g">More</button><button type="button" class="b b-d">Delete</button><button type="button" class="b b-p" disabled>Disabled</button><button type="button" class="b b-p" aria-busy="true"><span class="spin" aria-hidden="true"></span>Saving</button></div></section>\n<section><h3>Primary button states</h3><div class="r"><span class="b b-p">Default</span><span class="b b-p is-h">Hover</span><span class="b b-p is-f">Focus</span><span class="b b-p is-a">Pressed</span><span class="b b-p is-d">Disabled</span></div></section>\n<section><h3>Fields</h3><div class="r" style="align-items:start"><label class="f"><span>Email</span><input class="i" value="ada@example.com"><small>We only use it for receipts.</small></label><label class="f err"><span>Password</span><input class="i" type="password" value="short" aria-invalid="true"><small>Use at least 12 characters.</small></label></div></section>\n<section><h3>Choices</h3><div class="r"><label class="c"><input type="checkbox" checked> Email me updates</label><label class="c"><input type="radio" name="RN" checked> Monthly</label><label class="c"><input type="radio" name="RN"> Yearly</label><button type="button" class="tg" role="switch" aria-checked="true" aria-label="Notifications"><i></i></button></div>\n<div class="tabs" style="margin-top:12px"><span class="on">Overview</span><span>Activity</span><span>Settings</span></div></section>\n<section><h3>Card</h3><div class="card"><strong>Team plan</strong><p>Five seats, shared billing and audit logs.</p><div class="r"><button type="button" class="b b-p">Upgrade</button><button type="button" class="b b-g">Compare plans</button></div></div></section>\n<section><h3>Feedback</h3><div class="r"><span class="badge">Draft</span><span class="badge ok">Paid</span><span class="badge warn">Due soon</span><span class="badge danger">Overdue</span></div>\n<div class="alert" style="margin-top:12px">Your trial ends in 3 days. Add a payment method to keep your projects.</div><div style="margin-top:12px"><span class="toast">Invoice sent. <u>Undo</u></span></div></section>\n<section><h3>List</h3><div class="li"><span class="av" aria-hidden="true"></span><span>Ada Lovelace<br><span class="mut">Owner</span></span><span class="mut">2 min ago</span></div><div class="li"><span class="av" aria-hidden="true"></span><span>Grace Hopper<br><span class="mut">Editor</span></span><span class="mut">Yesterday</span></div></section>\n</div>';$('#sd').innerHTML=H.replace(/name="RN"/g,'name="RN2"');
+document.querySelectorAll('.tg').forEach(t=>t.onclick=()=>t.setAttribute('aria-checked',t.getAttribute('aria-checked')!=='true'));
+OD.draw=()=>{const o=OD.sel||{};[['#sl','light'],['#sd','dark']].forEach(([s,m])=>{const el=$(s);el.removeAttribute('style');applyVars(el,o,m);el.style.setProperty('--s-bg','var(--t-bg)');el.style.setProperty('--s-fg','var(--t-fg)')})};
+mountOptions();if(!(D.options||[]).length){$('#opts').hidden=true}boot();
+</script>
+</body>
+</html>

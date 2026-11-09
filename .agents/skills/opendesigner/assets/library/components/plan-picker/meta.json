@@ -1,0 +1,13 @@
+{
+  "name": "Plan picker",
+  "summary": "Three plans as cards you select, with a monthly or yearly switch that changes the prices and one plan marked as the common choice.",
+  "use": "on a pricing or upgrade page",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": ["saas", "productivity", "education"],
+  "tags": ["pricing", "plans", "billing", "radio cards", "upgrade"],
+  "states": ["selected", "hover", "focus", "monthly", "yearly"],
+  "source": "brand/showcase/components/01-pricing-glass",
+  "a11y": "Native radio groups for the period and the plan; the whole card is the label, and the focus ring goes around the card.",
+  "width": "wide"
+}

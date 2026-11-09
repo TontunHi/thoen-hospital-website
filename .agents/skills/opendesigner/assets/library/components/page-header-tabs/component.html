@@ -1,0 +1,156 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-page-header-tabs { box-sizing: border-box; inline-size: 100%; min-inline-size: 0; container-type: inline-size; background: var(--ds-color-surface-base); color: var(--ds-color-text-primary);
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-page-header-tabs .odl-in { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl) var(--ds-space-inset-xl) 0; }
+.odl-page-header-tabs *, .odl-page-header-tabs *::before { box-sizing: border-box; }
+.odl-page-header-tabs .odl-crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-inline-xs); margin: 0; padding: 0; list-style: none; font: var(--ds-text-label-md); }
+.odl-page-header-tabs .odl-crumbs li { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); min-inline-size: 0; }
+.odl-page-header-tabs .odl-crumbs li + li::before { content: "/"; color: var(--ds-color-text-tertiary); padding-inline: var(--ds-space-inline-xs); }
+.odl-page-header-tabs .odl-crumbs a { display: inline-flex; align-items: center; min-block-size: var(--ds-size-target-min); padding-inline: var(--ds-space-4); margin-inline: calc(-1 * var(--ds-space-4));
+  border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-secondary); text-decoration: none; }
+.odl-page-header-tabs .odl-crumbs a:hover { color: var(--ds-color-text-primary); text-decoration: underline; text-underline-offset: var(--ds-space-4); }
+.odl-page-header-tabs .odl-crumbs [aria-current] { color: var(--ds-color-text-primary); }
+/* One grid for identity and actions, so the title keeps one line at tablet width and the buttons move beside the summary. */
+.odl-page-header-tabs .odl-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "mark title acts" "meta meta acts";
+  align-items: center; column-gap: var(--ds-space-inline-md); row-gap: var(--ds-space-stack-sm); }
+.odl-page-header-tabs .odl-id { display: contents; }
+.odl-page-header-tabs .odl-mark { grid-area: mark; }
+.odl-page-header-tabs .odl-title { grid-area: title; display: flex; align-items: center; gap: var(--ds-space-inline-xs); min-inline-size: 0; }
+.odl-page-header-tabs .odl-mark { display: grid; place-items: center; inline-size: var(--ds-size-control-lg); block-size: var(--ds-size-control-lg); border-radius: min(var(--ds-radius-control), var(--ds-radius-container), var(--ds-radius-12));
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-page-header-tabs h1 { min-inline-size: 0; margin: 0; font: var(--ds-text-headline-sm); overflow-wrap: break-word; text-wrap: balance; }
+.odl-page-header-tabs .odl-title .odl-star { flex: none; }
+.odl-page-header-tabs .odl-star { color: var(--ds-color-icon-subtle); }
+.odl-page-header-tabs .odl-star[aria-pressed="true"] { color: var(--ds-color-text-warning); }
+.odl-page-header-tabs .odl-star[aria-pressed="true"] svg { fill: currentColor; }
+.odl-page-header-tabs .odl-meta { grid-area: meta; display: flex; flex-wrap: wrap; gap: var(--ds-space-stack-xs) var(--ds-space-inset-lg); margin: 0; padding: 0; list-style: none; }
+.odl-page-header-tabs .odl-meta li { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-page-header-tabs .odl-meta b { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-page-header-tabs .odl-meta svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); flex: none; color: var(--ds-color-icon-subtle); }
+.odl-page-header-tabs .odl-meta img { flex: none; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); border-radius: var(--ds-radius-person); object-fit: cover; }
+.odl-page-header-tabs svg { stroke-width: var(--ds-icon-stroke-md); }
+.odl-page-header-tabs .odl-acts { grid-area: acts; align-self: start; display: flex; gap: var(--ds-space-inline-sm); margin-inline-start: var(--ds-space-inline-md); }
+.odl-page-header-tabs button { font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-hover), color var(--ds-motion-duration-short) var(--ds-motion-easing-hover); }
+.odl-page-header-tabs .odl-icon-btn { display: inline-grid; place-items: center; min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min));
+  padding: 0; border: 0; border-radius: var(--ds-radius-control); background: transparent; }
+.odl-page-header-tabs .odl-icon-btn:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-page-header-tabs .odl-icon-btn svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-page-header-tabs .odl-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); white-space: nowrap;
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-lg); border-radius: var(--ds-radius-control); }
+.odl-page-header-tabs .odl-btn svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-page-header-tabs .odl-secondary { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-default); }
+.odl-page-header-tabs .odl-secondary:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-page-header-tabs .odl-primary { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); border: var(--ds-border-width-default) solid transparent; }
+.odl-page-header-tabs .odl-primary:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-page-header-tabs .odl-primary:active { background: var(--ds-color-bg-action-primary-pressed); }
+/* the tab row: tabs scroll in their own box, fade at a clipped edge, and a pinned More button appears when some tabs do not fit */
+.odl-page-header-tabs .odl-tabrow { display: flex; align-items: stretch; min-inline-size: 0; margin-inline: calc(-1 * var(--ds-space-inset-xl)); padding-inline-end: var(--ds-space-inset-xl); }
+.odl-page-header-tabs [role="tablist"] { flex: 1 1 auto; display: flex; gap: var(--ds-space-inset-lg); min-inline-size: 0; padding-inline: var(--ds-space-inset-xl);
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; scroll-padding-inline: var(--ds-space-inset-xl); scroll-behavior: smooth; }
+.odl-page-header-tabs .odl-tabrow.is-clip-end [role="tablist"] { mask-image: linear-gradient(to left, transparent, currentColor var(--ds-space-48)); }
+.odl-page-header-tabs .odl-tabrow.is-clip-start [role="tablist"] { mask-image: linear-gradient(to right, transparent, currentColor var(--ds-space-48)); }
+.odl-page-header-tabs .odl-tabrow.is-clip-start.is-clip-end [role="tablist"] { mask-image: linear-gradient(to right, transparent, currentColor var(--ds-space-48), currentColor calc(100% - var(--ds-space-48)), transparent); }
+.odl-page-header-tabs .odl-more { flex: none; display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm);
+  border: 0; border-inline-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: transparent; color: var(--ds-color-text-secondary); white-space: nowrap; }
+.odl-page-header-tabs .odl-more:hover { color: var(--ds-color-text-primary); background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-page-header-tabs .odl-more[hidden] { display: none; }
+.odl-page-header-tabs .odl-more svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-page-header-tabs [role="tablist"]::-webkit-scrollbar { display: none; }
+.odl-page-header-tabs [role="tab"] { position: relative; flex: none; display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-2); border: 0; background: transparent; color: var(--ds-color-text-secondary); white-space: nowrap; }
+.odl-page-header-tabs [role="tab"]::after { content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; block-size: var(--ds-border-width-selected); border-radius: var(--ds-radius-full); background: transparent; }
+.odl-page-header-tabs [role="tab"]:hover { color: var(--ds-color-text-primary); }
+.odl-page-header-tabs [role="tab"]:hover::after { background: var(--ds-color-border-default); }
+.odl-page-header-tabs [role="tab"][aria-selected="true"] { color: var(--ds-color-text-primary); }
+.odl-page-header-tabs [role="tab"][aria-selected="true"]::after { background: var(--ds-color-text-primary); }
+.odl-page-header-tabs [role="tab"] svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); }
+.odl-page-header-tabs [role="tab"][aria-selected="true"] svg { color: var(--ds-color-icon-default); }
+.odl-page-header-tabs [role="tab"] small { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+.odl-page-header-tabs button:focus-visible, .odl-page-header-tabs a:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-page-header-tabs [role="tab"]:focus-visible { outline-offset: calc(-1 * var(--ds-focus-ring-width)); }
+@container (max-width: 52rem) {
+  .odl-page-header-tabs .odl-top { grid-template-areas: "mark title title" "meta meta acts"; }
+  .odl-page-header-tabs .odl-acts { align-self: end; }
+}
+@container (max-width: 560px) {
+  .odl-page-header-tabs .odl-in { padding: var(--ds-space-inset-lg) var(--ds-space-inset-lg) 0; }
+  .odl-page-header-tabs .odl-tabrow { margin-inline: calc(-1 * var(--ds-space-inset-lg)); padding-inline-end: var(--ds-space-inset-lg); }
+  .odl-page-header-tabs [role="tablist"] { padding-inline: var(--ds-space-inset-lg); scroll-padding-inline: var(--ds-space-inset-lg); }
+  .odl-page-header-tabs .odl-crumbs li:last-child { display: none; }
+  .odl-page-header-tabs .odl-top { grid-template-columns: minmax(0, 1fr); grid-template-areas: "title" "meta" "acts"; }
+  .odl-page-header-tabs .odl-acts { margin: var(--ds-space-stack-sm) 0 0; }
+
+  .odl-page-header-tabs .odl-mark { display: none; }
+  .odl-page-header-tabs .odl-acts { flex: 1 1 100%; flex-wrap: wrap; }
+  .odl-page-header-tabs .odl-acts .odl-btn { flex: 1 1 auto; }
+  .odl-page-header-tabs .odl-meta li:nth-child(2) { display: none; }
+}
+@container (max-width: 24rem) {
+  .odl-page-header-tabs h1 { font: var(--ds-text-title-lg); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-page-header-tabs, .odl-page-header-tabs *, .odl-page-header-tabs *::before, .odl-page-header-tabs *::after { transition: none !important; animation: none !important; } .odl-page-header-tabs [role="tablist"] { scroll-behavior: auto; } }
+</style>
+<header class="odl-page-header-tabs"><div class="odl-in">
+  <nav class="odl-crumbs" aria-label="Breadcrumb">
+    <ol>
+      <li><a href="#companies">Companies</a></li>
+      <li><a href="#enterprise-pipeline">Enterprise pipeline</a></li>
+      <li><span aria-current="page">Vessendon Airframes</span></li>
+    </ol>
+  </nav>
+  <div class="odl-top">
+    <div class="odl-id">
+      <span class="odl-mark" aria-hidden="true">VA</span>
+      <div class="odl-title">
+        <h1>Vessendon Airframes</h1>
+        <button type="button" class="odl-icon-btn odl-star" aria-pressed="false" aria-label="Add to favourites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></button>
+      </div>
+      <ul class="odl-meta" aria-label="Summary">
+        <li><img src="https://images.unsplash.com/photo-1601412436009-d964bd02edbc?w=48&h=48&fit=crop&auto=format&q=70" alt="" width="24" height="24" loading="lazy" decoding="async"><span>Owner <b>Paloma Etxeberria</b></span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg><span>Last email <b>2 days ago</b></span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span><b>2 open deals</b> · $81,400.00</span></li>
+      </ul>
+    </div>
+    <div class="odl-acts">
+      <button type="button" class="odl-btn odl-secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/></svg>Add to list</button>
+      <button type="button" class="odl-btn odl-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>Compose email</button>
+    </div>
+  </div>
+  <div class="odl-tabrow">
+  <div role="tablist" aria-label="Record sections">
+    <button type="button" role="tab" aria-selected="true" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>Activity</button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>Emails <small>148</small></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Calls <small>12</small></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>Notes <small>9</small></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>Deals <small>2</small></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>People <small>17</small></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Files <small>6</small></button>
+  </div>
+  <button type="button" class="odl-more" aria-label="Show more sections" hidden>More<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>
+</div></header>
+<script>
+document.querySelectorAll(".odl-page-header-tabs").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const star = root.querySelector(".odl-star");
+  star.addEventListener("click", () => { const on = star.getAttribute("aria-pressed") !== "true"; star.setAttribute("aria-pressed", String(on)); star.setAttribute("aria-label", on ? "Remove from favourites" : "Add to favourites"); });
+  const tabs = [...root.querySelectorAll('[role="tab"]')];
+  const select = (t) => { tabs.forEach((x) => { const on = x === t; x.setAttribute("aria-selected", String(on)); x.tabIndex = on ? 0 : -1; }); t.focus({ preventScroll: true }); const bar = t.parentElement, l = t.offsetLeft - bar.offsetLeft, r = l + t.offsetWidth; if (l < bar.scrollLeft) bar.scrollLeft = l; else if (r > bar.scrollLeft + bar.clientWidth) bar.scrollLeft = r - bar.clientWidth; };
+  // fade the clipped edge and show More while some tabs are out of view; More moves the row along, then back to the start
+  const row = root.querySelector(".odl-tabrow"), list = row.querySelector('[role="tablist"]'), more = row.querySelector(".odl-more");
+  const edges = () => { const over = list.scrollWidth > list.clientWidth + 1, end = list.scrollLeft + list.clientWidth >= list.scrollWidth - 1;
+    more.hidden = !over; row.classList.toggle("is-clip-end", over && !end); row.classList.toggle("is-clip-start", over && list.scrollLeft > 1); };
+  more.addEventListener("click", () => { const end = list.scrollLeft + list.clientWidth >= list.scrollWidth - 1; list.scrollLeft = end ? 0 : list.scrollLeft + list.clientWidth * 0.8; });
+  list.addEventListener("scroll", edges, { passive: true });
+  new ResizeObserver(edges).observe(list); edges();
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => select(t));
+    t.addEventListener("keydown", (e) => {
+      const k = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+      if (k !== undefined) { e.preventDefault(); select(tabs[(k + tabs.length) % tabs.length]); }
+    });
+  });
+});
+</script>

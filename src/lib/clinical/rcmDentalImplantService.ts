@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Domain Types: กองทุนรากฟันเทียม (Dental Implant) - DENSUR ────────────────
 
@@ -36,6 +38,8 @@ export type DentalImplantSortField =
 
 export interface DentalImplantReportParams extends FiscalDateRangeParams {
   cardFilter?: DentalImplantCardFilter
+  pttypes?: string
+  ucOnly?: boolean
   search?: string
   sortBy?: DentalImplantSortField
   sortOrder?: 'asc' | 'desc'
@@ -72,6 +76,7 @@ export interface DentalImplantDensurItem {
   vsttime: string
   authencode: string | null
   maininscl: string
+  pttype_eclaim_id?: string | null
   isUc: boolean
   pttypename: string
   department: string | null
@@ -136,7 +141,8 @@ export interface DentalImplantReportResult {
 
 // ── 2. Helper Functions ─────────────────────────────────────────────────────
 
-function isUniversalCoverage(maininscl: string, pttypename: string): boolean {
+function isUniversalCoverage(maininscl: string, pttypename: string, pttypeEclaimId?: string | null): boolean {
+  if (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) return true
   const normMain = (maininscl || '').trim().toUpperCase()
   if (normMain === 'UCS' || normMain === 'UC' || normMain === 'WEL') return true
   const normName = (pttypename || '').toLowerCase()
@@ -172,6 +178,27 @@ export class RcmDentalImplantService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode: gwRes.adpCode || adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -254,8 +281,9 @@ export class RcmDentalImplantService {
               IFNULL(nat.name, pt.nationality) AS nation,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              cc.AuthenCode AS authencode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
+              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
               ptt.name AS pttypename,
               dep.department AS department,
               spc.name AS clinic,
@@ -263,7 +291,7 @@ export class RcmDentalImplantService {
               v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
               v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
               dd.name AS listname,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
               rep.agency,
@@ -290,11 +318,12 @@ export class RcmDentalImplantService {
             LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
             LEFT JOIN spclty spc ON spc.spclty = o.spclty
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
@@ -309,7 +338,7 @@ export class RcmDentalImplantService {
                      GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
                      GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
             LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -320,7 +349,7 @@ export class RcmDentalImplantService {
                      SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
               FROM eclaimdb.m_registerdata m
               LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
@@ -336,14 +365,42 @@ export class RcmDentalImplantService {
           ds1, ds2, adpCode, // dd driving subquery
           ds1, ds2, // nhso
           ds1, ds2, // rep
-          ds1, ds2, // m
           ds1, ds2, // main ovst o
         ]
 
-        const [mappingRes, rows] = await Promise.all([
-          RcmDentalImplantService.checkAdpMapping(executor, Boolean(params.refresh)),
-          executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
-        ])
+        let rows: any[] = []
+        let mappingRes: DentalImplantAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              RcmDentalImplantService.checkAdpMapping(executor, Boolean(params.refresh)),
+              apiGateway.clinical.getRcmFundData('dental-implant', { ds1, ds2, adpCode }),
+            ])
+            mappingRes = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to parameterized query via executor
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [mRes, rRows] = await Promise.all([
+            RcmDentalImplantService.checkAdpMapping(executor, Boolean(params.refresh)),
+            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+          ])
+          mappingRes = mRes
+          rows = rRows || []
+        }
 
         return {
           rawRows: rows || [],
@@ -358,7 +415,8 @@ export class RcmDentalImplantService {
       const compensated = Number(r.compensated || 0)
       const pttypename = String(r.pttypename || '').trim()
       const maininscl = String(r.maininscl || '').trim()
-      const isUc = isUniversalCoverage(maininscl, pttypename)
+      const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+      const isUc = isUniversalCoverage(maininscl, pttypename, pttypeEclaimId)
       const isCompensated = compensated > 0 || (r.status && String(r.status).includes('ชดเชย'))
 
       return {
@@ -374,6 +432,7 @@ export class RcmDentalImplantService {
         vsttime: String(r.vsttime || '').trim(),
         authencode: r.authencode ? String(r.authencode).trim() : null,
         maininscl,
+        pttype_eclaim_id: pttypeEclaimId,
         isUc,
         pttypename,
         department: r.department ? String(r.department).trim() : null,
@@ -404,6 +463,16 @@ export class RcmDentalImplantService {
       }
     })
 
+    // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((it) =>
+        matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, params.pttypes, it.isUc, it.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((it) => it.isUc)
+    }
+
     // Calculate aggregated summary
     const uniqueHnSet = new Set<string>()
     let compensatedCases = 0
@@ -411,7 +480,7 @@ export class RcmDentalImplantService {
     let withAuthenCount = 0
     let ucCount = 0
 
-    for (const it of allItems) {
+    for (const it of summaryCohort) {
       if (it.hn) uniqueHnSet.add(it.hn)
       if (it.isCompensated) {
         compensatedCases++
@@ -421,7 +490,7 @@ export class RcmDentalImplantService {
       if (it.isUc) ucCount++
     }
 
-    const totalCases = allItems.length
+    const totalCases = summaryCohort.length
     const uncompensatedCases = totalCases - compensatedCases
     const withoutAuthenCount = totalCases - withAuthenCount
     const compensationRate = totalCases > 0 ? (compensatedCases / totalCases) * 100 : 0
@@ -443,7 +512,7 @@ export class RcmDentalImplantService {
     }
 
     // Apply Card Filter
-    let filteredItems = allItems
+    let filteredItems = summaryCohort
     switch (cardFilter) {
       case 'COMPENSATED':
         filteredItems = filteredItems.filter((it) => it.isCompensated)

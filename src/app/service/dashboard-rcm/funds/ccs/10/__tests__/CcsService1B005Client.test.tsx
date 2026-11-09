@@ -147,7 +147,7 @@ describe('CcsService1B005Client (CCS 1.10 — UI Style Brief)', () => {
     const card = await screen.findByRole('button', { name: /จำนวนรับบริการทั้งหมด/ })
     expect(card).toBeInTheDocument()
     expect(screen.getAllByText('72,000.00').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('มี Authen Code')[0]).toBeInTheDocument()
+    expect(screen.getAllByText('มี ClaimCode')[0]).toBeInTheDocument()
 
     // Ledger table rows render
     expect(await screen.findByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
@@ -250,5 +250,67 @@ describe('CcsService1B005Client (CCS 1.10 — UI Style Brief)', () => {
       )
       expect(screen.getByText(/120\/80 mmHg/)).toBeInTheDocument()
     })
+  })
+
+  it('renders quiet breadcrumbs navigation', () => {
+    render(<CcsService1B005Client />)
+
+    expect(screen.getByRole('navigation', { name: 'แถบนำทาง' })).toBeInTheDocument()
+    expect(screen.getByText('Dashboard RCM')).toBeInTheDocument()
+    expect(screen.getByText('กองทุนมะเร็งปากมดลูก (CCS)')).toBeInTheDocument()
+    expect(screen.getByText('บริการ 1B005')).toBeInTheDocument()
+  })
+
+  it('filters by clicking on NO_AUTHEN KPI summary card', async () => {
+    render(<CcsService1B005Client />)
+
+    const noAuthenCard = await screen.findByRole('button', { name: /ไม่มี ClaimCode/ })
+    fireEvent.click(noAuthenCard)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('compensationFilter=NO_AUTHEN'),
+        expect.anything()
+      )
+    })
+  })
+
+  it('opens patient modal when clicking anywhere on the table row', async () => {
+    render(<CcsService1B005Client />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
+    })
+
+    // Click on patient name cell instead of VN button
+    const ptNameCell = screen.getByText('นาง สมหญิง ทดสอบ')
+    fireEvent.click(ptNameCell)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('เวชระเบียนผู้รับบริการ: นาง สมหญิง ทดสอบ')
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('formats dates using Thai Buddhist year and does not render raw ISO dates in table rows', async () => {
+    render(<CcsService1B005Client />)
+
+    await waitFor(() => {
+      expect(screen.getByText('1 ต.ค. 2567')).toBeInTheDocument()
+      expect(screen.getByText('2 ต.ค. 2567')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('2024-10-01')).not.toBeInTheDocument()
+  })
+
+  it('does not render bottom tfoot summary row (Smart Subtraction)', async () => {
+    render(<CcsService1B005Client />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText(/รวมทั้งหมด \(Total\) ในหน้านี้/)).not.toBeInTheDocument()
   })
 })

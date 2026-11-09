@@ -215,8 +215,8 @@ describe('OralCancerScreeningClient Component', () => {
     const allCard = screen.getByRole('button', { name: /ตัวกรอง: ผู้รับบริการทั้งหมด/ })
     const compCard = screen.getByRole('button', { name: /ตัวกรอง: ได้รับการชดเชยแล้ว/ })
     const uncompCard = screen.getByRole('button', { name: /ตัวกรอง: รอชดเชย \/ ยังไม่ชดเชย/ })
-    const authenCard = screen.getByRole('button', { name: /ตัวกรอง: มี Authen Code/ })
-    const noAuthenCard = screen.getByRole('button', { name: /ตัวกรอง: ไม่มี Authen Code/ })
+    const authenCard = screen.getByRole('button', { name: /ตัวกรอง: มี ClaimCode/ })
+    const noAuthenCard = screen.getByRole('button', { name: /ตัวกรอง: ไม่มี ClaimCode/ })
     const ucCard = screen.getByRole('button', { name: /ตัวกรอง: สิทธิบัตรทอง/ })
 
     expect(allCard).toBeInTheDocument()

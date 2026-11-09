@@ -1,0 +1,124 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-invite-members { box-sizing: border-box; container-type: inline-size; inline-size: 100%; max-inline-size: 520px; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl);
+  background: var(--ds-color-surface-overlay); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-overlay);
+  box-shadow: var(--ds-elevation-overlay); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-invite-members *, .odl-invite-members *::before { box-sizing: border-box; }
+.odl-invite-members svg { stroke-width: var(--ds-icon-stroke-md); }
+.odl-invite-members .odl-head h2 { margin: 0; font: var(--ds-text-title-md); }
+.odl-invite-members .odl-head p { margin: var(--ds-space-stack-sm) 0 0; color: var(--ds-color-text-secondary); }
+.odl-invite-members .odl-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-sm); }
+.odl-invite-members .odl-field > label { font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-invite-members .odl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-stack-md) var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min)); padding: var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-container); background: var(--ds-color-bg-field); cursor: text;
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-invite-members .odl-chips:hover { border-color: var(--ds-color-border-strong); }
+.odl-invite-members .odl-chips:has(input:focus-visible) { border-color: var(--ds-color-border-focus); box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-border-focus); }
+.odl-invite-members .odl-chip { display: inline-flex; align-items: center; gap: var(--ds-space-2); max-inline-size: 100%; min-inline-size: 0; padding-inline-start: var(--ds-space-inset-sm); border-radius: max(0px, calc(var(--ds-radius-container) - var(--ds-space-inset-sm)));
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); }
+.odl-invite-members .odl-chip > span { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.odl-invite-members .odl-chip.is-invalid { background: var(--ds-color-bg-danger-subtle); color: var(--ds-color-text-danger); box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-danger); }
+.odl-invite-members .odl-chip button { display: grid; place-items: center; flex: none; min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-sm), var(--ds-size-target-min));
+  margin-block: calc(-1 * var(--ds-space-6)); padding: 0; border: 0; border-radius: var(--ds-radius-control-sm); background: transparent; color: inherit; opacity: 0.7; cursor: pointer; }
+.odl-invite-members .odl-chip button:hover { opacity: 1; }
+.odl-invite-members .odl-chip button svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-invite-members .odl-chips input { flex: 1; min-inline-size: 14ch; min-block-size: var(--ds-size-control-sm); padding: 0 var(--ds-space-inset-xs); border: 0; background: transparent; color: inherit; font: var(--ds-text-body-md); outline: none; }
+.odl-invite-members .odl-chips input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-invite-members .odl-hint { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-invite-members .odl-hint.is-error { color: var(--ds-color-text-danger); }
+.odl-invite-members .odl-select { position: relative; display: grid; }
+.odl-invite-members select { appearance: none; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-32) 0 var(--ds-space-inset-sm); border: var(--ds-border-width-default) solid var(--ds-color-border-input);
+  border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); cursor: pointer; }
+.odl-invite-members select:hover { border-color: var(--ds-color-border-strong); }
+.odl-invite-members .odl-select svg { position: absolute; inset-inline-end: var(--ds-space-inset-sm); inset-block-start: 50%; translate: 0 -50%; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); pointer-events: none; }
+.odl-invite-members .odl-role-desc { display: flex; gap: var(--ds-space-inline-xs); margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-invite-members .odl-seats { display: flex; align-items: center; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); border-radius: max(0px, calc(var(--ds-radius-overlay) - var(--ds-space-inset-xl)));
+  background: var(--ds-color-surface-sunken); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-invite-members .odl-seats strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+/* one seat bar: seats in use, then the seats these invites take, on a quiet track */
+.odl-invite-members .odl-seats { flex-direction: column; align-items: stretch; gap: var(--ds-space-stack-sm); }
+.odl-invite-members .odl-meter { order: 2; display: flex; flex: none; block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: var(--ds-color-border-subtle); overflow: hidden; }
+.odl-invite-members .odl-meter i { display: block; block-size: 100%; background: var(--ds-color-text-tertiary); transition: inline-size var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-invite-members .odl-meter i.is-pending { background: var(--ds-color-bg-action-primary); }
+.odl-invite-members .odl-actions { display: flex; justify-content: flex-end; gap: var(--ds-space-inline-sm); padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-invite-members .odl-actions button { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-lg); white-space: nowrap;
+  border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-invite-members .odl-cancel { border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-invite-members .odl-cancel:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-invite-members .odl-send { border: 0; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-invite-members .odl-send:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-invite-members .odl-send:disabled { background: var(--ds-color-bg-disabled); color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-invite-members .odl-send:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-invite-members .odl-send svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-invite-members .odl-chip button:focus-visible, .odl-invite-members select:focus-visible, .odl-invite-members .odl-actions button:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 26rem) { .odl-invite-members .odl-actions button { flex: 1; justify-content: center; } }
+@media (max-width: 30rem) { .odl-invite-members { padding: var(--ds-space-inset-lg); } }
+@media (prefers-reduced-motion: reduce) { .odl-invite-members, .odl-invite-members *, .odl-invite-members *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-invite-members" role="dialog" aria-labelledby="odl-im-title">
+  <div class="odl-head">
+    <h2 id="odl-im-title">Invite people to Thistlecombe Foods</h2>
+    <p>They get an email with a link that works for 7 days.</p>
+  </div>
+  <div class="odl-field">
+    <label for="odl-im-input">Email addresses</label>
+    <div class="odl-chips">
+      <span class="odl-chip"><span>nandini.iyer@thistlecombe.example</span><button type="button" aria-label="Remove nandini.iyer@thistlecombe.example"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+      <span class="odl-chip"><span>kwabena.asante@thistlecombe.example</span><button type="button" aria-label="Remove kwabena.asante@thistlecombe.example"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+      <span class="odl-chip is-invalid"><span>bettina.marangoni@thistlecombe</span><button type="button" aria-label="Remove bettina.marangoni@thistlecombe, not a full address"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+      <input id="odl-im-input" type="email" placeholder="Add another email" aria-describedby="odl-im-hint" autocomplete="off">
+    </div>
+    <p class="odl-hint is-error" id="odl-im-hint">bettina.marangoni@thistlecombe is not a full email address.</p>
+  </div>
+  <div class="odl-field">
+    <label for="odl-im-role">Role</label>
+    <div class="odl-select">
+      <select id="odl-im-role" aria-describedby="odl-im-role-desc">
+        <option value="admin">Admin</option>
+        <option value="member" selected>Member</option>
+        <option value="viewer">Viewer</option>
+      </select>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+    <p class="odl-role-desc" id="odl-im-role-desc">Can create and approve bills up to their limit. Cannot change billing or invite people.</p>
+  </div>
+  <p class="odl-seats"><span class="odl-meter" aria-hidden="true"><i style="inline-size: 70%"></i><i class="is-pending" style="inline-size: 20%"></i></span>
+    <span class="odl-seat-text"><strong>3 of 10 seats left.</strong> These invites use 2.</span></p>
+  <div class="odl-actions">
+    <button type="button" class="odl-cancel">Cancel</button>
+    <button type="button" class="odl-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>Send 2 invites</button>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-invite-members").forEach((root) => {
+  if (root.dataset.odlReady) return; root.dataset.odlReady = "1";
+  const box = root.querySelector(".odl-chips"), input = box.querySelector("input"), hint = root.querySelector(".odl-hint"), send = root.querySelector(".odl-send");
+  const select = root.querySelector("select"), desc = root.querySelector(".odl-role-desc"), seatText = root.querySelector(".odl-seat-text"), [usedBar, pendBar] = root.querySelectorAll(".odl-meter i");
+  const tpl = box.querySelector(".odl-chip").cloneNode(true), USED = 7, TOTAL = 10;
+  const ROLES = { admin: "Can change billing, roles and approval rules, and invite people.", member: "Can create and approve bills up to their limit. Cannot change billing or invite people.", viewer: "Can see bills and reports. Cannot create, approve or export." };
+  const valid = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  const update = () => {
+    const chips = [...box.querySelectorAll(".odl-chip")], ok = chips.filter((c) => !c.classList.contains("is-invalid")).length, bad = chips.find((c) => c.classList.contains("is-invalid"));
+    const left = TOTAL - USED, over = ok > left;
+    usedBar.style.inlineSize = `${(USED / TOTAL) * 100}%`; pendBar.style.inlineSize = `${(Math.min(ok, left) / TOTAL) * 100}%`;
+    const strong = document.createElement("strong"); strong.textContent = `${left} of ${TOTAL} seats left.`;
+    seatText.replaceChildren(strong, over ? ` Remove ${ok - left} to send these invites.` : ok ? ` These invites use ${ok}.` : "");
+    send.lastChild.textContent = ok === 1 ? "Send 1 invite" : `Send ${ok} invites`; send.disabled = !ok || over;
+    if (bad) { hint.classList.add("is-error"); hint.textContent = `${bad.firstElementChild.textContent} is not a full email address.`; }
+    else { hint.classList.remove("is-error"); hint.textContent = "Press Enter or comma after each address. Paste a list to add many."; }
+  };
+  const add = (raw) => raw.split(/[\s,;]+/).filter(Boolean).forEach((v) => {
+    const chip = tpl.cloneNode(true); chip.firstElementChild.textContent = v; chip.classList.toggle("is-invalid", !valid(v));
+    chip.querySelector("button").setAttribute("aria-label", `Remove ${v}`); box.insertBefore(chip, input);
+  });
+  input.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === ",") && input.value.trim()) { e.preventDefault(); add(input.value); input.value = ""; update(); }
+    else if (e.key === "Backspace" && !input.value) { const last = input.previousElementSibling; if (last) { last.remove(); update(); } }
+  });
+  input.addEventListener("paste", (e) => { const t = e.clipboardData && e.clipboardData.getData("text"); if (t && /[\s,;]/.test(t.trim())) { e.preventDefault(); add(t); update(); } });
+  input.addEventListener("blur", () => { if (input.value.trim()) { add(input.value); input.value = ""; update(); } });
+  box.addEventListener("click", (e) => { const b = e.target.closest(".odl-chip button"); if (b) { b.closest(".odl-chip").remove(); update(); input.focus(); } else if (e.target === box) input.focus(); });
+  select.addEventListener("change", () => { desc.textContent = ROLES[select.value]; });
+});
+</script>

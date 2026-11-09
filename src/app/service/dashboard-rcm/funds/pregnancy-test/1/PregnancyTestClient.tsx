@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -33,6 +34,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -96,6 +98,7 @@ export default function PregnancyTestClient({
 
   // Filter & Search States
   const [cardFilter, setCardFilter] = useState<PregnancyTestCardFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [ucOnly, setUcOnly] = useState<boolean>(false)
   const [searchField, setSearchField] = useState<PregnancyTestSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
@@ -208,6 +211,10 @@ export default function PregnancyTestClient({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           q.set('refresh', 'true')
         }
@@ -239,7 +246,7 @@ export default function PregnancyTestClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -325,6 +332,9 @@ export default function PregnancyTestClient({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/pregnancy-test/service-81?${q.toString()}`)
       const json = await res.json()
@@ -352,7 +362,7 @@ export default function PregnancyTestClient({
         'ผลตรวจทางห้องปฏิบัติการ',
         'สถานะผลตรวจ',
         'รายการ 30014 (ชุดตรวจ)',
-        'Authen Code',
+        'ClaimCode',
         'สถานะการเบิก',
         'เลขที่หนังสือชดเชย (Rep)',
         'ยอดชดเชย (บาท)',
@@ -360,49 +370,41 @@ export default function PregnancyTestClient({
         'กองทุนย่อย',
       ]
 
-      const csvRows = [headers.join(',')]
+      const rows = exportRows.map((r) => [
+        r.no,
+        r.vstdate,
+        r.vsttime,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.age,
+        r.pttypename || '',
+        r.maininscl || '',
+        r.department || '',
+        r.clinic || '',
+        r.pdx || '',
+        r.sdx || '',
+        r.income,
+        r.labname || '',
+        r.lab_order_result || '',
+        r.labStatus,
+        r.listname || '',
+        r.authencode || '',
+        r.status || '',
+        r.rep || '',
+        r.compensated,
+        r.fund || '',
+        r.subfund || '',
+      ])
 
-      for (const r of exportRows) {
-        const row = [
-          r.no,
-          `"${r.vstdate}"`,
-          `"${r.vsttime}"`,
-          `"${r.vn}"`,
-          `"${r.hn}"`,
-          `"${r.cid}"`,
-          `"${r.ptname}"`,
-          r.age,
-          `"${r.pttypename || ''}"`,
-          `"${r.maininscl || ''}"`,
-          `"${r.department || ''}"`,
-          `"${r.clinic || ''}"`,
-          `"${r.pdx || ''}"`,
-          `"${r.sdx || ''}"`,
-          r.income,
-          `"${r.labname || ''}"`,
-          `"${r.lab_order_result || ''}"`,
-          `"${r.labStatus}"`,
-          `"${r.listname || ''}"`,
-          `"${r.authencode || ''}"`,
-          `"${r.status || ''}"`,
-          `"${r.rep || ''}"`,
-          r.compensated,
-          `"${r.fund || ''}"`,
-          `"${r.subfund || ''}"`,
-        ]
-        csvRows.push(row.join(','))
-      }
-
-      const csvContent = '\uFEFF' + csvRows.join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `PregnancyTest_8_1_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `PregnancyTest_8_1_${ds1}_to_${ds2}.xlsx`,
+        title: 'การทดสอบการตั้งครรภ์ (Pregnancy Test 8.1)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert('ส่งออกไฟล์ล้มเหลว: ' + e.message)
@@ -438,10 +440,10 @@ export default function PregnancyTestClient({
             className="preg81-btn preg81-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || totalCount === 0}
-            title="ส่งออกรายงานเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -723,17 +725,17 @@ export default function PregnancyTestClient({
           <p className="preg81-card-sub">ผู้มีสิทธิหลักประกันสุขภาพถ้วนหน้า (UCS)</p>
         </div>
 
-        {/* Card 7: With Authen Code */}
+        {/* Card 7: With ClaimCode */}
         <div
           className={`preg81-card preg81-card-authen ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => e.key === 'Enter' && handleCardFilterClick('WITH_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="preg81-card-header">
-            <h4 className="preg81-card-title">ยืนยันตัวตน (Authen)</h4>
+            <h4 className="preg81-card-title">ยืนยันตัวตน (ClaimCode)</h4>
             <div className="preg81-card-icon">
               <Check size={18} />
             </div>
@@ -743,7 +745,7 @@ export default function PregnancyTestClient({
             <span className="preg81-card-unit">({summary.authenRate}%)</span>
           </div>
           <p className="preg81-card-sub">
-            ไม่มี Authen {summary.withoutAuthenCount.toLocaleString()} ราย
+            ไม่มี ClaimCode {summary.withoutAuthenCount.toLocaleString()} ราย
           </p>
         </div>
       </div>
@@ -811,7 +813,7 @@ export default function PregnancyTestClient({
               setCurrentPage(1)
             }}
           >
-            มี Authen ({summary.withAuthenCount})
+            มี ClaimCode ({summary.withAuthenCount})
           </button>
           <button
             type="button"
@@ -821,26 +823,19 @@ export default function PregnancyTestClient({
               setCurrentPage(1)
             }}
           >
-            ไม่มี Authen ({summary.withoutAuthenCount})
+            ไม่มี ClaimCode ({summary.withoutAuthenCount})
           </button>
 
-          {/* Legacy Checkbox Filter: เฉพาะสิทธิ UC (lblUC in FoxPro) */}
-          <label className="preg81-checkbox-label" title="กรองเฉพาะสิทธิบัตรทอง (UCS)">
-            <input
-              type="checkbox"
-              checked={ucOnly || cardFilter === 'UC_ONLY'}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                if (e.target.checked && cardFilter !== 'UC_ONLY') {
-                  // Keep cardFilter or synchronize
-                } else if (!e.target.checked && cardFilter === 'UC_ONLY') {
-                  setCardFilter('ALL')
-                }
-                setCurrentPage(1)
-              }}
-            />
-            <span>เฉพาะสิทธิ UC ({summary.ucCount})</span>
-          </label>
+          {/* Pttype Multi-Select Filter */}
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
         </div>
 
         {/* Search Row */}
@@ -957,7 +952,7 @@ export default function PregnancyTestClient({
                   </span>
                 </th>
                 <th>ชุดตรวจ (30014)</th>
-                <th>Authen Code</th>
+                <th>ClaimCode</th>
                 <th>สถานะชดเชย / Rep</th>
                 <th className="sortable" onClick={() => handleSort('compensated')}>
                   <span className="preg81-th-content">

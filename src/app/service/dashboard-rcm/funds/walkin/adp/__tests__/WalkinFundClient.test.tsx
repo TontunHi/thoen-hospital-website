@@ -177,8 +177,8 @@ describe('WalkinFundClient', () => {
   it('filters data when clicking on a summary KPI card', async () => {
     render(<WalkinFundClient initialData={mockInitialData} />)
 
-    // Click "มี Authen Code" card
-    const authenCard = screen.getByText('มี Authen Code').closest('.walkin-card')
+    // Click "มี ClaimCode" card
+    const authenCard = screen.getByText('มี ClaimCode').closest('.walkin-card')
     expect(authenCard).toBeInTheDocument()
     if (authenCard) {
       fireEvent.click(authenCard)

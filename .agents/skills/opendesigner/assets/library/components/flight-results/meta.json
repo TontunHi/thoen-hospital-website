@@ -1,0 +1,13 @@
+{
+  "name": "Flight results",
+  "summary": "A list of flight options: departure and arrival times and airports, the duration over a stops line, the airline as a drawn mark, the price, Best and Cheapest tags, and sort chips.",
+  "use": "on a flight search results page, for comparing and choosing a flight",
+  "type": "data",
+  "style": "friendly",
+  "industries": ["travel"],
+  "tags": ["flights", "search results", "sort", "airline", "price"],
+  "states": ["sorted by best", "sorted by price", "sorted by time", "hover", "focus"],
+  "source": null,
+  "a11y": "Sort chips are toggle buttons with aria-pressed, and each flight is one link whose name reads the whole flight (times, airports, duration, stops, price and tag); the drawn marks are decorative.",
+  "width": "medium"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "Comment thread",
+  "summary": "Comments on a record with an @mention, a resolved reply, reactions, an edited marker and a composer with a Comment button.",
+  "use": "on a record people discuss together",
+  "type": "data",
+  "style": "quiet",
+  "industries": ["saas", "finance", "productivity"],
+  "tags": ["comments", "thread", "mentions", "reactions", "composer"],
+  "states": ["hover", "focus", "resolved", "edited", "reaction on", "send disabled", "send enabled"],
+  "source": "brand/showcase/product/02-fennick-approvals",
+  "a11y": "Comments are an ordered list; reactions are toggle buttons with aria-pressed and a count in their name; the composer's textarea is labelled and Cmd or Ctrl+Enter sends.",
+  "width": "medium",
+  "photos": [
+    {"img": "photo-1438761681033-6461ffad8d80", "author": "Christopher Campbell", "page": "rDEOVtE7vOs"},
+    {"img": "photo-1522529599102-193c0d76b5b6", "author": "Elizeu Dias", "page": "2EGNqazbAMk"},
+    {"img": "photo-1725033489648-a819750348eb", "author": "Arnab De", "page": "WYwNK-zW7u4"}
+  ]
+}

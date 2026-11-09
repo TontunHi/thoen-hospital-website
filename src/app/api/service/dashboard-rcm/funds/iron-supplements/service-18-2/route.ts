@@ -27,6 +27,7 @@ const ironSupplementsParamsSchema = z.object({
   ucOnly: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),
+  pttypes: z.string().max(300).optional(),
   targetAgeOnly: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),

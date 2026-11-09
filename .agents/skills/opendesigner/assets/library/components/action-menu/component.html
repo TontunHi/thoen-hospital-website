@@ -1,0 +1,86 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-action-menu { box-sizing: border-box; inline-size: 100%; max-inline-size: 17.5rem; margin-inline: auto; display: grid; justify-items: end; gap: var(--ds-space-stack-xs);
+  color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-action-menu *, .odl-action-menu *::before { box-sizing: border-box; }
+.odl-action-menu svg { flex: none; fill: none; stroke: currentColor; stroke-width: var(--ds-icon-stroke-md); }
+.odl-action-menu .odl-trigger { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-sm) 0 var(--ds-space-inset-md); border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-hover); }
+.odl-action-menu .odl-trigger:hover, .odl-action-menu .odl-trigger[aria-expanded="true"] { background: var(--ds-color-bg-neutral-subtle); }
+.odl-action-menu .odl-trigger svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle);
+  transition: transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-action-menu .odl-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+.odl-action-menu [role="menu"] { inline-size: 100%; margin: 0; padding: var(--ds-space-inset-xs); list-style: none; display: grid;
+  background: var(--ds-color-surface-overlay); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-overlay);
+  box-shadow: var(--ds-elevation-floating); transform-origin: top right; animation: odl-action-menu-in var(--ds-motion-duration-short) var(--ds-motion-easing-enter) both; }
+.odl-action-menu [role="menu"][hidden] { display: none; }
+@keyframes odl-action-menu-in { from { opacity: 0; transform: scale(var(--ds-motion-scale-enter)); } }
+.odl-action-menu .odl-group { padding: var(--ds-space-stack-sm) var(--ds-space-inset-sm) var(--ds-space-stack-xs); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-action-menu [role="separator"] { block-size: var(--ds-border-width-default); margin: var(--ds-space-inset-xs) calc(-1 * var(--ds-space-inset-xs)); background: var(--ds-color-border-subtle); }
+.odl-action-menu [role="menuitem"] { display: grid; grid-template-columns: var(--ds-size-icon-sm) minmax(0, 1fr) auto; gap: var(--ds-space-inline-md); align-items: center;
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-sm); border-radius: var(--ds-radius-nested); cursor: pointer; outline: none; }
+.odl-action-menu [role="menuitem"] > svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); }
+.odl-action-menu [role="menuitem"]:hover, .odl-action-menu [role="menuitem"]:focus { background: var(--ds-color-bg-neutral-subtle); }
+.odl-action-menu [role="menuitem"]:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: calc(-1 * var(--ds-focus-ring-width)); }
+.odl-action-menu [role="menuitem"]:hover > svg, .odl-action-menu [role="menuitem"]:focus > svg { color: var(--ds-color-icon-default); }
+.odl-action-menu kbd { display: inline-flex; gap: var(--ds-space-2); }
+.odl-action-menu kbd span, .odl-action-menu kbd:not(:has(span)) { display: inline-grid; place-items: center; min-inline-size: var(--ds-size-icon-md); padding: 0 var(--ds-space-4);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-detail); background: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); font-family: var(--ds-font-family-text); white-space: nowrap; }
+.odl-action-menu .odl-sub > span:last-child svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); display: block; }
+.odl-action-menu [aria-disabled="true"] { cursor: not-allowed; color: var(--ds-color-text-disabled); }
+.odl-action-menu [aria-disabled="true"] > svg { color: var(--ds-color-text-disabled); }
+/* The note that says why an item is off is not part of the disabled control: it keeps 4.5:1. */
+.odl-action-menu [aria-disabled="true"] small { color: var(--ds-color-text-tertiary); }
+.odl-action-menu [aria-disabled="true"]:hover { background: transparent; }
+.odl-action-menu small { font: var(--ds-text-label-sm); white-space: nowrap; }
+.odl-action-menu .odl-danger, .odl-action-menu .odl-danger > svg { color: var(--ds-color-text-danger); }
+.odl-action-menu .odl-danger:hover, .odl-action-menu .odl-danger:focus { background: var(--ds-color-bg-danger-subtle); }
+.odl-action-menu .odl-danger:hover > svg, .odl-action-menu .odl-danger:focus > svg { color: var(--ds-color-text-danger); }
+.odl-action-menu .odl-trigger:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@media (prefers-reduced-motion: reduce) { .odl-action-menu, .odl-action-menu *, .odl-action-menu *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-action-menu">
+  <button type="button" class="odl-trigger" aria-haspopup="menu" aria-expanded="true" aria-controls="odl-am-menu">More<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+  <div role="menu" id="odl-am-menu" aria-label="Bill actions" tabindex="-1">
+    <div class="odl-group" role="presentation">Bill</div>
+    <div role="menuitem" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg><span>Edit details</span><kbd>E</kbd></div>
+    <div role="menuitem" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>Duplicate</span><kbd><span>⌘</span><span>D</span></kbd></div>
+    <div role="menuitem" tabindex="-1" class="odl-sub" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1"/><path d="M2 13h10"/><path d="m9 16 3-3-3-3"/></svg><span>Move to</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span></div>
+    <div role="menuitem" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg><span>Download PDF</span><kbd><span>⇧</span><span>D</span></kbd></div>
+    <div role="separator"></div>
+    <div class="odl-group" role="presentation">Payment</div>
+    <div role="menuitem" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Copy payment link</span><kbd><span>⌘</span><span>L</span></kbd></div>
+    <div role="menuitem" tabindex="-1" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span>Mark as paid</span><small>Needs approval</small></div>
+    <div role="separator"></div>
+    <div role="menuitem" tabindex="-1" class="odl-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg><span>Delete bill</span><kbd><span>⌘</span><span>⌫</span></kbd></div>
+  </div>
+</div>
+<script>
+document.querySelectorAll(".odl-action-menu").forEach((root, n) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const btn = root.querySelector(".odl-trigger"), menu = root.querySelector('[role="menu"]');
+  menu.id = "odl-am-menu-" + n; btn.setAttribute("aria-controls", menu.id);
+  const items = [...menu.querySelectorAll('[role="menuitem"]')];
+  const focusAt = (i) => { const k = (i + items.length) % items.length; items.forEach((x, j) => { x.tabIndex = j === k ? 0 : -1; }); items[k].focus(); };
+  const setOpen = (open, toItem) => { menu.hidden = !open; btn.setAttribute("aria-expanded", String(open)); if (open && toItem != null) focusAt(toItem); };
+  btn.addEventListener("click", () => setOpen(menu.hidden, 0));
+  btn.addEventListener("keydown", (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setOpen(true, e.key === "ArrowDown" ? 0 : items.length - 1); } });
+  menu.addEventListener("keydown", (e) => {
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); focusAt(i + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); focusAt(i - 1); }
+    else if (e.key === "Home") { e.preventDefault(); focusAt(0); }
+    else if (e.key === "End") { e.preventDefault(); focusAt(items.length - 1); }
+    else if (e.key === "Escape" || e.key === "Tab") { if (e.key === "Escape") e.preventDefault(); setOpen(false); btn.focus(); }
+    else if ((e.key === "Enter" || e.key === " ") && i > -1) { e.preventDefault(); items[i].click(); }
+  });
+  items.forEach((it, j) => {
+    it.addEventListener("mousemove", () => { if (document.activeElement !== it && menu.contains(document.activeElement)) focusAt(j); });
+    it.addEventListener("click", () => { if (it.getAttribute("aria-disabled") === "true" || it.hasAttribute("aria-haspopup")) return; setOpen(false); btn.focus(); });
+  });
+});
+</script>

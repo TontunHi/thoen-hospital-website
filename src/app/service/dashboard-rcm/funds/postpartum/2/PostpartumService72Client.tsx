@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -32,6 +33,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -95,6 +97,7 @@ export default function PostpartumService72Client({
 
   // Filter & Search states
   const [compensationFilter, setCompensationFilter] = useState<PostpartumCompensationFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [searchField, setSearchField] = useState<PostpartumSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -197,6 +200,10 @@ export default function PostpartumService72Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           q.set('refresh', 'true')
         }
@@ -227,7 +234,7 @@ export default function PostpartumService72Client({
         }
       }
     },
-    [ds1, ds2, compensationFilter, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, compensationFilter, pttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -322,6 +329,10 @@ export default function PostpartumService72Client({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(`/api/service/dashboard-rcm/funds/postpartum/service-30015?${q.toString()}`)
       const json = await res.json()
 
@@ -340,7 +351,7 @@ export default function PostpartumService72Client({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลารับบริการ',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -402,17 +413,13 @@ export default function PostpartumService72Client({
         `"${r.subfund || ''}"`,
       ])
 
-      const csvContent =
-        '\uFEFF' + [headers.join(','), ...csvRows.map((e) => e.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `rcm_postpartum_7_2_30015_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `rcm_postpartum_7_2_30015_${ds1}_to_${ds2}.xlsx`,
+        title: 'การตรวจหลังคลอด ADP (30015)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(`เกิดข้อผิดพลาดในการส่งออกไฟล์: ${e.message}`)
@@ -429,7 +436,7 @@ export default function PostpartumService72Client({
           <h1 className="pnc72-title">การตรวจหลังคลอด ADP</h1>
           <p className="pnc72-subtitle">
             ติดตามบริการตรวจหลังคลอด รหัส ADP <strong>30015</strong> (โครงการตรวจหลังคลอด Z390-391-392)
-            ตรวจสอบการขอรหัส Authen การวินิจฉัย และสถานะการชดเชยค่าบริการ
+            ตรวจสอบการขอรหัส ClaimCode การวินิจฉัย และสถานะการชดเชยค่าบริการ
           </p>
         </div>
 
@@ -450,10 +457,11 @@ export default function PostpartumService72Client({
             className="pnc72-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || items.length === 0}
-            aria-label="ส่งออกข้อมูลเป็นไฟล์ Excel / CSV"
+            aria-label="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} aria-hidden="true" />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel / CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -678,7 +686,7 @@ export default function PostpartumService72Client({
           </div>
         </button>
 
-        {/* Card 4: Authen Code */}
+        {/* Card 4: ClaimCode */}
         <button
           type="button"
           className={`pnc72-card ${compensationFilter === 'HAS_AUTHEN' ? 'active' : ''}`}
@@ -686,18 +694,18 @@ export default function PostpartumService72Client({
             setCompensationFilter('HAS_AUTHEN')
             setCurrentPage(1)
           }}
-          aria-label="ตัวกรอง: มีรหัส Authen Code"
+          aria-label="ตัวกรอง: มีรหัส ClaimCode"
         >
           <div className="pnc72-card-indicator" />
           <div className="pnc72-card-head">
-            <span className="pnc72-card-title">มีรหัส AUTHEN</span>
+            <span className="pnc72-card-title">มีรหัส ClaimCode</span>
             <span className="pnc72-card-badge info">พร้อมเบิก</span>
           </div>
           <div className="pnc72-card-value text-sky-700">
             {summary.withAuthenCount.toLocaleString('th-TH')} ครั้ง
           </div>
           <div className="pnc72-card-sub">
-            <span>ไม่มี Authen: {summary.withoutAuthenCount.toLocaleString('th-TH')} ครั้ง</span>
+            <span>ไม่มี ClaimCode: {summary.withoutAuthenCount.toLocaleString('th-TH')} ครั้ง</span>
           </div>
         </button>
 
@@ -737,6 +745,21 @@ export default function PostpartumService72Client({
                 <X size={16} aria-hidden="true" />
               </button>
             )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--pnc72-text-muted)', fontWeight: 500 }}>
+              สิทธิ:
+            </span>
+            <PttypeMultiSelect
+              selectedCodes={pttypes}
+              onChange={(codes) => {
+                setPttypes(codes)
+                setCurrentPage(1)
+            }}
+            items={items}
+            
+          />
           </div>
         </div>
 
@@ -817,7 +840,7 @@ export default function PostpartumService72Client({
                 </th>
                 <th className="sortable" onClick={() => handleSort('authencode')}>
                   <div className="pnc72-th-content">
-                    <span>รหัส Authen</span>
+                    <span>ClaimCode</span>
                     {renderSortIcon('authencode')}
                   </div>
                 </th>
@@ -892,7 +915,7 @@ export default function PostpartumService72Client({
                       {item.authencode ? (
                         <span className="pnc72-tag success font-mono">{item.authencode}</span>
                       ) : (
-                        <span className="pnc72-tag warning">ไม่มี Authen</span>
+                        <span className="pnc72-tag warning">ไม่มี ClaimCode</span>
                       )}
                     </td>
                     <td>
@@ -1107,7 +1130,7 @@ export default function PostpartumService72Client({
                     </div>
 
                     <div className="pnc72-detail-item">
-                      <span className="pnc72-detail-label">รหัส Authen Code</span>
+                      <span className="pnc72-detail-label">รหัส ClaimCode</span>
                       <div className="pnc72-detail-val font-mono">
                         {selectedItem.authencode ? (
                           <>
@@ -1116,13 +1139,13 @@ export default function PostpartumService72Client({
                               type="button"
                               className="text-gray-400 hover:text-gray-700"
                               onClick={() => handleCopy(selectedItem.authencode!, 'authen')}
-                              title="คัดลอก Authen Code"
+                              title="คัดลอก ClaimCode"
                             >
                               {copiedField === 'authen' ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
                             </button>
                           </>
                         ) : (
-                          <span className="pnc72-tag warning">ไม่มี Authen</span>
+                          <span className="pnc72-tag warning">ไม่มี ClaimCode</span>
                         )}
                       </div>
                     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -36,6 +37,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -99,6 +101,7 @@ export default function FamilyPlanning92Client({
 
   // Patient Type State: 'OPD' (default) | 'IPD'
   const [patientType, setPatientType] = useState<IudPatientType>('OPD')
+  const [pttypes, setPttypes] = useState<string[]>([])
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<IudCardFilter>('ALL')
@@ -217,6 +220,10 @@ export default function FamilyPlanning92Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           q.set('refresh', 'true')
         }
@@ -252,6 +259,7 @@ export default function FamilyPlanning92Client({
       ds1,
       ds2,
       patientType,
+      pttypes,
       cardFilter,
       searchField,
       debouncedSearch,
@@ -407,6 +415,10 @@ export default function FamilyPlanning92Client({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/family-planning/service-9-2?${q.toString()}`
       )
@@ -428,7 +440,7 @@ export default function FamilyPlanning92Client({
         'วันที่รับบริการ',
         patientType === 'IPD' ? 'วันที่จำหน่าย' : 'เวลารับบริการ',
         'สิทธิการรักษา',
-        'Authen Code',
+        'ClaimCode',
         'แผนก',
         'คลินิก',
         'อาการสำคัญ (CC)',
@@ -477,20 +489,13 @@ export default function FamilyPlanning92Client({
         `"${r.errorDrug || ''}"`,
       ])
 
-      const bom = '\uFEFF'
-      const csvString = bom + [headers.join(','), ...csvRows.map((e) => e.join(','))].join('\n')
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute(
-        'download',
-        `IUD_Insertion_9_2_${patientType}_${ds1}_${ds2}.csv`
-      )
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `IUD_Insertion_9_2_${patientType}_${ds1}_${ds2}.xlsx`,
+        title: `บริการใส่ห่วงอนามัย (IUD Insertion 9.2 - ${patientType})`,
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(`เกิดข้อผิดพลาดในการส่งออก: ${e.message}`)
@@ -525,10 +530,10 @@ export default function FamilyPlanning92Client({
             className="fp-btn fp-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || isExporting || items.length === 0}
-            title="ส่งออกรายงานเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -869,7 +874,7 @@ export default function FamilyPlanning92Client({
           <div className="fp-kpi-sub">ยังไม่มีประวัติในโปรแกรม E-Claim</div>
         </div>
 
-        {/* Card 11: มี Authen Code */}
+        {/* Card 11: มี ClaimCode */}
         <div
           role="button"
           tabIndex={0}
@@ -878,7 +883,7 @@ export default function FamilyPlanning92Client({
           onKeyDown={(e) => e.key === 'Enter' && handleCardClick('WITH_AUTHEN')}
         >
           <div className="fp-kpi-header">
-            <span className="fp-kpi-label">ขอ Authen Code แล้ว</span>
+            <span className="fp-kpi-label">ขอ ClaimCode แล้ว</span>
             <ShieldCheck size={18} className="fp-kpi-icon fp-kpi-icon--success" />
           </div>
           <div className="fp-kpi-value text-emerald-700">
@@ -915,6 +920,20 @@ export default function FamilyPlanning92Client({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Pttype Filter */}
+        <div className="fp-field-group">
+          <label className="fp-field-label">สิทธิการรักษา</label>
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
         </div>
 
         {/* Status Filter */}
@@ -979,8 +998,8 @@ export default function FamilyPlanning92Client({
             {cardFilter === 'ERROR_DRUG' && 'ไม่พบค่าบริการ/ยา'}
             {cardFilter === 'ECLAIM_SENT' && 'ส่ง E-Claim แล้ว'}
             {cardFilter === 'UNSENT' && 'ยังไม่ส่ง E-Claim'}
-            {cardFilter === 'WITH_AUTHEN' && 'มี Authen Code'}
-            {cardFilter === 'NO_AUTHEN' && 'ไม่มี Authen Code'}
+            {cardFilter === 'WITH_AUTHEN' && 'มี ClaimCode'}
+            {cardFilter === 'NO_AUTHEN' && 'ไม่มี ClaimCode'}
             <button
               type="button"
               onClick={() => handleCardClick('ALL')}
@@ -1046,7 +1065,7 @@ export default function FamilyPlanning92Client({
                 <th style={{ textAlign: 'center' }}>เพศ/อายุ</th>
                 <th>สิทธิการรักษา</th>
                 <th>แผนก / คลินิก</th>
-                <th>Authen Code</th>
+                <th>ClaimCode</th>
                 <th>Dx (ICD-10)</th>
                 <th>Op (ICD-9)</th>
                 <th>ค่าบริการ/ยา</th>
@@ -1386,10 +1405,10 @@ export default function FamilyPlanning92Client({
                         type="button"
                         className="fp-copy-btn"
                         onClick={() => copyText(selectedItem.claimcode || '', 'claimcode')}
-                        title="คัดลอก Authen Code"
+                        title="คัดลอก ClaimCode"
                       >
                         {copiedField === 'claimcode' ? <Check size={12} /> : <Copy size={12} />}
-                        <span>Authen: {selectedItem.claimcode}</span>
+                        <span>ClaimCode: {selectedItem.claimcode}</span>
                       </button>
                     )}
                   </div>
@@ -1451,7 +1470,7 @@ export default function FamilyPlanning92Client({
                         <span className="fp-modal-val font-medium">{selectedItem.clinic || '—'}</span>
                       </div>
                       <div className="fp-modal-row">
-                        <span className="fp-modal-label">Authen Code:</span>
+                        <span className="fp-modal-label">ClaimCode:</span>
                         <span className="fp-modal-val font-medium fp-mono text-sky-700">
                           {selectedItem.claimcode || '—'}
                         </span>

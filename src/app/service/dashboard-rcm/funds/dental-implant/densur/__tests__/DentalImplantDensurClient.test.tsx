@@ -184,8 +184,8 @@ describe('DentalImplantDensurClient Component', () => {
     expect(screen.getByText('ผู้รับบริการทั้งหมด')).toBeInTheDocument()
     expect(screen.getAllByText('ชดเชยแล้ว').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('รอชดเชย')).toBeInTheDocument()
-    expect(screen.getByText('มี Authen Code')).toBeInTheDocument()
-    expect(screen.getByText('ไม่มี Authen Code')).toBeInTheDocument()
+    expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
+    expect(screen.getByText('ไม่มี ClaimCode')).toBeInTheDocument()
     expect(screen.getByText('สิทธิบัตรทอง (UC)')).toBeInTheDocument()
 
     // Click card to filter by COMPENSATED

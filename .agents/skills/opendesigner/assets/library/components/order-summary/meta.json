@@ -1,0 +1,44 @@
+{
+  "name": "Order summary",
+  "summary": "A checkout summary: two products with their photos and quantity steppers, a promo code with the applied code shown as a chip, the totals and a Pay button that shows the amount.",
+  "use": "at checkout, beside the payment step",
+  "type": "commerce",
+  "style": "quiet",
+  "industries": [
+    "retail",
+    "home",
+    "saas",
+    "any"
+  ],
+  "tags": [
+    "checkout",
+    "cart",
+    "promo code",
+    "stepper",
+    "payment"
+  ],
+  "states": [
+    "code applied",
+    "code removed",
+    "invalid code",
+    "quantity at minimum",
+    "hover",
+    "pressed",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Steppers are labelled groups of real buttons with an output that announces the new quantity; each product photo has alt text, the code field has a name, a wrong code is announced as an alert, and the chip's remove button names the code.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1782351076283-73aa35f76058",
+      "author": "Adam Rasheed",
+      "page": "BGEqCc-bQHg"
+    },
+    {
+      "img": "photo-1570974802254-4b0ad1a755f5",
+      "author": "Brina Blum",
+      "page": "mNXTZu7AeGA"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -35,6 +36,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -94,6 +97,9 @@ export default function IronSupplements182Client({
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<IronSupplementsCardFilter>(
     initialData?.cardFilter ?? 'ALL'
+  )
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(
+    initialData?.ucOnly ? [...UC_ECLAIM_CODES] : []
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
   const [targetAgeOnly, setTargetAgeOnly] = useState<boolean>(initialData?.targetAgeOnly ?? false)
@@ -190,7 +196,6 @@ export default function IronSupplements182Client({
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           targetAgeOnly: String(targetAgeOnly),
           searchField,
           search: debouncedSearch,
@@ -199,6 +204,12 @@ export default function IronSupplements182Client({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          queryParams.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          queryParams.set('ucOnly', 'true')
+        }
 
         if (refresh) queryParams.set('refresh', 'true')
 
@@ -237,6 +248,7 @@ export default function IronSupplements182Client({
       ds1,
       ds2,
       cardFilter,
+      selectedPttypes,
       ucOnly,
       targetAgeOnly,
       searchField,
@@ -365,7 +377,6 @@ export default function IronSupplements182Client({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         targetAgeOnly: String(targetAgeOnly),
         searchField,
         search: debouncedSearch,
@@ -373,6 +384,12 @@ export default function IronSupplements182Client({
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        queryParams.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        queryParams.set('ucOnly', 'true')
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/iron-supplements/service-18-2?${queryParams.toString()}`
@@ -395,7 +412,7 @@ export default function IronSupplements182Client({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -436,19 +453,13 @@ export default function IronSupplements182Client({
         `"${r.subfund || ''}"`,
       ])
 
-      const csvString =
-        '\uFEFF' +
-        [headers.join(','), ...csvContent.map((row) => row.join(','))].join('\r\n')
-
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `iron-supplements-14001-${ds1}-to-${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `iron-supplements-14001-${ds1}-to-${ds2}.xlsx`,
+        title: 'การจ่ายยาเสริมธาตุเหล็ก (18.2 / ADP 14001)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: csvContent,
+      })
     } catch (err: any) {
       alert(`การส่งออกไฟล์ล้มเหลว: ${err.message}`)
     } finally {
@@ -491,10 +502,10 @@ export default function IronSupplements182Client({
             className="iron-btn iron-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || totalCount === 0}
-            title="ดาวน์โหลดข้อมูลทั้งหมดตามเงื่อนไขที่เลือกเป็นไฟล์ CSV สำหรับ Excel"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -709,16 +720,16 @@ export default function IronSupplements182Client({
           </div>
         </div>
 
-        {/* Card 5: มี Authen Code */}
+        {/* Card 5: มี ClaimCode */}
         <div
           className={`iron-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('WITH_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="iron-kpi-header">
-            <span className="iron-kpi-title">มี Authen Code</span>
+            <span className="iron-kpi-title">มี ClaimCode</span>
             <div className="iron-kpi-icon">
               <ShieldCheck size={16} />
             </div>
@@ -729,16 +740,16 @@ export default function IronSupplements182Client({
           </div>
         </div>
 
-        {/* Card 6: ไม่มี Authen Code */}
+        {/* Card 6: ไม่มี ClaimCode */}
         <div
           className={`iron-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('NO_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่ไม่มี ClaimCode"
         >
           <div className="iron-kpi-header">
-            <span className="iron-kpi-title">ไม่มี Authen Code</span>
+            <span className="iron-kpi-title">ไม่มี ClaimCode</span>
             <div className="iron-kpi-icon">
               <AlertTriangle size={16} />
             </div>
@@ -799,7 +810,7 @@ export default function IronSupplements182Client({
           <input
             type="text"
             className="iron-search-input"
-            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, Authen Code, Rep, ยา..."
+            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ClaimCode, Rep, ยา..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -816,18 +827,56 @@ export default function IronSupplements182Client({
         </div>
 
         <div className="iron-secondary-filters">
-          <label className="iron-checkbox-label">
-            <input
-              type="checkbox"
-              className="iron-checkbox"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
+          {selectedPttypes.length > 0 && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: '#e0f2fe',
+                color: '#0369a1',
+                padding: '2px 8px',
+                borderRadius: 6,
+                fontSize: '0.8rem',
               }}
-            />
-            <span>เฉพาะสิทธิบัตรทอง (UC)</span>
-          </label>
+            >
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะ UC (01-09)'
+                  : `${selectedPttypes.length} สิทธิ`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#0369a1',
+                  padding: 0,
+                  display: 'flex',
+                }}
+                title="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           <label className="iron-checkbox-label">
             <input
@@ -991,7 +1040,7 @@ export default function IronSupplements182Client({
                       className="iron-sort-btn"
                       onClick={() => handleSort('authencode')}
                     >
-                      Authen Code{' '}
+                      ClaimCode{' '}
                       {sortBy === 'authencode' ? (
                         sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       ) : (
@@ -1262,7 +1311,7 @@ export default function IronSupplements182Client({
                       </div>
 
                       <div className="iron-detail-item">
-                        <span className="iron-detail-label">Authen Code</span>
+                        <span className="iron-detail-label">ClaimCode:</span>
                         <span className="iron-detail-val font-mono">
                           {selectedItem.authencode || 'ไม่มี (ยังไม่ได้ขอ Claim Code)'}
                         </span>

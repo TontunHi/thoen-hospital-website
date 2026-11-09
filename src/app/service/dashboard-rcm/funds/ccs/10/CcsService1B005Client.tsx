@@ -32,6 +32,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -98,6 +100,7 @@ export default function CcsService1B005Client({
   // Filter & Search states
   const [compensationFilter, setCompensationFilter] =
     useState<CcsService1B005CompensationFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [searchField, setSearchField] = useState<CcsService1B005SearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -200,6 +203,10 @@ export default function CcsService1B005Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (refresh) q.set('refresh', 'true')
 
         const res = await fetch(
@@ -234,6 +241,7 @@ export default function CcsService1B005Client({
       ds1,
       ds2,
       compensationFilter,
+      pttypes,
       searchField,
       debouncedSearch,
       sortBy,
@@ -340,8 +348,19 @@ export default function CcsService1B005Client({
     setCurrentPage(1)
   }
 
-  // CSV Export Handler
-  const handleExportCsv = async () => {
+  const renderSortIndicator = (field: CcsService1B005SortField) => {
+    if (sortBy === field) {
+      return sortOrder === 'asc' ? (
+        <ArrowUp size={13} className="ccs10-sort-active" />
+      ) : (
+        <ArrowDown size={13} className="ccs10-sort-active" />
+      )
+    }
+    return <ArrowUpDown size={13} className="ccs10-sort-muted" />
+  }
+
+  // Excel Export Handler
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const q = new URLSearchParams({
@@ -355,12 +374,16 @@ export default function CcsService1B005Client({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/ccs/service-1b005?${q.toString()}`
       )
       const json = await res.json()
       if (!json.success) {
-        throw new Error(json.error?.message || 'ส่งออกไฟล์ CSV ไม่สำเร็จ')
+        throw new Error(json.error?.message || 'ส่งออกไฟล์ Excel ไม่สำเร็จ')
       }
 
       const allItems: CcsService1B005Item[] = json.data.items || []
@@ -375,7 +398,7 @@ export default function CcsService1B005Client({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
-        'เลข Authen Code',
+        'เลข ClaimCode',
         'สิทธิ์การรักษา',
         'แผนก',
         'คลินิก',
@@ -398,62 +421,49 @@ export default function CcsService1B005Client({
         'ยอดชดเชย (บาท)',
       ]
 
-      const escapeCsv = (str: unknown) => {
-        if (str === null || str === undefined) return '""'
-        const s = String(str).replace(/"/g, '""')
-        return `"${s}"`
-      }
+      const rows = allItems.map((r) => [
+        r.no,
+        r.vn,
+        r.cid,
+        r.hn,
+        r.ptname,
+        r.age ?? '',
+        r.nation ?? '',
+        r.vstdate,
+        r.vsttime,
+        r.authencode ?? '',
+        r.pttypename ?? '',
+        r.department ?? '',
+        r.clinic ?? '',
+        r.pdx ?? '',
+        r.dx0 ?? '',
+        r.dx1 ?? '',
+        r.dx2 ?? '',
+        r.dx3 ?? '',
+        r.dx4 ?? '',
+        r.dx5 ?? '',
+        r.op0 ?? '',
+        r.op1 ?? '',
+        r.op2 ?? '',
+        r.op3 ?? '',
+        r.op4 ?? '',
+        r.op5 ?? '',
+        r.listname ?? '',
+        r.status ?? '',
+        r.rep ?? '',
+        r.compensated,
+      ])
 
-      const csvRows = allItems.map((r) =>
-        [
-          r.no,
-          r.vn,
-          r.cid,
-          r.hn,
-          r.ptname,
-          r.age ?? '',
-          r.nation ?? '',
-          r.vstdate,
-          r.vsttime,
-          r.authencode ?? '',
-          r.pttypename ?? '',
-          r.department ?? '',
-          r.clinic ?? '',
-          r.pdx ?? '',
-          r.dx0 ?? '',
-          r.dx1 ?? '',
-          r.dx2 ?? '',
-          r.dx3 ?? '',
-          r.dx4 ?? '',
-          r.dx5 ?? '',
-          r.op0 ?? '',
-          r.op1 ?? '',
-          r.op2 ?? '',
-          r.op3 ?? '',
-          r.op4 ?? '',
-          r.op5 ?? '',
-          r.listname ?? '',
-          r.status ?? '',
-          r.rep ?? '',
-          r.compensated,
-        ]
-          .map(escapeCsv)
-          .join(',')
-      )
-
-      const csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...csvRows].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `CCS_1_10_Service_1B005_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `CCS_1_10_Service_1B005_${ds1}_to_${ds2}.xlsx`,
+        title: 'รายงานผู้รับบริการตรวจคัดกรองมะเร็งปากมดลูก บริการ 1B005',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${allItems.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: unknown) {
       const e = err as Error
-      setError(e.message || 'ส่งออกไฟล์ CSV ไม่สำเร็จ')
+      setError(e.message || 'ส่งออกไฟล์ Excel ไม่สำเร็จ')
     } finally {
       setIsExporting(false)
     }
@@ -461,6 +471,7 @@ export default function CcsService1B005Client({
 
   const resetFilters = () => {
     setCompensationFilter('ALL')
+    setPttypes([])
     setSearchField('ALL')
     setSearch('')
     setDebouncedSearch('')
@@ -468,16 +479,30 @@ export default function CcsService1B005Client({
   }
 
   const hasActiveFilters =
-    compensationFilter !== 'ALL' || searchField !== 'ALL' || debouncedSearch.length > 0
+    compensationFilter !== 'ALL' ||
+    pttypes.length > 0 ||
+    searchField !== 'ALL' ||
+    debouncedSearch.length > 0
 
   return (
     <div className="ccs10-page">
       {/* ── 1. Header Bar ── */}
       <header className="ccs10-header">
         <div className="ccs10-title-group">
+          <nav className="ccs10-breadcrumb" aria-label="แถบนำทาง">
+            <a href="/service/dashboard-rcm" className="ccs10-breadcrumb-link">
+              Dashboard RCM
+            </a>
+            <span className="ccs10-breadcrumb-sep" aria-hidden="true">/</span>
+            <a href="/service/dashboard-rcm/funds/ccs" className="ccs10-breadcrumb-link">
+              กองทุนมะเร็งปากมดลูก (CCS)
+            </a>
+            <span className="ccs10-breadcrumb-sep" aria-hidden="true">/</span>
+            <span className="ccs10-breadcrumb-current">บริการ 1B005</span>
+          </nav>
           <h1 className="ccs10-title">1.10 บริการ 1B005</h1>
           <p className="ccs10-subtitle">
-            รายงานผู้รับบริการตรวจคัดกรองมะเร็งปากมดลูกด้วยรหัส ADP 1B005 ตรวจสอบการสั่งใช้รหัส ADP การวินิจฉัย (ICD-10) หัตถการ (ICD-9) และการชดเชยค่าบริการ E-Claim / สปสช.
+            รายงานผู้รับบริการตรวจคัดกรองมะเร็งปากมดลูกด้วยรหัส ADP 1B005 ตรวจสอบการสั่งใช้รหัส ADP การวินิจฉัย (ICD-10) หัตถการ (ICD-9) และการชดเชยค่าบริการ e-Claim / สปสช.
           </p>
         </div>
 
@@ -487,21 +512,22 @@ export default function CcsService1B005Client({
             className="ccs10-btn-secondary"
             onClick={() => fetchData(true)}
             disabled={loading || isRefreshing}
+            aria-busy={isRefreshing}
             title="รีเฟรชข้อมูลจากฐานข้อมูล HOSxP"
           >
-            <RefreshCw size={16} className={isRefreshing ? 'ccs10-spin-icon' : ''} />
-            <span>{isRefreshing ? 'กำลังโหลด...' : 'รีเฟรชข้อมูล'}</span>
+            <RefreshCw size={16} className={isRefreshing ? 'ccs10-spin-icon' : undefined} />
+            <span>{isRefreshing ? 'กำลังรีเฟรช...' : 'รีเฟรช'}</span>
           </button>
 
           <button
             type="button"
             className="ccs10-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={loading || isExporting || totalCount === 0}
-            title="ส่งออกรายการทั้งหมดเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -552,18 +578,20 @@ export default function CcsService1B005Client({
             </button>
           </div>
 
+          <div className="ccs10-date-divider" aria-hidden="true" />
+
           {/* Controls based on active date mode */}
           {dateMode === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="ccs10-filter-label">ตั้งแต่วันที่</span>
+            <div className="ccs10-date-inputs">
+              <span className="ccs10-filter-label">ตั้งแต่วันที่:</span>
               <ThaiDatePicker value={ds1} onChange={(val) => setDs1(val)} />
-              <span className="ccs10-filter-label">ถึง</span>
+              <span className="ccs10-filter-label">ถึง:</span>
               <ThaiDatePicker value={ds2} onChange={(val) => setDs2(val)} />
             </div>
           )}
 
           {dateMode === 'monthly' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="ccs10-date-inputs">
               <select
                 className="ccs10-date-select"
                 value={selectedMonth}
@@ -592,8 +620,8 @@ export default function CcsService1B005Client({
           )}
 
           {dateMode === 'fiscal' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="ccs10-filter-label">ปีงบประมาณ</span>
+            <div className="ccs10-date-inputs">
+              <span className="ccs10-filter-label">ปีงบประมาณ:</span>
               <select
                 className="ccs10-date-select"
                 value={selectedFiscalYear}
@@ -632,7 +660,7 @@ export default function CcsService1B005Client({
           role="button"
           tabIndex={0}
           aria-pressed={compensationFilter === 'ALL'}
-          className={`ccs10-kpi-card ccs10-kpi-accent ${
+          className={`ccs10-kpi-card ${
             compensationFilter === 'ALL' ? 'is-active-filter' : ''
           }`}
           onClick={() => handleCardClick('ALL')}
@@ -655,7 +683,7 @@ export default function CcsService1B005Client({
           role="button"
           tabIndex={0}
           aria-pressed={compensationFilter === 'COMPENSATED'}
-          className={`ccs10-kpi-card ccs10-kpi-success ${
+          className={`ccs10-kpi-card ${
             compensationFilter === 'COMPENSATED' ? 'is-active-filter-success' : ''
           }`}
           onClick={() => handleCardClick('COMPENSATED')}
@@ -668,7 +696,7 @@ export default function CcsService1B005Client({
               <span className="ccs10-kpi-filter-tag">กำลังกรอง</span>
             )}
           </span>
-          <span className="ccs10-kpi-value" style={{ color: 'var(--ccs-ok)' }}>
+          <span className="ccs10-kpi-value ccs10-kpi-val-ok">
             {summary.compensatedVisits.toLocaleString('th-TH')}
           </span>
           <span className="ccs10-kpi-sub" style={{ color: 'var(--ccs-ok)' }}>
@@ -680,7 +708,7 @@ export default function CcsService1B005Client({
           role="button"
           tabIndex={0}
           aria-pressed={compensationFilter === 'UNCOMPENSATED'}
-          className={`ccs10-kpi-card ccs10-kpi-warn ${
+          className={`ccs10-kpi-card ${
             compensationFilter === 'UNCOMPENSATED' ? 'is-active-filter-warn' : ''
           }`}
           onClick={() => handleCardClick('UNCOMPENSATED')}
@@ -693,7 +721,7 @@ export default function CcsService1B005Client({
               <span className="ccs10-kpi-filter-tag">กำลังกรอง</span>
             )}
           </span>
-          <span className="ccs10-kpi-value" style={{ color: 'var(--ccs-err)' }}>
+          <span className="ccs10-kpi-value ccs10-kpi-val-err">
             {summary.uncompensatedVisits.toLocaleString('th-TH')}
           </span>
           <span className="ccs10-kpi-sub" style={{ color: 'var(--ccs-err)' }}>
@@ -703,14 +731,17 @@ export default function CcsService1B005Client({
 
         <div className="ccs10-kpi-card" style={{ cursor: 'default' }}>
           <span className="ccs10-kpi-label">ยอดเงินชดเชยรวม</span>
-          <span className="ccs10-kpi-value" style={{ color: 'var(--ccs-ok)' }}>
+          <span className="ccs10-kpi-value ccs10-kpi-val-ok">
             {summary.totalCompensated.toLocaleString('th-TH', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </span>
           <span className="ccs10-kpi-sub">
-            เฉลี่ย ฿{summary.averageCompensated.toLocaleString('th-TH')} / รายที่ชดเชย
+            เฉลี่ย ฿{summary.averageCompensated.toLocaleString('th-TH', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })} / รายที่ชดเชย
           </span>
         </div>
 
@@ -723,17 +754,44 @@ export default function CcsService1B005Client({
           }`}
           onClick={() => handleCardClick('HAS_AUTHEN')}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('HAS_AUTHEN')}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <span className="ccs10-kpi-label">
-            มี Authen Code
+            มี ClaimCode
             {compensationFilter === 'HAS_AUTHEN' && (
               <span className="ccs10-kpi-filter-tag">กำลังกรอง</span>
             )}
           </span>
           <span className="ccs10-kpi-value">{summary.withAuthenCount.toLocaleString('th-TH')}</span>
           <span className="ccs10-kpi-sub">
-            ไม่มี Authen {summary.withoutAuthenCount.toLocaleString('th-TH')} ราย
+            พร้อมส่งเบิก e-Claim
+          </span>
+        </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          aria-pressed={compensationFilter === 'NO_AUTHEN'}
+          className={`ccs10-kpi-card ${
+            compensationFilter === 'NO_AUTHEN' ? 'is-active-filter-warn' : ''
+          }`}
+          onClick={() => handleCardClick('NO_AUTHEN')}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleCardClick('NO_AUTHEN')}
+          title="คลิกเพื่อกรองเฉพาะรายการที่ยังไม่มี ClaimCode"
+        >
+          <span className="ccs10-kpi-label">
+            ไม่มี ClaimCode
+            {compensationFilter === 'NO_AUTHEN' && (
+              <span className="ccs10-kpi-filter-tag">กำลังกรอง</span>
+            )}
+          </span>
+          <span
+            className={`ccs10-kpi-value ${summary.withoutAuthenCount > 0 ? 'ccs10-kpi-val-err' : ''}`}
+          >
+            {summary.withoutAuthenCount.toLocaleString('th-TH')}
+          </span>
+          <span className="ccs10-kpi-sub">
+            ต้องขอรหัส Authen จาก สปสช.
           </span>
         </div>
       </section>
@@ -754,29 +812,23 @@ export default function CcsService1B005Client({
             <option value="ALL">ทั้งหมด (ทุกสถานะ)</option>
             <option value="COMPENSATED">ได้รับการชดเชยแล้ว</option>
             <option value="UNCOMPENSATED">ยังไม่ได้รับการชดเชย</option>
-            <option value="HAS_AUTHEN">มี Authen Code</option>
-            <option value="NO_AUTHEN">ไม่มี Authen Code</option>
+            <option value="HAS_AUTHEN">มี ClaimCode</option>
+            <option value="NO_AUTHEN">ไม่มี ClaimCode</option>
           </select>
 
           <span className="ccs10-filter-label" style={{ marginLeft: '8px' }}>
-            ค้นหาใน:
+            สิทธิการรักษา:
           </span>
-          <select
-            className="ccs10-date-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as CcsService1B005SearchField)
+          <PttypeMultiSelect
+            selectedCodes={pttypes}
+            onChange={(codes) => {
+              setPttypes(codes)
               setCurrentPage(1)
             }}
-            aria-label="เลือกฟิลด์ค้นหา"
-          >
-            <option value="ALL">ทั้งหมด</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขประจำตัวประชาชน (CID)</option>
-            <option value="PTNAME">ชื่อ-สกุลผู้ป่วย</option>
-            <option value="VN">เลข VN</option>
-            <option value="DIAG">การวินิจฉัย (ICD-10)</option>
-          </select>
+            items={items}
+          
+          />
+
         </div>
 
         <div className="ccs10-search-box">
@@ -821,52 +873,40 @@ export default function CcsService1B005Client({
         <div className="ccs10-table-wrapper">
           <table className="ccs10-table">
             <thead>
-              {/* Tier 1 Header: Merged Category Groups */}
-              <tr>
-                <th colSpan={10} style={{ textAlign: 'left' }}>
-                  ข้อมูลผู้รับบริการและการตรวจ
-                </th>
-                <th colSpan={7}>การวินิจฉัย</th>
-                <th colSpan={6}>หัตถการ</th>
-                <th colSpan={4} style={{ textAlign: 'center' }}>
-                  รายการและผลการชดเชยค่าบริการ
-                </th>
-              </tr>
-
-              {/* Tier 2 Header: Individual Columns */}
+              {/* Single Tier Centered Header */}
               <tr>
                 <th className="ccs10-align-center" style={{ width: '45px' }}>
                   ลำดับ
                 </th>
                 <th
-                  className="is-sortable"
+                  className="is-sortable ccs10-align-center"
                   onClick={() => handleSort('vstdate')}
                   title="คลิกเพื่อเรียงตามวันที่รับบริการ"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="ccs10-th-sort-inner ccs10-justify-center">
                     <span>วันที่-เวลา</span>
-                    <ArrowUpDown size={12} />
+                    {renderSortIndicator('vstdate')}
                   </div>
                 </th>
-                <th>VN</th>
+                <th className="ccs10-align-center">VN</th>
                 <th
-                  className="is-sortable"
+                  className="is-sortable ccs10-align-center"
                   onClick={() => handleSort('hn')}
                   title="คลิกเพื่อเรียงตาม HN"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="ccs10-th-sort-inner ccs10-justify-center">
                     <span>HN</span>
-                    <ArrowUpDown size={12} />
+                    {renderSortIndicator('hn')}
                   </div>
                 </th>
                 <th
-                  className="is-sortable"
+                  className="is-sortable ccs10-align-center"
                   onClick={() => handleSort('cid')}
                   title="คลิกเพื่อเรียงตาม CID"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="ccs10-th-sort-inner ccs10-justify-center">
                     <span>เลขประจำตัวประชาชน</span>
-                    <ArrowUpDown size={12} />
+                    {renderSortIndicator('cid')}
                   </div>
                 </th>
                 <th
@@ -874,89 +914,75 @@ export default function CcsService1B005Client({
                   onClick={() => handleSort('ptname')}
                   title="คลิกเพื่อเรียงตามชื่อ-สกุล"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="ccs10-th-sort-inner">
                     <span>ชื่อ-สกุล</span>
-                    <ArrowUpDown size={12} />
+                    {renderSortIndicator('ptname')}
                   </div>
                 </th>
                 <th
-                  className="ccs10-align-right is-sortable"
+                  className="ccs10-align-center is-sortable"
                   onClick={() => handleSort('age')}
                   title="คลิกเพื่อเรียงตามอายุ"
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      gap: '4px',
-                    }}
-                  >
+                  <div className="ccs10-th-sort-inner ccs10-justify-center">
                     <span>อายุ</span>
-                    <ArrowUpDown size={12} />
+                    {renderSortIndicator('age')}
                   </div>
                 </th>
                 <th>สิทธิการรักษา</th>
                 <th>แผนก / คลินิก</th>
                 <th
-                  className="is-sortable"
+                  className="is-sortable ccs10-align-center"
                   onClick={() => handleSort('authencode')}
-                  title="คลิกเพื่อเรียงตาม Authen Code"
+                  title="คลิกเพื่อเรียงตาม ClaimCode"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span>Authen Code</span>
-                    <ArrowUpDown size={12} />
+                  <div className="ccs10-th-sort-inner ccs10-justify-center">
+                    <span>ClaimCode</span>
+                    {renderSortIndicator('authencode')}
                   </div>
                 </th>
 
                 {/* Diagnosis Group (PDX, DX0 - DX5) */}
                 <th
-                  className="is-sortable"
+                  className="is-sortable ccs10-align-center"
                   onClick={() => handleSort('pdx')}
                   title="คลิกเพื่อเรียงตาม PDX"
                   style={{ background: 'var(--ccs-surface-2)' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="ccs10-th-sort-inner ccs10-justify-center">
                     <span>PDX</span>
-                    <ArrowUpDown size={12} />
+                    {renderSortIndicator('pdx')}
                   </div>
                 </th>
-                <th style={{ background: 'var(--ccs-surface-2)' }}>DX0</th>
-                <th style={{ background: 'var(--ccs-surface-2)' }}>DX1</th>
-                <th style={{ background: 'var(--ccs-surface-2)' }}>DX2</th>
-                <th style={{ background: 'var(--ccs-surface-2)' }}>DX3</th>
-                <th style={{ background: 'var(--ccs-surface-2)' }}>DX4</th>
-                <th style={{ background: 'var(--ccs-surface-2)' }}>DX5</th>
+                <th className="ccs10-align-center" style={{ background: 'var(--ccs-surface-2)' }}>DX0</th>
+                <th className="ccs10-align-center" style={{ background: 'var(--ccs-surface-2)' }}>DX1</th>
+                <th className="ccs10-align-center" style={{ background: 'var(--ccs-surface-2)' }}>DX2</th>
+                <th className="ccs10-align-center" style={{ background: 'var(--ccs-surface-2)' }}>DX3</th>
+                <th className="ccs10-align-center" style={{ background: 'var(--ccs-surface-2)' }}>DX4</th>
+                <th className="ccs10-align-center" style={{ background: 'var(--ccs-surface-2)' }}>DX5</th>
 
                 {/* Procedure Group (OP0 - OP5) */}
-                <th>OP0</th>
-                <th>OP1</th>
-                <th>OP2</th>
-                <th>OP3</th>
-                <th>OP4</th>
-                <th>OP5</th>
+                <th className="ccs10-align-center">OP0</th>
+                <th className="ccs10-align-center">OP1</th>
+                <th className="ccs10-align-center">OP2</th>
+                <th className="ccs10-align-center">OP3</th>
+                <th className="ccs10-align-center">OP4</th>
+                <th className="ccs10-align-center">OP5</th>
 
                 {/* Listname */}
                 <th>รายการ 1B005</th>
 
                 {/* Compensation */}
-                <th>สถานะ</th>
-                <th>เลขที่หนังสือ</th>
+                <th className="ccs10-align-center">สถานะ</th>
+                <th className="ccs10-align-center">เลขที่หนังสือ</th>
                 <th
                   className="ccs10-align-right is-sortable"
                   onClick={() => handleSort('compensated')}
                   title="คลิกเพื่อเรียงตามยอดชดเชย"
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      gap: '4px',
-                    }}
-                  >
+                  <div className="ccs10-th-sort-inner ccs10-justify-end">
                     <span>ยอดชดเชย</span>
-                    <ArrowUpDown size={12} />
+                    {renderSortIndicator('compensated')}
                   </div>
                 </th>
               </tr>
@@ -990,29 +1016,43 @@ export default function CcsService1B005Client({
                 </tr>
               ) : (
                 items.map((it, idx) => (
-                  <tr key={it.vn}>
+                  <tr
+                    key={it.vn}
+                    className="ccs10-row-interactive"
+                    onClick={() => handleOpenDetail(idx)}
+                    title="คลิกทั้งแถวเพื่อดูรายละเอียดเวชระเบียน"
+                  >
                     <td className="ccs10-align-center">{it.no}</td>
-                    <td className="ccs10-mono">
-                      <div>{it.vstdate}</div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--ccs-muted)' }}>
-                        {it.vsttime}
-                      </div>
+                    <td className="ccs10-align-center">
+                      <div>{it.vstdate ? formatThaiDate(it.vstdate) : '—'}</div>
+                      {it.vsttime && (
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--ccs-muted)', fontFamily: 'var(--ccs-font-mono)' }}>
+                          {it.vsttime}&nbsp;น.
+                        </div>
+                      )}
                     </td>
-                    <td>
+                    <td className="ccs10-align-center">
                       <button
                         type="button"
                         className="ccs10-link-vn"
-                        onClick={() => handleOpenDetail(idx)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenDetail(idx)
+                        }}
                         title="คลิกเพื่อเปิดเวชระเบียนคลินิก"
                       >
                         {it.vn}
                       </button>
                     </td>
-                    <td className="ccs10-mono">{it.hn}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.hn}</td>
                     {/* Thai Citizen ID always full 13-digits without masking */}
-                    <td className="ccs10-mono">{formatCidDisplay(it.cid)}</td>
-                    <td style={{ fontWeight: 600 }}>{it.ptname}</td>
-                    <td className="ccs10-align-right">{it.age ?? '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{formatCidDisplay(it.cid)}</td>
+                    <td>
+                      <span className="ccs10-pt-name">{it.ptname}</span>
+                    </td>
+                    <td className="ccs10-align-center">
+                      {it.age != null ? `${it.age}\u00A0ปี` : '—'}
+                    </td>
                     <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {it.pttypename || '—'}
                     </td>
@@ -1024,32 +1064,32 @@ export default function CcsService1B005Client({
                         </div>
                       )}
                     </td>
-                    <td>
+                    <td className="ccs10-align-center">
                       {it.authencode ? (
                         <span className="ccs10-badge ccs10-badge-success">{it.authencode}</span>
                       ) : (
-                        <span className="ccs10-badge ccs10-badge-ghost">ไม่มี Authen</span>
+                        <span className="ccs10-badge ccs10-badge-ghost">ไม่มี ClaimCode</span>
                       )}
                     </td>
 
                     {/* Diagnoses */}
-                    <td className="ccs10-mono" style={{ fontWeight: 600 }}>
+                    <td className="ccs10-mono ccs10-align-center" style={{ fontWeight: 600 }}>
                       {it.pdx || '—'}
                     </td>
-                    <td className="ccs10-mono">{it.dx0 || '—'}</td>
-                    <td className="ccs10-mono">{it.dx1 || '—'}</td>
-                    <td className="ccs10-mono">{it.dx2 || '—'}</td>
-                    <td className="ccs10-mono">{it.dx3 || '—'}</td>
-                    <td className="ccs10-mono">{it.dx4 || '—'}</td>
-                    <td className="ccs10-mono">{it.dx5 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.dx0 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.dx1 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.dx2 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.dx3 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.dx4 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.dx5 || '—'}</td>
 
                     {/* Procedures */}
-                    <td className="ccs10-mono">{it.op0 || '—'}</td>
-                    <td className="ccs10-mono">{it.op1 || '—'}</td>
-                    <td className="ccs10-mono">{it.op2 || '—'}</td>
-                    <td className="ccs10-mono">{it.op3 || '—'}</td>
-                    <td className="ccs10-mono">{it.op4 || '—'}</td>
-                    <td className="ccs10-mono">{it.op5 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.op0 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.op1 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.op2 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.op3 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.op4 || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.op5 || '—'}</td>
 
                     {/* Item listname */}
                     <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1057,7 +1097,7 @@ export default function CcsService1B005Client({
                     </td>
 
                     {/* Status & Rep */}
-                    <td>
+                    <td className="ccs10-align-center">
                       {it.status ? (
                         <span
                           className={`ccs10-badge ${
@@ -1074,7 +1114,7 @@ export default function CcsService1B005Client({
                         <span className="ccs10-badge ccs10-badge-ghost">รอส่งเบิก</span>
                       )}
                     </td>
-                    <td className="ccs10-mono">{it.rep || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">{it.rep || '—'}</td>
                     <td
                       className="ccs10-align-right ccs10-mono"
                       style={{
@@ -1086,32 +1126,6 @@ export default function CcsService1B005Client({
                     </td>
                   </tr>
                 ))
-              )}
-
-              {/* Total Summary Row (FoxPro color & summary row parity) */}
-              {!loading && items.length > 0 && (
-                <tr className="ccs10-row-total">
-                  <td colSpan={6} style={{ textAlign: 'left', paddingLeft: '16px' }}>
-                    รวมทั้งหมด (Total) ในหน้านี้ ({items.length} รายการ จากทั้งหมด {totalCount} รายการ)
-                  </td>
-                  <td colSpan={4}></td>
-                  <td colSpan={7}></td>
-                  <td colSpan={6}></td>
-                  <td colSpan={2}></td>
-                  <td></td>
-                  <td
-                    className="ccs10-align-right ccs10-mono"
-                    style={{ color: 'var(--ccs-ok)', fontSize: '0.9375rem' }}
-                  >
-                    ฿
-                    {items
-                      .reduce((acc, curr) => acc + (curr.compensated || 0), 0)
-                      .toLocaleString('th-TH', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
@@ -1293,7 +1307,7 @@ export default function CcsService1B005Client({
                     </div>
 
                     <div className="ccs10-desc-item">
-                      <span className="ccs10-desc-label">เลขบัตร Authen Code</span>
+                      <span className="ccs10-desc-label">เลข ClaimCode</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span className="ccs10-desc-value ccs10-mono">
                           {selectedItem.authencode || '—'}
@@ -1304,7 +1318,7 @@ export default function CcsService1B005Client({
                             className="ccs10-btn-ghost"
                             style={{ minHeight: 'auto', padding: '2px 6px' }}
                             onClick={() => handleCopy(selectedItem.authencode!, 'authen')}
-                            title="คัดลอก Authen Code"
+                            title="คัดลอก ClaimCode"
                           >
                             {copiedField === 'authen' ? <Check size={12} color="var(--ccs-ok)" /> : <Copy size={12} />}
                           </button>

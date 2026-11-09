@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Spacing ruler</title>
+<!--
+OpenDesigner visual template: Spacing ruler. A spacing ruler, padding and gap overlays, and control heights (stages 12-13).
+Three voices: an option's "label" and "note" are plain; optional "short" shows the one-line
+"Designers: X · Code: Y" pointer, and optional "more" holds the full designer and engineer notes (tooltip).
+Feed it JSON in one of three ways: replace the contents of <script id="od-data">, set window.OD_DATA before the
+last script runs, or open the file with #data=<url-encoded JSON>. The sample payload below documents every field.
+"Copy my choice" produces OD: lines (grammar in references/rules.md): OD:<action> <target>=<value> <status>.
+No network requests, no dependencies. The shared chrome is repeated in every template on purpose so each file stands alone.
+-->
+<style>:root{--c-bg:#f6f6f7;--c-surface:#fff;--c-fg:#18181b;--c-muted:#585862;--c-border:#dcdce1;--c-strong:#18181b;--c-on-strong:#fff;--c-ok:#166534;--c-bad:#b42318;--r:8px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--font)}
+h1{font-size:16px;margin:0;font-weight:600}h2{font-size:13px;margin:0 0 8px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em}
+.od-h{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
+.sub{color:var(--c-muted);font-size:13px;margin:4px 0 0;max-width:72ch}
+main{max-width:1120px;margin:0 auto;padding:20px;display:grid;gap:24px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;border:0;padding:0;margin:0;min-width:0}
+.opt{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);padding:12px;cursor:pointer;min-height:44px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt:has(input:checked){border-color:var(--c-strong);box-shadow:inset 0 0 0 1px var(--c-strong)}
+.opt:has(input:focus-visible){outline:2px solid var(--c-strong);outline-offset:2px}
+.opt-t{font-weight:600}.opt-n{color:var(--c-muted);font-size:13px}
+.rec{display:inline-block;margin-left:6px;font:600 11px var(--font);padding:1px 6px;border:1px solid var(--c-border);border-radius:99px;color:var(--c-muted);vertical-align:1px}
+.specimen{position:relative;border:1px solid var(--c-border);border-radius:var(--r);background:var(--s-bg,var(--c-surface));color:var(--s-fg,var(--c-fg));padding:30px 16px 16px;overflow-x:auto}
+.specimen::before{content:attr(data-label);position:absolute;top:8px;left:12px;font:11px var(--mono);color:inherit;opacity:.6}
+.kv{font:12px/1.4 var(--mono);color:var(--c-muted)}.num{font-family:var(--mono);text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.lbl{min-width:84px;color:var(--c-muted);font-size:13px}
+button{font:inherit;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);cursor:pointer}
+button.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong);font-weight:600}
+:focus-visible{outline:2px solid var(--c-strong);outline-offset:2px}
+input[type=text],input[type=number]{font:inherit;min-height:44px;padding:0 10px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-fg)}
+input[type=range]{min-height:44px;accent-color:var(--c-strong);flex:1 1 120px;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--c-border);border-radius:var(--r);overflow:hidden;background:var(--c-surface)}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--c-border)}.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--c-strong);color:var(--c-on-strong)}
+.tbl{border-collapse:collapse;width:100%;font-size:13px}.tbl th,.tbl td{border-bottom:1px solid var(--c-border);padding:8px;text-align:left}.tbl th{color:var(--c-muted);font-weight:600}
+.ok{color:var(--c-ok);font-weight:600}.bad{color:var(--c-bad);font-weight:600}
+.od-f{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--c-surface);border-top:1px solid var(--c-border)}
+.od-f label{display:inline-flex;gap:6px;align-items:center;min-height:44px}
+.od-out{flex:1 1 320px;min-height:44px;font:12px/1.4 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg);resize:vertical}
+input[type=radio],input[type=checkbox]{accent-color:var(--c-strong);width:18px;height:18px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.rul{display:grid;gap:6px}.rs{display:grid;grid-template-columns:70px 64px 1fr;gap:10px;align-items:center}
+.bar{height:14px;background:currentColor;opacity:.55;border-radius:2px;max-width:100%}
+.demo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:20px}
+.card{border:1px solid rgba(128,128,128,.4);border-radius:10px;position:relative;background:rgba(128,128,128,.06)}
+.pad{outline:1px dashed rgba(220,38,38,.7);outline-offset:-1px}
+.inner{background:var(--s-bg2,rgba(255,255,255,.9));color:inherit;border-radius:6px;display:grid}
+.item{border:1px solid rgba(128,128,128,.35);border-radius:6px;padding:8px;background:var(--s-bg,#fff)}
+.gapl{font:10px var(--mono);color:#dc2626;text-align:center;line-height:1}
+.ctl{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.ctl span{display:flex;align-items:center;justify-content:center;border:1px solid rgba(128,128,128,.5);border-radius:6px;padding:0 12px;font-size:13px}
+</style>
+</head>
+<body>
+<header class="od-h"><div><h1 id="t"></h1><p class="sub" id="st"></p></div><div class="seg" id="theme" role="group" aria-label="Color mode"></div></header>
+<main>
+<fieldset class="opts" id="opts"></fieldset>
+<section><div id="sp" class="specimen" data-label="your spacing"></div></section>
+</main>
+<footer class="od-f">
+<label><input type="checkbox" id="lock"> Lock this decision</label>
+<label>Note <input type="text" id="note" placeholder="optional reason" size="24"></label>
+<textarea id="out" class="od-out" rows="2" readonly aria-label="Your choice as OD lines"></textarea>
+<button type="button" class="primary" id="copy">Copy my choice</button>
+<span id="live" class="kv" role="status" aria-live="polite"></span>
+</footer>
+<script type="application/json" id="od-data">
+{
+ "title": "Spacing scale",
+ "subtitle": "Sample data. The ruler is drawn at real size. Red dashes mark padding. Red numbers mark the gaps between items.",
+ "question": "Q-space-01",
+ "recommended": "4-grid-8-rhythm",
+ "options": [
+  {
+   "value": "4-grid-8-rhythm",
+   "label": "Steps of 4, rhythm of 8",
+   "note": "fine steps up to 16, then coarse",
+   "steps": [
+    {
+     "name": "1",
+     "px": 4
+    },
+    {
+     "name": "2",
+     "px": 8
+    },
+    {
+     "name": "3",
+     "px": 12
+    },
+    {
+     "name": "4",
+     "px": 16
+    },
+    {
+     "name": "5",
+     "px": 24
+    },
+    {
+     "name": "6",
+     "px": 32
+    },
+    {
+     "name": "7",
+     "px": 40
+    },
+    {
+     "name": "8",
+     "px": 48
+    },
+    {
+     "name": "9",
+     "px": 64
+    }
+   ],
+   "demo": {
+    "pad": "4",
+    "gap": "3",
+    "inner": "1"
+   },
+   "controls": {
+    "sm": 32,
+    "md": 40,
+    "lg": 48
+   }
+  },
+  {
+   "value": "8",
+   "label": "Steps of 8 only",
+   "note": "coarser, simpler; tight spots get cramped",
+   "steps": [
+    {
+     "name": "1",
+     "px": 8
+    },
+    {
+     "name": "2",
+     "px": 16
+    },
+    {
+     "name": "3",
+     "px": 24
+    },
+    {
+     "name": "4",
+     "px": 32
+    },
+    {
+     "name": "5",
+     "px": 40
+    },
+    {
+     "name": "6",
+     "px": 48
+    },
+    {
+     "name": "7",
+     "px": 64
+    }
+   ],
+   "demo": {
+    "pad": "3",
+    "gap": "2",
+    "inner": "1"
+   },
+   "controls": {
+    "sm": 32,
+    "md": 40,
+    "lg": 48
+   }
+  },
+  {
+   "value": "4",
+   "label": "Every step of 4",
+   "note": "every multiple of 4; many near-duplicates",
+   "steps": [
+    {
+     "name": "1",
+     "px": 4
+    },
+    {
+     "name": "2",
+     "px": 8
+    },
+    {
+     "name": "3",
+     "px": 12
+    },
+    {
+     "name": "4",
+     "px": 16
+    },
+    {
+     "name": "5",
+     "px": 20
+    },
+    {
+     "name": "6",
+     "px": 24
+    },
+    {
+     "name": "7",
+     "px": 28
+    },
+    {
+     "name": "8",
+     "px": 32
+    }
+   ],
+   "demo": {
+    "pad": "4",
+    "gap": "3",
+    "inner": "2"
+   },
+   "controls": {
+    "sm": 28,
+    "md": 36,
+    "lg": 44
+   }
+  }
+ ]
+}
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadData(){let d={};try{d=JSON.parse($('#od-data').textContent)}catch(e){}
+ if(window.OD_DATA)d=window.OD_DATA;const m=location.hash.match(/[#&]data=([^&]+)/);
+ if(m){try{d=JSON.parse(decodeURIComponent(m[1]))}catch(e){console.warn('OpenDesigner: #data is not valid JSON')}}return d}
+const D=loadData();
+const OD={sel:null,extra:null,draw:()=>{}};
+// OD: line grammar (spec 3.7, DC-L18-07): OD:set <path>=<json-value> [--why "reason"], OD:lock <path>
+function fmtv(v){return typeof v==='number'||typeof v==='boolean'?String(v):JSON.stringify(String(v))}
+function fill(tpl,v){return tpl.replace('{v}',fmtv(v))}
+function lines(){let L=[];const o=OD.sel;
+ if(o){if(o.od)L=[].concat(o.od);else if(D.question)L=['OD:set '+D.question+'='+fmtv(o.value)];else if(D.path)L=['OD:set '+D.path+'='+fmtv(o.value)]}
+ if(OD.extra)L=L.concat(OD.extra());
+ const why=[$('#note').value.trim()].concat(OD.why?OD.why():[]).filter(Boolean).join('; ');
+ L=L.map(x=>why&&/^OD:set /.test(x)&&x.indexOf(' --why ')<0?x+' --why '+JSON.stringify(why):x);
+ if($('#lock').checked)L=L.concat(L.filter(x=>/^OD:set /.test(x)).map(x=>'OD:lock '+x.slice(7).split('=')[0]));
+ return L}
+function update(){OD.draw();$('#out').value=lines().join('\n')||'(nothing chosen yet)'}
+async function copy(){const t=$('#out').value;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){$('#out').select();try{ok=document.execCommand('copy')}catch(_){}}
+ $('#live').textContent=ok?'Copied. Paste it into the chat.':'Select the text and copy it by hand.'}
+function mode(){const t=document.documentElement.dataset.theme;return t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
+function lum(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+ const c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function fix(r){return (Math.floor(r*100)/100).toFixed(2)} // WCAG: no rounding up
+function band(bands,v){for(const b of bands)if(v>=b[0]&&v<=b[1])return b[2];return bands[bands.length-1][2]}
+function seg(el,values,cur,onPick,fmt=String){el.innerHTML=values.map(v=>'<button type="button" aria-pressed="'+(v==cur)+'" data-v="'+esc(v)+'">'+esc(fmt(v))+'</button>').join('');
+ el.onclick=e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));onPick(b.dataset.v)}}
+function mountOptions(inner){const box=$('#opts');const opts=D.options||[];
+ box.innerHTML='<legend class="vh">'+esc(D.title||'Options')+'</legend>'+opts.map((o,i)=>'<label class="opt"'+(o.more?' title="'+esc(o.more)+'"':'')+'><input type="radio" name="opt" value="'+i+'"><span class="opt-t">'+esc(o.label||o.value)+(o.value==D.recommended?'<span class="rec">Recommended</span>':'')+'</span>'+(o.note?'<span class="opt-n">'+esc(o.note)+'</span>':'')+(o.short?'<span class="kv">'+esc(o.short)+'</span>':'')+(inner?inner(o):'')+'</label>').join('');
+ box.onchange=e=>{if(e.target.name==='opt'){OD.sel=opts[+e.target.value];if(OD.onPick)OD.onPick(OD.sel);update()}};
+ const i=Math.max(0,opts.findIndex(o=>o.value==D.recommended));const r=box.querySelector('input[value="'+i+'"]');if(r){r.checked=true;OD.sel=opts[i]}}
+function boot(){$('#t').textContent=D.title||document.title;$('#st').textContent=D.subtitle||'';
+ seg($('#theme'),['auto','light','dark'],'auto',v=>{if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;update()},v=>v[0].toUpperCase()+v.slice(1));
+ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+ $('#copy').onclick=copy;$('#lock').onchange=update;$('#note').oninput=update;update()}
+function near(st,px){return st.reduce((a,b)=>Math.abs(b.px-px)<Math.abs(a.px-px)?b:a)}
+function pick(st,name,px){return st.find(s=>String(s.name)===String(name))||near(st,px)}
+OD.draw=()=>{const o=OD.sel;if(!o)return;const st=o.steps||[],dm=o.demo||{};const pad=pick(st,dm.pad,16),gap=pick(st,dm.gap,12),inn=pick(st,dm.inner,8);
+ const ch=o.controls||{sm:32,md:40,lg:48};
+ $('#sp').innerHTML='<div class="rul">'+st.map(s=>'<div class="rs"><span class="kv">'+esc(s.name)+'</span><span class="kv">'+s.px+' px</span><span class="bar" style="width:'+s.px+'px" role="img" aria-label="'+s.px+' pixels"></span></div>').join('')+'</div>'
+ +'<div class="demo"><div><h2>Card: padding '+pad.px+', gap '+gap.px+', inner '+inn.px+'</h2><div class="card pad" style="padding:'+pad.px+'px"><div class="inner" style="gap:'+gap.px+'px">'
+ +['Title','Supporting text','Actions'].map((t,i)=>(i?'<div class="gapl" aria-hidden="true">'+gap.px+'</div>':'')+'<div class="item" style="display:grid;gap:'+inn.px+'px"><strong>'+t+'</strong><span class="kv">inner gap '+inn.px+' px</span></div>').join('')
+ +'</div></div></div><div><h2>Control heights</h2><div class="ctl">'+Object.entries(ch).map(([k,v])=>'<span style="height:'+v+'px">'+esc(k)+' '+v+'</span>').join('')+'</div>'
+ +'<p class="kv" style="margin-top:12px">Inner gaps stay smaller than outer gaps, so related items read as a group.</p></div></div>'};
+mountOptions(o=>'<span class="kv">'+(o.steps||[]).map(s=>s.px).join(' ')+'</span>');boot();
+</script>
+</body>
+</html>

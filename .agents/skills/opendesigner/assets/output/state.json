@@ -1,0 +1,239 @@
+{
+ "$schema": "opendesigner-state/1",
+ "schema_version": 1,
+ "engine_version": "1.0.0",
+ "levers_version": "levers/1.0 2026-09-23",
+ "name": "Acme Invoicing",
+ "summary": "",
+ "context": {
+  "product": "",
+  "audience": "",
+  "surfaces": [],
+  "entryPath": "",
+  "memorable": "",
+  "scope": {
+   "in": [],
+   "out": []
+  },
+  "constraints": [],
+  "team": "",
+  "mission": "",
+  "vision": "",
+  "purpose": "",
+  "goals": [],
+  "market": {"analogous": "", "competitors": [], "pattern": "", "gap": "", "conventions": []}
+ },
+ "dials": {
+  "expression": null,
+  "brandPresence": null,
+  "density": null,
+  "energy": null,
+  "roundness": {
+   "value": 40,
+   "set_by": "chosen",
+   "detached": true,
+   "decision": "D-0002"
+  },
+  "depth": null,
+  "colorfulness": null,
+  "warmth": null
+ },
+ "preset": null,
+ "macros": [],
+ "raw": {
+  "brandColor": "#167874",
+  "primaryActionColor": null,
+  "focusColor": null,
+  "neutralBase": null,
+  "contrastTarget": "AA",
+  "textFace": "system",
+  "displayFace": "=textFace",
+  "baseSize": null,
+  "spaceUnit": 4,
+  "platforms": [
+   "web"
+  ],
+  "inputs": [
+   "pointer",
+   "touch"
+  ],
+  "productType": "work-tool",
+  "marketingSurfaces": false,
+  "flags": {
+   "brandExact": false,
+   "tintTowardBrand": false,
+   "motionOff": false,
+   "darkMode": true
+  },
+  "overrides": {},
+  "secondaryColors": [],
+  "monoFace": "ui-monospace",
+  "scripts": [
+   "Latn"
+  ],
+  "domain": null,
+  "defaultTheme": "system"
+ },
+ "overrides": {},
+ "answers": {
+  "Q-shape-01": {
+   "value": "subtle",
+   "set_by": "chosen",
+   "decision": "D-0002",
+   "locked": false
+  },
+  "Q-type-01": {
+   "value": "system",
+   "set_by": "delegated",
+   "decision": "D-0004",
+   "locked": false
+  }
+ },
+ "principles": [],
+ "components": {
+  "base": null,
+  "inventory": [
+   "button",
+   "text-field",
+   "textarea",
+   "select",
+   "checkbox",
+   "radio",
+   "switch",
+   "slider",
+   "tabs",
+   "tooltip",
+   "popover",
+   "dialog",
+   "menu",
+   "progress-bar",
+   "spinner",
+   "banner",
+   "badge",
+   "avatar",
+   "card",
+   "list",
+   "table",
+   "link",
+   "breadcrumbs",
+   "side-navigation",
+   "accordion"
+  ],
+  "notes": {}
+ },
+ "hooks": {
+  "H-logo": {
+   "status": "placeholder",
+   "name": "Logo, wordmark, symbol, lockups",
+   "question": "Q-brand-03",
+   "files": [],
+   "note": ""
+  },
+  "H-appicon": {
+   "status": "pending",
+   "name": "App icon",
+   "question": "Q-icon-06",
+   "files": [],
+   "note": ""
+  },
+  "H-favicon": {
+   "status": "pending",
+   "name": "Favicon set",
+   "question": "Q-brand-03",
+   "files": [],
+   "note": ""
+  },
+  "H-icons": {
+   "status": "pending",
+   "name": "Custom icons, pictograms, spot icons",
+   "question": "Q-icon-01",
+   "files": [],
+   "note": ""
+  },
+  "H-illus": {
+   "status": "pending",
+   "name": "Illustration, characters, empty-state art",
+   "question": "Q-img-04",
+   "files": [],
+   "note": ""
+  },
+  "H-photo": {
+   "status": "pending",
+   "name": "Photography and art direction",
+   "question": "Q-img-01",
+   "files": [],
+   "note": ""
+  },
+  "H-type": {
+   "status": "pending",
+   "name": "Brand typeface files",
+   "question": "Q-type-02",
+   "files": [],
+   "note": ""
+  },
+  "H-color": {
+   "status": "pending",
+   "name": "Fixed brand colors",
+   "question": "Q-color-01",
+   "files": [],
+   "note": ""
+  },
+  "H-motion": {
+   "status": "pending",
+   "name": "Motion signature and rich media",
+   "question": "Q-img-06",
+   "files": [],
+   "note": ""
+  },
+  "H-motif": {
+   "status": "pending",
+   "name": "Graphic devices, patterns, textures, brand gradients, signature shape",
+   "question": "Q-img-07",
+   "files": [],
+   "note": ""
+  },
+  "H-sound": {
+   "status": "pending",
+   "name": "UI sounds and sonic logo",
+   "question": "Q-motion-08",
+   "files": [],
+   "note": ""
+  },
+  "H-haptic": {
+   "status": "pending",
+   "name": "Custom haptic patterns",
+   "question": "Q-motion-09",
+   "files": [],
+   "note": ""
+  },
+  "H-voice": {
+   "status": "pending",
+   "name": "Voice and tone guide",
+   "question": "Q-voice-01",
+   "files": [],
+   "note": ""
+  },
+  "H-brandbook": {
+   "status": "pending",
+   "name": "Brand guidelines PDF",
+   "question": "Q-ref-01",
+   "files": [],
+   "note": ""
+  }
+ },
+ "blocks": {},
+ "references": {},
+ "taste": {},
+ "hashes": {},
+ "exports": {
+  "prefix": "ds",
+  "figmaPlan": "professional"
+ },
+ "locks": [
+  "raw.brandColor"
+ ],
+ "profile": {
+  "voice": "plain"
+ },
+ "zoom": {}
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Alert banners",
+  "summary": "Four inline notices (info, success, warning and danger), each with a bold first phrase, one sentence, an optional action and a dismiss button.",
+  "use": "for telling people something about the page they are on, from a tip to a failure",
+  "type": "feedback",
+  "style": "quiet",
+  "industries": ["any"],
+  "tags": ["alert", "banner", "notice", "callout", "status"],
+  "states": ["info", "success", "warning", "danger", "hover", "focus", "dismissed"],
+  "source": null,
+  "a11y": "Info, success and warning use role status and the danger notice uses role alert; actions and dismiss are real buttons, and dismissing moves focus to the next notice.",
+  "width": "medium"
+}

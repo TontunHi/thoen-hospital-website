@@ -1,0 +1,87 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-sign-in-form { box-sizing: border-box; container-type: inline-size; inline-size: 100%; max-inline-size: 420px; display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-sign-in-form *, .odl-sign-in-form *::before { box-sizing: border-box; }
+.odl-sign-in-form svg { stroke-width: var(--ds-icon-stroke-md); }
+.odl-sign-in-form .odl-head h2 { margin: 0; font: var(--ds-text-title-lg); text-wrap: balance; }
+.odl-sign-in-form .odl-head p { margin: var(--ds-space-stack-sm) 0 0; color: var(--ds-color-text-secondary); }
+.odl-sign-in-form form { display: grid; gap: var(--ds-space-stack-lg); margin: 0; }
+.odl-sign-in-form .odl-field { display: grid; gap: var(--ds-space-stack-sm); }
+.odl-sign-in-form .odl-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-inline-sm); }
+.odl-sign-in-form label { font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-sign-in-form .odl-control { display: flex; align-items: center; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); border: var(--ds-border-width-default) solid var(--ds-color-border-input);
+  border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-sign-in-form .odl-control:hover { border-color: var(--ds-color-border-strong); }
+.odl-sign-in-form .odl-control:has(input:focus-visible) { border-color: var(--ds-color-border-focus); box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-border-focus); }
+.odl-sign-in-form .odl-control input { flex: 1; min-inline-size: 0; align-self: stretch; padding: 0 var(--ds-space-inset-md); border: 0; background: transparent; color: inherit; font: var(--ds-text-body-md); outline: none; }
+.odl-sign-in-form .odl-control input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-sign-in-form .odl-field.is-invalid .odl-control { border-color: var(--ds-color-border-danger); }
+.odl-sign-in-form .odl-field.is-invalid .odl-control:has(input:focus-visible) { box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-border-danger); }
+.odl-sign-in-form .odl-error { display: flex; gap: var(--ds-space-inline-sm); margin: 0; color: var(--ds-color-text-danger); font: var(--ds-text-label-md); }
+.odl-sign-in-form .odl-error svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin-block-start: var(--ds-space-2); }
+.odl-sign-in-form .odl-reveal { flex: none; display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); align-self: stretch; min-inline-size: max(var(--ds-size-control-sm), var(--ds-size-target-min));
+  margin: var(--ds-space-2); padding: 0 var(--ds-space-inset-sm); border: 0; border-radius: var(--ds-radius-control-sm); background: transparent; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); cursor: pointer; }
+.odl-sign-in-form .odl-reveal:hover { background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-text-primary); }
+.odl-sign-in-form .odl-reveal svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-sign-in-form .odl-reveal .odl-off, .odl-sign-in-form .odl-reveal[aria-pressed="true"] .odl-on { display: none; }
+.odl-sign-in-form .odl-reveal[aria-pressed="true"] .odl-off { display: block; }
+.odl-sign-in-form a { color: var(--ds-color-text-link); font: var(--ds-text-label-md); text-underline-offset: var(--ds-space-2); border-radius: var(--ds-radius-detail); }
+.odl-sign-in-form .odl-label-row a { display: inline-flex; align-items: center; min-block-size: var(--ds-size-target-min); text-decoration: none; }
+.odl-sign-in-form .odl-label-row a:hover { text-decoration: underline; }
+.odl-sign-in-form .odl-check { display: flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: var(--ds-size-target-min); font: var(--ds-text-body-md); font-weight: var(--ds-font-weight-body); cursor: pointer; }
+.odl-sign-in-form .odl-check input { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin: 0; accent-color: var(--ds-color-bg-action-primary); cursor: pointer; }
+.odl-sign-in-form .odl-check small { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-sign-in-form .odl-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); inline-size: 100%; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-sign-in-form .odl-btn svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-sign-in-form .odl-primary { border: 0; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-sign-in-form .odl-primary:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-sign-in-form .odl-primary:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-sign-in-form .odl-secondary { border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-sign-in-form .odl-secondary:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-sign-in-form .odl-divider { display: flex; align-items: center; gap: var(--ds-space-inline-md); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-sign-in-form .odl-divider::before, .odl-sign-in-form .odl-divider::after { content: ""; flex: 1; border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-sign-in-form .odl-foot { margin: 0; padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); text-align: center; }
+.odl-sign-in-form .odl-btn:focus-visible, .odl-sign-in-form .odl-reveal:focus-visible, .odl-sign-in-form a:focus-visible, .odl-sign-in-form .odl-check input:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+@container (max-width: 300px) { .odl-sign-in-form .odl-reveal span { display: none; } }
+@media (max-width: 30rem) { .odl-sign-in-form { padding: var(--ds-space-inset-lg); } }
+@media (prefers-reduced-motion: reduce) { .odl-sign-in-form, .odl-sign-in-form *, .odl-sign-in-form *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-sign-in-form" aria-labelledby="odl-sif-title">
+  <div class="odl-head">
+    <h2 id="odl-sif-title">Sign in to Oskarby Analytics</h2>
+    <p>Use the work email your admin invited.</p>
+  </div>
+  <form novalidate>
+    <div class="odl-field">
+      <label for="odl-sif-email">Work email</label>
+      <div class="odl-control"><input id="odl-sif-email" type="email" autocomplete="username" value="jonas.ekdahl@oskarby.example" required></div>
+    </div>
+    <div class="odl-field is-invalid">
+      <div class="odl-label-row"><label for="odl-sif-pass">Password</label><a href="#odl-sif-title">Forgot password?</a></div>
+      <div class="odl-control"><input id="odl-sif-pass" type="password" autocomplete="current-password" value="winter-ledger-26" aria-invalid="true" aria-describedby="odl-sif-err" required>
+        <button type="button" class="odl-reveal" aria-pressed="false" aria-controls="odl-sif-pass"><svg class="odl-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="odl-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg><span>Show</span></button></div>
+      <p class="odl-error" id="odl-sif-err"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg><span>That password does not match this email. 2 tries left before a 15-minute pause.</span></p>
+    </div>
+    <label class="odl-check"><input type="checkbox" checked><span>Remember this device <small>for 30 days</small></span></label>
+    <button type="submit" class="odl-btn odl-primary">Sign in</button>
+  </form>
+  <div class="odl-divider" role="separator">or</div>
+  <button type="button" class="odl-btn odl-secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>Continue with single sign-on</button>
+  <p class="odl-foot">New to the team? <a href="#odl-sif-title">Ask an admin for an invite</a></p>
+</section>
+<script>
+document.querySelectorAll(".odl-sign-in-form").forEach((root) => {
+  if (root.dataset.odlReady) return; root.dataset.odlReady = "1";
+  const btn = root.querySelector(".odl-reveal"), input = root.querySelector('input[autocomplete="current-password"]'), label = btn.querySelector("span");
+  btn.addEventListener("click", () => {
+    const show = btn.getAttribute("aria-pressed") !== "true";
+    btn.setAttribute("aria-pressed", String(show)); input.type = show ? "text" : "password"; label.textContent = show ? "Hide" : "Show";
+  });
+  root.querySelector("form").addEventListener("submit", (e) => e.preventDefault());
+});
+</script>

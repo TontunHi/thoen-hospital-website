@@ -1,0 +1,86 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-filter-bar { box-sizing: border-box; container-type: inline-size; inline-size: 100%; }
+.odl-filter-bar .odl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-stack-md) var(--ds-space-inline-md);
+  padding: var(--ds-space-inset-lg); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-filter-bar *, .odl-filter-bar *::before { box-sizing: border-box; }
+.odl-filter-bar svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-filter-bar .odl-search { display: flex; align-items: center; gap: var(--ds-space-inline-sm); flex: 0 1 15rem; min-inline-size: 11rem; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-md); border: var(--ds-border-width-default) solid var(--ds-color-border-input); background: var(--ds-color-bg-field); color: var(--ds-color-icon-subtle);
+  /* concentric with the bar's corner (outer minus the gap); a pill control stays a pill */
+  border-radius: max(calc(var(--ds-radius-container) - var(--ds-space-inset-lg)), calc(var(--ds-radius-control) - 4 * var(--ds-radius-container)));
+  transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-filter-bar .odl-search:hover { border-color: var(--ds-color-border-strong); }
+.odl-filter-bar .odl-search:has(input:focus-visible) { border-color: var(--ds-color-border-focus); box-shadow: 0 0 0 var(--ds-border-width-default) var(--ds-color-border-focus); }
+.odl-filter-bar .odl-search input { flex: 1; min-inline-size: 0; align-self: stretch; border: 0; padding: 0; background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); outline: none; }
+.odl-filter-bar .odl-search input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-filter-bar .odl-search input::-webkit-search-cancel-button { appearance: none; }
+.odl-filter-bar kbd { padding: 0 var(--ds-space-inline-xs); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-detail); background: var(--ds-color-surface-raised);
+  color: var(--ds-color-text-tertiary); font: var(--ds-text-code-sm); }
+/* the chips take the room left between search and sort, so the count and sort never drop under a gap */
+.odl-filter-bar .odl-filters { flex: 1 1 0; min-inline-size: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-stack-sm) var(--ds-space-inline-sm); }
+.odl-filter-bar .odl-chip, .odl-filter-bar .odl-ghost, .odl-filter-bar .odl-sort { display: inline-flex; flex: none; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-filter-bar .odl-chip { border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: transparent; color: var(--ds-color-text-secondary); }
+.odl-filter-bar .odl-chip:hover { border-color: var(--ds-color-border-default); background: var(--ds-color-bg-neutral-subtle-hover); color: var(--ds-color-text-primary); }
+.odl-filter-bar .odl-chip svg { color: var(--ds-color-icon-subtle); }
+.odl-filter-bar .odl-active { display: inline-flex; flex: none; align-items: stretch; border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-neutral-subtle); }
+.odl-filter-bar .odl-active .odl-chip { border: 0; border-start-end-radius: 0; border-end-end-radius: 0; background: transparent; color: var(--ds-color-text-secondary); padding-inline-end: var(--ds-space-inline-xs); }
+.odl-filter-bar .odl-active .odl-chip strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); font-variant-numeric: tabular-nums; }
+.odl-filter-bar .odl-active .odl-chip:hover, .odl-filter-bar .odl-active .odl-x:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-filter-bar .odl-x { display: grid; place-items: center; min-inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0; border: 0; border-start-end-radius: var(--ds-radius-control); border-end-end-radius: var(--ds-radius-control);
+  background: transparent; color: var(--ds-color-icon-subtle); cursor: pointer; }
+.odl-filter-bar .odl-x:hover { color: var(--ds-color-icon-default); }
+.odl-filter-bar .odl-ghost { padding-inline: var(--ds-space-inset-sm); border: 0; background: transparent; color: var(--ds-color-text-link); font-weight: var(--ds-font-weight-label); }
+.odl-filter-bar .odl-ghost:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-filter-bar .odl-end { display: flex; align-items: center; gap: var(--ds-space-inline-md); margin-inline-start: auto; }
+.odl-filter-bar .odl-count { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-filter-bar .odl-count strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-filter-bar .odl-sort { border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); }
+.odl-filter-bar .odl-sort:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-filter-bar .odl-sort span { color: var(--ds-color-text-secondary); }
+.odl-filter-bar .odl-sort svg { color: var(--ds-color-icon-subtle); }
+.odl-filter-bar button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: calc(-1 * var(--ds-focus-ring-width)); position: relative; }
+@container (max-width: 899.98px) {
+  .odl-filter-bar .odl-filters { order: 3; flex-basis: 100%; }
+  .odl-filter-bar .odl-search { flex: 1 1 12rem; }
+}
+/* phone: full-width search, then every filter chip at its natural width, wrapping onto rows (never squeezed or hidden), then the count and sort */
+@container (max-width: 560px) {
+  .odl-filter-bar .odl-search { flex-basis: 100%; }
+  .odl-filter-bar .odl-search kbd { display: none; }
+  .odl-filter-bar .odl-filters { row-gap: var(--ds-space-stack-sm); }
+  .odl-filter-bar .odl-end { order: 4; flex-basis: 100%; justify-content: space-between; padding-block-start: var(--ds-space-stack-md);
+    border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+}
+@container (max-width: 359.98px) {
+  .odl-filter-bar .odl-sort span { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-filter-bar, .odl-filter-bar *, .odl-filter-bar *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-filter-bar"><div class="odl-bar" role="search" aria-label="Filter receipts">
+  <label class="odl-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="search" placeholder="Search receipts" aria-label="Search receipts"><kbd>/</kbd></label>
+  <div class="odl-filters" role="group" aria-label="Filters">
+    <span class="odl-active"><button type="button" class="odl-chip" aria-haspopup="dialog">Received <strong>Oct 1 – 14</strong></button><button type="button" class="odl-x" aria-label="Remove filter: received Oct 1 to 14"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
+    <button type="button" class="odl-chip" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>Match status</button>
+    <button type="button" class="odl-chip" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>Paid by</button>
+    <button type="button" class="odl-ghost" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Add filter</button>
+  </div>
+  <div class="odl-end">
+    <p class="odl-count" aria-live="polite"><strong>192</strong> receipts</p>
+    <button type="button" class="odl-sort" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg><span>Sort:</span>Newest first</button>
+  </div>
+</div></div>
+<script>
+document.querySelectorAll(".odl-filter-bar").forEach((root) => {
+  if (root.dataset.odlReady) return; root.dataset.odlReady = "1";
+  const count = root.querySelector(".odl-count strong");
+  root.querySelectorAll(".odl-x").forEach((x) => x.addEventListener("click", () => {
+    const wrap = x.closest(".odl-active"), chip = wrap.querySelector(".odl-chip"), plus = root.querySelector(".odl-filters > .odl-chip svg").cloneNode(true);
+    chip.replaceChildren(plus, chip.firstChild.textContent.trim()); wrap.replaceWith(chip); count.textContent = "2,418"; chip.focus();
+  }));
+});
+</script>

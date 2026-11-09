@@ -7,6 +7,7 @@ import {
 } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -222,8 +223,8 @@ export default function PalliativeCarePc1Client({
 
   const totalPages = Math.ceil(items.length / pageSize) || 1
 
-  // Export to CSV with UTF-8 BOM for Thai Excel support (No Masking)
-  const handleExportCsv = () => {
+  // Modern Excel (.xlsx) Export
+  const handleExportCsv = async () => {
     if (!items || items.length === 0) return
 
     const headers = [
@@ -236,7 +237,7 @@ export default function PalliativeCarePc1Client({
       'สัญชาติ',
       'วันที่รับบริการ',
       'เวลา',
-      'Authen Code',
+      'ClaimCode',
       'สิทธิการรักษา',
       'แผนก/จุดบริการ',
       'คลินิก',
@@ -267,53 +268,50 @@ export default function PalliativeCarePc1Client({
 
     const rows = items.map((r) => [
       r.no,
-      `="${r.vn}"`,
-      `="${r.cid}"`,
-      `="${r.hn}"`,
-      `"${r.ptname}"`,
+      r.vn,
+      r.cid,
+      r.hn,
+      r.ptname,
       r.age,
-      `"${r.nation}"`,
-      `"${r.vstdate}"`,
-      `"${r.vsttime}"`,
-      `"${r.authencode}"`,
-      `"${r.pttypename}"`,
-      `"${r.department}"`,
-      `"${r.clinic}"`,
-      `"${r.pdx || ''}"`,
-      `"${r.dx0 || ''}"`,
-      `"${r.dx1 || ''}"`,
-      `"${r.dx2 || ''}"`,
-      `"${r.dx3 || ''}"`,
-      `"${r.dx4 || ''}"`,
-      `"${r.dx5 || ''}"`,
-      `"${r.op0 || ''}"`,
-      `"${r.op1 || ''}"`,
-      `"${r.op2 || ''}"`,
-      `"${r.op3 || ''}"`,
-      `"${r.op4 || ''}"`,
-      `"${r.op5 || ''}"`,
-      `"${r.listname}"`,
-      `"${r.rep || ''}"`,
+      r.nation,
+      r.vstdate,
+      r.vsttime,
+      r.authencode,
+      r.pttypename,
+      r.department,
+      r.clinic,
+      r.pdx || '',
+      r.dx0 || '',
+      r.dx1 || '',
+      r.dx2 || '',
+      r.dx3 || '',
+      r.dx4 || '',
+      r.dx5 || '',
+      r.op0 || '',
+      r.op1 || '',
+      r.op2 || '',
+      r.op3 || '',
+      r.op4 || '',
+      r.op5 || '',
+      r.listname,
+      r.rep || '',
       r.compensated,
-      `"${r.transaction_type || ''}"`,
-      `"${r.invoice || ''}"`,
+      r.transaction_type || '',
+      r.invoice || '',
       r.invoice_compensated,
-      `"${r.resource || ''}"`,
-      `"${r.subfund || ''}"`,
-      `"${r.remark || ''}"`,
-      `"${r.projectcode || ''}"`,
+      r.resource || '',
+      r.subfund || '',
+      r.remark || '',
+      r.projectcode || '',
     ])
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\r\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.setAttribute('href', url)
-    link.setAttribute('download', `Palliative_Care_PC1_EndOfLife_${ds1}_to_${ds2}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    await exportRcmExcel({
+      filename: `Palliative_Care_PC1_EndOfLife_${ds1}_to_${ds2}.xlsx`,
+      title: 'บริการ Palliative Care End Of Life (PC.1)',
+      subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+      headers,
+      rows,
+    })
   }
 
   return (
@@ -345,8 +343,9 @@ export default function PalliativeCarePc1Client({
             className="pc1-btn-primary"
             onClick={handleExportCsv}
             disabled={loading || items.length === 0}
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
-            ส่งออก CSV
+            ส่งออก Excel
           </button>
         </div>
       </div>
@@ -617,7 +616,7 @@ export default function PalliativeCarePc1Client({
                 <th rowSpan={2}>สัญชาติ</th>
                 <th rowSpan={2}>วันที่รับบริการ</th>
                 <th rowSpan={2}>เวลา</th>
-                <th rowSpan={2}>Authen Code</th>
+                <th rowSpan={2}>ClaimCode</th>
                 <th rowSpan={2}>สิทธิการรักษา</th>
                 <th rowSpan={2}>แผนก / จุดบริการ</th>
                 <th rowSpan={2}>คลินิก</th>
@@ -819,7 +818,7 @@ export default function PalliativeCarePc1Client({
                   <span className="pc1-modal-field-val">{selectedItem.age} ปี / {selectedItem.nation}</span>
                 </div>
                 <div className="pc1-modal-field">
-                  <span className="pc1-modal-field-label">Authen Code</span>
+                  <span className="pc1-modal-field-label">ClaimCode</span>
                   <span className="pc1-modal-field-val pc1-num">{selectedItem.authencode || '-'}</span>
                 </div>
                 <div className="pc1-modal-field">

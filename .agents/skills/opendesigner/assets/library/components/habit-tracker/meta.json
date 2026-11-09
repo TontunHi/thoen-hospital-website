@@ -1,0 +1,13 @@
+{
+  "name": "Habit tracker",
+  "summary": "Daily habits with this week as a row of check circles you tap, a streak per habit that updates as you tick, how many are done today, and a button to add a habit.",
+  "use": "in a health, wellbeing or self-improvement app, for ticking off daily habits",
+  "type": "form",
+  "style": "friendly",
+  "industries": ["health", "fitness", "education"],
+  "tags": ["habits", "streak", "checklist", "week", "daily"],
+  "states": ["done", "not done", "today", "future day", "no streak", "hover", "pressed", "focus"],
+  "source": null,
+  "a11y": "Each day is a toggle button with aria-pressed and its full date as its name, grouped per habit; days still to come are disabled, and the done-today count is a polite live region.",
+  "width": "medium"
+}

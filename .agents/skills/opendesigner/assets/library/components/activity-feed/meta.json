@@ -1,0 +1,17 @@
+{
+  "name": "Activity feed",
+  "summary": "A record's history: who did what and when, with field changes shown as old value, new value and the difference.",
+  "use": "on a record page, to show its history of changes",
+  "type": "data",
+  "style": "quiet",
+  "industries": ["crm", "saas", "any"],
+  "tags": ["activity", "history", "timeline", "diff", "audit"],
+  "states": ["field change", "reply with quote", "plain event", "link focus"],
+  "source": "brand/showcase/product/03-corvane-record",
+  "a11y": "An ordered list of events; old and new values use del and ins, so they are not told apart by colour alone.",
+  "width": "medium",
+  "photos": [
+    {"img": "photo-1601412436009-d964bd02edbc", "author": "OSPAN ALI", "page": "6xv4A1VA1rU"},
+    {"img": "photo-1523278669709-c05da80b6a65", "author": "JJ Jordan", "page": "JBqwqLG0SXw"}
+  ]
+}

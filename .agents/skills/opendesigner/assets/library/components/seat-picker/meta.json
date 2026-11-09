@@ -1,0 +1,39 @@
+{
+  "name": "Seat picker",
+  "summary": "A cinema or concert seat map: the film's poster and showtime, the screen at the top, price rows of seats that are free, taken, yours, recliners or wheelchair spaces, a key, and the seats you picked with their total and Continue.",
+  "use": "in a cinema, theatre or concert booking flow, for choosing seats",
+  "type": "form",
+  "style": "friendly",
+  "industries": [
+    "events",
+    "media",
+    "travel"
+  ],
+  "tags": [
+    "seats",
+    "booking",
+    "cinema",
+    "tickets",
+    "seat map"
+  ],
+  "states": [
+    "free",
+    "selected",
+    "taken",
+    "premium",
+    "accessible",
+    "nothing selected",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Every seat is a native checkbox named with its row, number, kind and price (taken seats are disabled), rows are labelled groups, the total is announced as it changes, and on a small touch screen the map scrolls sideways inside its own box.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1500530855697-b586d89ba3ee",
+      "author": "Jake Blucker",
+      "page": "tMzCrBkM99Y"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -6,6 +7,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { matchesPttypeFilter } from './pttypeConstants'
 
 // ── 1. Domain Types: ไวรัสตับอักเสบ C (23.2 คัดกรอง 36331 & 23.4 ยืนยัน HCV RNA 36333) ──
 
@@ -51,6 +53,7 @@ export interface HepatitisCReportParams extends FiscalDateRangeParams {
   adpCode?: string
   cardFilter?: HepatitisCCardFilter
   ucOnly?: boolean
+  pttypes?: string
   withLabOnly?: boolean
   searchField?: HepatitisCSearchField
   search?: string
@@ -91,6 +94,7 @@ export interface HepatitisCItem {
   maininscl: string
   isUc: boolean
   pttypename: string
+  pttype_eclaim_id?: string | null
   cc: string | null
   department: string | null
   clinic: string | null
@@ -238,6 +242,27 @@ export class RcmHepatitisCService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                adpCode,
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || '').trim(),
+                  name: String(r.name || '').trim(),
+                  strength: r.strength ? String(r.strength).trim() : null,
+                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT 
@@ -325,9 +350,10 @@ export class RcmHepatitisCService {
             IFNULL(nat.name, pt.nationality) AS nation,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            cc.AuthenCode AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
             ptt.name AS pttypename,
+            ptt.pttype_eclaim_id,
             s.cc AS cc,
             dep.department AS department,
             spc.name AS clinic,
@@ -401,11 +427,12 @@ export class RcmHepatitisCService {
             GROUP BY a.vn
           ) nd ON nd.vn = o.vn
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
                    'NHSO :: มี Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) nhso ON nhso.vn = o.vn
@@ -420,7 +447,7 @@ export class RcmHepatitisCService {
                    GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
                    GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
             FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
             GROUP BY vn
           ) rep ON rep.vn = o.vn
           LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
@@ -431,7 +458,7 @@ export class RcmHepatitisCService {
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
             FROM eclaimdb.m_registerdata m
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
           LEFT JOIN (
@@ -463,14 +490,41 @@ export class RcmHepatitisCService {
           ds2,
           ds1,
           ds2,
-          ds1,
-          ds2,
         ]
 
-        const [rows, adpCheck] = await Promise.all([
-          executor(sql, queryParams, { timeoutMs: 90000 }) as Promise<any[]>,
-          this.checkAdpMapping(adpCode, executor, params.refresh),
-        ])
+        let rows: any[] = []
+        let adpCheck: HepatitisCAdpMappingCheck = {
+          adpCode,
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }
+
+        let fetchedViaNamedApi = false
+        if (executor === queryClinicalDb) {
+          try {
+            const [mRes, gwRes] = await Promise.all([
+              this.checkAdpMapping(adpCode, executor, params.refresh),
+              apiGateway.clinical.getRcmFundData('hepatitis-c', { ds1, ds2, adpCode }),
+            ])
+            adpCheck = mRes
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              rows = gwRes.data.rawRows
+              fetchedViaNamedApi = true
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
+        if (!fetchedViaNamedApi) {
+          const [dbRows, mRes] = await Promise.all([
+            executor(sql, queryParams, { timeoutMs: 90000 }) as Promise<any[]>,
+            this.checkAdpMapping(adpCode, executor, params.refresh),
+          ])
+          rows = dbRows || []
+          adpCheck = mRes
+        }
 
         return {
           rawRows: rows || [],
@@ -512,6 +566,7 @@ export class RcmHepatitisCService {
         maininscl,
         isUc,
         pttypename,
+        pttype_eclaim_id: row.pttype_eclaim_id != null ? String(row.pttype_eclaim_id).trim() : null,
         cc: row.cc ? String(row.cc).trim() : null,
         department: row.department ? String(row.department).trim() : null,
         clinic: row.clinic ? String(row.clinic).trim() : null,
@@ -555,7 +610,18 @@ export class RcmHepatitisCService {
       }
     })
 
-    const totalVisits = allDomainItems.length
+    // Calculate Summary Aggregates (Full Page Filter based on pttypes / ucOnly)
+    let summaryCohort = allDomainItems
+    if (params.pttypes) {
+      const selectedPttypesList = params.pttypes.split(',').map((p) => p.trim()).filter(Boolean)
+      summaryCohort = summaryCohort.filter((item) =>
+        matchesPttypeFilter(item.pttypename || item.pttype_eclaim_id, selectedPttypesList, item.isUc, item.pttype_eclaim_id)
+      )
+    } else if (ucOnly) {
+      summaryCohort = summaryCohort.filter((item) => item.isUc)
+    }
+
+    const totalVisits = summaryCohort.length
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
     let totalCompensated = 0
@@ -566,7 +632,7 @@ export class RcmHepatitisCService {
     let totalSeamlessCompensated = 0
     let totalIncome = 0
 
-    for (const item of allDomainItems) {
+    for (const item of summaryCohort) {
       if (item.hn) uniqueHnSet.add(item.hn)
       if (item.isCompensated) {
         compensatedVisits++
@@ -612,7 +678,7 @@ export class RcmHepatitisCService {
       totalIncome,
     }
 
-    let filtered = allDomainItems.filter((item) => {
+    let filtered = summaryCohort.filter((item) => {
       switch (cardFilter) {
         case 'COMPENSATED':
           return item.isCompensated

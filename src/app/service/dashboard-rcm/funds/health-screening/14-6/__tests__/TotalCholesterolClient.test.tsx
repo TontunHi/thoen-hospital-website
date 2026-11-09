@@ -36,6 +36,7 @@ const mockItem = {
   authencode: 'AUTH12004',
   maininscl: 'UCS',
   isUc: true,
+  pttype_eclaim_id: 'UCS',
   pttypename: 'บัตรทอง ทั่วไป',
   department: 'งานผู้ป่วยนอก',
   clinic: 'คลินิกสุขภาพ',

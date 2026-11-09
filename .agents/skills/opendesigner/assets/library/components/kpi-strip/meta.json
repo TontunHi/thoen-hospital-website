@@ -1,0 +1,13 @@
+{
+  "name": "Stat strip",
+  "summary": "Four headline numbers in one band, each with a plain note under it, and a small bar where a share matters.",
+  "use": "at the top of a dashboard, for its headline numbers",
+  "type": "data",
+  "style": "quiet",
+  "industries": ["finance", "saas", "any"],
+  "tags": ["kpi", "stats", "summary", "dashboard", "metrics"],
+  "states": ["warning note", "progress", "wraps to two or one column"],
+  "source": "brand/showcase/product/01-quoin-payments",
+  "a11y": "A description list, so each number is read with its label; the bar is decorative and its value is in the text.",
+  "width": "wide"
+}

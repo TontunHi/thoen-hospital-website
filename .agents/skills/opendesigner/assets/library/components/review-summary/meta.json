@@ -1,0 +1,51 @@
+{
+  "name": "Review summary",
+  "summary": "Ratings for a product: the average with stars, a bar for each of 5 to 1 stars, how it fits, filter chips for photos and verified buyers, and two reviews with reviewer photos, buyer photos and helpful votes.",
+  "use": "below a product or place, for showing what buyers think",
+  "type": "data",
+  "style": "friendly",
+  "industries": [
+    "retail",
+    "food",
+    "travel"
+  ],
+  "tags": [
+    "reviews",
+    "ratings",
+    "stars",
+    "filters",
+    "helpful"
+  ],
+  "states": [
+    "filtered",
+    "no matches",
+    "voted",
+    "hover",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The average and each review's stars are images named in words, each bar's share is read with its star count, the filters and votes are toggle buttons with aria-pressed, and a message says when no review matches.",
+  "width": "wide",
+  "photos": [
+    {
+      "img": "photo-1651761179569-4ba2aa054997",
+      "author": "mockupbee",
+      "page": "4rUYuwJ2vGw"
+    },
+    {
+      "img": "photo-1581655353564-df123a1eb820",
+      "author": "Haryo Setyadi",
+      "page": "acn5ERAeSb4"
+    },
+    {
+      "img": "photo-1699899657680-421c2c2d5064",
+      "author": "Giorgio Trovato",
+      "page": "VzusBjHlKM8"
+    },
+    {
+      "img": "photo-1614247521228-d4184c975eff",
+      "author": "Diana Simumpande",
+      "page": "eGYRI-wDR2U"
+    }
+  ]
+}

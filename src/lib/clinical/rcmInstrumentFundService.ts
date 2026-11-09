@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -7,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
+import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 
 // ── 1. Types & Interfaces ───────────────────────────────────────────────────
 
@@ -94,6 +96,7 @@ export interface InstrumentItem {
   isDiscrepancy: boolean
   isCompensated: boolean
   isUc: boolean
+  pttype_eclaim_id?: string
 }
 
 export interface InstrumentSummary {
@@ -145,6 +148,8 @@ export interface InstrumentReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  pttypes?: string
+  ucOnly?: boolean
 }
 
 export interface InstrumentReportResponse {
@@ -222,6 +227,26 @@ export class RcmInstrumentFundService {
     return getCachedData(
       cacheKey,
       async () => {
+        if (executor === queryClinicalDb) {
+          try {
+            const gwRes = await apiGateway.clinical.getAdpMapping('INSTRUMENT')
+            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+              return {
+                isMapped: gwRes.isMapped,
+                mappedCount: gwRes.mappedCount,
+                items: (gwRes.items || []).map((r: any) => ({
+                  icode: String(r.icode || ''),
+                  name: String(r.name || ''),
+                  nhso_adp_code: String(r.nhso_adp_code || ''),
+                  nhso_adp_type_id: Number(r.nhso_adp_type_id || 2),
+                })),
+              }
+            }
+          } catch {
+            // Fallback to executor query
+          }
+        }
+
         try {
           const sql = `
             SELECT icode, name, nhso_adp_code, nhso_adp_type_id
@@ -282,6 +307,17 @@ export class RcmInstrumentFundService {
       getCachedData(
         cacheKey,
         async () => {
+          if (executor === queryClinicalDb) {
+            try {
+              const gwRes = await apiGateway.clinical.getRcmFundData('instrument', { ds1, ds2, patientType })
+              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+                return gwRes.data.rawRows
+              }
+            } catch {
+              // Fallback to executor query
+            }
+          }
+
           if (patientType === 'OPD') {
             const opdSql = `
               SELECT
@@ -294,8 +330,9 @@ export class RcmInstrumentFundService {
                 DATE_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
                 ptt.hipdata_code AS inscl,
                 ptt.name AS pttypename,
+                IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
                 dep.department AS room,
-                cc.AuthenCode AS authencode,
+                COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
                 v.income AS money_hosxp,
                 v.discount_money,
                 v.rcpt_money,
@@ -335,6 +372,7 @@ export class RcmInstrumentFundService {
               LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
               LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
               LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+              LEFT JOIN visit_pttype vt ON vt.vn = o.vn
               LEFT JOIN (
                 SELECT
                   e.opdseq AS vn,
@@ -392,7 +430,8 @@ export class RcmInstrumentFundService {
                 w.name AS ward,
                 ptt.hipdata_code AS inscl,
                 ptt.name AS pttypename,
-                cc.AuthenCode AS authencode,
+                IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
+                COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
                 a.income AS money_hosxp,
                 a.discount_money,
                 a.rcpt_money,
@@ -433,6 +472,7 @@ export class RcmInstrumentFundService {
               LEFT JOIN ward w ON w.ward = i.ward
               LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
               LEFT JOIN rcmdb.authencode cc ON cc.vn = i.an
+              LEFT JOIN visit_pttype vt ON vt.vn = i.vn
               LEFT JOIN (
                 SELECT
                   e.an,
@@ -507,7 +547,8 @@ export class RcmInstrumentFundService {
 
       const isDiscrepancy = moneyEclaim > 0 && Math.abs(instrument - moneyEclaim) > 0.01
       const isCompensated = moneyInvoice > 0 || moneyRep > 0
-      const isUc = isUniversalCoverageScheme(r.inscl, r.pttypename)
+      const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
+      const isUc = (pttypeEclaimId && isUcEclaimCode(pttypeEclaimId)) || isUniversalCoverageScheme(r.inscl, r.pttypename)
       const date = patientType === 'OPD' ? String(r.vstdate || '') : String(r.dchdate || r.admdate || '')
       const time = patientType === 'OPD' ? String(r.vsttime || '') : undefined
       const diffMoney = moneyInvoice > 0 ? moneyInvoice - instrument : (moneyEclaim > 0 ? moneyEclaim - instrument : 0)
@@ -553,51 +594,62 @@ export class RcmInstrumentFundService {
         isDiscrepancy,
         isCompensated,
         isUc,
+        pttype_eclaim_id: pttypeEclaimId,
       }
     })
 
-    // คำนวณ Summary ทั่วทั้ง Cohort (ก่อนกรอง cardFilter และค้นหา)
-    const totalCases = allItems.length
-    const totalUniquePatients = new Set(allItems.map((i) => i.hn)).size
-    const totalInstrumentHosp = allItems.reduce((acc, i) => acc + i.instrument, 0)
-    const totalDebit = allItems.reduce((acc, i) => acc + i.debit, 0)
+    // กรองระดับ Cohort ด้วยสิทธิ์การรักษา (pttypes มาก่อน, รองรับ ucOnly fallback)
+    let summaryCohort = allItems
+    if (params.pttypes) {
+      summaryCohort = allItems.filter((i) =>
+        matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
+      )
+    } else if (params.ucOnly) {
+      summaryCohort = allItems.filter((i) => i.isUc)
+    }
 
-    const oaItems = allItems.filter((i) => i.oa === 'Y')
+    // คำนวณ Summary ทั่วทั้ง Cohort (ก่อนกรอง cardFilter และค้นหา)
+    const totalCases = summaryCohort.length
+    const totalUniquePatients = new Set(summaryCohort.map((i) => i.hn)).size
+    const totalInstrumentHosp = summaryCohort.reduce((acc, i) => acc + i.instrument, 0)
+    const totalDebit = summaryCohort.reduce((acc, i) => acc + i.debit, 0)
+
+    const oaItems = summaryCohort.filter((i) => i.oa === 'Y')
     const oaCases = oaItems.length
     const oaAmount = oaItems.reduce((acc, i) => acc + i.instrument, 0)
 
-    const dmItems = allItems.filter((i) => i.dm === 'Y')
+    const dmItems = summaryCohort.filter((i) => i.dm === 'Y')
     const dmCases = dmItems.length
     const dmAmount = dmItems.reduce((acc, i) => acc + i.instrument, 0)
 
-    const otherItems = allItems.filter((i) => i.oa !== 'Y' && i.dm !== 'Y')
+    const otherItems = summaryCohort.filter((i) => i.oa !== 'Y' && i.dm !== 'Y')
     const otherCases = otherItems.length
     const otherAmount = otherItems.reduce((acc, i) => acc + i.instrument, 0)
 
-    const invoiceItems = allItems.filter((i) => i.statusCode === 'INVOICE')
+    const invoiceItems = summaryCohort.filter((i) => i.statusCode === 'INVOICE')
     const invoiceCases = invoiceItems.length
     const invoiceAmount = invoiceItems.reduce((acc, i) => acc + i.money_invoice, 0)
 
-    const repItems = allItems.filter((i) => i.statusCode === 'REP')
+    const repItems = summaryCohort.filter((i) => i.statusCode === 'REP')
     const repCases = repItems.length
     const repAmount = repItems.reduce((acc, i) => acc + i.money_rep, 0)
 
-    const compensatedItems = allItems.filter((i) => i.isCompensated)
+    const compensatedItems = summaryCohort.filter((i) => i.isCompensated)
     const compensatedCases = compensatedItems.length
     const totalCompensated = compensatedItems.reduce((acc, i) => acc + (i.money_invoice || i.money_rep || 0), 0)
 
-    const unsentItems = allItems.filter((i) => i.statusCode === 'UNSENT')
+    const unsentItems = summaryCohort.filter((i) => i.statusCode === 'UNSENT')
     const unsentCases = unsentItems.length
     const unsentAmount = unsentItems.reduce((acc, i) => acc + i.instrument, 0)
 
-    const discrepancyItems = allItems.filter((i) => i.isDiscrepancy)
+    const discrepancyItems = summaryCohort.filter((i) => i.isDiscrepancy)
     const discrepancyCases = discrepancyItems.length
 
-    const authenItems = allItems.filter((i) => Boolean(i.authencode && i.authencode.length > 0))
+    const authenItems = summaryCohort.filter((i) => Boolean(i.authencode && i.authencode.length > 0))
     const authenCases = authenItems.length
     const authenRate = totalCases > 0 ? (authenCases / totalCases) * 100 : 0
 
-    const ucItems = allItems.filter((i) => i.isUc)
+    const ucItems = summaryCohort.filter((i) => i.isUc)
     const ucCases = ucItems.length
     const ucRate = totalCases > 0 ? (ucCases / totalCases) * 100 : 0
 
@@ -628,7 +680,7 @@ export class RcmInstrumentFundService {
     }
 
     // กรองตาม Card Filter
-    let filtered = allItems
+    let filtered = summaryCohort
     switch (cardFilter) {
       case 'OA':
         filtered = filtered.filter((i) => i.oa === 'Y')

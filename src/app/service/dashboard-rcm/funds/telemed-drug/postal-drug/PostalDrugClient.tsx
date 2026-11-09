@@ -35,6 +35,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -90,6 +92,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
   )
 
   // Filter & Search states
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [cardFilter, setCardFilter] = useState<PostalDrugCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
@@ -192,6 +195,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -235,6 +239,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
       sortOrder,
       currentPage,
       pageSize,
+      pttypes,
     ]
   )
 
@@ -367,8 +372,8 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
     setCurrentPage(1)
   }
 
-  // Export CSV
-  const handleExportCsv = async () => {
+  // Export Excel (.xlsx)
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
@@ -382,6 +387,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/telemed-drug/postal-drug?${queryParams.toString()}`
@@ -402,7 +408,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
         'อายุ (ปี)',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'กลุ่มสิทธิ',
         'แผนก',
@@ -418,49 +424,41 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
         'กองทุนย่อย (Subfund)',
       ]
 
-      const csvRows = [
-        headers.join(','),
-        ...exportRows.map((r) =>
-          [
-            r.no,
-            `"${r.vn}"`,
-            `"${r.hn}"`,
-            `"${r.cid}"`,
-            `"${r.ptname}"`,
-            `"${r.sex}"`,
-            r.age,
-            `"${r.vstdate}"`,
-            `"${r.vsttime}"`,
-            `"${r.authencode || ''}"`,
-            `"${r.pttypename}"`,
-            `"${r.maininscl}"`,
-            `"${r.department || ''}"`,
-            `"${r.clinic || ''}"`,
-            `"${r.pdx || ''}"`,
-            r.income,
-            r.sum_price,
-            `"${r.listname || ''}"`,
-            `"${r.status}"`,
-            `"${r.rep || ''}"`,
-            r.compensated,
-            `"${r.fund || ''}"`,
-            `"${r.subfund || ''}"`,
-          ].join(',')
-        ),
-      ]
+      const rows = exportRows.map((r) => [
+        r.no,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.sex,
+        r.age,
+        r.vstdate,
+        r.vsttime,
+        r.authencode || '',
+        r.pttypename,
+        r.maininscl,
+        r.department || '',
+        r.clinic || '',
+        r.pdx || '',
+        r.income,
+        r.sum_price,
+        r.listname || '',
+        r.status,
+        r.rep || '',
+        r.compensated,
+        r.fund || '',
+        r.subfund || '',
+      ])
 
-      const csvContent = '\uFEFF' + csvRows.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `postal_drug_report_11_52_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `postal_drug_report_11_52_${ds1}_to_${ds2}.xlsx`,
+        title: '11.52 รายชื่อผู้ได้รับการส่งยาทางไปรษณีย์',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportRows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ CSV')
+      alert(err.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -501,12 +499,12 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
           <button
             type="button"
             className="postal-btn postal-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={isExporting || items.length === 0}
-            title="ส่งออกไฟล์ CSV พร้อมรองรับภาษาไทยใน Microsoft Excel"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -742,7 +740,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
           </div>
         </div>
 
-        {/* Card 5: มี Authen Code */}
+        {/* Card 5: มี ClaimCode */}
         <div
           className={`postal-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
@@ -750,7 +748,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
           tabIndex={0}
         >
           <div className="postal-kpi-header">
-            <span className="postal-kpi-title">มี Authen Code</span>
+            <span className="postal-kpi-title">มี ClaimCode</span>
             <div className="postal-kpi-icon-wrap" style={{ color: '#059669', backgroundColor: '#f0fdf4' }}>
               <ReceiptText size={18} />
             </div>
@@ -769,7 +767,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
           </div>
         </div>
 
-        {/* Card 6: ไม่มี Authen Code */}
+        {/* Card 6: ไม่มี ClaimCode */}
         <div
           className={`postal-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('NO_AUTHEN')}
@@ -777,7 +775,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
           tabIndex={0}
         >
           <div className="postal-kpi-header">
-            <span className="postal-kpi-title">ไม่มี Authen Code</span>
+            <span className="postal-kpi-title">ไม่มี ClaimCode</span>
             <div className="postal-kpi-icon-wrap" style={{ color: '#dc2626', backgroundColor: '#fef2f2' }}>
               <AlertTriangle size={18} />
             </div>
@@ -873,6 +871,16 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="postal-toolbar-actions">
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.875rem', cursor: 'pointer' }}>
@@ -978,7 +986,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
                   className="postal-th-sort"
                   onClick={() => handleSort('authencode')}
                 >
-                  <span>Authen Code</span>
+                  <span>ClaimCode</span>
                   {renderSortIcon('authencode')}
                 </button>
               </th>
@@ -1273,14 +1281,14 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
                     </div>
 
                     <div className="postal-detail-item">
-                      <span className="postal-detail-label">Authen Code (การยืนยันตัวตน)</span>
+                      <span className="postal-detail-label">ClaimCode (การยืนยันตัวตน)</span>
                       <span className="postal-detail-val">
                         {selectedItem.authencode ? (
                           <span className="postal-badge postal-badge-blue">
                             {selectedItem.authencode}
                           </span>
                         ) : (
-                          <span style={{ color: '#dc2626' }}>ไม่มี Authen Code</span>
+                          <span style={{ color: '#dc2626' }}>ไม่มี ClaimCode</span>
                         )}
                       </span>
                     </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -34,6 +35,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -89,6 +91,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
   )
 
   // Filter & Search states
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [cardFilter, setCardFilter] = useState<T1dmGdmPdmCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
@@ -177,6 +180,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+        if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
         if (refresh) query.set('refresh', 'true')
 
         const res = await fetch(
@@ -204,7 +208,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize, pttypes]
   )
 
   // Skip initial fetch on mount if initialData is provided
@@ -313,6 +317,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/t1dm-gdm-pdm/service-recipients?${query.toString()}`
@@ -338,7 +343,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         'วันที่รับบริการ',
         'เวลารับบริการ',
         'ประจำเดือนครั้งสุดท้าย (LMP)',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา (Visit)',
         'สิทธิการรักษา (Patient)',
         'แผนกที่รับบริการ',
@@ -363,64 +368,54 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         'กองทุนย่อย',
       ]
 
-      const csvRows = [headers.join(',')]
+      const rows = exportItems.map((row) => [
+        row.no,
+        row.vn,
+        row.hn,
+        row.cid,
+        row.ptname,
+        row.sex,
+        row.age,
+        row.nation || '',
+        row.tel || '',
+        row.ok || 'N',
+        row.type || '',
+        row.regdate || '',
+        row.vstdate,
+        row.vsttime,
+        row.lmp || '',
+        row.authencode || '',
+        row.pttypenameVisit || '',
+        row.pttypenamePatient || '',
+        row.department || '',
+        row.clinic || '',
+        row.pdx || '',
+        row.dx0 || '',
+        row.dx1 || '',
+        row.dx2 || '',
+        row.dx3 || '',
+        row.dx4 || '',
+        row.dx5 || '',
+        row.op0 || '',
+        row.op1 || '',
+        row.op2 || '',
+        row.op3 || '',
+        row.op4 || '',
+        row.op5 || '',
+        row.status || '',
+        row.rep || '',
+        row.compensated,
+        row.fund || '',
+        row.subfund || '',
+      ])
 
-      for (const row of exportItems) {
-        const values = [
-          row.no,
-          `"${row.vn}"`,
-          `"${row.hn}"`,
-          `"${row.cid}"`,
-          `"${row.ptname.replace(/"/g, '""')}"`,
-          `"${row.sex}"`,
-          row.age,
-          `"${row.nation || ''}"`,
-          `"${row.tel || ''}"`,
-          `"${row.ok || 'N'}"`,
-          `"${row.type || ''}"`,
-          `"${row.regdate || ''}"`,
-          `"${row.vstdate}"`,
-          `"${row.vsttime}"`,
-          `"${row.lmp || ''}"`,
-          `"${row.authencode || ''}"`,
-          `"${(row.pttypenameVisit || '').replace(/"/g, '""')}"`,
-          `"${(row.pttypenamePatient || '').replace(/"/g, '""')}"`,
-          `"${(row.department || '').replace(/"/g, '""')}"`,
-          `"${(row.clinic || '').replace(/"/g, '""')}"`,
-          `"${row.pdx || ''}"`,
-          `"${row.dx0 || ''}"`,
-          `"${row.dx1 || ''}"`,
-          `"${row.dx2 || ''}"`,
-          `"${row.dx3 || ''}"`,
-          `"${row.dx4 || ''}"`,
-          `"${row.dx5 || ''}"`,
-          `"${row.op0 || ''}"`,
-          `"${row.op1 || ''}"`,
-          `"${row.op2 || ''}"`,
-          `"${row.op3 || ''}"`,
-          `"${row.op4 || ''}"`,
-          `"${row.op5 || ''}"`,
-          `"${(row.status || '').replace(/"/g, '""')}"`,
-          `"${row.rep || ''}"`,
-          row.compensated,
-          `"${row.fund || ''}"`,
-          `"${row.subfund || ''}"`,
-        ]
-        csvRows.push(values.join(','))
-      }
-
-      // Add UTF-8 BOM \uFEFF for Windows Thai Excel compatibility
-      const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], {
-        type: 'text/csv;charset=utf-8;',
+      await exportRcmExcel({
+        filename: `t1dm_gdm_pdm_recipients_${ds1}_to_${ds2}.xlsx`,
+        title: 'ผู้ป่วยเบาหวาน T1DM, GDM, PDM (2)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
       })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `t1dm_gdm_pdm_recipients_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกข้อมูล')
     } finally {
@@ -461,7 +456,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
             <span className="dm-subtitle-dot">·</span>
             <span>ตรวจสอบสถานะการลงทะเบียนทะเบียน T1DM, GDM, PDM</span>
             <span className="dm-subtitle-dot">·</span>
-            <span>ติดตาม Authen Code และการชดเชยค่าบริการทางการแพทย์</span>
+            <span>ติดตาม ClaimCode และการชดเชยค่าบริการทางการแพทย์</span>
           </p>
         </div>
 
@@ -482,10 +477,10 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
             className="dm-btn dm-btn-secondary"
             onClick={exportToCsv}
             disabled={loading || isExporting || totalCount === 0}
-            title="ส่งออกรายงานเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -714,7 +709,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
           </div>
         </div>
 
-        {/* Card 6: มี Authen Code */}
+        {/* Card 6: มี ClaimCode */}
         <div
           role="button"
           tabIndex={0}
@@ -723,7 +718,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
           onKeyDown={(e) => e.key === 'Enter' && handleCardClick('WITH_AUTHEN')}
         >
           <div className="dm-kpi-card-header">
-            <span className="dm-kpi-label">มี Authen Code</span>
+            <span className="dm-kpi-label">มี ClaimCode</span>
             <KeyRound size={18} className="dm-kpi-icon" />
           </div>
           <div className="dm-kpi-value-row">
@@ -732,7 +727,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
           </div>
         </div>
 
-        {/* Card 7: ไม่มี Authen Code */}
+        {/* Card 7: ไม่มี ClaimCode */}
         <div
           role="button"
           tabIndex={0}
@@ -741,7 +736,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
           onKeyDown={(e) => e.key === 'Enter' && handleCardClick('NO_AUTHEN')}
         >
           <div className="dm-kpi-card-header">
-            <span className="dm-kpi-label">ไม่มี Authen Code</span>
+            <span className="dm-kpi-label">ไม่มี ClaimCode</span>
             <Layers size={18} className="dm-kpi-icon" />
           </div>
           <div className="dm-kpi-value-row">
@@ -796,6 +791,16 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
             </button>
           )}
         </div>
+
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
 
         <div className="dm-toolbar-meta">
           <span>
@@ -933,8 +938,8 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                   </button>
                 </th>
                 <th className="col-center" style={{ minWidth: '110px' }}>
-                  Authen Code
-                </th>
+                    ClaimCode
+                  </th>
                 <th className="col-center" style={{ minWidth: '100px' }}>
                   <button
                     type="button"
@@ -1312,7 +1317,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                     </div>
 
                     <div className="dm-detail-item">
-                      <span className="dm-detail-label">Authen Code:</span>
+                      <span className="dm-detail-label">ClaimCode:</span>
                       <span className="dm-detail-value">
                         {selectedItem.authencode ? (
                           <span className="dm-badge dm-badge-purple">{selectedItem.authencode}</span>

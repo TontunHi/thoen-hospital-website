@@ -1,0 +1,94 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-ai-suggestion { box-sizing: border-box; inline-size: 100%; max-inline-size: 40rem; margin-inline: auto; container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-md);
+  color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-ai-suggestion *, .odl-ai-suggestion *::before { box-sizing: border-box; }
+.odl-ai-suggestion svg { flex: none; stroke-width: var(--ds-icon-stroke-md); }
+.odl-ai-suggestion .odl-label { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); letter-spacing: var(--ds-text-label-md-tracking); }
+.odl-ai-suggestion .odl-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-sm); padding: var(--ds-space-inset-lg); background: var(--ds-color-bg-field);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-container); }
+.odl-ai-suggestion .odl-field p { margin: 0; }
+.odl-ai-suggestion .odl-target { border-radius: var(--ds-radius-detail); -webkit-box-decoration-break: clone; box-decoration-break: clone; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-ai-suggestion[data-state="open"] .odl-target { background: var(--ds-color-bg-accent-subtle); }
+.odl-ai-suggestion[data-state="accepted"] .odl-target { background: var(--ds-color-bg-success-subtle); }
+.odl-ai-suggestion .odl-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-md); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-floating); }
+.odl-ai-suggestion .odl-card-head { display: flex; align-items: center; gap: var(--ds-space-inline-sm); color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-ai-suggestion .odl-card-head svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-accent); }
+.odl-ai-suggestion .odl-card-head .odl-count { margin-inline-start: auto; color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-body); font-variant-numeric: tabular-nums; }
+.odl-ai-suggestion .odl-diff { margin: 0; font: var(--ds-text-body-md); }
+.odl-ai-suggestion del { color: var(--ds-color-text-danger); background: var(--ds-color-bg-danger-subtle); text-decoration-thickness: var(--ds-border-width-default); border-radius: var(--ds-radius-detail); padding: 0 var(--ds-space-2); }
+.odl-ai-suggestion ins { color: var(--ds-color-text-success); background: var(--ds-color-bg-success-subtle); text-decoration: none; border-radius: var(--ds-radius-detail); padding: 0 var(--ds-space-2); font-weight: var(--ds-font-weight-label); }
+.odl-ai-suggestion .odl-meta { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-ai-suggestion .odl-why { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); }
+.odl-ai-suggestion .odl-why strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-ai-suggestion .odl-note { margin: 0; display: flex; align-items: center; gap: var(--ds-space-inline-sm); min-inline-size: 0; color: var(--ds-color-text-tertiary); font: var(--ds-text-body-sm); }
+.odl-ai-suggestion .odl-note svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-ai-suggestion .odl-bar { padding-block-start: var(--ds-space-stack-md); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-ai-suggestion .odl-buttons { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); }
+.odl-ai-suggestion .odl-another { margin-inline-end: auto; }
+.odl-ai-suggestion button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control); border: var(--ds-border-width-default) solid transparent; background: transparent; color: var(--ds-color-text-primary);
+  font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; white-space: nowrap; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-ai-suggestion button svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-ai-suggestion button:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-ai-suggestion .odl-another { color: var(--ds-color-text-secondary); padding-inline: var(--ds-space-inset-sm); }
+.odl-ai-suggestion .odl-accept { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-ai-suggestion .odl-accept:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-ai-suggestion .odl-accept:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-ai-suggestion .odl-reject { border-color: var(--ds-color-border-default); }
+.odl-ai-suggestion button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-ai-suggestion .odl-done { display: flex; align-items: center; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-inset-sm) var(--ds-space-inset-sm) var(--ds-space-inset-sm) var(--ds-space-inset-md);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); background: var(--ds-color-surface-raised); color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); }
+.odl-ai-suggestion .odl-done svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-text-success); }
+.odl-ai-suggestion .odl-done button { margin-inline-start: auto; color: var(--ds-color-text-link); }
+.odl-ai-suggestion[data-state="rejected"] .odl-done svg { color: var(--ds-color-icon-subtle); }
+.odl-ai-suggestion [hidden] { display: none !important; }
+/* Phone: less outer padding; "Try another" gets its own row and the two decisions share the next one. */
+@container (max-width: 30rem) {
+  .odl-ai-suggestion .odl-card { padding: var(--ds-space-inset-lg); }
+  .odl-ai-suggestion .odl-field { padding: var(--ds-space-inset-md); }
+  .odl-ai-suggestion .odl-buttons button { flex: 1 1 8rem; }
+  .odl-ai-suggestion .odl-buttons .odl-another { flex-basis: 100%; justify-content: start; padding-inline: var(--ds-space-inset-xs); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-ai-suggestion, .odl-ai-suggestion *, .odl-ai-suggestion *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-ai-suggestion" data-state="open">
+  <p class="odl-label" id="odl-ai-suggestion-label">Reply to Inchley Print Co.</p>
+  <div class="odl-field" role="group" aria-labelledby="odl-ai-suggestion-label">
+    <p>Hi Rhea, thanks for flagging the duplicate line on invoice INV-2207.</p>
+    <p><span class="odl-target" data-original="We will be sending the corrected invoice over to you at some point early next week, once finance has had a chance to look at it.">We will be sending the corrected invoice over to you at some point early next week, once finance has had a chance to look at it.</span> Nothing else on the account changes.</p>
+  </div>
+  <section class="odl-card" aria-label="Suggested edit">
+    <div class="odl-card-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>Suggested edit<span class="odl-count" aria-live="polite">1 of 2</span></div>
+    <p class="odl-diff" data-text="We'll send the corrected invoice by Tue, Nov 3, after finance reviews it." data-why="Shorter and names the date"><del>We will be sending</del> <ins>We'll send</ins> the corrected invoice <del>over to you at some point early next week, once finance has had a chance to look at it.</del> <ins>by Tue, Nov 3, after finance reviews it.</ins></p>
+    <p class="odl-diff" hidden data-text="Finance is reviewing the corrected invoice now; you'll have it by Tue, Nov 3." data-why="Leads with what is happening and keeps the date"><del>We will be sending the corrected invoice over to you at some point early next week, once finance has had a chance to look at it.</del> <ins>Finance is reviewing the corrected invoice now; you'll have it by Tue, Nov 3.</ins></p>
+    <div class="odl-meta">
+      <p class="odl-why"><strong>Why:</strong> <span class="odl-reason">Shorter and names the date</span></p>
+      <p class="odl-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>Date from the billing calendar · high confidence</p>
+    </div>
+    <div class="odl-bar">
+      <div class="odl-buttons">
+        <button type="button" class="odl-another"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>Try another</button>
+        <button type="button" class="odl-reject">Reject</button>
+        <button type="button" class="odl-accept"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Accept</button>
+      </div>
+    </div>
+  </section>
+  <p class="odl-done" hidden role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="odl-done-text">Edit applied.</span><button type="button" class="odl-undo">Undo</button></p>
+</div>
+<script>
+document.querySelectorAll(".odl-ai-suggestion").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const target = root.querySelector(".odl-target"), card = root.querySelector(".odl-card"), done = root.querySelector(".odl-done");
+  const diffs = [...root.querySelectorAll(".odl-diff")], reason = root.querySelector(".odl-reason"), count = root.querySelector(".odl-count");
+  let i = 0;
+  const show = (n) => { i = n; diffs.forEach((d, k) => { d.hidden = k !== i; }); reason.textContent = diffs[i].dataset.why; count.textContent = `${i + 1} of ${diffs.length}`; };
+  const finish = (state, text) => { root.dataset.state = state; card.hidden = true; done.hidden = false; root.querySelector(".odl-done-text").textContent = text; root.querySelector(".odl-undo").focus(); };
+  root.querySelector(".odl-another").addEventListener("click", () => show((i + 1) % diffs.length));
+  root.querySelector(".odl-accept").addEventListener("click", () => { target.textContent = diffs[i].dataset.text; finish("accepted", "Edit applied."); });
+  root.querySelector(".odl-reject").addEventListener("click", () => { target.textContent = target.dataset.original; finish("rejected", "Suggestion dismissed. Your sentence is unchanged."); });
+  root.querySelector(".odl-undo").addEventListener("click", () => { target.textContent = target.dataset.original; root.dataset.state = "open"; done.hidden = true; card.hidden = false; root.querySelector(".odl-accept").focus(); });
+});
+</script>

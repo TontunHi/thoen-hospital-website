@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -31,6 +32,7 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -94,6 +96,7 @@ export default function AncService30011Client({
 
   // Filter & Search states
   const [compensationFilter, setCompensationFilter] = useState<AncCompensationFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [searchField, setSearchField] = useState<AncSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -196,6 +199,10 @@ export default function AncService30011Client({
           pageSize: String(pageSize),
         })
 
+        if (pttypes.length > 0) {
+          q.set('pttypes', pttypes.join(','))
+        }
+
         if (forceRefresh) {
           q.set('refresh', 'true')
         }
@@ -226,7 +233,7 @@ export default function AncService30011Client({
         }
       }
     },
-    [ds1, ds2, compensationFilter, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, compensationFilter, pttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -321,6 +328,10 @@ export default function AncService30011Client({
         exportAll: 'true',
       })
 
+      if (pttypes.length > 0) {
+        q.set('pttypes', pttypes.join(','))
+      }
+
       const res = await fetch(`/api/service/dashboard-rcm/funds/anc/service-30011?${q.toString()}`)
       const json = await res.json()
 
@@ -339,7 +350,7 @@ export default function AncService30011Client({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลารับบริการ',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -365,57 +376,49 @@ export default function AncService30011Client({
         'ยอดชดเชย (บาท)',
       ]
 
-      const csvRows = [
-        headers.join(','),
-        ...rows.map((r) =>
-          [
-            r.no,
-            `"${r.vn}"`,
-            `"${r.hn}"`,
-            `="${r.cid}"`,
-            `"${r.ptname.replace(/"/g, '""')}"`,
-            r.age ?? '',
-            `"${(r.nation || '').replace(/"/g, '""')}"`,
-            `"${r.vstdate}"`,
-            `"${r.vsttime}"`,
-            `"${(r.authencode || '').replace(/"/g, '""')}"`,
-            `"${(r.pttypename || '').replace(/"/g, '""')}"`,
-            `"${(r.department || '').replace(/"/g, '""')}"`,
-            `"${(r.clinic || '').replace(/"/g, '""')}"`,
-            `"${r.pdx || ''}"`,
-            `"${r.dx0 || ''}"`,
-            `"${r.dx1 || ''}"`,
-            `"${r.dx2 || ''}"`,
-            `"${r.dx3 || ''}"`,
-            `"${r.dx4 || ''}"`,
-            `"${r.dx5 || ''}"`,
-            `"${r.op0 || ''}"`,
-            `"${r.op1 || ''}"`,
-            `"${r.op2 || ''}"`,
-            `"${r.op3 || ''}"`,
-            `"${r.op4 || ''}"`,
-            `"${r.op5 || ''}"`,
-            `"${(r.listname || '').replace(/"/g, '""')}"`,
-            `"${(r.listname1 || '').replace(/"/g, '""')}"`,
-            `"${(r.status || '').replace(/"/g, '""')}"`,
-            `"${(r.rep || '').replace(/"/g, '""')}"`,
-            `"${(r.fund || '').replace(/"/g, '""')}"`,
-            `"${(r.subfund || '').replace(/"/g, '""')}"`,
-            r.compensated,
-          ].join(',')
-        ),
-      ]
+      const exportRows = rows.map((r) => [
+        r.no,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.age ?? '',
+        r.nation || '',
+        r.vstdate,
+        r.vsttime,
+        r.authencode || '',
+        r.pttypename || '',
+        r.department || '',
+        r.clinic || '',
+        r.pdx || '',
+        r.dx0 || '',
+        r.dx1 || '',
+        r.dx2 || '',
+        r.dx3 || '',
+        r.dx4 || '',
+        r.dx5 || '',
+        r.op0 || '',
+        r.op1 || '',
+        r.op2 || '',
+        r.op3 || '',
+        r.op4 || '',
+        r.op5 || '',
+        r.listname || '',
+        r.listname1 || '',
+        r.status || '',
+        r.rep || '',
+        r.fund || '',
+        r.subfund || '',
+        r.compensated,
+      ])
 
-      const csvContent = '\uFEFF' + csvRows.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `anc-service-30011_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `anc-service-30011_${ds1}_to_${ds2}.xlsx`,
+        title: 'บริการฝากครรภ์ (ANC 30011)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: exportRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
       alert(e.message)
@@ -456,9 +459,10 @@ export default function AncService30011Client({
             onClick={handleExportCsv}
             disabled={loading || isExporting || totalCount === 0}
             aria-busy={isExporting}
+            title="ส่งออกรายงานทั้งหมดเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} aria-hidden="true" />
-            {isExporting ? 'กำลังส่งออก...' : 'ส่งออกข้อมูล CSV'}
+            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}
           </button>
         </div>
       </header>
@@ -558,13 +562,13 @@ export default function AncService30011Client({
           }}
         >
           <div className="anc4-card-header">
-            <span className="anc4-card-label">มี Authen Code</span>
+            <span className="anc4-card-label">มี ClaimCode</span>
             <span className="anc4-card-badge anc4-badge-info">สปสช.</span>
           </div>
           <span className="anc4-card-val font-tabular">
             {summary.withAuthenCount.toLocaleString()}
           </span>
-          <span className="anc4-card-sub">ไม่มี Authen {summary.withoutAuthenCount.toLocaleString()} ราย</span>
+          <span className="anc4-card-sub">ไม่มี ClaimCode {summary.withoutAuthenCount.toLocaleString()} ราย</span>
         </button>
 
         <div className="anc4-summary-card">
@@ -712,6 +716,21 @@ export default function AncService30011Client({
             </div>
           </div>
 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--anc-text-muted)', fontWeight: 500 }}>
+              สิทธิการรักษา:
+            </span>
+            <PttypeMultiSelect
+              selectedCodes={pttypes}
+              onChange={(codes) => {
+                setPttypes(codes)
+                setCurrentPage(1)
+            }}
+            items={items}
+            
+          />
+          </div>
+
           {compensationFilter !== 'ALL' && (
             <div className="anc4-active-filter-badge">
               <Filter size={12} aria-hidden="true" />
@@ -722,8 +741,8 @@ export default function AncService30011Client({
                   : compensationFilter === 'UNCOMPENSATED'
                     ? 'ยังไม่ได้รับการชดเชย'
                     : compensationFilter === 'HAS_AUTHEN'
-                      ? 'มี Authen Code'
-                      : 'ไม่มี Authen Code'}
+                      ? 'มี ClaimCode'
+                      : 'ไม่มี ClaimCode'}
               </span>
               <button
                 type="button"
@@ -788,10 +807,9 @@ export default function AncService30011Client({
             <table className="anc4-table">
               <thead>
                 <tr>
-                  <th rowSpan={2} className="anc4-td-center">#</th>
+                  <th className="anc4-td-center">#</th>
                   <th
-                    rowSpan={2}
-                    className="anc4-th-sortable"
+                    className="anc4-th-sortable anc4-td-center"
                     onClick={() => handleSort('vstdate')}
                   >
                     <span className="anc4-th-content">
@@ -799,86 +817,78 @@ export default function AncService30011Client({
                     </span>
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc4-th-sortable"
+                    className="anc4-th-sortable anc4-td-center"
                     onClick={() => handleSort('vsttime')}
                   >
                     <span className="anc4-th-content">เวลา {renderSortIcon('vsttime')}</span>
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc4-th-sortable"
+                    className="anc4-th-sortable anc4-td-center"
                     onClick={() => handleSort('hn')}
                   >
                     <span className="anc4-th-content">HN {renderSortIcon('hn')}</span>
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc4-th-sortable"
+                    className="anc4-th-sortable anc4-td-center"
                     onClick={() => handleSort('cid')}
                   >
                     <span className="anc4-th-content">เลขบัตร ปชช. {renderSortIcon('cid')}</span>
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc4-th-sortable"
+                    className="anc4-th-sortable anc4-td-center"
                     onClick={() => handleSort('ptname')}
                   >
                     <span className="anc4-th-content">ชื่อ - สกุล {renderSortIcon('ptname')}</span>
                   </th>
                   <th
-                    rowSpan={2}
                     className="anc4-th-sortable anc4-td-center"
                     onClick={() => handleSort('age')}
                   >
                     <span className="anc4-th-content">อายุ {renderSortIcon('age')}</span>
                   </th>
-                  <th rowSpan={2}>สิทธิการรักษา</th>
-                  <th rowSpan={2}>แผนก</th>
-                  <th rowSpan={2}>คลินิก</th>
-                  <th colSpan={7} className="anc4-th-group">การวินิจฉัย</th>
-                  <th colSpan={6} className="anc4-th-group">หัตถการ</th>
-                  <th rowSpan={2}>รายการบริการ (30011)</th>
-                  <th rowSpan={2}>เวชภัณฑ์/บริการอื่น</th>
-                  <th
-                    rowSpan={2}
-                    className="anc4-th-sortable"
-                    onClick={() => handleSort('authencode')}
-                  >
-                    <span className="anc4-th-content">
-                      Authen Code {renderSortIcon('authencode')}
-                    </span>
+                  <th className="anc4-td-center">สิทธิการรักษา</th>
+                  <th className="anc4-td-center">แผนก</th>
+                  <th className="anc4-td-center">คลินิก</th>
+                  <th className="anc4-td-center">
+                    <span style={{ fontSize: '10px', color: 'var(--anc-muted)', display: 'block' }}>การวินิจฉัย</span>
+                    <span>PDX</span>
                   </th>
-                  <th rowSpan={2}>สถานะชดเชย</th>
-                  <th rowSpan={2}>เลขที่ Rep</th>
-                  <th rowSpan={2}>กองทุน</th>
-                  <th
-                    rowSpan={2}
-                    className="anc4-th-sortable anc4-td-num"
-                    onClick={() => handleSort('compensated')}
-                  >
-                    <span className="anc4-th-content">
-                      ยอดชดเชย (บาท) {renderSortIcon('compensated')}
-                    </span>
-                  </th>
-                </tr>
-                <tr>
-                  {/* การวินิจฉัย Subheaders */}
-                  <th className="anc4-td-center">PDX</th>
                   <th className="anc4-td-center">DX0</th>
                   <th className="anc4-td-center">DX1</th>
                   <th className="anc4-td-center">DX2</th>
                   <th className="anc4-td-center">DX3</th>
                   <th className="anc4-td-center">DX4</th>
                   <th className="anc4-td-center">DX5</th>
-
-                  {/* หัตถการ Subheaders */}
-                  <th className="anc4-td-center">OP0</th>
+                  <th className="anc4-td-center">
+                    <span style={{ fontSize: '10px', color: 'var(--anc-muted)', display: 'block' }}>หัตถการ</span>
+                    <span>OP0</span>
+                  </th>
                   <th className="anc4-td-center">OP1</th>
                   <th className="anc4-td-center">OP2</th>
                   <th className="anc4-td-center">OP3</th>
                   <th className="anc4-td-center">OP4</th>
                   <th className="anc4-td-center">OP5</th>
+                  <th className="anc4-td-center">รายการบริการ (30011)</th>
+                  <th className="anc4-td-center">เวชภัณฑ์/บริการอื่น</th>
+                  <th
+                    className="anc4-th-sortable anc4-td-center"
+                    onClick={() => handleSort('authencode')}
+                  >
+                    <span className="anc4-th-content">
+                      ClaimCode {renderSortIcon('authencode')}
+                    </span>
+                  </th>
+                  <th className="anc4-td-center">สถานะชดเชย</th>
+                  <th className="anc4-td-center">เลขที่ Rep</th>
+                  <th className="anc4-td-center">กองทุน</th>
+                  <th
+                    className="anc4-th-sortable anc4-td-center"
+                    onClick={() => handleSort('compensated')}
+                  >
+                    <span className="anc4-th-content">
+                      ยอดชดเชย (บาท) {renderSortIcon('compensated')}
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -962,7 +972,7 @@ export default function AncService30011Client({
                       {row.listname1 || '—'}
                     </td>
 
-                    {/* Authen Code */}
+                    {/* ClaimCode */}
                     <td>
                       {row.authencode ? (
                         <span className="anc4-badge anc4-badge-info font-tabular">
@@ -1126,7 +1136,7 @@ export default function AncService30011Client({
                     type="button"
                     className="anc4-copy-chip font-tabular"
                     onClick={() => handleCopy(selectedItem.authencode!, 'authen')}
-                    title="คัดลอก Authen Code"
+                    title="คัดลอก ClaimCode"
                   >
                     {copiedField === 'authen' ? <Check size={14} className="text-success" /> : <Copy size={14} />}
                     Authen: {selectedItem.authencode}

@@ -1,0 +1,116 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-wishlist-grid { box-sizing: border-box; inline-size: 100%; max-inline-size: 64rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-wishlist-grid *, .odl-wishlist-grid *::before, .odl-wishlist-grid *::after { box-sizing: border-box; }
+.odl-wishlist-grid .odl-wrap { --odl-tap: max(var(--ds-size-target-min), var(--ds-size-control-md)); display: grid; gap: var(--ds-space-stack-lg); }
+@container (max-width: 30rem) { .odl-wishlist-grid .odl-wrap { --odl-tap: var(--ds-size-target-touch); } }
+.odl-wishlist-grid .odl-top { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-wishlist-grid h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-wishlist-grid h3 span { color: var(--ds-color-text-tertiary); font: var(--ds-text-body-md); font-variant-numeric: tabular-nums; }
+.odl-wishlist-grid .odl-share { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: var(--odl-tap); padding: 0 var(--ds-space-inset-sm); border: 0; border-radius: var(--ds-radius-control);
+  background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-label-md); cursor: pointer; }
+.odl-wishlist-grid .odl-share:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-wishlist-grid .odl-share svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-wishlist-grid ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-section-sm) max(var(--ds-space-16), var(--ds-space-inset-lg)); margin: 0; padding: 0; list-style: none; }
+@container (min-width: 40rem) { .odl-wishlist-grid ul { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-section-sm) var(--ds-space-inset-lg); } }
+@container (min-width: 56rem) { .odl-wishlist-grid ul { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.odl-wishlist-grid li { position: relative; display: grid; grid-template-rows: auto 1fr auto; align-self: stretch; gap: var(--ds-space-stack-md); min-inline-size: 0; }
+.odl-wishlist-grid .odl-pic { position: relative; aspect-ratio: 4 / 5; border-radius: var(--ds-radius-container); overflow: hidden; }
+.odl-wishlist-grid .odl-pic { background: var(--ds-color-surface-sunken); }
+.odl-wishlist-grid .odl-pic img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-wishlist-grid .odl-drop, .odl-wishlist-grid .odl-out { display: inline-flex; align-items: center; gap: var(--ds-space-4); padding: var(--ds-space-2) var(--ds-space-8); border-radius: var(--ds-radius-control-sm); background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); font: var(--ds-text-label-sm); white-space: nowrap; }
+.odl-wishlist-grid .odl-drop svg { inline-size: var(--ds-space-12); block-size: var(--ds-space-12); stroke-width: var(--ds-icon-stroke-md); }
+.odl-wishlist-grid .odl-out { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); }
+.odl-wishlist-grid .odl-heart { --odl-hang: calc((var(--ds-size-target-touch) - var(--ds-size-control-sm)) / 2); position: absolute; inset-block-start: calc(var(--ds-space-8) - var(--odl-hang)); inset-inline-end: calc(var(--ds-space-8) - var(--odl-hang)); display: grid; place-items: center; inline-size: var(--ds-size-target-touch); block-size: var(--ds-size-target-touch); padding: 0; border: 0;
+  background: transparent; color: var(--ds-color-text-primary); cursor: pointer; }
+.odl-wishlist-grid .odl-heart span { display: grid; place-items: center; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); box-shadow: var(--ds-elevation-raised); }
+.odl-wishlist-grid .odl-heart svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-wishlist-grid .odl-heart path { fill: currentColor; }
+.odl-wishlist-grid .odl-heart:hover span { background: var(--ds-color-surface-sunken); }
+.odl-wishlist-grid .odl-info { display: grid; align-content: start; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-wishlist-grid .odl-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; margin: 0; overflow: hidden; font: var(--ds-text-label-lg); }
+.odl-wishlist-grid .odl-var { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-wishlist-grid .odl-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-stack-xs) var(--ds-space-inline-sm); margin: var(--ds-space-stack-xs) 0 0; font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; }
+.odl-wishlist-grid .odl-price b { font-weight: inherit; }
+.odl-wishlist-grid .odl-price s { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); }
+.odl-wishlist-grid .odl-move { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); inline-size: 100%; min-block-size: var(--odl-tap); padding: 0 var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font: var(--ds-text-label-md);
+  white-space: nowrap; cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-wishlist-grid .odl-move:hover:not(:disabled) { border-color: var(--ds-color-border-strong); background: var(--ds-color-bg-neutral-subtle); }
+.odl-wishlist-grid .odl-move svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-wishlist-grid .odl-move .is-done, .odl-wishlist-grid .odl-move[aria-pressed="true"] .is-bag { display: none; }
+.odl-wishlist-grid .odl-move[aria-pressed="true"] .is-done { display: block; }
+.odl-wishlist-grid .odl-move[aria-pressed="true"] { border-color: transparent; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-wishlist-grid .odl-move:disabled { border-color: var(--ds-color-border-subtle); background: var(--ds-color-surface-sunken); color: var(--ds-color-text-disabled); cursor: not-allowed; }
+/* The empty slot: a hint where the next saved item will go. */
+.odl-wishlist-grid .odl-slot { display: grid; place-content: center; justify-items: center; gap: var(--ds-space-stack-sm); min-inline-size: 0; aspect-ratio: 4 / 5; padding: var(--ds-space-inset-md); border: var(--ds-border-width-emphasis) dashed var(--ds-color-border-default);
+  border-radius: var(--ds-radius-container); color: var(--ds-color-text-secondary); text-align: center; font: var(--ds-text-body-sm); }
+.odl-wishlist-grid .odl-slot span { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-wishlist-grid .odl-slot svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-wishlist-grid .odl-slot b { color: var(--ds-color-text-primary); font: var(--ds-text-label-md); }
+.odl-wishlist-grid .odl-slot p { margin: 0; }
+.odl-wishlist-grid button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-wishlist-grid .odl-heart:focus-visible { outline: none; }
+.odl-wishlist-grid .odl-heart:focus-visible span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-wishlist-grid .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .odl-wishlist-grid, .odl-wishlist-grid *, .odl-wishlist-grid *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-wishlist-grid" aria-labelledby="odl-wg-title">
+  <div class="odl-wrap">
+    <div class="odl-top">
+      <h3 id="odl-wg-title">Saved <span class="odl-count">5 items</span></h3>
+      <button type="button" class="odl-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>Share list</button>
+    </div>
+    <ul>
+      <li>
+        <div class="odl-pic"><img src="https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=480&h=600&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=0.62&fp-z=2.2&auto=format&q=70" alt="White crew-neck tee on a hanger" width="240" height="300" loading="lazy" decoding="async"><button type="button" class="odl-heart" aria-label="Remove Heavyweight cotton tee from saved"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span></button></div>
+        <div class="odl-info"><p class="odl-name">Heavyweight cotton tee</p><p class="odl-var">Chalk · M</p><p class="odl-price is-down"><b><span class="odl-sr">Now </span>$28</b><s><span class="odl-sr">was </span>$40</s><span class="odl-drop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>Price drop</span></p></div>
+        <button type="button" class="odl-move" aria-pressed="false"><svg class="is-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><svg class="is-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="odl-l">Move to bag</span></button>
+      </li>
+      <li>
+        <div class="odl-pic"><img src="https://images.unsplash.com/photo-1605733513597-a8f8341084e6?w=480&h=600&fit=crop&auto=format&q=70" alt="Grey leather satchel" width="240" height="300" loading="lazy" decoding="async"><button type="button" class="odl-heart" aria-label="Remove Pebble leather satchel from saved"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span></button></div>
+        <div class="odl-info"><p class="odl-name">Pebble leather satchel</p><p class="odl-var">Stone grey</p><p class="odl-price">$145</p></div>
+        <button type="button" class="odl-move" aria-pressed="true"><svg class="is-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><svg class="is-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="odl-l">In your bag</span></button>
+      </li>
+      <li>
+        <div class="odl-pic"><img src="https://images.unsplash.com/photo-1603808033192-082d6919d3e1?w=480&h=600&fit=crop&auto=format&q=70" alt="White and tan low sneakers" width="240" height="300" loading="lazy" decoding="async"><button type="button" class="odl-heart" aria-label="Remove Trailcourt low sneaker from saved"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span></button></div>
+        <div class="odl-info"><p class="odl-name">Trailcourt low sneaker</p><p class="odl-var">Chalk and tan · 42</p><p class="odl-price is-down"><b><span class="odl-sr">Now </span>$89</b><s><span class="odl-sr">was </span>$120</s><span class="odl-drop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>Price drop</span></p></div>
+        <button type="button" class="odl-move" aria-pressed="false"><svg class="is-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><svg class="is-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="odl-l">Move to bag</span></button>
+      </li>
+      <li>
+        <div class="odl-pic"><img src="https://images.unsplash.com/photo-1570974802254-4b0ad1a755f5?w=480&h=600&fit=crop&auto=format&q=70" alt="Cream table lamp with a brass arm" width="240" height="300" loading="lazy" decoding="async"><button type="button" class="odl-heart" aria-label="Remove Arc desk lamp from saved"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span></button></div>
+        <div class="odl-info"><p class="odl-name">Arc desk lamp</p><p class="odl-var">Cream</p><p class="odl-price">$64<span class="odl-out">Back 12 Nov</span></p></div>
+        <button type="button" class="odl-move" disabled>Sold out</button>
+      </li>
+      <li>
+        <div class="odl-pic"><img src="https://images.unsplash.com/photo-1782351076283-73aa35f76058?w=480&h=600&fit=crop&auto=format&q=70" alt="Speckled green stoneware cup" width="240" height="300" loading="lazy" decoding="async"><button type="button" class="odl-heart" aria-label="Remove Speckled stoneware cup from saved"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span></button></div>
+        <div class="odl-info"><p class="odl-name">Speckled stoneware cup</p><p class="odl-var">Moss · 350 ml</p><p class="odl-price">$18</p></div>
+        <button type="button" class="odl-move" aria-pressed="false"><svg class="is-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><svg class="is-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="odl-l">Move to bag</span></button>
+      </li>
+      <li class="odl-slot-li">
+        <div class="odl-slot"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></span>
+          <p><b>Save more here</b></p><p>Tap the heart on anything to keep it for later.</p></div>
+      </li>
+    </ul>
+    <p class="odl-sr" aria-live="polite"></p>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-wishlist-grid").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const live = root.querySelector("[aria-live]"), count = root.querySelector(".odl-count");
+  root.querySelectorAll(".odl-move:not(:disabled)").forEach((b) => b.addEventListener("click", () => {
+    const on = b.getAttribute("aria-pressed") !== "true", name = b.closest("li").querySelector(".odl-name").textContent;
+    b.setAttribute("aria-pressed", String(on)); b.querySelector(".odl-l").textContent = on ? "In your bag" : "Move to bag";
+    live.textContent = on ? `${name} added to your bag` : `${name} taken out of your bag`;
+  }));
+  root.querySelectorAll(".odl-heart").forEach((b) => b.addEventListener("click", () => {
+    const li = b.closest("li"), name = li.querySelector(".odl-name").textContent, next = li.nextElementSibling;
+    li.remove();
+    const n = root.querySelectorAll("li:not(.odl-slot-li)").length;
+    count.textContent = n === 1 ? "1 item" : `${n} items`; live.textContent = `${name} removed from saved`;
+    const target = next && next.querySelector(".odl-heart"); (target || root.querySelector(".odl-share")).focus();
+  }));
+});
+</script>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -35,6 +36,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -94,6 +97,9 @@ export default function AnemiaScreening171Client({
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<AnemiaScreeningCardFilter>(
     initialData?.cardFilter ?? 'ALL'
+  )
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(
+    initialData?.ucOnly ? [...UC_ECLAIM_CODES] : []
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
   const [targetAgeOnly, setTargetAgeOnly] = useState<boolean>(initialData?.targetAgeOnly ?? false)
@@ -212,7 +218,11 @@ export default function AnemiaScreening171Client({
         params.set('ds1', ds1)
         params.set('ds2', ds2)
         params.set('cardFilter', cardFilter)
-        params.set('ucOnly', String(ucOnly))
+        if (selectedPttypes.length > 0) {
+          params.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          params.set('ucOnly', 'true')
+        }
         params.set('targetAgeOnly', String(targetAgeOnly))
         if (debouncedSearch) {
           params.set('searchField', searchField)
@@ -254,6 +264,7 @@ export default function AnemiaScreening171Client({
       ds1,
       ds2,
       cardFilter,
+      selectedPttypes,
       ucOnly,
       targetAgeOnly,
       searchField,
@@ -348,7 +359,11 @@ export default function AnemiaScreening171Client({
       params.set('ds1', ds1)
       params.set('ds2', ds2)
       params.set('cardFilter', cardFilter)
-      params.set('ucOnly', String(ucOnly))
+      if (selectedPttypes.length > 0) {
+        params.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        params.set('ucOnly', 'true')
+      }
       params.set('targetAgeOnly', String(targetAgeOnly))
       if (debouncedSearch) {
         params.set('searchField', searchField)
@@ -384,7 +399,7 @@ export default function AnemiaScreening171Client({
         'การวินิจฉัยร่วม (SDX)',
         'รายการ ADP',
         'ค่าบริการ',
-        'Authen Code',
+        'ClaimCode',
         'เคยเคลมซ้ำในปีงบ',
         'วันที่เคยเคลมเดิม',
         'เลขที่ REP',
@@ -393,50 +408,40 @@ export default function AnemiaScreening171Client({
         'กองทุน',
       ]
 
-      const csvRows = [headers.join(',')]
+      const rows = exportItems.map((row) => [
+        row.no,
+        row.vstdate,
+        row.vsttime,
+        row.hn,
+        row.cid,
+        row.ptname,
+        row.sex,
+        row.age,
+        row.isTargetAge ? 'ตรงกลุ่มเป้าหมาย' : 'นอกกลุ่มเป้าหมาย',
+        row.pttypename || '',
+        row.isUc ? 'ใช่' : 'ไม่ใช่',
+        row.department || '',
+        row.clinic || '',
+        row.pdx || '',
+        row.sdx || '',
+        row.listname || '',
+        row.income,
+        row.authencode || '',
+        row.hasRepeatClaim ? 'มีประวัติเคลมซ้ำ' : 'ไม่พบเคลมซ้ำ',
+        row.camedate || '',
+        row.rep || '',
+        row.status || '',
+        row.compensated,
+        row.fund || '',
+      ])
 
-      for (const row of exportItems) {
-        const values = [
-          row.no,
-          `"${row.vstdate}"`,
-          `"${row.vsttime}"`,
-          `"${row.hn}"`,
-          `"${row.cid}"`,
-          `"${row.ptname.replace(/"/g, '""')}"`,
-          `"${row.sex}"`,
-          row.age,
-          row.isTargetAge ? '"ตรงกลุ่มเป้าหมาย"' : '"นอกกลุ่มเป้าหมาย"',
-          `"${(row.pttypename || '').replace(/"/g, '""')}"`,
-          row.isUc ? '"ใช่"' : '"ไม่ใช่"',
-          `"${(row.department || '').replace(/"/g, '""')}"`,
-          `"${(row.clinic || '').replace(/"/g, '""')}"`,
-          `"${row.pdx || ''}"`,
-          `"${(row.sdx || '').replace(/"/g, '""')}"`,
-          `"${(row.listname || '').replace(/"/g, '""')}"`,
-          row.income,
-          `"${row.authencode || ''}"`,
-          row.hasRepeatClaim ? '"มีประวัติเคลมซ้ำ"' : '"ไม่พบเคลมซ้ำ"',
-          `"${row.camedate || ''}"`,
-          `"${row.rep || ''}"`,
-          `"${(row.status || '').replace(/"/g, '""')}"`,
-          row.compensated,
-          `"${row.fund || ''}"`,
-        ]
-        csvRows.push(values.join(','))
-      }
-
-      // Add UTF-8 BOM \uFEFF for proper Thai character display in Excel
-      const blob = new Blob(['\uFEFF' + csvRows.join('\r\n')], {
-        type: 'text/csv;charset=utf-8;',
+      await exportRcmExcel({
+        filename: `anemia_screening_17_1_${ds1}_to_${ds2}.xlsx`,
+        title: 'การคัดกรองภาวะซีดในเด็ก 6-12 เดือน (17.1)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
       })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `anemia_screening_17_1_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกข้อมูล')
     } finally {
@@ -487,10 +492,10 @@ export default function AnemiaScreening171Client({
             className="as-btn as-btn-secondary"
             onClick={exportToCsv}
             disabled={loading || isExporting || totalCount === 0}
-            title="ส่งออกรายงานเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -733,16 +738,16 @@ export default function AnemiaScreening171Client({
           </div>
         </div>
 
-        {/* Card 5: มี Authen Code */}
+        {/* Card 5: มี ClaimCode */}
         <div
           className={`as-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('WITH_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="as-kpi-header">
-            <span className="as-kpi-title">มี Authen Code</span>
+            <span className="as-kpi-title">มี ClaimCode</span>
             <div className="as-kpi-icon">
               <ShieldCheck size={16} />
             </div>
@@ -753,16 +758,16 @@ export default function AnemiaScreening171Client({
           </div>
         </div>
 
-        {/* Card 6: ไม่มี Authen Code */}
+        {/* Card 6: ไม่มี ClaimCode */}
         <div
           className={`as-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('NO_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่ขาด Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่ขาด ClaimCode"
         >
           <div className="as-kpi-header">
-            <span className="as-kpi-title">ไม่มี Authen Code</span>
+            <span className="as-kpi-title">ไม่มี ClaimCode</span>
             <div className="as-kpi-icon">
               <AlertTriangle size={16} />
             </div>
@@ -839,6 +844,58 @@ export default function AnemiaScreening171Client({
               </button>
             )}
           </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+          {selectedPttypes.length > 0 && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: '#e0f2fe',
+                color: '#0369a1',
+                padding: '2px 8px',
+                borderRadius: 6,
+                fontSize: '0.8rem',
+              }}
+            >
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะ UC (01-09)'
+                  : `${selectedPttypes.length} สิทธิ`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#0369a1',
+                  padding: 0,
+                  display: 'flex',
+                }}
+                title="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="as-toolbar-info">
@@ -939,7 +996,7 @@ export default function AnemiaScreening171Client({
                       className="as-table-sort-btn"
                       onClick={() => handleSort('authencode')}
                     >
-                      Authen Code{' '}
+                      ClaimCode{' '}
                       {sortBy === 'authencode' ? (
                         sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       ) : (
@@ -1256,9 +1313,9 @@ export default function AnemiaScreening171Client({
                       </div>
 
                       <div className="as-detail-card">
-                        <span className="as-detail-label">Authen Code (สปสช.)</span>
+                        <span className="as-detail-label">ClaimCode (สปสช.)</span>
                         <span className="as-detail-val">
-                          {selectedItem.authencode || <span style={{ color: '#d97706' }}>ไม่มีรหัส Authen</span>}
+                          {selectedItem.authencode || <span style={{ color: '#d97706' }}>ไม่มีรหัส ClaimCode</span>}
                         </span>
                       </div>
 

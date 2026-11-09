@@ -1,0 +1,164 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-live-chat { box-sizing: border-box; inline-size: 100%; max-inline-size: 76rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-live-chat *, .odl-live-chat *::before, .odl-live-chat *::after { box-sizing: border-box; }
+.odl-live-chat svg { flex: none; fill: none; stroke: currentColor; stroke-width: var(--ds-icon-stroke-md); stroke-linecap: round; stroke-linejoin: round; }
+.odl-live-chat .odl-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-lg); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-live-chat .odl-stage { display: grid; align-content: start; gap: var(--ds-space-stack-lg); min-inline-size: 0; }
+.odl-live-chat .odl-frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--ds-radius-nested); background: var(--ds-color-neutral-dark-2); }
+.odl-live-chat .odl-frame img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-live-chat .odl-chips { position: absolute; inset-block-start: var(--ds-space-inset-md); inset-inline-start: var(--ds-space-inset-md); display: flex; gap: var(--ds-space-inline-sm); }
+.odl-live-chat .odl-live, .odl-live-chat .odl-viewers { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); padding: var(--ds-space-4) var(--ds-space-8); border-radius: var(--ds-radius-control-sm); font: var(--ds-text-label-sm); letter-spacing: var(--ds-text-label-sm-tracking); font-variant-numeric: tabular-nums; }
+.odl-live-chat .odl-live { background: var(--ds-color-bg-danger-bold); color: var(--ds-color-text-on-danger); }
+.odl-live-chat .odl-live i { inline-size: var(--ds-space-6); block-size: var(--ds-space-6); border-radius: var(--ds-radius-full); background: currentColor; animation: odl-live-chat-pulse var(--ds-motion-duration-extra) var(--ds-motion-easing-standard) infinite alternate; }
+@keyframes odl-live-chat-pulse { from { opacity: 1; } to { opacity: .35; } }
+/* The viewer count sits on the photo: a dark scrim behind light text keeps its contrast whatever the frame shows. */
+/* A dark chip from the fixed dark alpha ramp: 4.5:1 on any frame, a white one included. */
+.odl-live-chat .odl-viewers { background: var(--ds-color-neutral-alpha-light-11); color: var(--ds-color-neutral-dark-12); }
+.odl-live-chat .odl-viewers svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-live-chat .odl-about { display: grid; gap: var(--ds-space-stack-sm); padding-inline: var(--ds-space-inset-xs); }
+.odl-live-chat h3 { margin: 0; font: var(--ds-text-title-lg); text-wrap: balance; }
+.odl-live-chat .odl-channel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); }
+.odl-live-chat .odl-host { inline-size: var(--ds-size-control-lg); block-size: var(--ds-size-control-lg); margin: calc(var(--ds-border-width-emphasis) * 2); border-radius: var(--ds-radius-person); object-fit: cover;
+  box-shadow: 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-surface-base), 0 0 0 calc(var(--ds-border-width-emphasis) * 2) var(--ds-color-border-danger); }
+.odl-live-chat .odl-name { margin: 0; font: var(--ds-text-label-lg); }
+.odl-live-chat .odl-meta { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-live-chat button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0; border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-live-chat button:hover { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-live-chat button svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); }
+.odl-live-chat button:focus-visible, .odl-live-chat input:focus-visible, .odl-live-chat .odl-log:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-live-chat .odl-follow { padding: 0 var(--ds-space-inset-lg); background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-live-chat .odl-follow svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-live-chat .odl-follow:hover { background: var(--ds-color-bg-action-primary-hover); color: var(--ds-color-text-on-action); }
+.odl-live-chat .odl-follow[aria-pressed="true"] { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); }
+.odl-live-chat .odl-follow[aria-pressed="true"]:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-live-chat .odl-follow .is-on, .odl-live-chat .odl-follow[aria-pressed="true"] .is-off { display: none; }
+.odl-live-chat .odl-follow[aria-pressed="true"] .is-on { display: inline-flex; }
+.odl-live-chat .odl-follow span { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); }
+.odl-live-chat .odl-chat { display: grid; grid-template-rows: auto auto 1fr auto; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; overflow: hidden; background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-nested); }
+.odl-live-chat .odl-chat-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-min));
+  padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-live-chat h4 { margin: 0; font: var(--ds-text-title-sm); }
+.odl-live-chat .odl-count { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-live-chat .odl-count svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); color: var(--ds-color-icon-subtle); }
+.odl-live-chat .odl-pin { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--ds-space-inline-md); margin: var(--ds-space-inset-md) var(--ds-space-inset-md) 0; padding: var(--ds-space-inset-md);
+  border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-neutral-subtle); font: var(--ds-text-body-md); }
+.odl-live-chat .odl-pin svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); margin-block-start: var(--ds-space-2); color: var(--ds-color-icon-subtle); }
+.odl-live-chat .odl-pin p { margin: 0; }
+.odl-live-chat .odl-pin small { display: block; margin-block-end: var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-live-chat .odl-pin a { display: inline-block; max-inline-size: 100%; color: var(--ds-color-text-link); overflow-wrap: normal; }
+.odl-live-chat .odl-pin a span { white-space: nowrap; }
+.odl-live-chat .odl-pin a:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); border-radius: var(--ds-radius-2); }
+.odl-live-chat .odl-log { display: flex; flex-direction: column; gap: var(--ds-space-stack-md); max-block-size: 40rem; margin: 0; padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); overflow-y: auto; overscroll-behavior: contain; list-style: none; }
+.odl-live-chat .odl-log li:first-child { margin-block-start: auto; }
+.odl-live-chat .odl-log li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--ds-space-inline-md); align-items: start; }
+.odl-live-chat .odl-log li.is-new { animation: odl-live-chat-in var(--ds-motion-duration-medium) var(--ds-motion-easing-enter); }
+@keyframes odl-live-chat-in { from { opacity: 0; transform: translateY(var(--ds-space-8)); } to { opacity: 1; transform: none; } }
+.odl-live-chat .odl-log p { margin: 0; font: var(--ds-text-body-md); overflow-wrap: anywhere; }
+.odl-live-chat .odl-av { display: block; inline-size: var(--ds-size-icon-lg); block-size: var(--ds-size-icon-lg); border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-live-chat .odl-who { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-inline-xs); margin-inline-end: var(--ds-space-inline-sm); vertical-align: top; }
+.odl-live-chat .odl-who b { color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); }
+.odl-live-chat .odl-who b.is-host { color: var(--ds-color-text-primary); }
+.odl-live-chat .odl-text { color: var(--ds-color-text-primary); }
+.odl-live-chat .odl-badge { padding: 0 var(--ds-space-6); border-radius: var(--ds-radius-control-sm); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); white-space: nowrap; }
+.odl-live-chat .odl-badge.is-host { background: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); }
+.odl-live-chat .odl-compose { display: flex; align-items: center; gap: var(--ds-space-inline-sm); padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-live-chat .odl-field { position: relative; display: flex; flex: 1; min-inline-size: 0; }
+.odl-live-chat .odl-compose input { flex: 1; min-inline-size: 0; min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0 var(--ds-space-inset-md); padding-inline-end: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); }
+.odl-live-chat .odl-compose input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-live-chat .odl-emoji { position: absolute; inset-block: 0; inset-inline-end: 0; }
+.odl-live-chat .odl-emoji:hover { background: transparent; }
+.odl-live-chat .odl-send { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-live-chat .odl-send:hover { background: var(--ds-color-bg-action-primary-hover); color: var(--ds-color-text-on-action); }
+/* Send stays quiet until there is something to send. */
+.odl-live-chat .odl-compose:has(input:placeholder-shown) .odl-send { background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); }
+.odl-live-chat .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (min-width: 52rem) {
+  .odl-live-chat .odl-wrap { grid-template-columns: minmax(0, 1.75fr) minmax(20rem, 1fr); align-items: stretch; gap: var(--ds-space-inset-xl); }
+  .odl-live-chat .odl-chat { min-block-size: 30rem; }
+  .odl-live-chat .odl-pin { margin: var(--ds-space-inset-lg) var(--ds-space-inset-lg) 0; }
+}
+@container (max-width: 30rem) {
+  .odl-live-chat .odl-chips { inset-block-start: var(--ds-space-inset-sm); inset-inline-start: var(--ds-space-inset-sm); }
+  .odl-live-chat h3 { font: var(--ds-text-title-md); }
+  /* On a phone, Follow sits under the name so the name and live time keep their width. */
+  .odl-live-chat .odl-channel { grid-template-columns: auto minmax(0, 1fr); row-gap: var(--ds-space-stack-sm); }
+  .odl-live-chat .odl-follow { grid-column: 2; justify-self: start; }
+  .odl-live-chat .odl-chat-top, .odl-live-chat .odl-log, .odl-live-chat .odl-compose { padding-inline: var(--ds-space-inset-md); }
+  /* Messages wrap to more lines on a phone: the log grows with the page rather than scrolling inside it, so the newest message
+     is never hidden below a fixed height. */
+  .odl-live-chat .odl-log { max-block-size: none; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-live-chat, .odl-live-chat *, .odl-live-chat *::before, .odl-live-chat *::after { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-live-chat" aria-label="Live stream: Oriane Valdmar, night two, full set">
+  <div class="odl-wrap">
+    <div class="odl-stage">
+      <div class="odl-frame">
+        <img src="https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1600&h=900&fit=crop&auto=format&q=70" alt="Stage lights over the audience at the concert" width="1600" height="900" loading="lazy" decoding="async">
+        <div class="odl-chips"><span class="odl-live"><i aria-hidden="true"></i>LIVE</span><span class="odl-viewers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><span><span class="odl-vc">2,418</span><span class="odl-sr"> watching</span></span></span></div>
+      </div>
+      <div class="odl-about">
+        <h3>Night two at the Quayside Room, full set</h3>
+        <div class="odl-channel">
+          <img class="odl-host" src="https://images.unsplash.com/photo-1543949806-2c9935e6aa78?w=96&h=96&fit=crop&auto=format&q=70" alt="" width="96" height="96" loading="lazy" decoding="async">
+          <div><p class="odl-name">Oriane Valdmar</p><p class="odl-meta">Music · live for 1 h 24 min</p></div>
+          <button type="button" class="odl-follow" aria-pressed="false"><span class="is-off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>Follow</span><span class="is-on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Following</span></button>
+        </div>
+      </div>
+    </div>
+    <aside class="odl-chat" aria-labelledby="odl-lc-title">
+      <div class="odl-chat-top"><h4 id="odl-lc-title">Live chat</h4><span class="odl-count"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>812 chatting</span></div>
+      <div class="odl-pin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg><p><small>Pinned by Oriane Valdmar</small>Setlist and tour dates are at <a href="https://oriane-valdmar.example/tour"><span>oriane-valdmar.example</span><wbr><span>/tour</span></a></p></div>
+      <ol class="odl-log" role="log" aria-live="polite" aria-label="Messages" tabindex="0">
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1518725522904-4b3939358342?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b>tidepool_kai</b></span><span class="odl-text">the crowd sounds so good tonight</span></p></li>
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1614273867161-22da2cd8ab39?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b>marguerite.v</b><span class="odl-badge">Member · 14 mo</span></span><span class="odl-text">what was the opening song called?</span></p></li>
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1770058428159-50cca6566c19?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b>oakleaf</b><span class="odl-badge">Mod</span></span><span class="odl-text">Reminder: be kind, and no setlist spoilers for tomorrow.</span></p></li>
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1564866657311-e9cc905d29cf?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b>bram_k</b></span><span class="odl-text">first time catching a stream, this is lovely</span></p></li>
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1617309644714-89d2ab1c9e19?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b>lunafjord</b><span class="odl-badge">Member · 3 mo</span></span><span class="odl-text">night two already? night one feels like yesterday</span></p></li>
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b>pinecone_jo</b></span><span class="odl-text">is the encore acoustic again?</span></p></li>
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1543949806-2c9935e6aa78?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b class="is-host">Oriane Valdmar</b><span class="odl-badge is-host">Host</span></span><span class="odl-text">Yes! Two quiet ones before we close.</span></p></li>
+        <li><img class="odl-av" src="https://images.unsplash.com/photo-1525599428495-0441bd5c67de?w=64&h=64&fit=crop&auto=format&q=70" alt="" width="64" height="64" loading="lazy" decoding="async"><p><span class="odl-who"><b>quietkettle</b></span><span class="odl-text">those lights in the second verse though</span></p></li>
+      </ol>
+      <form class="odl-compose">
+        <label class="odl-sr" for="odl-lc-input">Message</label>
+        <div class="odl-field">
+          <input id="odl-lc-input" type="text" placeholder="Say something nice" autocomplete="off" maxlength="200">
+          <button type="button" class="odl-emoji" aria-label="Add an emoji"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg></button>
+        </div>
+        <button type="submit" class="odl-send" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg></button>
+      </form>
+    </aside>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-live-chat").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const log = root.querySelector(".odl-log"), form = root.querySelector(".odl-compose"), input = form.querySelector("input");
+  const follow = root.querySelector(".odl-follow");
+  follow.addEventListener("click", () => follow.setAttribute("aria-pressed", String(follow.getAttribute("aria-pressed") !== "true")));
+  const add = (text) => {
+    const li = document.createElement("li"), av = document.createElement("img"), p = document.createElement("p"), who = document.createElement("span"), b = document.createElement("b"), tag = document.createElement("span"), t = document.createElement("span");
+    li.className = "is-new";
+    av.className = "odl-av"; av.alt = ""; av.width = 64; av.height = 64; av.decoding = "async";
+    av.src = "https://images.unsplash.com/photo-1611403119860-57c4937ef987?w=64&h=64&fit=crop&auto=format&q=70";
+    who.className = "odl-who"; b.textContent = "you"; tag.className = "odl-badge"; tag.textContent = "You";
+    t.className = "odl-text"; t.textContent = text;
+    who.append(b, tag); p.append(who, t); li.append(av, p); log.append(li);
+    log.scrollTop = log.scrollHeight;
+  };
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    add(text); input.value = "";
+  });
+  log.scrollTop = log.scrollHeight;
+});
+</script>

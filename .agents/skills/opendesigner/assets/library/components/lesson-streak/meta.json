@@ -1,0 +1,36 @@
+{
+  "name": "Lesson path",
+  "summary": "A learning path: the daily streak, XP and a daily goal ring, the unit with its cover photo, and lessons as round steps down a winding path, done, up next and locked, with a card under the chosen lesson to start or practise it.",
+  "use": "on the home screen of a language or learning app, for picking the next lesson",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "education",
+    "games"
+  ],
+  "tags": [
+    "lessons",
+    "streak",
+    "xp",
+    "learning path",
+    "gamified"
+  ],
+  "states": [
+    "done",
+    "up next",
+    "locked",
+    "selected",
+    "pressed",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "The path is an ordered list; each lesson is a button named with its number, title and state, the next one has aria-current=\"step\", locked ones are disabled, and the lesson card is a polite live region.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1583354608715-177553a4035e",
+      "author": "Klara Kulikova",
+      "page": "yjQDnOhGE34"
+    }
+  ]
+}

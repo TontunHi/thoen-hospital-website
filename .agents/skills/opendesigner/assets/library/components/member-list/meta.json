@@ -1,0 +1,19 @@
+{
+  "name": "Member list",
+  "summary": "A workspace's members with their email, a role picker per person, last active time, a pending invite you can resend and the owner's locked role.",
+  "use": "in team or workspace settings, to manage people and roles",
+  "type": "data",
+  "style": "quiet",
+  "industries": ["saas", "security", "any"],
+  "tags": ["members", "team", "roles", "invite", "permissions"],
+  "states": ["hover", "focus", "owner locked", "pending invite", "online"],
+  "source": "brand/showcase/product/06-ferrule-security",
+  "a11y": "Each role is a native select labelled with the person's name; the resend button names the invitee; on narrow widths the rows restack without hiding anything.",
+  "width": "medium",
+  "photos": [
+    {"img": "photo-1604072366595-e75dc92d6bdc", "author": "Jorik Kleen", "page": "lNNHyRbmm0o"},
+    {"img": "photo-1535713875002-d1d0cf377fde", "author": "Alex Suprun", "page": "ZHvM3XIOHoE"},
+    {"img": "photo-1500648767791-00dcc994a43e", "author": "Jurica Koletić", "page": "7YVZYZeITc8"},
+    {"img": "photo-1681097561932-36d0df02b379", "author": "Anky Lau", "page": "ntLkvt6OZvQ"}
+  ]
+}

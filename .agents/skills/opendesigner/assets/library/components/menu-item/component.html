@@ -1,0 +1,141 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-menu-item { box-sizing: border-box; inline-size: 100%; max-inline-size: 28rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-menu-item *, .odl-menu-item *::before, .odl-menu-item *::after { box-sizing: border-box; }
+.odl-menu-item form { --odl-tap: var(--ds-size-target-touch); display: grid; margin: 0; overflow: hidden; background: var(--ds-color-surface-overlay); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay); }
+/* The dish: a photo. */
+.odl-menu-item .odl-photo { position: relative; aspect-ratio: 16 / 10; background: var(--ds-color-surface-sunken); }
+.odl-menu-item .odl-photo img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-menu-item .odl-close { --odl-hang: calc((var(--ds-size-target-touch) - var(--ds-size-control-md)) / 2); position: absolute; inset-block-start: calc(var(--ds-space-inset-md) - var(--odl-hang)); inset-inline-end: calc(var(--ds-space-inset-md) - var(--odl-hang)); display: grid; place-items: center;
+  inline-size: max(var(--ds-size-target-touch), var(--ds-size-control-md)); block-size: max(var(--ds-size-target-touch), var(--ds-size-control-md)); padding: 0; border: 0; background: transparent; color: var(--ds-color-text-primary); cursor: pointer; }
+.odl-menu-item .odl-close span { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); box-shadow: var(--ds-elevation-raised); }
+.odl-menu-item .odl-close:focus-visible { outline: none; }
+.odl-menu-item .odl-close:focus-visible span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-menu-item .odl-close svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-menu-item .odl-flag { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-menu-item .odl-flag svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-subtle); }
+/* Body */
+.odl-menu-item .odl-body { display: grid; gap: var(--ds-space-stack-xl); padding: var(--ds-space-inset-xl) var(--ds-space-inset-xl) var(--ds-space-inset-lg); }
+.odl-menu-item .odl-head { display: grid; gap: var(--ds-space-stack-sm); }
+.odl-menu-item .odl-titles { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-menu-item h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-menu-item .odl-desc { margin: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); }
+.odl-menu-item .odl-facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); margin: var(--ds-space-stack-xs) 0 0; font: var(--ds-text-label-md); color: var(--ds-color-text-secondary); }
+.odl-menu-item .odl-facts b { color: var(--ds-color-text-primary); font: var(--ds-text-title-sm); font-variant-numeric: tabular-nums; }
+.odl-menu-item .odl-pill { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); }
+.odl-menu-item .odl-pill svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-subtle); }
+.odl-menu-item fieldset { display: grid; margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.odl-menu-item legend { display: contents; }
+.odl-menu-item .odl-gh { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-md); margin-block-end: var(--ds-space-stack-sm); }
+.odl-menu-item .odl-gh b { font: var(--ds-text-title-sm); }
+.odl-menu-item .odl-gh small { display: block; margin-block-start: var(--ds-space-stack-xs); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-menu-item .odl-req { flex: none; padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); }
+.odl-menu-item .odl-req.is-ok { background: var(--ds-color-bg-success-subtle); color: var(--ds-color-text-success); }
+.odl-menu-item .odl-opt { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--odl-tap), var(--ds-size-control-lg));
+  padding-block: var(--ds-space-inset-sm); cursor: pointer; }
+.odl-menu-item .odl-opt + .odl-opt { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-menu-item .odl-opt input { position: absolute; opacity: 0; inline-size: 1px; block-size: 1px; margin: 0; }
+.odl-menu-item .odl-box { display: grid; place-items: center; inline-size: var(--ds-space-20); block-size: var(--ds-space-20); border: var(--ds-border-width-emphasis) solid var(--ds-color-border-input); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-field); transition: border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-menu-item .odl-box::after { content: ""; inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-text-on-action); transform: scale(0);
+  transition: transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-menu-item input:checked + .odl-box { border-color: var(--ds-color-bg-action-primary); background: var(--ds-color-bg-action-primary); }
+.odl-menu-item input:checked + .odl-box::after { transform: scale(1); }
+.odl-menu-item input[type="checkbox"] + .odl-box { border-radius: var(--ds-radius-4); }
+.odl-menu-item input[type="checkbox"] + .odl-box::after { inline-size: var(--ds-space-12); block-size: var(--ds-space-6); border-radius: 0; background: transparent; border-inline-start: var(--ds-border-width-emphasis) solid var(--ds-color-text-on-action);
+  border-block-end: var(--ds-border-width-emphasis) solid var(--ds-color-text-on-action); transform: translateY(-15%) rotate(-45deg) scale(0); }
+.odl-menu-item input[type="checkbox"]:checked + .odl-box::after { transform: translateY(-15%) rotate(-45deg) scale(1); }
+.odl-menu-item input:disabled + .odl-box { background: var(--ds-color-bg-disabled); border-color: var(--ds-color-border-subtle); }
+.odl-menu-item .odl-opt:has(input:disabled) { cursor: not-allowed; color: var(--ds-color-text-disabled); }
+.odl-menu-item .odl-opt:hover:not(:has(input:disabled)) .odl-box { border-color: var(--ds-color-border-strong); }
+.odl-menu-item .odl-opt:has(input:focus-visible) .odl-box { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-menu-item .odl-on { font: var(--ds-text-body-md); }
+.odl-menu-item .odl-on small { display: block; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-menu-item .odl-add { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-menu-item .odl-note { display: grid; gap: var(--ds-space-stack-sm); }
+.odl-menu-item .odl-note label { font: var(--ds-text-title-sm); }
+.odl-menu-item textarea { inline-size: 100%; min-block-size: calc(var(--ds-size-control-lg) * 1.6); padding: var(--ds-space-inset-sm) var(--ds-space-inset-md); resize: vertical; border: var(--ds-border-width-default) solid var(--ds-color-border-input);
+  border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary); font: var(--ds-text-body-md); font-size: var(--ds-font-size-input); }
+.odl-menu-item textarea::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-menu-item textarea:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); border-color: var(--ds-color-border-focus); }
+/* Footer: quantity and the live total */
+.odl-menu-item .odl-foot { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--ds-space-inline-md); padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl) var(--ds-space-inset-xl);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); background: var(--ds-color-surface-overlay); }
+.odl-menu-item .odl-step { display: inline-flex; align-items: center; border-radius: var(--ds-radius-control); background: var(--ds-color-bg-neutral-subtle); }
+.odl-menu-item .odl-step button { display: grid; place-items: center; inline-size: var(--odl-tap); block-size: max(var(--odl-tap), var(--ds-size-control-lg)); padding: 0; border: 0; border-radius: var(--ds-radius-control);
+  background: transparent; color: var(--ds-color-text-primary); cursor: pointer; }
+.odl-menu-item .odl-step button:hover:not(:disabled) { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-menu-item .odl-step button:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-menu-item .odl-step svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-menu-item .odl-step output { min-inline-size: var(--ds-space-20); text-align: center; font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; }
+.odl-menu-item .odl-go { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); min-block-size: max(var(--odl-tap), var(--ds-size-control-lg)); padding: 0 var(--ds-space-inset-lg);
+  border: 0; border-radius: var(--ds-radius-control); background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-menu-item .odl-go:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-menu-item .odl-go:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-menu-item .odl-go span:last-child { font-variant-numeric: tabular-nums; }
+.odl-menu-item button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-menu-item .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (max-width: 24rem) { .odl-menu-item .odl-body, .odl-menu-item .odl-foot { padding-inline: var(--ds-space-inset-lg); } .odl-menu-item .odl-body { padding-block-start: var(--ds-space-inset-lg); } .odl-menu-item .odl-foot { padding-block-end: var(--ds-space-inset-lg); } }
+@media (prefers-reduced-motion: reduce) { .odl-menu-item, .odl-menu-item *, .odl-menu-item *::before, .odl-menu-item *::after { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-menu-item">
+  <form aria-labelledby="odl-mi-title" data-base="14.50">
+    <div class="odl-photo">
+      <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=896&h=560&fit=crop&auto=format&q=70" alt="A grain bowl with vegetables and sliced chicken" width="448" height="280" loading="lazy" decoding="async">
+      <button type="button" class="odl-close" aria-label="Close"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></button>
+    </div>
+    <div class="odl-body">
+      <div class="odl-head">
+        <div class="odl-titles"><p class="odl-flag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>#2 most ordered</p><h3 id="odl-mi-title">Sesame chicken grain bowl</h3></div>
+        <p class="odl-desc">Charred chicken thigh in a sesame-chilli glaze over your choice of base, with roast squash, greens, radish and toasted seeds.</p>
+        <p class="odl-facts"><b>$14.50</b><span>640 kcal</span><span class="odl-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Mildly spicy</span></p>
+      </div>
+      <fieldset class="odl-base">
+        <legend><span class="odl-gh"><span><b>Choose your base</b><small>Pick 1</small></span><span class="odl-req">Required</span></span></legend>
+        <label class="odl-opt"><input type="radio" name="odl-menu-item-base" value="0" required><span class="odl-box"></span><span class="odl-on">Jasmine rice</span><span class="odl-add"></span></label>
+        <label class="odl-opt"><input type="radio" name="odl-menu-item-base" value="0"><span class="odl-box"></span><span class="odl-on">Brown rice <small>More fibre</small></span><span class="odl-add"></span></label>
+        <label class="odl-opt"><input type="radio" name="odl-menu-item-base" value="1"><span class="odl-box"></span><span class="odl-on">Buckwheat noodles</span><span class="odl-add">+$1.00</span></label>
+      </fieldset>
+      <fieldset class="odl-extras">
+        <legend><span class="odl-gh"><span><b>Add extras</b><small>Up to 3</small></span><span class="odl-req is-opt">Optional</span></span></legend>
+        <label class="odl-opt"><input type="checkbox" value="3" checked><span class="odl-box"></span><span class="odl-on">Extra chicken</span><span class="odl-add">+$3.00</span></label>
+        <label class="odl-opt"><input type="checkbox" value="1.5"><span class="odl-box"></span><span class="odl-on">Soy-cured egg</span><span class="odl-add">+$1.50</span></label>
+        <label class="odl-opt"><input type="checkbox" value="2"><span class="odl-box"></span><span class="odl-on">Avocado</span><span class="odl-add">+$2.00</span></label>
+        <label class="odl-opt"><input type="checkbox" value="0.5"><span class="odl-box"></span><span class="odl-on">Pickled ginger</span><span class="odl-add">+$0.50</span></label>
+      </fieldset>
+      <div class="odl-note">
+        <label for="odl-mi-note">Note for the kitchen</label>
+        <textarea id="odl-mi-note" rows="2" placeholder="Allergies, less spice, no onion…"></textarea>
+      </div>
+    </div>
+    <div class="odl-foot">
+      <div class="odl-step" role="group" aria-label="Quantity"><button type="button" class="odl-minus" aria-label="One fewer" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><output aria-live="polite">1</output><button type="button" class="odl-plus" aria-label="One more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button></div>
+      <button type="submit" class="odl-go"><span class="odl-go-label">Add to order</span><span class="odl-total">$17.50</span></button>
+    </div>
+  </form>
+</div>
+<script>
+document.querySelectorAll(".odl-menu-item").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const form = root.querySelector("form"), base = Number(form.dataset.base), out = root.querySelector("output"), minus = root.querySelector(".odl-minus");
+  const extras = [...root.querySelectorAll(".odl-extras input")], req = root.querySelector(".odl-base .odl-req"), label = root.querySelector(".odl-go-label");
+  const update = () => {
+    const q = Number(out.textContent), pick = root.querySelector(".odl-base input:checked");
+    const each = base + (pick ? Number(pick.value) : 0) + extras.filter((x) => x.checked).reduce((s, x) => s + Number(x.value), 0);
+    root.querySelector(".odl-total").textContent = "$" + (each * q).toFixed(2);
+    minus.disabled = q <= 1;
+    const full = extras.filter((x) => x.checked).length >= 3;
+    extras.forEach((x) => { x.disabled = full && !x.checked; });
+    req.classList.toggle("is-ok", !!pick); req.textContent = pick ? "Done" : "Required";
+    label.textContent = !pick ? "Pick a base" : q > 1 ? `Add ${q} to order` : "Add to order";
+  };
+  form.addEventListener("change", update);
+  root.querySelector(".odl-plus").addEventListener("click", () => { out.textContent = Number(out.textContent) + 1; update(); });
+  minus.addEventListener("click", () => { out.textContent = Math.max(1, Number(out.textContent) - 1); update(); });
+  form.addEventListener("submit", (e) => { e.preventDefault(); if (!root.querySelector(".odl-base input:checked")) { root.querySelector(".odl-base input").focus(); return; } label.textContent = "Added"; });
+  update();
+});
+</script>

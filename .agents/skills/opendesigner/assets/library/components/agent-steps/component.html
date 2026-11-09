@@ -1,0 +1,128 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-agent-steps { --odl-dot: var(--ds-size-control-sm); box-sizing: border-box; inline-size: 100%; max-inline-size: 40rem; margin-inline: auto; container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-agent-steps *, .odl-agent-steps *::before, .odl-agent-steps *::after { box-sizing: border-box; }
+.odl-agent-steps svg { flex: none; stroke-width: var(--ds-icon-stroke-md); }
+.odl-agent-steps .odl-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md);
+  padding-block-end: var(--ds-space-stack-lg); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-agent-steps h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-agent-steps .odl-sub { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); margin: 0;
+  color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); font-variant-numeric: tabular-nums; }
+.odl-agent-steps .odl-run { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); padding: var(--ds-space-4) var(--ds-space-inset-xs); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label); }
+.odl-agent-steps .odl-run::before { content: ""; inline-size: var(--ds-space-8); block-size: var(--ds-space-8); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-accent-bold);
+  animation: odl-agent-steps-pulse var(--ds-motion-duration-extra) var(--ds-motion-easing-standard) infinite alternate; }
+.odl-agent-steps[data-run="stopped"] .odl-run::before { animation: none; background: var(--ds-color-bg-danger-bold); }
+@keyframes odl-agent-steps-pulse { to { opacity: 0.35; } }
+.odl-agent-steps button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min));
+  padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-agent-steps button svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-agent-steps .odl-stop { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-default); }
+.odl-agent-steps .odl-stop:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-agent-steps .odl-stop:disabled { color: var(--ds-color-text-disabled); background: var(--ds-color-bg-disabled); border-color: var(--ds-color-border-subtle); cursor: default; }
+.odl-agent-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.odl-agent-steps li { position: relative; display: grid; grid-template-columns: var(--odl-dot) minmax(0, 1fr); column-gap: var(--ds-space-inline-md); padding-block-end: var(--ds-space-stack-lg); }
+.odl-agent-steps li:last-child { padding-block-end: 0; }
+/* The line between steps runs from under one dot to the next. */
+.odl-agent-steps li:not(:last-child)::before { content: ""; position: absolute; inset-block: calc(var(--odl-dot) + var(--ds-space-4)) var(--ds-space-4); inset-inline-start: calc(var(--odl-dot) / 2 - var(--ds-border-width-emphasis) / 2);
+  border-inline-start: var(--ds-border-width-emphasis) solid var(--ds-color-border-default); }
+.odl-agent-steps .odl-dot { display: grid; place-items: center; inline-size: var(--odl-dot); block-size: var(--odl-dot); border-radius: var(--ds-radius-full);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-icon-subtle); }
+.odl-agent-steps .odl-dot svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+.odl-agent-steps .is-done .odl-dot { background: var(--ds-color-bg-success-subtle); border-color: transparent; color: var(--ds-color-text-success); }
+.odl-agent-steps .is-running .odl-dot { border: var(--ds-border-width-emphasis) solid var(--ds-color-border-accent); }
+.odl-agent-steps .is-running .odl-dot::after { content: ""; inline-size: 36%; block-size: 36%; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-accent-bold); }
+.odl-agent-steps .is-waiting .odl-dot { background: var(--ds-color-bg-warning-subtle); border-color: transparent; color: var(--ds-color-text-warning); }
+.odl-agent-steps .is-skipped .odl-dot { background: var(--ds-color-bg-neutral-subtle); border-color: transparent; color: var(--ds-color-text-tertiary); }
+.odl-agent-steps .is-stopped .odl-dot { background: var(--ds-color-bg-danger-subtle); border-color: transparent; color: var(--ds-color-text-danger); }
+.odl-agent-steps .odl-text { min-inline-size: 0; display: grid; align-content: start; gap: var(--ds-space-stack-xs); padding-block-start: calc((var(--odl-dot) - 1lh) / 2); }
+.odl-agent-steps .odl-title { font-weight: var(--ds-font-weight-label); }
+.odl-agent-steps .is-skipped .odl-title { color: var(--ds-color-text-secondary); font-weight: var(--ds-font-weight-body); }
+.odl-agent-steps .odl-detail { color: var(--ds-color-text-secondary); font: var(--ds-text-body-sm); }
+.odl-agent-steps .odl-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-inline-md); }
+.odl-agent-steps .odl-time { flex: none; color: var(--ds-color-text-tertiary); font: var(--ds-text-body-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-agent-steps .odl-tag { justify-self: start; display: inline-flex; align-items: center; margin-block-start: var(--ds-space-stack-xs); padding: var(--ds-space-2) var(--ds-space-inset-xs);
+  border-radius: var(--ds-radius-full); background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-warning); font: var(--ds-text-label-md); }
+.odl-agent-steps .odl-progress { position: relative; block-size: var(--ds-space-4); margin-block-start: var(--ds-space-stack-xs); max-inline-size: 16rem; overflow: hidden; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); }
+.odl-agent-steps .odl-progress span { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 50%; border-radius: inherit; background: var(--ds-color-bg-accent-bold); }
+.odl-agent-steps .odl-progress span::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--ds-color-surface-raised), transparent); opacity: 0.5;
+  animation: odl-agent-steps-sheen var(--ds-motion-duration-extra) var(--ds-motion-easing-linear) infinite; transform: translateX(-100%); }
+@keyframes odl-agent-steps-sheen { to { transform: translateX(100%); } }
+.odl-agent-steps .odl-approve { display: flex; flex-wrap: wrap; gap: var(--ds-space-inline-sm); margin-block-start: var(--ds-space-stack-sm); }
+.odl-agent-steps .odl-yes { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); border: var(--ds-border-width-default) solid var(--ds-color-bg-action-primary); }
+.odl-agent-steps .odl-yes:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-agent-steps .odl-no { background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); border: var(--ds-border-width-default) solid var(--ds-color-border-default); }
+.odl-agent-steps .odl-no:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-agent-steps details { margin-block-start: var(--ds-space-2); }
+.odl-agent-steps summary { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); min-block-size: var(--ds-size-target-min); padding-inline-end: var(--ds-space-8);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-lg); cursor: pointer; list-style: none; border-radius: var(--ds-radius-control-sm); }
+.odl-agent-steps summary:hover { color: var(--ds-color-text-primary); }
+.odl-agent-steps summary::-webkit-details-marker { display: none; }
+.odl-agent-steps summary svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); transition: transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-agent-steps details[open] summary svg { transform: rotate(90deg); }
+.odl-agent-steps pre { margin: var(--ds-space-stack-xs) 0 0; padding: var(--ds-space-inset-md); background: var(--ds-color-surface-sunken); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-nested); color: var(--ds-color-text-primary); font: var(--ds-text-code-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+.odl-agent-steps pre .odl-k { color: var(--ds-color-text-secondary); }
+.odl-agent-steps pre .odl-ok { color: var(--ds-color-text-success); }
+.odl-agent-steps pre .odl-warn { color: var(--ds-color-text-warning); }
+.odl-agent-steps button:focus-visible, .odl-agent-steps summary:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-agent-steps [hidden] { display: none !important; }
+/* Phone: a little less outer padding; the times stay, the approve buttons share the row. */
+@container (max-width: 30rem) {
+  .odl-agent-steps { padding: var(--ds-space-inset-lg); }
+  .odl-agent-steps .odl-approve button { flex: 1 1 8rem; }
+  .odl-agent-steps .odl-row { display: grid; gap: var(--ds-space-2); }
+  .odl-agent-steps li { column-gap: var(--ds-space-inline-sm); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-agent-steps, .odl-agent-steps *, .odl-agent-steps *::before, .odl-agent-steps *::after { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-agent-steps" data-run="running" aria-labelledby="odl-agent-steps-title">
+  <div class="odl-head">
+    <h3 id="odl-agent-steps-title">Match October invoices</h3>
+    <button type="button" class="odl-stop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>Stop run</button>
+    <p class="odl-sub"><span class="odl-run" role="status">Running</span><span>Started 9:41 am · 1m 12s so far</span></p>
+  </div>
+  <ol>
+    <li class="is-done"><span class="odl-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="odl-text"><span class="odl-row"><span class="odl-title">Read 3 invoices</span><span class="odl-time">0:08</span></span><span class="odl-detail">Inchley Print Co., Yarrowby Software, Pendrick Telecom</span></span></li>
+    <li class="is-done"><span class="odl-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="odl-text"><span class="odl-row"><span class="odl-title">Matched 2 to PO-3318</span><span class="odl-time">0:21</span></span><span class="odl-detail">Amounts and quantities agree within $0.50</span>
+        <details><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>Tool output</summary>
+<pre><code><span class="odl-k">match_invoices(po="PO-3318")</span>
+INV-2201  Inchley Print Co.     $2,480.00  <span class="odl-ok">matched</span>
+INV-2204  Pendrick Telecom     $612.40  <span class="odl-ok">matched</span>
+INV-2207  Yarrowby Software    $3,940.00  <span class="odl-warn">over PO by $1,140.00</span></code></pre></details></span></li>
+    <li class="is-waiting"><span class="odl-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></span>
+      <span class="odl-text"><span class="odl-row"><span class="odl-title">Flag 1 for review</span><span class="odl-time">0:29</span></span><span class="odl-detail">INV-2207 is $1,140.00 over the PO. Send it to Bettina Marangoni?</span><span class="odl-tag">Waiting for your approval</span>
+        <span class="odl-approve"><button type="button" class="odl-yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Approve</button><button type="button" class="odl-no">Deny</button></span></span></li>
+    <li class="is-running" aria-current="step"><span class="odl-dot"></span>
+      <span class="odl-text"><span class="odl-row"><span class="odl-title">Drafting payments for the 2 matched</span><span class="odl-time">0:41</span></span><span class="odl-detail">1 of 2 payments drafted</span><span class="odl-progress" role="progressbar" aria-label="Payment batch" aria-valuemin="0" aria-valuemax="2" aria-valuenow="1"><span></span></span></span></li>
+    <li class="is-skipped"><span class="odl-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></span>
+      <span class="odl-text"><span class="odl-row"><span class="odl-title">Email vendors a remittance note</span></span><span class="odl-detail">Skipped: turned off for this workspace</span></span></li>
+  </ol>
+  <template class="odl-icons"><svg class="odl-i-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><svg class="odl-i-skip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg><svg class="odl-i-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></template>
+</section>
+<script>
+document.querySelectorAll(".odl-agent-steps").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const icons = root.querySelector(".odl-icons").content;
+  const icon = (cls) => icons.querySelector("." + cls).cloneNode(true);
+  const stop = root.querySelector(".odl-stop"), run = root.querySelector(".odl-run");
+  const wait = root.querySelector(".is-waiting"), tag = wait.querySelector(".odl-tag"), btns = wait.querySelector(".odl-approve");
+  const settle = (cls, text, ic) => { wait.className = cls; tag.className = "odl-detail"; tag.textContent = text; btns.hidden = true;
+    wait.querySelector(".odl-dot").replaceChildren(icon(ic)); };
+  wait.querySelector(".odl-yes").addEventListener("click", () => settle("is-done", "Approved by you. Sent to Bettina Marangoni.", "odl-i-done"));
+  wait.querySelector(".odl-no").addEventListener("click", () => settle("is-skipped", "Denied by you. INV-2207 stays on hold.", "odl-i-skip"));
+  stop.addEventListener("click", () => {
+    root.dataset.run = "stopped"; run.textContent = "Stopped"; stop.disabled = true;
+    const cur = root.querySelector(".is-running");
+    if (cur) { cur.className = "is-stopped"; cur.removeAttribute("aria-current"); cur.querySelector(".odl-dot").replaceChildren(icon("odl-i-stop"));
+      const bar = cur.querySelector(".odl-progress"); if (bar) bar.hidden = true; cur.querySelector(".odl-detail").textContent = "Stopped after 1 of 2 payments. Nothing was sent."; }
+    if (!btns.hidden) settle("is-skipped", "Not sent: the run was stopped.", "odl-i-skip");
+  });
+});
+</script>

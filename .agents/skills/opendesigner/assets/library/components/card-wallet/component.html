@@ -1,0 +1,150 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-card-wallet { box-sizing: border-box; inline-size: 100%; max-inline-size: 28rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-card-wallet *, .odl-card-wallet *::before, .odl-card-wallet *::after { box-sizing: border-box; }
+.odl-card-wallet p, .odl-card-wallet h3, .odl-card-wallet h4 { margin: 0; }
+.odl-card-wallet .odl-shell { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-card-wallet .odl-top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--ds-space-inline-sm); }
+.odl-card-wallet .odl-label { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-card-wallet .odl-balance { margin-block-start: var(--ds-space-stack-xs); font: var(--ds-text-headline-sm); font-variant-numeric: tabular-nums; }
+.odl-card-wallet .odl-balance small { color: var(--ds-color-text-secondary); font: var(--ds-text-title-md); }
+.odl-card-wallet .odl-reveal { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); min-block-size: var(--ds-size-target-touch); padding: 0 var(--ds-space-inset-sm);
+  border: 0; border-radius: var(--ds-radius-control); background: transparent; color: var(--ds-color-text-link); font: var(--ds-text-label-md); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-card-wallet .odl-reveal:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-card-wallet .odl-reveal:disabled { background: transparent; color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-card-wallet .odl-reveal svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-card-wallet .odl-reveal .is-hide, .odl-card-wallet .odl-reveal[aria-pressed="true"] .is-show { display: none; }
+.odl-card-wallet .odl-reveal[aria-pressed="true"] .is-hide { display: block; }
+/* The card itself: drawn from the accent ramp, no image. */
+.odl-card-wallet .odl-plastic { position: relative; display: grid; grid-template-rows: auto 1fr auto; aspect-ratio: 1.586; padding: var(--ds-space-inset-lg); overflow: hidden;
+  border-radius: var(--ds-radius-container); color: var(--ds-color-white); box-shadow: var(--ds-elevation-floating);
+  background: radial-gradient(120% 90% at 100% 0%, var(--ds-color-accent-light-9), transparent 60%), linear-gradient(150deg, var(--ds-color-accent-light-11), var(--ds-color-accent-light-12));
+  transition: filter var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-card-wallet .odl-swirl { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; pointer-events: none; }
+.odl-card-wallet .odl-swirl circle { fill: none; stroke: var(--ds-color-neutral-alpha-dark-4); stroke-width: 1; }
+.odl-card-wallet .odl-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-inline-sm); }
+.odl-card-wallet .odl-kind { font: var(--ds-text-title-sm); }
+.odl-card-wallet .odl-kind small { display: block; opacity: 0.8; font: var(--ds-text-label-sm); }
+.odl-card-wallet .odl-chip { position: relative; align-self: center; inline-size: calc(var(--ds-size-icon-lg) * 1.7); aspect-ratio: 1.3; border-radius: var(--ds-radius-4);
+  background: linear-gradient(135deg, var(--ds-color-warning-light-6), var(--ds-color-warning-light-9)); }
+.odl-card-wallet .odl-chip svg { display: block; inline-size: 100%; block-size: 100%; }
+.odl-card-wallet .odl-chip path { fill: none; stroke: var(--ds-color-warning-light-11); stroke-width: 1; opacity: 0.6; }
+.odl-card-wallet .odl-tap { inline-size: var(--ds-size-icon-lg); block-size: var(--ds-size-icon-lg); stroke-width: var(--ds-icon-stroke-md); opacity: 0.85; }
+.odl-card-wallet .odl-num { font: var(--ds-text-title-md); font-variant-numeric: tabular-nums; letter-spacing: var(--ds-text-title-md-tracking); white-space: nowrap; }
+.odl-card-wallet .odl-meta { display: flex; gap: var(--ds-space-inline-md); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+.odl-card-wallet .odl-meta > span { display: grid; }
+.odl-card-wallet .odl-meta small { opacity: 0.75; font: var(--ds-text-label-sm); }
+.odl-card-wallet .is-full, .odl-card-wallet.is-shown .is-masked { display: none; }
+.odl-card-wallet.is-shown .is-full { display: inline; }
+.odl-card-wallet .odl-frost { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: var(--ds-space-stack-xs); opacity: 0; pointer-events: none;
+  background: var(--ds-color-neutral-alpha-light-6); color: var(--ds-color-white); font: var(--ds-text-title-sm); transition: opacity var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-card-wallet .odl-frost svg { inline-size: var(--ds-size-icon-lg); block-size: var(--ds-size-icon-lg); stroke-width: var(--ds-icon-stroke-md); }
+.odl-card-wallet.is-frozen .odl-plastic { filter: grayscale(1); }
+.odl-card-wallet.is-frozen .odl-frost { opacity: 1; }
+.odl-card-wallet .odl-status { min-block-size: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); text-align: center; }
+.odl-card-wallet .odl-status:empty { display: none; }
+/* Quick actions: a round icon over a label, the whole stack is the button. */
+.odl-card-wallet .odl-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-inline-sm); }
+.odl-card-wallet .odl-act { display: grid; justify-items: center; gap: var(--ds-space-stack-sm); min-block-size: var(--ds-size-target-touch); padding: var(--ds-space-inset-xs) 0; border: 0; border-radius: var(--ds-radius-nested);
+  background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-label-md); cursor: pointer; }
+.odl-card-wallet .odl-act > span:first-child { display: grid; place-items: center; inline-size: var(--ds-size-control-lg); block-size: var(--ds-size-control-lg); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-card-wallet .odl-act:hover > span:first-child { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-card-wallet .odl-act.is-primary > span:first-child { background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-card-wallet .odl-act.is-primary:hover > span:first-child { background: var(--ds-color-bg-action-primary-hover); }
+.odl-card-wallet .odl-act[aria-checked="true"] > span:first-child { background: var(--ds-color-bg-inverse); color: var(--ds-color-text-inverse); }
+.odl-card-wallet .odl-act svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-card-wallet .odl-act:disabled { color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-card-wallet .odl-act:disabled > span:first-child { background: var(--ds-color-bg-disabled); color: var(--ds-color-text-disabled); }
+.odl-card-wallet button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+/* Recent transactions */
+.odl-card-wallet .odl-recent { display: grid; gap: var(--ds-space-stack-md); padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-card-wallet .odl-recent header { display: flex; align-items: baseline; justify-content: space-between; }
+.odl-card-wallet h4 { font: var(--ds-text-title-sm); }
+.odl-card-wallet .odl-recent header span { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-card-wallet ul { display: grid; gap: var(--ds-space-stack-sm); margin: 0; padding: 0; list-style: none; }
+.odl-card-wallet li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); }
+.odl-card-wallet .odl-mark { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-default); }
+.odl-card-wallet img.odl-mark { border-radius: var(--ds-radius-person); object-fit: cover; }
+.odl-card-wallet .odl-mark svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-card-wallet .odl-who { display: grid; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-card-wallet .odl-who b { overflow: hidden; font: var(--ds-text-label-lg); text-overflow: ellipsis; white-space: nowrap; }
+.odl-card-wallet .odl-who span { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-card-wallet .odl-amt { font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-card-wallet .odl-amt.is-in { color: var(--ds-color-text-success); }
+.odl-card-wallet .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (max-width: 26rem) {
+  .odl-card-wallet .odl-shell { padding: var(--ds-space-inset-lg); }
+  .odl-card-wallet .odl-plastic { padding: var(--ds-space-inset-md); }
+  .odl-card-wallet .odl-num { font: var(--ds-text-title-sm); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-card-wallet, .odl-card-wallet *, .odl-card-wallet *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-card-wallet" aria-labelledby="odl-cw-title">
+  <div class="odl-shell">
+    <div class="odl-top">
+      <div><h3 class="odl-label" id="odl-cw-title">Everyday account</h3><p class="odl-balance">£2,418<small>.60</small></p></div>
+      <button type="button" class="odl-reveal" aria-pressed="false">
+        <svg class="is-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg class="is-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
+        <span>Card details</span></button>
+    </div>
+    <div class="odl-plastic" role="group" aria-label="Debit card ending 4821">
+      <svg class="odl-swirl" viewBox="0 0 320 202" preserveAspectRatio="xMaxYMin slice" aria-hidden="true"><circle cx="300" cy="10" r="60"/><circle cx="300" cy="10" r="95"/><circle cx="300" cy="10" r="130"/><circle cx="300" cy="10" r="165"/></svg>
+      <div class="odl-row"><p class="odl-kind">Everyday<small>Debit</small></p>
+        <svg class="odl-tap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8.32a7.43 7.43 0 0 1 0 7.36"/><path d="M9.46 6.21a11.76 11.76 0 0 1 0 11.58"/><path d="M12.91 4.1a15.91 15.91 0 0 1 .01 15.8"/><path d="M16.37 2a20.16 20.16 0 0 1 0 20"/></svg></div>
+      <div class="odl-row"><span class="odl-chip" aria-hidden="true"><svg viewBox="0 0 26 20"><path d="M0 7h8v6H0M26 7h-8v6h8M8 0v20M18 0v20M8 10h10"/></svg></span></div>
+      <div class="odl-row">
+        <p class="odl-num"><span class="is-masked" aria-label="Card number ending 4821">•••• 4821</span><span class="is-full">9417 0381 5527 4821</span></p>
+        <p class="odl-meta"><span><small>Expires</small><span class="is-masked">••/••</span><span class="is-full">09/29</span></span><span><small>CVC</small><span class="is-masked">•••</span><span class="is-full">318</span></span></p>
+      </div>
+      <div class="odl-frost" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>Frozen</div>
+    </div>
+    <p class="odl-status" aria-live="polite"></p>
+    <div class="odl-actions">
+      <button type="button" class="odl-act is-primary"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span><span>Add money</span></button>
+      <button type="button" class="odl-act odl-send"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span><span>Send</span></button>
+      <button type="button" class="odl-act odl-freeze" role="switch" aria-checked="false"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg></span><span>Freeze card</span></button>
+    </div>
+    <section class="odl-recent" aria-labelledby="odl-cw-recent">
+      <header><h4 id="odl-cw-recent">Recent</h4><span>October</span></header>
+      <ul>
+        <li><span class="odl-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 11-1 9"/><path d="m19 11-4-7"/><path d="M2 11h20"/><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"/><path d="M4.5 15.5h15"/><path d="m5 11 4-7"/><path d="m9 11 1 9"/></svg></span>
+          <span class="odl-who"><b>Fernby Market</b><span>Groceries · 12:40</span></span><span class="odl-amt">−£23.85</span></li>
+        <li><img class="odl-mark" src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=96&h=96&fit=crop&auto=format&q=70" alt="" width="96" height="96" loading="lazy" decoding="async">
+          <span class="odl-who"><b>Rasmus Ottesen</b><span>Paid you back · 09:12</span></span><span class="odl-amt is-in">+£40.00</span></li>
+        <li><span class="odl-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.1V7a4 4 0 0 0 8 0V3.1"/><path d="m9 15-1-1"/><path d="m15 15 1-1"/><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z"/><path d="m8 19-2 3"/><path d="m16 19 2 3"/></svg></span>
+          <span class="odl-who"><b>Metro top-up</b><span>Transport · Yesterday</span></span><span class="odl-amt">−£15.00</span></li>
+        <li><span class="odl-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg></span>
+          <span class="odl-who"><b>Saltmarsh Bakery</b><span>Eating out · Yesterday</span></span><span class="odl-amt">−£6.40</span></li>
+        <li><span class="odl-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg></span>
+          <span class="odl-who"><b>Lanternhall Cinema</b><span>Entertainment · Tue</span></span><span class="odl-amt">−£19.00</span></li>
+      </ul>
+    </section>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-card-wallet").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const reveal = root.querySelector(".odl-reveal"), freeze = root.querySelector(".odl-freeze"), send = root.querySelector(".odl-send");
+  const status = root.querySelector(".odl-status"), label = freeze.querySelector("span:last-child");
+  reveal.addEventListener("click", () => {
+    const on = reveal.getAttribute("aria-pressed") !== "true";
+    reveal.setAttribute("aria-pressed", String(on));
+    root.classList.toggle("is-shown", on);
+  });
+  freeze.addEventListener("click", () => {
+    const on = freeze.getAttribute("aria-checked") !== "true";
+    freeze.setAttribute("aria-checked", String(on));
+    root.classList.toggle("is-frozen", on);
+    label.textContent = on ? "Unfreeze" : "Freeze card";
+    send.disabled = on;
+    if (on) { reveal.setAttribute("aria-pressed", "false"); root.classList.remove("is-shown"); }
+    reveal.disabled = on;
+    status.textContent = on ? "Card frozen. Card payments are blocked until you unfreeze it." : "Card unfrozen. You can pay with it again.";
+  });
+});
+</script>

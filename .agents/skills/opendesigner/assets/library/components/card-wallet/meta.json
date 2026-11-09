@@ -1,0 +1,35 @@
+{
+  "name": "Card wallet",
+  "summary": "A personal account: a card drawn in the brand colours with its number masked until you choose to show it, the balance, add money, send and a freeze switch, and recent transactions with a simple mark per merchant and a photo for people.",
+  "use": "on the home screen of a personal banking or wallet app",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": [
+    "money"
+  ],
+  "tags": [
+    "bank card",
+    "wallet",
+    "balance",
+    "freeze",
+    "transactions"
+  ],
+  "states": [
+    "details hidden",
+    "details shown",
+    "frozen",
+    "hover",
+    "focus",
+    "disabled"
+  ],
+  "source": null,
+  "a11y": "Card details is a toggle button with aria-pressed and the masked number reads as \"ending 4821\"; Freeze card is a switch, and freezing disables Send and announces the change in a polite live region.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1560250097-0b93528c311a",
+      "author": "LinkedIn Sales Solutions",
+      "page": "pAtA8xe_iVM"
+    }
+  ]
+}

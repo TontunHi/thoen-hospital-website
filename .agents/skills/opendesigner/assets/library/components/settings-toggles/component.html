@@ -1,0 +1,49 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-settings-toggles { box-sizing: border-box; inline-size: 100%; max-inline-size: 560px; margin: 0; padding: 0; border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); box-shadow: var(--ds-elevation-raised); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-settings-toggles *, .odl-settings-toggles *::before { box-sizing: border-box; }
+.odl-settings-toggles legend { float: inline-start; inline-size: 100%; min-inline-size: 0; overflow-wrap: anywhere; padding: var(--ds-space-inset-xl) var(--ds-space-inset-xl) var(--ds-space-inset-md); font: var(--ds-text-title-md); }
+.odl-settings-toggles legend + * { clear: both; }
+.odl-settings-toggles .odl-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--ds-space-inset-xl); align-items: center; padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl);
+  cursor: pointer; }
+.odl-settings-toggles .odl-row { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-settings-toggles .odl-row:last-child { padding-block-end: var(--ds-space-inset-xl); }
+.odl-settings-toggles .odl-text { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-settings-toggles .odl-text > span { font-weight: var(--ds-font-weight-label); }
+.odl-settings-toggles .odl-text small { color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-settings-toggles .odl-text em { font-style: normal; color: var(--ds-color-text-tertiary); }
+.odl-settings-toggles input { appearance: none; margin: 0; flex: none; position: relative; inline-size: calc(var(--ds-size-target-pointer) * 1.75); block-size: var(--ds-size-target-pointer);
+  border-radius: var(--ds-radius-full); background: var(--ds-color-bg-neutral-subtle); box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-strong); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-settings-toggles input::before { content: ""; position: absolute; inset-block: var(--ds-space-2); inset-inline-start: var(--ds-space-2); aspect-ratio: 1; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-raised); box-shadow: var(--ds-elevation-raised);
+  transition: transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-settings-toggles input:checked { background: var(--ds-color-bg-action-primary); box-shadow: none; }
+.odl-settings-toggles input:checked::before { transform: translateX(calc(var(--ds-size-target-pointer) * 0.75)); }
+.odl-settings-toggles input:hover:not(:disabled) { filter: brightness(0.95); }
+.odl-settings-toggles input:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-settings-toggles input:disabled { opacity: var(--ds-opacity-disabled-container); cursor: not-allowed; }
+.odl-settings-toggles div.odl-row { cursor: default; }
+/* a setting the organization locked: its state in words with a lock, not a faded switch */
+.odl-settings-toggles .odl-locked { display: inline-flex; align-items: center; gap: var(--ds-space-inline-xs); padding: var(--ds-space-2) var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-settings-toggles .odl-locked svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-settings-toggles .odl-locked b { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-settings-toggles .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 30rem) {
+  .odl-settings-toggles legend { padding: var(--ds-space-inset-lg) var(--ds-space-inset-lg) var(--ds-space-inset-sm); }
+  .odl-settings-toggles .odl-row { gap: var(--ds-space-inset-lg); padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); }
+  .odl-settings-toggles .odl-row:last-child { padding-block-end: var(--ds-space-inset-lg); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-settings-toggles, .odl-settings-toggles *, .odl-settings-toggles *::before { transition: none !important; animation: none !important; } }
+</style>
+<fieldset class="odl-settings-toggles">
+  <legend>Sign-in and sessions</legend>
+  <label class="odl-row"><span class="odl-text"><span>Require single sign-on</span><small>Members sign in through your identity provider. Owners keep a password as a backup.</small></span>
+    <input type="checkbox" role="switch" checked></label>
+  <label class="odl-row"><span class="odl-text"><span>Two-step sign-in for guests</span><small>Guests confirm a code from an authenticator app at each new device.</small></span>
+    <input type="checkbox" role="switch"></label>
+  <div class="odl-row" role="group" aria-labelledby="odl-st-idle"><span class="odl-text"><span id="odl-st-idle">Sign out after 12 hours idle</span><small>Applies to the web and desktop apps. <em>Set by your organization.</em></small></span>
+    <span class="odl-locked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><b>On</b><span class="odl-sr">, locked</span></span></div>
+</fieldset>

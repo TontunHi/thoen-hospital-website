@@ -1,0 +1,52 @@
+{
+  "_about": "An example of research/directions.json: three directions after the research and the positioning (references/research.md section 9). Invented product, references on .example domains, photo names from research/photos/ledger.json. Check it with: research.py directions check; render it with: research.py directions board",
+  "v": 1,
+  "b2b": false,
+  "fixed": [],
+  "recommended": "A",
+  "why": "Older users read best on a light page with large type, and last month's order sits first.",
+  "directions": [
+    {
+      "id": "A", "name": "Kitchen table", "idea": "A light, calm page with last month's order first, like a note on the fridge.",
+      "ground": "light", "type": {"display": "Atkinson Hyperlegible", "text": "Atkinson Hyperlegible", "class": "humanist"},
+      "photo_grade": "natural", "accent_use": "actions-only", "rhythm": "stack",
+      "colors": {"ground": "#FFFFFF", "ink": "#111111", "accent": "#B4361F"},
+      "cta": {"shape": "rounded", "label": "Repeat my order"},
+      "references": [
+        {"name": "A grocery subscription app, home", "url": "https://grocery.example/home", "takes": "the repeat order sits at the top", "signature": "basket mascot"},
+        {"name": "A large-print reading app", "url": "https://reader.example", "takes": "one column, large type, generous space", "signature": "paper texture"}
+      ],
+      "devices": ["one column", "large type"],
+      "photos": ["kitchen-table-morning", "pharmacist-counter"],
+      "risks": "Can read plain; the photos carry the warmth."
+    },
+    {
+      "id": "B", "name": "Evening call", "idea": "A dark page for evening use, with one yellow band where help is one tap away.",
+      "ground": "dark", "type": {"display": "Source Serif 4", "text": "Source Sans 3", "class": "serif"},
+      "photo_grade": "warm", "accent_use": "one-band", "rhythm": "split",
+      "colors": {"ground": "#101418", "ink": "#F3F5F7", "accent": "#E0B341"},
+      "cta": {"shape": "subtle", "label": "Repeat my order"},
+      "references": [
+        {"name": "A bank app, payment confirm", "url": "https://bank.example/pay", "takes": "one big confirmation before money moves", "signature": "gradient card art"},
+        {"name": "A calm sleep app, evening screen", "url": "https://sleep.example/evening", "takes": "words on one side, picture on the other", "signature": "moon illustration"}
+      ],
+      "devices": ["split hero", "one colour band"],
+      "photos": ["family-phone-evening", "medicine-shelf-warm"],
+      "risks": "Dark pages need careful contrast for older eyes."
+    },
+    {
+      "id": "C", "name": "Clinic card", "idea": "A tinted, ruled page that reads like a clear prescription card.",
+      "ground": "tinted", "type": {"display": "IBM Plex Sans", "text": "IBM Plex Sans", "class": "grotesk"},
+      "photo_grade": "high-key", "accent_use": "highlight", "rhythm": "grid",
+      "colors": {"ground": "#CFE3DA", "ink": "#14211C", "accent": "#6A3FB5"},
+      "cta": {"shape": "square", "label": "Repeat my order"},
+      "references": [
+        {"name": "A government health portal", "url": "https://health.example", "takes": "closed ruled cells for every fact", "signature": "crest"},
+        {"name": "A transit timetable app", "url": "https://transit.example", "takes": "key words in the accent", "signature": "line-colour dots"}
+      ],
+      "devices": ["closed grid", "accent on key words"],
+      "photos": ["prescription-close", "clinic-window"],
+      "risks": "A ruled grid can feel clinical; keep the words warm."
+    }
+  ]
+}

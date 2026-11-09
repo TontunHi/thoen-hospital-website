@@ -28,6 +28,7 @@ export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(10).max(500).default(50),
   search: z.string().max(120).optional(),
+  pttypes: z.string().max(300).optional(),
   exportAll: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
     .optional(),
@@ -152,6 +153,9 @@ export const ttmTopic11QuerySchema = baseFiscalDateSchema
         'WITH_INVOICE',
       ])
       .default('ALL'),
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
     sortBy: z
       .enum([
         'vstdate',
@@ -301,6 +305,9 @@ export const homewardReportQuerySchema = baseFiscalDateSchema
     refresh: z
       .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
       .optional(),
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
   })
   .merge(paginationSchema.partial())
 
@@ -325,6 +332,9 @@ export const adpSearchQuerySchema = baseFiscalDateSchema
     sortBy: z.string().max(50).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
     refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    ucOnly: z
       .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
       .optional(),
   })
@@ -575,6 +585,9 @@ export const instrumentReportQuerySchema = baseFiscalDateSchema
     refresh: z
       .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
       .optional(),
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
   })
   .merge(paginationSchema.partial())
 
@@ -606,6 +619,9 @@ export const dentalImplantSortFieldSchema = z
 export const dentalImplantDensurQuerySchema = baseFiscalDateSchema
   .extend({
     cardFilter: dentalImplantCardFilterSchema,
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
     search: z.string().max(120).optional(),
     sortBy: dentalImplantSortFieldSchema,
     sortOrder: z.enum(['asc', 'desc']).default('desc'),

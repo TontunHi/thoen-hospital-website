@@ -1,0 +1,106 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-member-list { box-sizing: border-box; inline-size: 100%; max-inline-size: 760px; margin-inline: auto; background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised);
+  font: var(--ds-text-body-md); text-wrap: pretty; container-type: inline-size; overflow: hidden; }
+.odl-member-list *, .odl-member-list *::before { box-sizing: border-box; }
+.odl-member-list svg { flex: none; inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); }
+.odl-member-list .odl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-stack-sm) var(--ds-space-inline-md);
+  padding: var(--ds-space-inset-lg) var(--ds-space-inset-xl); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-member-list h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-member-list .odl-head p { margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-member-list button { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-xs); min-block-size: var(--ds-size-control-md); min-inline-size: var(--ds-size-target-min);
+  padding: 0 var(--ds-space-inset-md); border-radius: var(--ds-radius-control); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-member-list .odl-invite { border: 0; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-member-list .odl-invite:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-member-list .odl-quiet { border: var(--ds-border-width-default) solid var(--ds-color-border-default); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); min-block-size: var(--ds-size-control-sm); }
+.odl-member-list .odl-quiet:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-member-list button:focus-visible, .odl-member-list select:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-member-list .odl-cols, .odl-member-list li { display: grid; grid-template-columns: minmax(0, 1fr) 10rem 7rem; align-items: center; gap: var(--ds-space-inline-md);
+  padding: 0 var(--ds-space-inset-xl); }
+.odl-member-list .odl-cols { min-block-size: var(--ds-size-row-sm); background: var(--ds-color-surface-sunken); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md);
+  border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-member-list .odl-cols span:last-child, .odl-member-list .odl-when { text-align: end; }
+.odl-member-list ul { list-style: none; margin: 0; padding: 0; }
+.odl-member-list li { min-block-size: var(--ds-size-row-two-line); padding-block: var(--ds-space-inset-sm); }
+.odl-member-list li + li { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-member-list li:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-member-list .odl-who { display: flex; align-items: center; gap: var(--ds-space-inline-md); min-inline-size: 0; }
+.odl-member-list .odl-avatar { flex: none; display: grid; place-items: center; inline-size: var(--ds-size-control-sm); block-size: var(--ds-size-control-sm); border-radius: var(--ds-radius-person);
+  object-fit: cover; background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-icon-subtle); }
+.odl-member-list .odl-avatar.is-pending { background: transparent; color: var(--ds-color-icon-subtle); border: var(--ds-border-width-default) dashed var(--ds-color-border-strong); }
+.odl-member-list .odl-name { min-inline-size: 0; display: grid; gap: var(--ds-space-stack-xs); }
+.odl-member-list .odl-name strong { display: flex; flex-wrap: wrap; min-inline-size: 0; align-items: center; gap: var(--ds-space-inline-xs); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-label); }
+.odl-member-list .odl-name > span { min-inline-size: 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); overflow-wrap: anywhere; }
+.odl-member-list .is-pending-row .odl-name > span { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2) var(--ds-space-inline-xs); overflow-wrap: normal; }
+.odl-member-list .odl-mail { min-inline-size: 0; overflow-wrap: anywhere; }
+.odl-member-list .odl-you, .odl-member-list .odl-pill { flex: none; }
+.odl-member-list .odl-you { padding: 0 var(--ds-space-inset-xs); border-radius: var(--ds-radius-detail); background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); }
+.odl-member-list .odl-pill { padding: 0 var(--ds-space-inset-xs); border-radius: var(--ds-radius-detail); background: var(--ds-color-bg-warning-subtle); color: var(--ds-color-text-warning); font: var(--ds-text-label-sm); }
+.odl-member-list .odl-role { position: relative; display: flex; align-items: center; }
+.odl-member-list select { appearance: none; inline-size: 100%; min-block-size: var(--ds-size-target-min); padding: 0 var(--ds-space-32) 0 var(--ds-space-inset-sm);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); color: var(--ds-color-text-primary);
+  font: var(--ds-text-body-md); cursor: pointer; }
+.odl-member-list select:hover { border-color: var(--ds-color-border-strong); }
+.odl-member-list .odl-role > svg { position: absolute; inset-inline-end: var(--ds-space-inset-sm); pointer-events: none; color: var(--ds-color-icon-subtle); }
+.odl-member-list .odl-locked { display: flex; align-items: center; gap: var(--ds-space-inline-xs); min-block-size: var(--ds-size-target-min); padding: 0 var(--ds-space-inset-sm); color: var(--ds-color-text-secondary); }
+.odl-member-list .odl-locked svg { color: var(--ds-color-icon-subtle); }
+.odl-member-list .odl-when { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-member-list .odl-when .is-online { color: var(--ds-color-text-success); }
+.odl-member-list .is-pending-row .odl-when { display: flex; justify-content: flex-end; }
+@container (max-width: 600px) {
+  .odl-member-list .odl-cols { display: none; }
+  .odl-member-list li { grid-template-columns: minmax(0, 1fr) 6.5rem; grid-template-areas: "who who" "role when"; row-gap: var(--ds-space-stack-sm); padding: var(--ds-space-inset-md) var(--ds-space-inset-lg); }
+  .odl-member-list .odl-head { padding: var(--ds-space-inset-lg); }
+  .odl-member-list .odl-long { display: none; }
+  .odl-member-list .odl-who { grid-area: who; }
+  .odl-member-list .odl-role, .odl-member-list .odl-locked { grid-area: role; margin-inline-start: calc(var(--ds-size-control-sm) + var(--ds-space-inline-md)); }
+  .odl-member-list .odl-locked { padding-inline-start: 0; }
+  .odl-member-list .odl-when { grid-area: when; }
+}
+@media (prefers-reduced-motion: reduce) { .odl-member-list, .odl-member-list *, .odl-member-list *::before { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-member-list" aria-labelledby="odl-ml-title">
+  <div class="odl-head">
+    <div><h3 id="odl-ml-title">Members</h3><p>214 members · 3 seats free on the Business plan</p></div>
+    <button type="button" class="odl-invite" aria-label="Invite members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>Invite<span class="odl-long"> members</span></button>
+  </div>
+  <div class="odl-cols" aria-hidden="true"><span>Name</span><span>Role</span><span>Last active</span></div>
+  <ul aria-label="Members of Quenwick Mutual">
+    <li>
+      <div class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1604072366595-e75dc92d6bdc?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-name"><strong>Ragnhild Torvik <span class="odl-you">You</span></strong><span>ragnhild.torvik<wbr>@quenwickmutual.example</span></div></div>
+      <div class="odl-locked" title="The owner's role can be changed only by transferring ownership"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Owner</div>
+      <span class="odl-when"><span class="is-online">Active now</span></span>
+    </li>
+    <li>
+      <div class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-name"><strong>Bartek Zielony</strong><span>bartek.zielony<wbr>@quenwickmutual.example</span></div></div>
+      <div class="odl-role"><select aria-label="Role for Bartek Zielony"><option selected>Admin</option><option>Member</option><option>Viewer</option></select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
+      <span class="odl-when"><time datetime="2026-10-21T09:40">12 min ago</time></span>
+    </li>
+    <li>
+      <div class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-name"><strong>Thiago Carvalho</strong><span>thiago.carvalho<wbr>@quenwickmutual.example</span></div></div>
+      <div class="odl-role"><select aria-label="Role for Thiago Carvalho"><option>Admin</option><option selected>Member</option><option>Viewer</option></select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
+      <span class="odl-when"><time datetime="2026-10-20">Yesterday</time></span>
+    </li>
+    <li>
+      <div class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1681097561932-36d0df02b379?w=64&h=64&fit=crop&crop=faces&auto=format&q=70" alt="" width="32" height="32" loading="lazy" decoding="async">
+        <div class="odl-name"><strong>Yerlan Abenov</strong><span>yerlan.abenov<wbr>@quenwickmutual.example</span></div></div>
+      <div class="odl-role"><select aria-label="Role for Yerlan Abenov"><option>Admin</option><option>Member</option><option selected>Viewer</option></select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
+      <span class="odl-when"><time datetime="2026-10-02">Oct 2</time></span>
+    </li>
+    <li class="is-pending-row">
+      <div class="odl-who"><span class="odl-avatar is-pending" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
+        <div class="odl-name"><strong><span class="odl-mail">hanne.varga<wbr>@quenwickmutual.example</span></strong><span><span class="odl-pill">Pending invite</span> <span>Sent by Bartek Zielony · expires Oct 24</span></span></div></div>
+      <div class="odl-role"><select aria-label="Role for pending invite to hanne.varga@quenwickmutual.example"><option>Admin</option><option selected>Member</option><option>Viewer</option></select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
+      <span class="odl-when"><button type="button" class="odl-quiet" aria-label="Resend invite to hanne.varga@quenwickmutual.example">Resend</button></span>
+    </li>
+  </ul>
+</section>

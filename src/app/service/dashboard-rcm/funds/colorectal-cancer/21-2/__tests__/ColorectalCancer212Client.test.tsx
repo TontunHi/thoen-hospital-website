@@ -126,8 +126,8 @@ describe('ColorectalCancer212Client Component', () => {
     expect(screen.getByText('ข้อมูลครบถ้วน')).toBeInTheDocument()
     expect(screen.getByText('ขาด ADP 90005')).toBeInTheDocument()
     expect(screen.getByText('ขาด Special PP')).toBeInTheDocument()
-    expect(screen.getByText('มี Authen Code')).toBeInTheDocument()
-    expect(screen.getByText('ไม่มี Authen Code')).toBeInTheDocument()
+    expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
+    expect(screen.getByText('ไม่มี ClaimCode')).toBeInTheDocument()
 
     // Check table patient row
     expect(screen.getByText((_, el) => el?.textContent === 'นายประสิทธิ์ สุขใจ' && el?.classList.contains('crc-name-wrap'))).toBeInTheDocument()
@@ -268,6 +268,31 @@ describe('ColorectalCancer212Client Component', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('filters by right when selecting options in PttypeMultiSelect', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: mockInitialData }),
+    })
+    global.fetch = fetchMock
+
+    render(<ColorectalCancer212Client initialData={mockInitialData} />)
+
+    const selectTrigger = screen.getByRole('button', { name: /เลือกสิทธิการรักษา/i })
+    expect(selectTrigger).toBeInTheDocument()
+    fireEvent.click(selectTrigger)
+
+    // Click UC preset
+    const ucBtn = screen.getByText('🏥 เฉพาะ UC (01-09)')
+    fireEvent.click(ucBtn)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled()
+      const url = fetchMock.mock.calls[0][0] as string
+      expect(url).toContain('pttypes=01%2C02%2C03%2C04%2C05%2C06%2C07%2C08%2C09')
+      expect(url).toContain('page=1')
     })
   })
 })

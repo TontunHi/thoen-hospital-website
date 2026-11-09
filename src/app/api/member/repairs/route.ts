@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { apiGateway } from '@/lib/apiGateway'
 import { queryMemberDb } from '@/lib/memberDb'
 import { generateTaskNo, notifyAssigneeOnTelegram, notifyRepairCreatedRequesterOnTelegram } from '@/lib/taskInboxService'
 import crypto from 'crypto'
@@ -11,15 +12,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 })
     }
 
-    // 1. Fetch current member info
-    const members = await queryMemberDb(
-      'SELECT id, username, name, department, position, role FROM members WHERE username = ? LIMIT 1',
-      [session.username]
-    )
-    if (!members || members.length === 0) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลสมาชิก' }, { status: 404 })
+    // 1. Fetch current member info via Named API with queryMemberDb fallback
+    let currentMember: any = null
+    if (typeof (apiGateway.app as any).getMemberAuthContext === 'function') {
+      try {
+        const authCtx = await apiGateway.app.getMemberAuthContext(session.username, session.email || '')
+        if (authCtx && authCtx.member) {
+          currentMember = authCtx.member
+        }
+      } catch {
+        // Fallback to queryMemberDb
+      }
     }
-    const currentMember = members[0]
+
+    if (!currentMember) {
+      const members = await queryMemberDb(
+        'SELECT id, username, name, department, position, role FROM members WHERE username = ? LIMIT 1',
+        [session.username]
+      )
+      if (!members || members.length === 0) {
+        return NextResponse.json({ error: 'ไม่พบข้อมูลสมาชิก' }, { status: 404 })
+      }
+      currentMember = members[0]
+    }
 
     const body = await request.json()
     const {

@@ -22,6 +22,7 @@ import {
 } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import '../sss-dental/page.css'
 import './page.css'
 
@@ -212,7 +213,7 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
     )
   }, [doctors, searchDoctor])
 
-  const exportCSV = () => {
+  const exportExcel = async () => {
     const isYearMode = dateMode === 'year'
     const headers = [
       'ลำดับ',
@@ -236,8 +237,8 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
 
       return [
         idx + 1,
-        `"${doc.doctor_code}"`,
-        `"${doc.doctor_name}"`,
+        doc.doctor_code,
+        doc.doctor_name,
         doc.total_visits,
         doc.total_uc_money,
         doc.total_rcpt_money,
@@ -248,16 +249,13 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
       ]
     })
 
-    const csvContent =
-      '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `opd_doctor_summary_${ds1}_to_${ds2}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    await exportRcmExcel({
+      filename: `opd_doctor_summary_${ds1}_to_${ds2}.xlsx`,
+      title: 'สรุปค่าบริการผู้ป่วยนอก OPD ตามสิทธิ์การรักษา จำแนกรายแพทย์',
+      subtitle: `ช่วงวันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} | โรงพยาบาลเถิน`,
+      headers,
+      rows,
+    })
   }
 
   const formatNumber = (num: number) => num.toLocaleString('th-TH')
@@ -293,13 +291,14 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
           </button>
           <button
             type="button"
-            onClick={exportCSV}
+            onClick={exportExcel}
             disabled={loading || filteredDoctors.length === 0}
             className="rcm-btn rcm-btn-primary"
             style={{ backgroundColor: '#0d9488' }}
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={14} />
-            <span>ส่งออก CSV (Excel)</span>
+            <span>ส่งออก Excel</span>
           </button>
         </div>
       </div>

@@ -11,6 +11,10 @@ const service1B005ParamsSchema = z.object({
   compensationFilter: z
     .enum(['ALL', 'COMPENSATED', 'UNCOMPENSATED', 'HAS_AUTHEN', 'NO_AUTHEN'])
     .optional(),
+  pttypes: z.string().max(300).optional(),
+  ucOnly: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
+    .optional(),
   searchField: z.enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'DIAG']).optional(),
   search: z.string().max(120).optional(),
   sortBy: z

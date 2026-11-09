@@ -1,0 +1,38 @@
+{
+  "name": "Product card",
+  "summary": "A card for one product: a photo, category, name, one-line description, rating, price with the old price struck out, an Add to bag button and a save toggle.",
+  "use": "in a store or marketplace grid",
+  "type": "commerce",
+  "style": "friendly",
+  "industries": [
+    "retail",
+    "any"
+  ],
+  "tags": [
+    "product",
+    "add-on",
+    "price",
+    "rating",
+    "favourite",
+    "card"
+  ],
+  "states": [
+    "added",
+    "not added",
+    "saved",
+    "not saved",
+    "hover",
+    "pressed",
+    "focus"
+  ],
+  "source": null,
+  "a11y": "Add to bag and save are toggle buttons with aria-pressed; the rating and the old price are read as words (\"Rated 4.6 out of 5\", \"was $198\"), and the photo has alt text.",
+  "width": "narrow",
+  "photos": [
+    {
+      "img": "photo-1605733513597-a8f8341084e6",
+      "author": "mostafa mahmoudi",
+      "page": "J4DnKxz_3sA"
+    }
+  ]
+}

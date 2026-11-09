@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label breaks (review fixture)</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 24px; }
+  table { border-collapse: collapse; width: 420px; }
+  td { border-bottom: 1px solid #ddd; padding: 8px; }
+  td.actions { width: 44px; overflow-wrap: anywhere; }
+  .btn { border: 1px solid #ccc; background: #fff; border-radius: 6px; padding: 4px 8px; font: inherit; }
+  .narrow { width: 64px; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eef; }
+  .two-line { display: inline-flex; flex-direction: column; align-items: flex-start; }
+  .two-line span { white-space: nowrap; }
+  .wide-note { width: 160px; text-align: left; }
+  .card { display: block; width: 120px; }
+</style>
+</head>
+<body>
+  <!-- planted: a short button label squeezed into a narrow column, breaking inside the word (the trial 1 "Reassign" bug) -->
+  <table>
+    <tr><td>BW-20958</td><td>York to Plymouth</td><td class="actions"><button class="btn" id="reassign">Reassign</button></td></tr>
+  </table>
+
+  <!-- planted: a two-word chip wrapping between its words -->
+  <div class="narrow"><span class="chip" id="chip">Needs review</span></div>
+
+  <!-- fine: one-line controls -->
+  <button class="btn" id="save">Save</button>
+  <div role="tablist"><span role="tab" id="tab">Settings</span></div>
+
+  <!-- fine: a button built from two runs, each on its own line by design -->
+  <button class="btn two-line" id="two-line"><span>Export</span><span>CSV, 2 MB</span></button>
+
+  <!-- fine: a long sentence in a button may wrap (over 40 characters) -->
+  <button class="btn wide-note" id="sentence">Send the daily summary to every dispatcher now</button>
+
+  <!-- fine: a card link is not a label -->
+  <a href="#" class="card" id="card">Corvel Foods quarterly delivery report for review</a>
+</body>
+</html>

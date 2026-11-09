@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import {
   RcmFamilyPlanningService,
   getAdpCodeForReport,
   getExpectedDxForReport,
   getReportTitle,
+  evaluateFamilyPlanningDiscrepancy,
 } from '../rcmFamilyPlanningService'
 
 describe('RcmFamilyPlanningService Domain Service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   it('resolves correct ADP code, Dx, and title for 9.3.1, 9.3.2, 9.4, 9.5, 9.6, and 9.7', () => {
@@ -644,6 +647,275 @@ describe('RcmFamilyPlanningService Domain Service', () => {
       expect(result.items).toHaveLength(1)
       expect(result.items[0].vn).toBe('VN1')
       expect(result.items[0].hasError).toBe(false)
+    })
+  })
+
+  describe('9.1 บริการวางแผนครอบครัวและการป้องกันการตั้งครรภ์ไม่พึงประสงค์', () => {
+    it('evaluates discrepancy rules accurately per FoxPro specification', () => {
+      // 1. Dx present, but no service
+      expect(evaluateFamilyPlanningDiscrepancy(false, true, false, null, null)).toBe(
+        'พบ Dx การคุมกำเนิด แต่ไม่พบการบริการ'
+      )
+
+      // 2. IUD service (FP001 / 20003) but missing procedure 697
+      expect(
+        evaluateFamilyPlanningDiscrepancy(true, true, false, 'FP001:ห่วงอนามัย', '9923')
+      ).toBe('ใส่ห่วง แต่ไม่พบหัตถการ')
+      expect(
+        evaluateFamilyPlanningDiscrepancy(true, true, false, '20003:ใส่ห่วง', '')
+      ).toBe('ใส่ห่วง แต่ไม่พบหัตถการ')
+
+      // 3. Implant service (FP002 / 20004) but missing procedure 992
+      expect(
+        evaluateFamilyPlanningDiscrepancy(true, true, false, 'FP002_1:ฝังยาคุม', '697')
+      ).toBe('ฝังยาคุม แต่ไม่พบหัตถการ')
+      expect(
+        evaluateFamilyPlanningDiscrepancy(true, true, false, '20004:ฝังยาคุม', null)
+      ).toBe('ฝังยาคุม แต่ไม่พบหัตถการ')
+
+      // 4. Contraceptive drug present, but no service (and no Dx)
+      expect(
+        evaluateFamilyPlanningDiscrepancy(false, false, true, null, null)
+      ).toBe('พบรายการยาคุมกำเนิด แต่ไม่พบการบริการ')
+
+      // 5. Service present, but no Dx
+      expect(
+        evaluateFamilyPlanningDiscrepancy(true, false, false, 'FP003_1:DMPA', null)
+      ).toBe('พบรายการบริการ แต่ไม่พบ Dx')
+
+      // Normal valid case
+      expect(
+        evaluateFamilyPlanningDiscrepancy(true, true, true, 'FP002_1:ฝังยาคุม', '9923')
+      ).toBeNull()
+    })
+
+    it('queries and filters 9.1 family planning report with format, status, and error options', async () => {
+      const mockRawRows = [
+        {
+          vn: '670001',
+          cid: '1509900000001',
+          hn: '0000001',
+          ptname: 'สมหญิง รักสงบ',
+          sex: 'หญิง',
+          age: 25,
+          nation: 'ไทย',
+          vstdate: '2024-10-10',
+          vsttime: '09:00:00',
+          cc: 'ฉีดยาคุม',
+          authencode: 'AUTH001',
+          pttypename: 'UCS:บัตรทอง',
+          pdx: 'Z300',
+          icd10: 'Z300',
+          op: '992',
+          income: 300,
+          doctorname: 'หมอสมชาย',
+          listname: 'FP003_1:DMPA',
+          drugname: 'DMPA#1',
+          status: 'NHSO :: มี Invoice แล้ว',
+          rep: 'REP001',
+          compensated: 250,
+        },
+        {
+          vn: '670002',
+          cid: '1509900000002',
+          hn: '0000002',
+          ptname: 'มาลัย ชูใจ',
+          sex: 'หญิง',
+          age: 22,
+          nation: 'ไทย',
+          vstdate: '2024-10-11',
+          vsttime: '10:00:00',
+          cc: 'ขอใส่ห่วง',
+          authencode: null,
+          pttypename: 'UCS:บัตรทอง',
+          pdx: 'Z301',
+          icd10: 'Z301',
+          op: null,
+          income: 800,
+          doctorname: 'หมอสมหญิง',
+          listname: 'FP001:ห่วงอนามัย',
+          drugname: null,
+          status: '-::ยังไม่ได้ส่ง',
+          rep: null,
+          compensated: 0,
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce([
+          { icode: '1', name: 'DMPA', strength: '150 mg', nhso_adp_code: 'FP003_1' },
+        ])
+        .mockResolvedValueOnce(mockRawRows)
+
+      const result = await RcmFamilyPlanningService.getFamilyPlanning91Report(
+        {
+          startDate: '2024-10-01',
+          endDate: '2024-10-31',
+          format: 'NEW_ECLAIM',
+          status: '-::ยังไม่ได้ส่ง',
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      expect(result.format).toBe('NEW_ECLAIM')
+      expect(result.summary.totalVisits).toBe(2)
+      // Filtered by status: '-::ยังไม่ได้ส่ง'
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0].vn).toBe('670002')
+      expect(result.items[0].errorname).toBe('ใส่ห่วง แต่ไม่พบหัตถการ')
+      expect(result.items[0].hasError).toBe(true)
+    })
+
+    it('filters records by purpose: 9.3.1.1 excludes removal-only records, 9.3.1.2 excludes insertion-only records', async () => {
+      const mockRawRows = [
+        // Case 1: Insertion only (FP002_1 + FP002)
+        {
+          vn: '690001',
+          cid: '1509900000001',
+          hn: '000001',
+          ptname: 'คนไข้ ฝังยาคุม',
+          vstdate: '2026-11-01',
+          dx: 'Z308',
+          drug: 'Implanon NXT 68 mg',
+          all_adp_codes: 'FP002_1,FP002',
+          income: 2500,
+          status: 'NHSO :: ได้รับ Invoice',
+        },
+        // Case 2: Removal only (FP002_2 + 71691)
+        {
+          vn: '690002',
+          cid: '1509900000002',
+          hn: '000002',
+          ptname: 'คนไข้ ถอดยาคุม',
+          vstdate: '2026-11-02',
+          dx: 'Z308',
+          drug: 'ค่าถอดยาฝังคุมกำเนิด',
+          all_adp_codes: 'FP002_2,71691',
+          income: 500,
+          status: 'Rep :: ได้รับ Rep แล้ว',
+        },
+        // Case 3: Both Insertion and Removal (FP002_1 + FP002_2)
+        {
+          vn: '690003',
+          cid: '1509900000003',
+          hn: '000003',
+          ptname: 'คนไข้ ถอดและฝังใหม่',
+          vstdate: '2026-11-03',
+          dx: 'Z308',
+          drug: 'Implanon NXT 68 mg, ค่าถอดยาฝังคุมกำเนิด',
+          all_adp_codes: 'FP002_1,FP002_2',
+          income: 3000,
+          status: 'NHSO :: ได้รับ Invoice',
+        },
+        // Case 4: Missing both (Z308 but no services at all)
+        {
+          vn: '690004',
+          cid: '1509900000004',
+          hn: '000004',
+          ptname: 'คนไข้ ไม่ได้สั่งยา/ค่าบริการ',
+          vstdate: '2026-11-04',
+          dx: 'Z308',
+          drug: null,
+          all_adp_codes: '55020',
+          income: 50,
+          status: '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim',
+        },
+      ]
+
+      // Test 9.3.1.1 (Implant Insertion)
+      const mockExecutor1 = vi
+        .fn()
+        .mockResolvedValueOnce([{ icode: '1', name: 'Implanon', nhso_adp_code: 'FP002_1' }])
+        .mockResolvedValueOnce(mockRawRows)
+
+      const resultInsertion = await RcmFamilyPlanningService.getFamilyPlanningReport(
+        {
+          reportType: '9.3.1.1',
+          startDate: '2026-11-01',
+          endDate: '2026-11-05',
+          refresh: true,
+        },
+        mockExecutor1
+      )
+
+      // Should exclude Case 2 (removal only) -> 3 cases remain (Case 4, Case 3, Case 1 descending by vstdate)
+      expect(resultInsertion.items).toHaveLength(3)
+      expect(resultInsertion.items.map((i: any) => i.vn)).toEqual(['690004', '690003', '690001'])
+      // Case 4 should still be flagged with errorDrug: 'ไม่พบค่าบริการ'
+      const itemMissingIns = resultInsertion.items.find((i: any) => i.vn === '690004')
+      expect(itemMissingIns?.errorDrug).toBe('ไม่พบค่าบริการ')
+
+      // Test 9.3.1.2 (Implant Removal)
+      clearMemoryCache()
+      const mockExecutor2 = vi
+        .fn()
+        .mockResolvedValueOnce([{ icode: '2', name: 'ค่าถอด', nhso_adp_code: 'FP002_2' }])
+        .mockResolvedValueOnce(mockRawRows)
+
+      const resultRemoval = await RcmFamilyPlanningService.getFamilyPlanningReport(
+        {
+          reportType: '9.3.1.2',
+          startDate: '2026-11-01',
+          endDate: '2026-11-05',
+          refresh: true,
+        },
+        mockExecutor2
+      )
+
+      // Should exclude Case 1 (insertion only) -> 3 cases remain (Case 4, Case 3, Case 2 descending by vstdate)
+      expect(resultRemoval.items).toHaveLength(3)
+      expect(resultRemoval.items.map((i: any) => i.vn)).toEqual(['690004', '690003', '690002'])
+      // Case 4 should still be flagged with errorDrug: 'ไม่พบค่าบริการ'
+      const itemMissingRem = resultRemoval.items.find((i: any) => i.vn === '690004')
+      expect(itemMissingRem?.errorDrug).toBe('ไม่พบค่าบริการ')
+    })
+
+    it('filters family planning 9.3 records by pttypes parameter', async () => {
+      clearMemoryCache()
+      const mockRawRows = [
+        {
+          vn: '690011',
+          hn: '000011',
+          vstdate: '2026-11-01',
+          dx: 'Z308',
+          drug: 'Implanon NXT 68 mg',
+          all_adp_codes: 'FP002_1',
+          pttypename: 'UC ใน CUP',
+          pttype_eclaim_id: '01',
+        },
+        {
+          vn: '690012',
+          hn: '000012',
+          vstdate: '2026-11-02',
+          dx: 'Z308',
+          drug: 'Implanon NXT 68 mg',
+          all_adp_codes: 'FP002_1',
+          pttypename: 'ประกันสังคม',
+          pttype_eclaim_id: '10',
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce([{ icode: '1', name: 'Implanon', nhso_adp_code: 'FP002_1' }])
+        .mockResolvedValueOnce(mockRawRows)
+
+      const res = await RcmFamilyPlanningService.getFamilyPlanningReport(
+        {
+          reportType: '9.3.1.1',
+          startDate: '2026-11-01',
+          endDate: '2026-11-05',
+          pttypes: '01,02',
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      expect(res.items).toHaveLength(1)
+      expect(res.items[0].vn).toBe('690011')
+      expect(res.summary.totalCases).toBe(1)
     })
   })
 })

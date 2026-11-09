@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Palette</title>
+<!--
+OpenDesigner visual template: Palette. Ramps, contrast checks and brand-color candidates (stages 07-09).
+Three voices: an option's "label" and "note" are plain; optional "short" shows the one-line
+"Designers: X · Code: Y" pointer, and optional "more" holds the full designer and engineer notes (tooltip).
+Feed it JSON in one of three ways: replace the contents of <script id="od-data">, set window.OD_DATA before the
+last script runs, or open the file with #data=<url-encoded JSON>. The sample payload below documents every field.
+"Copy my choice" produces OD: lines (grammar in references/rules.md): OD:<action> <target>=<value> <status>.
+No network requests, no dependencies. The shared chrome is repeated in every template on purpose so each file stands alone.
+-->
+<style>:root{--c-bg:#f6f6f7;--c-surface:#fff;--c-fg:#18181b;--c-muted:#585862;--c-border:#dcdce1;--c-strong:#18181b;--c-on-strong:#fff;--c-ok:#166534;--c-bad:#b42318;--r:8px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--font)}
+h1{font-size:16px;margin:0;font-weight:600}h2{font-size:13px;margin:0 0 8px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em}
+.od-h{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
+.sub{color:var(--c-muted);font-size:13px;margin:4px 0 0;max-width:72ch}
+main{max-width:1120px;margin:0 auto;padding:20px;display:grid;gap:24px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;border:0;padding:0;margin:0;min-width:0}
+.opt{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);padding:12px;cursor:pointer;min-height:44px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt:has(input:checked){border-color:var(--c-strong);box-shadow:inset 0 0 0 1px var(--c-strong)}
+.opt:has(input:focus-visible){outline:2px solid var(--c-strong);outline-offset:2px}
+.opt-t{font-weight:600}.opt-n{color:var(--c-muted);font-size:13px}
+.rec{display:inline-block;margin-left:6px;font:600 11px var(--font);padding:1px 6px;border:1px solid var(--c-border);border-radius:99px;color:var(--c-muted);vertical-align:1px}
+.specimen{position:relative;border:1px solid var(--c-border);border-radius:var(--r);background:var(--s-bg,var(--c-surface));color:var(--s-fg,var(--c-fg));padding:30px 16px 16px;overflow-x:auto}
+.specimen::before{content:attr(data-label);position:absolute;top:8px;left:12px;font:11px var(--mono);color:inherit;opacity:.6}
+.kv{font:12px/1.4 var(--mono);color:var(--c-muted)}.num{font-family:var(--mono);text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.lbl{min-width:84px;color:var(--c-muted);font-size:13px}
+button{font:inherit;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);cursor:pointer}
+button.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong);font-weight:600}
+:focus-visible{outline:2px solid var(--c-strong);outline-offset:2px}
+input[type=text],input[type=number]{font:inherit;min-height:44px;padding:0 10px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-fg)}
+input[type=range]{min-height:44px;accent-color:var(--c-strong);flex:1 1 120px;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--c-border);border-radius:var(--r);overflow:hidden;background:var(--c-surface)}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--c-border)}.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--c-strong);color:var(--c-on-strong)}
+.tbl{border-collapse:collapse;width:100%;font-size:13px}.tbl th,.tbl td{border-bottom:1px solid var(--c-border);padding:8px;text-align:left}.tbl th{color:var(--c-muted);font-weight:600}
+.ok{color:var(--c-ok);font-weight:600}.bad{color:var(--c-bad);font-weight:600}
+.od-f{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--c-surface);border-top:1px solid var(--c-border)}
+.od-f label{display:inline-flex;gap:6px;align-items:center;min-height:44px}
+.od-out{flex:1 1 320px;min-height:44px;font:12px/1.4 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg);resize:vertical}
+input[type=radio],input[type=checkbox]{accent-color:var(--c-strong);width:18px;height:18px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ramp{display:grid;grid-template-columns:84px 1fr;gap:8px;align-items:start;margin-bottom:14px}
+.ramp-n{font:600 12px var(--mono);padding-top:8px}
+.sw{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(12,minmax(44px,1fr));gap:4px}
+.sw li{display:flex;flex-direction:column;gap:2px}.chip{display:block;height:44px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(128,128,128,.25)}
+.sw .kv{font-size:10px;color:inherit;opacity:.75}
+@media (max-width:720px){.sw{grid-template-columns:repeat(6,minmax(44px,1fr))}.ramp{grid-template-columns:1fr}}
+.pair{display:inline-block;padding:4px 10px;border-radius:6px;font-weight:500}
+.edge{display:inline-block;width:44px;height:18px;border:2px solid;border-radius:4px;vertical-align:middle}
+.dots{display:flex;gap:3px;margin-top:4px}.dots i{width:18px;height:18px;border-radius:4px;display:block;box-shadow:inset 0 0 0 1px rgba(128,128,128,.25)}
+</style>
+</head>
+<body>
+<header class="od-h"><div><h1 id="t"></h1><p class="sub" id="st"></p></div><div class="seg" id="theme" role="group" aria-label="Color mode"></div></header>
+<main>
+<fieldset class="opts" id="opts"></fieldset>
+<section aria-labelledby="h-r"><h2 id="h-r">Shades (color ramps) <span class="kv" id="ml"></span></h2><div id="ramps" class="specimen" data-label="your palette"></div></section>
+<section aria-labelledby="h-p"><h2 id="h-p">Easy to read? Contrast checks (WCAG 2, never rounded up)</h2>
+<table class="tbl" id="pairs"><thead><tr><th scope="col">Pair</th><th scope="col">Sample</th><th scope="col" class="num">Ratio</th><th scope="col" class="num">Needs</th><th scope="col">Result</th></tr></thead><tbody></tbody></table></section>
+<section id="cs" aria-labelledby="h-c" hidden><h2 id="h-c">Your own color</h2>
+<div class="row"><label class="row">Brand color <input type="color" id="cc"></label><input type="text" id="ct" size="9" aria-label="Hex value" placeholder="#RRGGBB"><button type="button" id="cu">Use this color</button><span class="kv" id="ci"></span></div></section>
+</main>
+<footer class="od-f">
+<label><input type="checkbox" id="lock"> Lock this decision</label>
+<label>Note <input type="text" id="note" placeholder="optional reason" size="24"></label>
+<textarea id="out" class="od-out" rows="2" readonly aria-label="Your choice as OD lines"></textarea>
+<button type="button" class="primary" id="copy">Copy my choice</button>
+<span id="live" class="kv" role="status" aria-live="polite"></span>
+</footer>
+<script type="application/json" id="od-data">
+{
+ "question": "Q-color-03",
+ "recommended": "tonal",
+ "generatedBy": "engine.py show palette (OpenDesigner engine 1.0.0); real values from Thoen Hospital Web Portal's state",
+ "title": "Thoen Hospital Web Portal: how colorful",
+ "subtitle": "Each option is your palette, built for real. The shades go from light to dark; the number under each is its contrast with the first shade. The table below checks the pairs people read most; engine.py validate checks every pair. Your earlier answers fix density, so the options differ in the rest.",
+ "options": [
+  {
+   "value": "tonal",
+   "label": "Tonal, low to medium color",
+   "note": "calm color, 1 accent; your brand color exactly on buttons",
+   "ramps": [
+    {
+     "name": "accent",
+     "light": [
+      "#fafefb",
+      "#eff5f1",
+      "#e1efe5",
+      "#d2e8d9",
+      "#c3e2ce",
+      "#b4dbc2",
+      "#a5d4b6",
+      "#55936e",
+      "#0d7446",
+      "#00683d",
+      "#14633d",
+      "#193a27"
+     ],
+     "dark": [
+      "#151916",
+      "#1a211c",
+      "#1c2a21",
+      "#1d3426",
+      "#1e3d2b",
+      "#1f4731",
+      "#1b5235",
+      "#448f65",
+      "#389363",
+      "#47a06f",
+      "#6bbc8d",
+      "#c1dcca"
+     ]
+    },
+    {
+     "name": "neutral",
+     "light": [
+      "#fdfdfd",
+      "#f4f4f4",
+      "#ebebeb",
+      "#e3e3e3",
+      "#dadada",
+      "#d2d2d2",
+      "#c9c9c9",
+      "#868686",
+      "#757575",
+      "#646464",
+      "#575757",
+      "#242424"
+     ],
+     "dark": [
+      "#151515",
+      "#1d1d1d",
+      "#252525",
+      "#2d2d2d",
+      "#363636",
+      "#3f3f3f",
+      "#484848",
+      "#808080",
+      "#828282",
+      "#959595",
+      "#ababab",
+      "#e9e9e9"
+     ]
+    }
+   ],
+   "pairs": [
+    {
+     "label": "Body text on the page",
+     "fg": {
+      "light": "#242424",
+      "dark": "#e9e9e9"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Muted text on the page",
+     "fg": {
+      "light": "#575757",
+      "dark": "#ababab"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Link on the page",
+     "fg": {
+      "light": "#14633d",
+      "dark": "#6bbc8d"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Read more"
+    },
+    {
+     "label": "Label on the main button",
+     "fg": {
+      "light": "#ffffff",
+      "dark": "#151515"
+     },
+     "bg": {
+      "light": "#0d7446",
+      "dark": "#389363"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Save"
+    },
+    {
+     "label": "Error text on the page",
+     "fg": {
+      "light": "#983630",
+      "dark": "#f29388"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Try again"
+    },
+    {
+     "label": "Input border",
+     "fg": {
+      "light": "#868686",
+      "dark": "#808080"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    },
+    {
+     "label": "Focus ring",
+     "fg": {
+      "light": "#0d7446",
+      "dark": "#6bbc8d"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    }
+   ]
+  },
+  {
+   "value": "vivid",
+   "label": "Vivid",
+   "note": "the strongest color, 3 accents; your brand color exactly on buttons",
+   "ramps": [
+    {
+     "name": "accent",
+     "light": [
+      "#f7fff9",
+      "#e8f7ed",
+      "#d2f3dd",
+      "#b9efcd",
+      "#a0eabc",
+      "#83e6ac",
+      "#61e19c",
+      "#009a5c",
+      "#0d7446",
+      "#00683d",
+      "#00643b",
+      "#003d21"
+     ],
+     "dark": [
+      "#0f1b14",
+      "#112319",
+      "#032f19",
+      "#00381e",
+      "#004124",
+      "#004a2a",
+      "#005430",
+      "#00955a",
+      "#00985b",
+      "#00a765",
+      "#00c578",
+      "#a2e4bb"
+     ]
+    },
+    {
+     "name": "accent2",
+     "light": [
+      "#f9feff",
+      "#e8f6fa",
+      "#d3f0f9",
+      "#bbebf8",
+      "#a1e5f7",
+      "#85dff6",
+      "#65d8f5",
+      "#0093ad",
+      "#008198",
+      "#00748a",
+      "#006072",
+      "#003945"
+     ],
+     "dark": [
+      "#11191c",
+      "#152225",
+      "#0e2b32",
+      "#02353f",
+      "#003d4a",
+      "#004655",
+      "#00505f",
+      "#008ea8",
+      "#0091ab",
+      "#009fbc",
+      "#00bcdd",
+      "#aeddeb"
+     ]
+    },
+    {
+     "name": "neutral",
+     "light": [
+      "#fdfdfd",
+      "#f4f4f4",
+      "#ebebeb",
+      "#e3e3e3",
+      "#dadada",
+      "#d2d2d2",
+      "#c9c9c9",
+      "#868686",
+      "#757575",
+      "#646464",
+      "#575757",
+      "#242424"
+     ],
+     "dark": [
+      "#151515",
+      "#1d1d1d",
+      "#252525",
+      "#2d2d2d",
+      "#363636",
+      "#3f3f3f",
+      "#484848",
+      "#808080",
+      "#828282",
+      "#959595",
+      "#ababab",
+      "#e9e9e9"
+     ]
+    }
+   ],
+   "pairs": [
+    {
+     "label": "Body text on the page",
+     "fg": {
+      "light": "#242424",
+      "dark": "#e9e9e9"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Muted text on the page",
+     "fg": {
+      "light": "#575757",
+      "dark": "#ababab"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Link on the page",
+     "fg": {
+      "light": "#00643b",
+      "dark": "#00c578"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Read more"
+    },
+    {
+     "label": "Label on the main button",
+     "fg": {
+      "light": "#ffffff",
+      "dark": "#151515"
+     },
+     "bg": {
+      "light": "#0d7446",
+      "dark": "#00985b"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Save"
+    },
+    {
+     "label": "Error text on the page",
+     "fg": {
+      "light": "#a82321",
+      "dark": "#ff8c80"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Try again"
+    },
+    {
+     "label": "Input border",
+     "fg": {
+      "light": "#868686",
+      "dark": "#808080"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    },
+    {
+     "label": "Focus ring",
+     "fg": {
+      "light": "#0d7446",
+      "dark": "#00c578"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    }
+   ]
+  },
+  {
+   "value": "monochrome",
+   "label": "All gray or nearly gray",
+   "note": "almost no color, 1 accent; your brand color exactly on buttons",
+   "ramps": [
+    {
+     "name": "accent",
+     "light": [
+      "#fdfdfd",
+      "#f4f4f4",
+      "#ebebeb",
+      "#e2e3e3",
+      "#dadada",
+      "#d1d2d1",
+      "#c9cac9",
+      "#858685",
+      "#0d7446",
+      "#595a5a",
+      "#565756",
+      "#333434"
+     ],
+     "dark": [
+      "#181818",
+      "#1f2020",
+      "#272727",
+      "#2f2f2f",
+      "#373737",
+      "#3f403f",
+      "#484848",
+      "#808181",
+      "#828383",
+      "#8f908f",
+      "#abacac",
+      "#d5d6d5"
+     ]
+    },
+    {
+     "name": "neutral",
+     "light": [
+      "#fdfdfd",
+      "#f4f4f4",
+      "#ebebeb",
+      "#e3e3e3",
+      "#dadada",
+      "#d2d2d2",
+      "#c9c9c9",
+      "#868686",
+      "#757575",
+      "#646464",
+      "#575757",
+      "#242424"
+     ],
+     "dark": [
+      "#151515",
+      "#1d1d1d",
+      "#252525",
+      "#2d2d2d",
+      "#363636",
+      "#3f3f3f",
+      "#484848",
+      "#808080",
+      "#828282",
+      "#959595",
+      "#ababab",
+      "#e9e9e9"
+     ]
+    }
+   ],
+   "pairs": [
+    {
+     "label": "Body text on the page",
+     "fg": {
+      "light": "#242424",
+      "dark": "#e9e9e9"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Muted text on the page",
+     "fg": {
+      "light": "#575757",
+      "dark": "#ababab"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Link on the page",
+     "fg": {
+      "light": "#565756",
+      "dark": "#abacac"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Read more"
+    },
+    {
+     "label": "Label on the main button",
+     "fg": {
+      "light": "#ffffff",
+      "dark": "#151515"
+     },
+     "bg": {
+      "light": "#242424",
+      "dark": "#e9e9e9"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Save"
+    },
+    {
+     "label": "Error text on the page",
+     "fg": {
+      "light": "#8d4039",
+      "dark": "#e6988f"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Try again"
+    },
+    {
+     "label": "Input border",
+     "fg": {
+      "light": "#868686",
+      "dark": "#808080"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    },
+    {
+     "label": "Focus ring",
+     "fg": {
+      "light": "#0d7446",
+      "dark": "#abacac"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    }
+   ]
+  },
+  {
+   "value": "expressive",
+   "label": "Hues turned away from the source color (Material Expressive)",
+   "note": "strong color, 3 accents; your brand color exactly on buttons",
+   "ramps": [
+    {
+     "name": "accent",
+     "light": [
+      "#fafefb",
+      "#eef6f1",
+      "#e0efe5",
+      "#d1e9d9",
+      "#c1e2cd",
+      "#b2dcc1",
+      "#a2d5b5",
+      "#50936c",
+      "#0d7446",
+      "#00683d",
+      "#06643b",
+      "#173a27"
+     ],
+     "dark": [
+      "#141916",
+      "#1a211c",
+      "#1b2b21",
+      "#1c3426",
+      "#1c3e2b",
+      "#1c482f",
+      "#155233",
+      "#3f9164",
+      "#319562",
+      "#40a26e",
+      "#66be8b",
+      "#c0ddca"
+     ]
+    },
+    {
+     "name": "accent2",
+     "light": [
+      "#fbfdfe",
+      "#f0f5f6",
+      "#e2edf0",
+      "#d5e6eb",
+      "#c7dee5",
+      "#b9d7df",
+      "#abd0da",
+      "#5e8d9a",
+      "#3c7e8f",
+      "#337282",
+      "#285e6c",
+      "#1f373e"
+     ],
+     "dark": [
+      "#161919",
+      "#1c2022",
+      "#20292b",
+      "#243135",
+      "#283a3f",
+      "#2c434a",
+      "#2e4d55",
+      "#5d8894",
+      "#588b99",
+      "#6598a6",
+      "#83b3c1",
+      "#c8d9dd"
+     ]
+    },
+    {
+     "name": "neutral",
+     "light": [
+      "#fdfdfd",
+      "#f4f4f4",
+      "#ebebeb",
+      "#e3e3e3",
+      "#dadada",
+      "#d2d2d2",
+      "#c9c9c9",
+      "#868686",
+      "#757575",
+      "#646464",
+      "#575757",
+      "#242424"
+     ],
+     "dark": [
+      "#151515",
+      "#1d1d1d",
+      "#252525",
+      "#2d2d2d",
+      "#363636",
+      "#3f3f3f",
+      "#484848",
+      "#808080",
+      "#828282",
+      "#959595",
+      "#ababab",
+      "#e9e9e9"
+     ]
+    }
+   ],
+   "pairs": [
+    {
+     "label": "Body text on the page",
+     "fg": {
+      "light": "#242424",
+      "dark": "#e9e9e9"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Muted text on the page",
+     "fg": {
+      "light": "#575757",
+      "dark": "#ababab"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text"
+    },
+    {
+     "label": "Link on the page",
+     "fg": {
+      "light": "#06643b",
+      "dark": "#66be8b"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Read more"
+    },
+    {
+     "label": "Label on the main button",
+     "fg": {
+      "light": "#ffffff",
+      "dark": "#151515"
+     },
+     "bg": {
+      "light": "#0d7446",
+      "dark": "#319562"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Save"
+    },
+    {
+     "label": "Error text on the page",
+     "fg": {
+      "light": "#9a352f",
+      "dark": "#f49186"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 4.5,
+     "kind": "text",
+     "sample": "Try again"
+    },
+    {
+     "label": "Input border",
+     "fg": {
+      "light": "#868686",
+      "dark": "#808080"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    },
+    {
+     "label": "Focus ring",
+     "fg": {
+      "light": "#0d7446",
+      "dark": "#66be8b"
+     },
+     "bg": {
+      "light": "#fdfdfd",
+      "dark": "#1d1d1d"
+     },
+     "min": 3.0,
+     "kind": "edge"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadData(){let d={};try{d=JSON.parse($('#od-data').textContent)}catch(e){}
+ if(window.OD_DATA)d=window.OD_DATA;const m=location.hash.match(/[#&]data=([^&]+)/);
+ if(m){try{d=JSON.parse(decodeURIComponent(m[1]))}catch(e){console.warn('OpenDesigner: #data is not valid JSON')}}return d}
+const D=loadData();
+const OD={sel:null,extra:null,draw:()=>{}};
+// OD: line grammar (spec 3.7, DC-L18-07): OD:set <path>=<json-value> [--why "reason"], OD:lock <path>
+function fmtv(v){return typeof v==='number'||typeof v==='boolean'?String(v):JSON.stringify(String(v))}
+function fill(tpl,v){return tpl.replace('{v}',fmtv(v))}
+function lines(){let L=[];const o=OD.sel;
+ if(o){if(o.od)L=[].concat(o.od);else if(D.question)L=['OD:set '+D.question+'='+fmtv(o.value)];else if(D.path)L=['OD:set '+D.path+'='+fmtv(o.value)]}
+ if(OD.extra)L=L.concat(OD.extra());
+ const why=[$('#note').value.trim()].concat(OD.why?OD.why():[]).filter(Boolean).join('; ');
+ L=L.map(x=>why&&/^OD:set /.test(x)&&x.indexOf(' --why ')<0?x+' --why '+JSON.stringify(why):x);
+ if($('#lock').checked)L=L.concat(L.filter(x=>/^OD:set /.test(x)).map(x=>'OD:lock '+x.slice(7).split('=')[0]));
+ return L}
+function update(){OD.draw();$('#out').value=lines().join('\n')||'(nothing chosen yet)'}
+async function copy(){const t=$('#out').value;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){$('#out').select();try{ok=document.execCommand('copy')}catch(_){}}
+ $('#live').textContent=ok?'Copied. Paste it into the chat.':'Select the text and copy it by hand.'}
+function mode(){const t=document.documentElement.dataset.theme;return t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
+function lum(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+ const c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function fix(r){return (Math.floor(r*100)/100).toFixed(2)} // WCAG: no rounding up
+function band(bands,v){for(const b of bands)if(v>=b[0]&&v<=b[1])return b[2];return bands[bands.length-1][2]}
+function seg(el,values,cur,onPick,fmt=String){el.innerHTML=values.map(v=>'<button type="button" aria-pressed="'+(v==cur)+'" data-v="'+esc(v)+'">'+esc(fmt(v))+'</button>').join('');
+ el.onclick=e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));onPick(b.dataset.v)}}
+function mountOptions(inner){const box=$('#opts');const opts=D.options||[];
+ box.innerHTML='<legend class="vh">'+esc(D.title||'Options')+'</legend>'+opts.map((o,i)=>'<label class="opt"'+(o.more?' title="'+esc(o.more)+'"':'')+'><input type="radio" name="opt" value="'+i+'"><span class="opt-t">'+esc(o.label||o.value)+(o.value==D.recommended?'<span class="rec">Recommended</span>':'')+'</span>'+(o.note?'<span class="opt-n">'+esc(o.note)+'</span>':'')+(o.short?'<span class="kv">'+esc(o.short)+'</span>':'')+(inner?inner(o):'')+'</label>').join('');
+ box.onchange=e=>{if(e.target.name==='opt'){OD.sel=opts[+e.target.value];if(OD.onPick)OD.onPick(OD.sel);update()}};
+ const i=Math.max(0,opts.findIndex(o=>o.value==D.recommended));const r=box.querySelector('input[value="'+i+'"]');if(r){r.checked=true;OD.sel=opts[i]}}
+function boot(){$('#t').textContent=D.title||document.title;$('#st').textContent=D.subtitle||'';
+ seg($('#theme'),['auto','light','dark'],'auto',v=>{if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;update()},v=>v[0].toUpperCase()+v.slice(1));
+ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+ $('#copy').onclick=copy;$('#lock').onchange=update;$('#note').oninput=update;update()}
+function res(ref,m){if(ref&&typeof ref==='object')ref=ref[m]||ref.light;if(/^#/.test(ref))return ref;const [n,s]=String(ref).split('.');const r=((OD.sel||{}).ramps||[]).find(x=>x.name===n);return r?(r[m]||r.light)[+s-1]:null}
+OD.draw=()=>{const m=mode(),o=OD.sel;$('#ml').textContent='('+m+')';const box=$('#ramps');
+ if(!o||!o.ramps){box.innerHTML='<p class="kv">Your own color: the engine makes its shades after you paste the line back.</p>'}
+ else box.innerHTML=o.ramps.map(r=>{const st=r[m]||r.light,bg=st[0];return '<div class="ramp"><div class="ramp-n">'+esc(r.name)+'</div><ol class="sw">'+st.map((h,i)=>{const c=ratio(h,bg);
+  return '<li><span class="chip" style="background:'+h+'" role="img" aria-label="'+esc(r.name)+' step '+(i+1)+', '+h+', '+fix(c)+' to 1 on step 1"></span><span class="kv">'+(i+1)+'</span><span class="kv">'+h+'</span><span class="kv">'+fix(c)+'</span></li>'}).join('')+'</ol></div>'}).join('');
+ const n=(o&&o.ramps&&o.ramps.find(r=>r.name==='neutral'))||null;box.style.setProperty('--s-bg',n?(n[m]||n.light)[0]:'');box.style.setProperty('--s-fg',n?(n[m]||n.light)[11]:'');
+ $('#pairs tbody').innerHTML=((o&&o.pairs)||D.pairs||[]).map(p=>{const f=res(p.fg,m),b=res(p.bg,m);if(!f||!b)return '';const c=ratio(f,b);let ok=c>=p.min,how='';
+  const i=p.inner&&res(p.inner,m);if(!ok&&i&&ratio(i,b)>=3&&ratio(i,f)>=3){ok=true;how=' (two-tone ring)'} // the same rule as engine.py validate
+  const edge=p.kind==='edge'||p.sample==='border';
+  return '<tr><td>'+esc(p.label)+'</td><td><span class="pair" style="'+(edge?'':'color:'+f+';')+'background:'+b+'">'+(edge?'<span class="edge" style="border-color:'+f+'" role="img" aria-label="'+esc(p.label)+', '+f+' on '+b+'"></span>':'Aa '+esc(p.sample||'Sample text'))+'</span></td><td class="num">'+fix(c)+':1</td><td class="num">'+p.min+':1</td><td class="'+(ok?'ok':'bad')+'">'+(ok?'Pass':'Fail')+how+'</td></tr>'}).join('')};
+if(D.custom){$('#cs').hidden=false;const cc=$('#cc'),ct=$('#ct');let hex=D.custom.value||'#0F766E';cc.value=hex;ct.value=hex;
+ const info=h=>{$('#ci').textContent='white text '+fix(ratio(h,'#ffffff'))+':1, black text '+fix(ratio(h,'#000000'))+':1'};info(hex);
+ cc.oninput=()=>{ct.value=cc.value;info(cc.value)};ct.oninput=()=>{if(/^#[0-9a-f]{6}$/i.test(ct.value)){cc.value=ct.value;info(ct.value)}};
+ $('#cu').onclick=()=>{hex=cc.value.toUpperCase();OD.sel=null;document.querySelectorAll('#opts input').forEach(i=>i.checked=false);OD.extra=()=>[fill(D.custom.line,hex)];update()};
+ OD.onPick=()=>{OD.extra=null}}
+mountOptions(o=>o.ramps?'<span class="dots">'+o.ramps.map(r=>'<i style="background:'+r.light[8]+'"></i>').join('')+'</span>':'');boot();
+</script>
+</body>
+</html>

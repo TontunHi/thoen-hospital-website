@@ -1,0 +1,141 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-comment-sheet { box-sizing: border-box; inline-size: 100%; max-inline-size: 30rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-comment-sheet *, .odl-comment-sheet *::before, .odl-comment-sheet *::after { box-sizing: border-box; }
+.odl-comment-sheet .odl-screen { position: relative; block-size: 44rem; overflow: hidden; border-radius: var(--ds-radius-container); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  background: var(--ds-color-surface-raised); box-shadow: var(--ds-elevation-raised); }
+.odl-comment-sheet .odl-behind { display: grid; }
+.odl-comment-sheet .odl-behind-photo { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 2 / 1; object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-comment-sheet .odl-scrim { position: absolute; inset: 0; background: var(--ds-color-overlay-scrim); }
+.odl-comment-sheet .odl-sheet { position: absolute; inset-inline: 0; inset-block-end: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); block-size: 72%;
+  background: var(--ds-color-surface-overlay); border-start-start-radius: var(--ds-radius-overlay); border-start-end-radius: var(--ds-radius-overlay); box-shadow: var(--ds-elevation-overlay);
+  animation: odl-comment-sheet-up var(--ds-motion-duration-drawer) var(--ds-motion-easing-drawer); }
+@keyframes odl-comment-sheet-up { from { transform: translateY(100%); } }
+.odl-comment-sheet .odl-top { position: relative; display: grid; justify-items: center; gap: var(--ds-space-stack-xs); padding: var(--ds-space-stack-sm) var(--ds-space-inset-sm) var(--ds-space-stack-xs); border-block-end: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-comment-sheet .odl-grab { inline-size: var(--ds-space-40); block-size: var(--ds-space-4); border-radius: var(--ds-radius-full); background: var(--ds-color-border-strong); }
+.odl-comment-sheet h3 { display: flex; align-items: baseline; gap: var(--ds-space-inline-sm); min-block-size: var(--ds-size-target-touch); align-content: center; flex-wrap: wrap; margin: 0; padding-block: var(--ds-space-stack-sm); font: var(--ds-text-title-sm); }
+.odl-comment-sheet h3 span { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-comment-sheet .odl-close { position: absolute; inset-inline-end: var(--ds-space-inset-sm); inset-block-end: var(--ds-space-stack-xs); }
+.odl-comment-sheet button { display: inline-grid; place-items: center; min-inline-size: var(--ds-size-target-touch); min-block-size: var(--ds-size-target-touch); padding: 0; border: 0; border-radius: var(--ds-radius-full);
+  background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-label-md); cursor: pointer; transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-comment-sheet button:hover:not(:disabled) { background: var(--ds-color-bg-neutral-subtle); }
+.odl-comment-sheet button svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-comment-sheet .odl-list { margin: 0; padding: var(--ds-space-inset-lg) var(--ds-space-inset-sm) var(--ds-space-inset-lg) var(--ds-space-inset-xl); list-style: none; overflow-y: auto; overscroll-behavior: contain; display: grid; align-content: start; gap: var(--ds-space-stack-lg); }
+.odl-comment-sheet .odl-list ul { margin: var(--ds-space-stack-md) 0 0; padding: 0; list-style: none; display: grid; gap: var(--ds-space-stack-md); }
+.odl-comment-sheet .odl-c { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--ds-space-inline-md); align-items: start; }
+.odl-comment-sheet .odl-c > ul, .odl-comment-sheet .odl-c > .odl-more { grid-column: 2 / -1; }
+.odl-comment-sheet .odl-av { display: grid; inline-size: var(--ds-size-control-md); aspect-ratio: 1; border-radius: var(--ds-radius-person); }
+.odl-comment-sheet .odl-av img { display: block; inline-size: 100%; block-size: 100%; border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-comment-sheet .odl-av.is-sm { inline-size: var(--ds-size-control-sm); }
+.odl-comment-sheet .odl-text { display: grid; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-comment-sheet .odl-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-2) var(--ds-space-inline-sm); margin: 0; font: var(--ds-text-label-md); }
+.odl-comment-sheet .odl-meta b { font-weight: var(--ds-font-weight-heading); }
+.odl-comment-sheet .odl-meta time { color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
+.odl-comment-sheet .odl-author { padding: 0 var(--ds-space-6); border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-sm); }
+.odl-comment-sheet .odl-text p { margin: 0; overflow-wrap: anywhere; }
+.odl-comment-sheet .odl-at { color: var(--ds-color-text-link); }
+.odl-comment-sheet .odl-reply, .odl-comment-sheet .odl-more { justify-self: start; min-inline-size: 0; margin-inline: calc(-1 * var(--ds-space-6)); padding-inline: var(--ds-space-6); border-radius: var(--ds-radius-control-sm);
+  color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-weight: var(--ds-font-weight-label); }
+.odl-comment-sheet .odl-reply { margin-block: calc(-1 * var(--ds-space-8)); }
+.odl-comment-sheet .odl-more { display: inline-flex; gap: var(--ds-space-inline-sm); margin-block-start: var(--ds-space-stack-xs); }
+.odl-comment-sheet .odl-more::before { content: ""; inline-size: var(--ds-space-24); block-size: var(--ds-border-width-default); background: var(--ds-color-border-strong); }
+.odl-comment-sheet .odl-like { display: grid; justify-items: center; align-content: center; gap: var(--ds-space-2); margin-block-start: calc(-1 * var(--ds-space-8)); color: var(--ds-color-text-tertiary); font: var(--ds-text-label-sm); font-variant-numeric: tabular-nums; }
+.odl-comment-sheet .odl-like svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); }
+/* Liked: the heart fills in the text colour (no status colour). */
+.odl-comment-sheet .odl-like[aria-pressed="true"] { color: var(--ds-color-text-primary); }
+.odl-comment-sheet .odl-like[aria-pressed="true"] svg { fill: currentColor; }
+.odl-comment-sheet .odl-composer { display: flex; align-items: center; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-inset-md) var(--ds-space-inset-xl) var(--ds-space-inset-lg);
+  border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); background: var(--ds-color-surface-overlay); }
+.odl-comment-sheet .odl-field { display: flex; align-items: center; flex: 1; min-inline-size: 0; border: var(--ds-border-width-default) solid var(--ds-color-border-input); border-radius: var(--ds-radius-control); background: var(--ds-color-bg-field); }
+.odl-comment-sheet .odl-field:focus-within { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-comment-sheet .odl-field input { flex: 1; min-inline-size: 0; min-block-size: var(--ds-size-target-touch); padding: 0 var(--ds-space-4) 0 var(--ds-space-inset-md); border: 0; background: transparent; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); outline: none; }
+.odl-comment-sheet .odl-field input::placeholder { color: var(--ds-color-text-tertiary); }
+.odl-comment-sheet .odl-post { padding-inline: var(--ds-space-inset-md); border-radius: var(--ds-radius-control-sm); color: var(--ds-color-text-accent); font: var(--ds-text-label-lg); font-weight: var(--ds-font-weight-heading); }
+.odl-comment-sheet .odl-post:disabled { color: var(--ds-color-text-disabled); cursor: default; }
+.odl-comment-sheet button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-comment-sheet .odl-list:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: calc(-1 * var(--ds-focus-ring-width)); }
+.odl-comment-sheet .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (inline-size < 26rem) {
+  .odl-comment-sheet .odl-list { padding-inline-start: var(--ds-space-inset-lg); }
+  .odl-comment-sheet .odl-composer { padding-inline: var(--ds-space-inset-lg); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-comment-sheet, .odl-comment-sheet *, .odl-comment-sheet *::before { transition: none !important; animation: none !important; } }
+</style>
+<div class="odl-comment-sheet">
+  <div class="odl-screen">
+    <div class="odl-behind" aria-hidden="true"><img class="odl-behind-photo" src="https://images.unsplash.com/photo-1514565131-fce0801e5785?w=880&h=440&fit=crop&auto=format&q=70" alt="" width="440" height="220" loading="lazy" decoding="async"></div>
+    <div class="odl-scrim" aria-hidden="true"></div>
+    <section class="odl-sheet" role="dialog" aria-modal="true" aria-labelledby="odl-cs-title">
+      <div class="odl-top"><span class="odl-grab" aria-hidden="true"></span><h3 id="odl-cs-title">Comments <span>86</span></h3>
+        <button type="button" class="odl-close" aria-label="Close comments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div>
+      <ul class="odl-list" tabindex="0" aria-label="86 comments">
+        <li class="odl-c"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1705645930353-0e335311ef20?w=80&h=80&fit=crop&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"></span>
+          <div class="odl-text"><p class="odl-meta"><b>rafal.makes</b><span class="odl-author">Author</span><time>1 h</time></p>
+            <p>Shot handheld at 1/60. Lens and settings are in the first reply, since a few of you asked.</p><button type="button" class="odl-reply">Reply</button></div>
+          <button type="button" class="odl-like" aria-pressed="false" data-n="214" aria-label="Like, 214 likes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>214</span></button>
+        </li>
+        <li class="odl-c"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1596580817363-a4a8f67d4bc8?w=80&h=80&fit=crop&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"></span>
+          <div class="odl-text"><p class="odl-meta"><b>kwesi.frames</b><time>2 h</time></p>
+            <p>The lights on those towers are unreal. Which lens?</p><button type="button" class="odl-reply">Reply</button></div>
+          <button type="button" class="odl-like" aria-pressed="true" data-n="48" aria-label="Unlike, 48 likes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>48</span></button>
+          <ul>
+            <li class="odl-c"><span class="odl-av is-sm" aria-hidden="true"><img src="https://images.unsplash.com/photo-1705645930353-0e335311ef20?w=48&h=48&fit=crop&auto=format&q=70" alt="" width="24" height="24" loading="lazy" decoding="async"></span>
+              <div class="odl-text"><p class="odl-meta"><b>rafal.makes</b><span class="odl-author">Author</span><time>1 h</time></p>
+                <p><span class="odl-at">@kwesi.frames</span> a 35 mm prime, nothing fancy. The fog did the rest.</p><button type="button" class="odl-reply">Reply</button></div>
+              <button type="button" class="odl-like" aria-pressed="false" data-n="31" aria-label="Like, 31 likes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>31</span></button>
+            </li>
+          </ul>
+          <button type="button" class="odl-more">View 4 more replies</button>
+        </li>
+        <li class="odl-c"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1534751516642-a1af1ef26a56?w=80&h=80&fit=crop&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"></span>
+          <div class="odl-text"><p class="odl-meta"><b>leilani.k</b><time>3 h</time></p>
+            <p>Saving this for my trip in March. Is the roof open to visitors or was this a friend's flat?</p><button type="button" class="odl-reply">Reply</button></div>
+          <button type="button" class="odl-like" aria-pressed="false" data-n="9" aria-label="Like, 9 likes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>9</span></button>
+        </li>
+        <li class="odl-c"><span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1607569708758-0270aa4651bd?w=80&h=80&fit=crop&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"></span>
+          <div class="odl-text"><p class="odl-meta"><b>mireille.v</b><time>5 h</time></p>
+            <p>The colours in the third photo look like a painting.</p><button type="button" class="odl-reply">Reply</button></div>
+          <button type="button" class="odl-like" aria-pressed="false" data-n="3" aria-label="Like, 3 likes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg><span>3</span></button>
+        </li>
+      </ul>
+      <form class="odl-composer">
+        <span class="odl-av" aria-hidden="true"><img src="https://images.unsplash.com/photo-1611403119860-57c4937ef987?w=80&h=80&fit=crop&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"></span>
+        <label class="odl-field"><span class="odl-sr">Add a comment for rafal.makes</span><input type="text" placeholder="Add a comment…" autocomplete="off" enterkeyhint="send">
+          <button type="submit" class="odl-post" disabled>Post</button></label>
+      </form>
+    </section>
+  </div>
+</div>
+<script>
+document.querySelectorAll(".odl-comment-sheet").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const list = root.querySelector(".odl-list"), form = root.querySelector(".odl-composer"), input = form.querySelector("input"), post = form.querySelector(".odl-post");
+  const heart = root.querySelector(".odl-like svg"), me = form.querySelector(".odl-av img");
+  const wire = (b) => b.addEventListener("click", () => {
+    const on = b.getAttribute("aria-pressed") !== "true", n = Number(b.dataset.n) + (on ? 1 : -1);
+    b.dataset.n = n; b.setAttribute("aria-pressed", String(on)); b.querySelector("span").textContent = n;
+    b.setAttribute("aria-label", `${on ? "Unlike" : "Like"}, ${n} ${n === 1 ? "like" : "likes"}`);
+  });
+  root.querySelectorAll(".odl-like").forEach(wire);
+  root.querySelectorAll(".odl-reply").forEach((r) => r.addEventListener("click", () => {
+    const who = r.parentElement.querySelector("b").textContent;
+    input.value = `@${who} `; post.disabled = false; input.focus();
+  }));
+  input.addEventListener("input", () => { post.disabled = !input.value.trim(); });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    const li = document.createElement("li"), av = document.createElement("span"), body = document.createElement("div"), meta = document.createElement("p");
+    const name = document.createElement("b"), time = document.createElement("time"), p = document.createElement("p"), like = document.createElement("button"), count = document.createElement("span");
+    li.className = "odl-c"; av.className = "odl-av"; av.setAttribute("aria-hidden", "true"); av.append(me.cloneNode(true));
+    body.className = "odl-text"; meta.className = "odl-meta"; name.textContent = "you"; time.textContent = "now"; p.textContent = text;
+    like.type = "button"; like.className = "odl-like"; like.dataset.n = "0"; like.setAttribute("aria-pressed", "false"); like.setAttribute("aria-label", "Like, 0 likes");
+    like.append(heart.cloneNode(true), count); count.textContent = "0"; wire(like);
+    meta.append(name, time); body.append(meta, p); li.append(av, body, like);
+    list.prepend(li); list.scrollTop = 0;
+    input.value = ""; post.disabled = true;
+  });
+});
+</script>

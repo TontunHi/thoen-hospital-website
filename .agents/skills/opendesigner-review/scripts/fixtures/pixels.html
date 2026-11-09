@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- Planted for test_probe_live.py: line art drawn through a paragraph; a pinned panel whose caption sits under a floating
+     bar, and a footer line under the bar at the end of the page; tabs whose panel changes height; a segmented control that
+     changes nothing; a heading split into one inline-block span per letter (kerning lost); pale text on a gradient; a 1.2 s
+     entrance animation. The control text and the clean paragraph must not be flagged. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pixels fixture</title>
+<style>
+  body { margin: 0; font: 18px/1.5 Arial, sans-serif; color: #111; background: #fff; }
+  section { padding: 40px 24px; position: relative; }
+  #art-sec { height: 260px; }
+  #art { position: absolute; left: 0; top: 0; width: 100%; height: 260px; }
+  #crossed { position: relative; margin: 0; padding-top: 60px; max-width: 520px; }
+  #clean { margin: 0; }
+  #split { font-size: 64px; margin: 0; font-weight: 700; }
+  #split .c { display: inline-block; }
+  #grad { background: linear-gradient(90deg, #fff, #ddd); padding: 24px; }
+  #pale { color: #b5b5b5; margin: 0; }
+  #pin { position: sticky; top: 0; height: 100vh; background: #f4f4f4; }
+  #pin-caption { position: absolute; bottom: 24px; left: 24px; right: 24px; margin: 0; text-align: center; }
+  #bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: 320px; height: 56px; background: #111; color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; z-index: 10; }
+  [role=tabpanel] { padding: 12px 0; }
+  [role=tabpanel][hidden] { display: none; }
+  .seg button, [role=tab] { font: inherit; padding: 6px 12px; border: 1px solid #111; background: #fff; }
+  .seg button[aria-pressed=true], [role=tab][aria-selected=true] { background: #111; color: #fff; }
+  #intro { animation: rise 1.2s ease-out both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { #intro { animation: none; } }
+  footer { padding: 24px; text-align: center; }
+</style></head><body>
+<section id="art-sec">
+  <svg id="art" viewBox="0 0 800 260" preserveAspectRatio="none" aria-hidden="true"><path d="M0 70 L800 150 M0 150 L800 70" stroke="#0a7" stroke-width="2" fill="none"/></svg>
+  <p id="crossed">Every invoice, every receipt and every payment, in one place.</p>
+</section>
+<section><p id="clean">A plain paragraph on white that nothing crosses.</p></section>
+<section><h2 id="split" aria-label="WAVE TOYS"><span class="c">W</span><span class="c">A</span><span class="c">V</span><span class="c">E</span> <span class="c">T</span><span class="c">o</span><span class="c">y</span><span class="c">s</span></h2></section>
+<section id="grad"><p id="pale">Pale grey text on a gradient band.</p></section>
+<section id="tabs-sec">
+  <div role="tablist"><button role="tab" id="t1" aria-selected="true" aria-controls="p1">Short</button><button role="tab" id="t2" aria-selected="false" aria-controls="p2">Long</button></div>
+  <div id="panels"><div role="tabpanel" id="p1"><p>One line.</p></div><div role="tabpanel" id="p2" hidden><p>Line one.</p><p>Line two.</p><p>Line three.</p></div></div>
+</section>
+<section id="seg-sec">
+  <div class="seg"><button aria-pressed="true" id="s-a">Monthly</button><button aria-pressed="false" id="s-b">Yearly</button></div>
+  <p id="price">29 per seat</p>
+</section>
+<section id="intro"><p>Fades in on load.</p></section>
+<div style="height: 40vh"></div>
+<div id="pin-wrap" style="height: 200vh"><div id="pin"><p id="pin-caption">A caption inside the pinned panel.</p></div></div>
+<footer><p id="foot">Small print at the very end of the page.</p></footer>
+<div id="bar">Book a demo</div>
+<script>
+  // tabs work; the segmented control only moves its own pressed state (it changes nothing else)
+  for (const t of document.querySelectorAll('[role=tab]')) t.addEventListener('click', () => {
+    for (const x of document.querySelectorAll('[role=tab]')) { x.setAttribute('aria-selected', x === t); document.getElementById(x.getAttribute('aria-controls')).hidden = x !== t; }
+  });
+  for (const b of document.querySelectorAll('.seg button')) b.addEventListener('click', () => { for (const x of document.querySelectorAll('.seg button')) x.setAttribute('aria-pressed', x === b); });
+</script>
+</body></html>

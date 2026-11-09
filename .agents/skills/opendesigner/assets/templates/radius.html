@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDesigner · Radius</title>
+<!--
+OpenDesigner visual template: Radius. Corner radius on real components, with the Roundness dial (stage 14).
+Three voices: an option's "label" and "note" are plain; optional "short" shows the one-line
+"Designers: X · Code: Y" pointer, and optional "more" holds the full designer and engineer notes (tooltip).
+Feed it JSON in one of three ways: replace the contents of <script id="od-data">, set window.OD_DATA before the
+last script runs, or open the file with #data=<url-encoded JSON>. The sample payload below documents every field.
+"Copy my choice" produces OD: lines (grammar in references/rules.md): OD:<action> <target>=<value> <status>.
+No network requests, no dependencies. The shared chrome is repeated in every template on purpose so each file stands alone.
+-->
+<style>:root{--c-bg:#f6f6f7;--c-surface:#fff;--c-fg:#18181b;--c-muted:#585862;--c-border:#dcdce1;--c-strong:#18181b;--c-on-strong:#fff;--c-ok:#166534;--c-bad:#b42318;--r:8px;--font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}}
+:root[data-theme=dark]{--c-bg:#111113;--c-surface:#19191c;--c-fg:#ececef;--c-muted:#a3a3ad;--c-border:#303036;--c-strong:#ececef;--c-on-strong:#111113;--c-ok:#4ade80;--c-bad:#f97066;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-bg);color:var(--c-fg);font:14px/1.5 var(--font)}
+h1{font-size:16px;margin:0;font-weight:600}h2{font-size:13px;margin:0 0 8px;font-weight:600;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em}
+.od-h{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
+.sub{color:var(--c-muted);font-size:13px;margin:4px 0 0;max-width:72ch}
+main{max-width:1120px;margin:0 auto;padding:20px;display:grid;gap:24px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;border:0;padding:0;margin:0;min-width:0}
+.opt{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);padding:12px;cursor:pointer;min-height:44px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt:has(input:checked){border-color:var(--c-strong);box-shadow:inset 0 0 0 1px var(--c-strong)}
+.opt:has(input:focus-visible){outline:2px solid var(--c-strong);outline-offset:2px}
+.opt-t{font-weight:600}.opt-n{color:var(--c-muted);font-size:13px}
+.rec{display:inline-block;margin-left:6px;font:600 11px var(--font);padding:1px 6px;border:1px solid var(--c-border);border-radius:99px;color:var(--c-muted);vertical-align:1px}
+.specimen{position:relative;border:1px solid var(--c-border);border-radius:var(--r);background:var(--s-bg,var(--c-surface));color:var(--s-fg,var(--c-fg));padding:30px 16px 16px;overflow-x:auto}
+.specimen::before{content:attr(data-label);position:absolute;top:8px;left:12px;font:11px var(--mono);color:inherit;opacity:.6}
+.kv{font:12px/1.4 var(--mono);color:var(--c-muted)}.num{font-family:var(--mono);text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.lbl{min-width:84px;color:var(--c-muted);font-size:13px}
+button{font:inherit;min-height:44px;padding:0 14px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-fg);cursor:pointer}
+button.primary{background:var(--c-strong);color:var(--c-on-strong);border-color:var(--c-strong);font-weight:600}
+:focus-visible{outline:2px solid var(--c-strong);outline-offset:2px}
+input[type=text],input[type=number]{font:inherit;min-height:44px;padding:0 10px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-fg)}
+input[type=range]{min-height:44px;accent-color:var(--c-strong);flex:1 1 120px;min-width:0}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--c-border);border-radius:var(--r);overflow:hidden;background:var(--c-surface)}
+.seg button{border:0;border-radius:0;border-right:1px solid var(--c-border)}.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--c-strong);color:var(--c-on-strong)}
+.tbl{border-collapse:collapse;width:100%;font-size:13px}.tbl th,.tbl td{border-bottom:1px solid var(--c-border);padding:8px;text-align:left}.tbl th{color:var(--c-muted);font-weight:600}
+.ok{color:var(--c-ok);font-weight:600}.bad{color:var(--c-bad);font-weight:600}
+.od-f{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--c-surface);border-top:1px solid var(--c-border)}
+.od-f label{display:inline-flex;gap:6px;align-items:center;min-height:44px}
+.od-out{flex:1 1 320px;min-height:44px;font:12px/1.4 var(--mono);padding:8px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-bg);color:var(--c-fg);resize:vertical}
+input[type=radio],input[type=checkbox]{accent-color:var(--c-strong);width:18px;height:18px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;align-items:start}
+.cmp{display:grid;gap:10px}.btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;background:var(--s-fg);color:var(--s-bg);font-weight:600;width:max-content}
+.inp{height:40px;border:1px solid rgba(128,128,128,.6);padding:0 12px;display:flex;align-items:center;color:inherit;opacity:.85}
+.chip2{display:inline-flex;height:28px;align-items:center;padding:0 10px;border:1px solid rgba(128,128,128,.6);width:max-content;font-size:13px}
+.box{border:1px solid rgba(128,128,128,.5);padding:12px;display:grid;gap:10px}.img{height:90px;background:linear-gradient(135deg,rgba(128,128,128,.35),rgba(128,128,128,.12))}
+.av{width:40px;height:40px;border-radius:50%;background:rgba(128,128,128,.4)}
+</style>
+</head>
+<body>
+<header class="od-h"><div><h1 id="t"></h1><p class="sub" id="st"></p></div><div class="seg" id="theme" role="group" aria-label="Color mode"></div></header>
+<main>
+<fieldset class="opts" id="opts"></fieldset>
+<section aria-label="Roundness dial"><div class="row"><label class="lbl" for="dial">Roundness</label><span class="kv">sharp</span><input type="range" id="dial" min="0" max="100" step="1"><span class="kv">soft</span></div><output id="dv" class="kv" for="dial"></output></section>
+<section><div id="rs" class="specimen" data-label="your radius"></div></section>
+</main>
+<footer class="od-f">
+<label><input type="checkbox" id="lock"> Lock this decision</label>
+<label>Note <input type="text" id="note" placeholder="optional reason" size="24"></label>
+<textarea id="out" class="od-out" rows="2" readonly aria-label="Your choice as OD lines"></textarea>
+<button type="button" class="primary" id="copy">Copy my choice</button>
+<span id="live" class="kv" role="status" aria-live="polite"></span>
+</footer>
+<script type="application/json" id="od-data">
+{
+ "title": "Corner radius",
+ "subtitle": "Sample data. Pick a style, or drag the Roundness dial. The dial sets the corners of buttons and fields (radius.control). Cards and panels get about 1.5 times that, snapped to the scale.",
+ "question": "Q-shape-01",
+ "recommended": "subtle",
+ "options": [
+  {
+   "value": "square",
+   "label": "Square",
+   "note": "official, engineered",
+   "radii": {
+    "control": 2,
+    "container": 4
+   }
+  },
+  {
+   "value": "subtle",
+   "label": "Slightly rounded",
+   "note": "businesslike; the most common choice",
+   "short": "Designers: subtle radius · Code: border-radius: 6px",
+   "radii": {
+    "control": 6,
+    "container": 8
+   }
+  },
+  {
+   "value": "soft",
+   "label": "Soft",
+   "note": "friendly, modern",
+   "radii": {
+    "control": 12,
+    "container": 16
+   }
+  },
+  {
+   "value": "pill",
+   "label": "Pill",
+   "note": "consumer, touch-first",
+   "radii": {
+    "control": 9999,
+    "container": 20
+   }
+  }
+ ],
+ "dial": {
+  "line": "OD:set dials.roundness={v}",
+  "value": 45,
+  "bands": [
+   [
+    0,
+    12,
+    0
+   ],
+   [
+    13,
+    25,
+    2
+   ],
+   [
+    26,
+    37,
+    4
+   ],
+   [
+    38,
+    47,
+    6
+   ],
+   [
+    48,
+    60,
+    8
+   ],
+   [
+    61,
+    80,
+    12
+   ],
+   [
+    81,
+    92,
+    16
+   ],
+   [
+    93,
+    100,
+    "full"
+   ]
+  ]
+ },
+ "surface": {
+  "light": [
+   "#ffffff",
+   "#1b1b1f"
+  ],
+  "dark": [
+   "#1b1b1f",
+   "#ececef"
+  ]
+ }
+}
+</script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadData(){let d={};try{d=JSON.parse($('#od-data').textContent)}catch(e){}
+ if(window.OD_DATA)d=window.OD_DATA;const m=location.hash.match(/[#&]data=([^&]+)/);
+ if(m){try{d=JSON.parse(decodeURIComponent(m[1]))}catch(e){console.warn('OpenDesigner: #data is not valid JSON')}}return d}
+const D=loadData();
+const OD={sel:null,extra:null,draw:()=>{}};
+// OD: line grammar (spec 3.7, DC-L18-07): OD:set <path>=<json-value> [--why "reason"], OD:lock <path>
+function fmtv(v){return typeof v==='number'||typeof v==='boolean'?String(v):JSON.stringify(String(v))}
+function fill(tpl,v){return tpl.replace('{v}',fmtv(v))}
+function lines(){let L=[];const o=OD.sel;
+ if(o){if(o.od)L=[].concat(o.od);else if(D.question)L=['OD:set '+D.question+'='+fmtv(o.value)];else if(D.path)L=['OD:set '+D.path+'='+fmtv(o.value)]}
+ if(OD.extra)L=L.concat(OD.extra());
+ const why=[$('#note').value.trim()].concat(OD.why?OD.why():[]).filter(Boolean).join('; ');
+ L=L.map(x=>why&&/^OD:set /.test(x)&&x.indexOf(' --why ')<0?x+' --why '+JSON.stringify(why):x);
+ if($('#lock').checked)L=L.concat(L.filter(x=>/^OD:set /.test(x)).map(x=>'OD:lock '+x.slice(7).split('=')[0]));
+ return L}
+function update(){OD.draw();$('#out').value=lines().join('\n')||'(nothing chosen yet)'}
+async function copy(){const t=$('#out').value;let ok=false;
+ try{await navigator.clipboard.writeText(t);ok=true}catch(e){$('#out').select();try{ok=document.execCommand('copy')}catch(_){}}
+ $('#live').textContent=ok?'Copied. Paste it into the chat.':'Select the text and copy it by hand.'}
+function mode(){const t=document.documentElement.dataset.theme;return t==='light'||t==='dark'?t:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
+function lum(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+ const c=[0,2,4].map(i=>parseInt(h.substr(i,2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function fix(r){return (Math.floor(r*100)/100).toFixed(2)} // WCAG: no rounding up
+function band(bands,v){for(const b of bands)if(v>=b[0]&&v<=b[1])return b[2];return bands[bands.length-1][2]}
+function seg(el,values,cur,onPick,fmt=String){el.innerHTML=values.map(v=>'<button type="button" aria-pressed="'+(v==cur)+'" data-v="'+esc(v)+'">'+esc(fmt(v))+'</button>').join('');
+ el.onclick=e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));onPick(b.dataset.v)}}
+function mountOptions(inner){const box=$('#opts');const opts=D.options||[];
+ box.innerHTML='<legend class="vh">'+esc(D.title||'Options')+'</legend>'+opts.map((o,i)=>'<label class="opt"'+(o.more?' title="'+esc(o.more)+'"':'')+'><input type="radio" name="opt" value="'+i+'"><span class="opt-t">'+esc(o.label||o.value)+(o.value==D.recommended?'<span class="rec">Recommended</span>':'')+'</span>'+(o.note?'<span class="opt-n">'+esc(o.note)+'</span>':'')+(o.short?'<span class="kv">'+esc(o.short)+'</span>':'')+(inner?inner(o):'')+'</label>').join('');
+ box.onchange=e=>{if(e.target.name==='opt'){OD.sel=opts[+e.target.value];if(OD.onPick)OD.onPick(OD.sel);update()}};
+ const i=Math.max(0,opts.findIndex(o=>o.value==D.recommended));const r=box.querySelector('input[value="'+i+'"]');if(r){r.checked=true;OD.sel=opts[i]}}
+function boot(){$('#t').textContent=D.title||document.title;$('#st').textContent=D.subtitle||'';
+ seg($('#theme'),['auto','light','dark'],'auto',v=>{if(v==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v;update()},v=>v[0].toUpperCase()+v.slice(1));
+ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+ $('#copy').onclick=copy;$('#lock').onchange=update;$('#note').oninput=update;update()}
+const SNAP=D.snap||[0,2,4,6,8,12,16,20,24,28,32];const snap=v=>SNAP.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
+let touched=false;const dial=$('#dial');
+function radii(){if(touched&&D.dial){const c=band(D.dial.bands,+dial.value);if(c==='full')return {control:9999,container:20};return {control:c,container:c?Math.max(8,snap(c*1.5)):0}}
+ const r=(OD.sel||{}).radii||{control:6,container:12};return r}
+dial.value=(D.dial&&D.dial.value)||50;dial.oninput=()=>{touched=true;update()};if(!D.dial)dial.closest('section').hidden=true;
+OD.extra=()=>touched&&D.dial?[fill(D.dial.line,+dial.value)]:[];
+OD.onPick=()=>{touched=false};
+OD.draw=()=>{const r=radii(),c=r.control,k=r.container,pad=12,inner=Math.max(k-pad,k?2:0);$('#dv').textContent=(touched?'dial '+dial.value+' → ':'')+'control '+(c>=9999?'full':c+' px')+', container '+k+' px';
+ const m=mode(),S=D.surface||{light:['#ffffff','#1b1b1f'],dark:['#1b1b1f','#ececef']};const el=$('#rs');el.style.setProperty('--s-bg',S[m][0]);el.style.setProperty('--s-fg',S[m][1]);
+ el.innerHTML='<div class="grid"><div class="cmp"><h2>Controls '+(c>=9999?'full':c)+'</h2><span class="btn" style="border-radius:'+c+'px">Save changes</span><span class="inp" style="border-radius:'+Math.min(c,20)+'px">Email address</span><span class="chip2" style="border-radius:'+(c>=9999?c:Math.max(2,c/2))+'px">Filter · 3</span></div>'
+ +'<div class="cmp"><h2>Card '+k+', nested '+inner+'</h2><div class="box" style="border-radius:'+k+'px;padding:'+pad+'px"><div class="img" style="border-radius:'+inner+'px" role="img" aria-label="image placeholder"></div><strong>Inner corner = outer corner minus padding</strong><span class="btn" style="border-radius:'+c+'px">Open</span></div></div>'
+ +'<div class="cmp"><h2>Dialog and avatar</h2><div class="box" style="border-radius:'+Math.min(32,snap(k*1.5))+'px"><strong>Delete project?</strong><span class="kv" style="color:inherit">This cannot be undone.</span><span class="btn" style="border-radius:'+c+'px">Delete</span></div><div class="row"><span class="av" role="img" aria-label="avatar, always round"></span><span class="kv" style="color:inherit">people stay round</span></div></div></div>'};
+mountOptions(o=>o.radii?'<span class="kv">control '+(o.radii.control>=9999?'full':o.radii.control)+' · container '+o.radii.container+'</span>':'');boot();
+</script>
+</body>
+</html>

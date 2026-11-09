@@ -1,0 +1,18 @@
+{
+  "name": "Audit log",
+  "summary": "Who changed what, from where and when, with risky changes labelled and a switch that shows only the high-risk ones.",
+  "use": "in admin and security settings, to show who changed what",
+  "type": "data",
+  "style": "technical",
+  "industries": ["security", "saas", "finance"],
+  "tags": ["audit", "security", "log", "events", "filter"],
+  "states": ["all events", "high risk only", "person or service account", "focus"],
+  "source": "brand/showcase/product/06-ferrule-security",
+  "a11y": "The filter is a native radio group with visible focus; risk is written as a word, not shown by colour alone.",
+  "width": "medium",
+  "photos": [
+    {"img": "photo-1681097561932-36d0df02b379", "author": "Anky Lau", "page": "ntLkvt6OZvQ"},
+    {"img": "photo-1604072366595-e75dc92d6bdc", "author": "Jorik Kleen", "page": "lNNHyRbmm0o"},
+    {"img": "photo-1500648767791-00dcc994a43e", "author": "Jurica Koletić", "page": "7YVZYZeITc8"}
+  ]
+}

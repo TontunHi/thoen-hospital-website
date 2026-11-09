@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import {
   Search,
   ArrowUpDown,
@@ -34,6 +35,8 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -101,6 +104,15 @@ export default function AncService23Client({
   const [cardFilter, setCardFilter] = useState<AncService23CardFilter>('ALL')
   const [serviceFilter, setServiceFilter] = useState<'ALL' | 'OK' | 'NOT_OK'>('ALL')
   const [ucFilter, setUcFilter] = useState<'ALL' | 'UC' | 'NON_UC'>('ALL')
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(() => {
+    if (initialData?.pttypes) {
+      return initialData.pttypes.split(',').map((s: string) => s.trim()).filter(Boolean)
+    }
+    if (initialData?.ucFilter === 'UC') {
+      return [...UC_ECLAIM_CODES]
+    }
+    return []
+  })
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [statusOptions, setStatusOptions] = useState<string[]>(initialData?.statusOptions || [])
   const [searchField, setSearchField] = useState<AncService23SearchField>('ALL')
@@ -195,7 +207,6 @@ export default function AncService23Client({
           ds2,
           cardFilter,
           serviceFilter,
-          ucFilter,
           statusFilter,
           searchField,
           search: debouncedSearch,
@@ -204,6 +215,12 @@ export default function AncService23Client({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          q.set('pttypes', selectedPttypes.join(','))
+        } else if (ucFilter !== 'ALL') {
+          q.set('ucFilter', ucFilter)
+        }
 
         if (refresh) q.set('refresh', 'true')
 
@@ -242,6 +259,7 @@ export default function AncService23Client({
       ds2,
       cardFilter,
       serviceFilter,
+      selectedPttypes,
       ucFilter,
       statusFilter,
       searchField,
@@ -339,7 +357,6 @@ export default function AncService23Client({
         ds2,
         cardFilter,
         serviceFilter,
-        ucFilter,
         statusFilter,
         searchField,
         search: debouncedSearch,
@@ -347,6 +364,12 @@ export default function AncService23Client({
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        q.set('pttypes', selectedPttypes.join(','))
+      } else if (ucFilter !== 'ALL') {
+        q.set('ucFilter', ucFilter)
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/anc/service-2-3?${q.toString()}`
@@ -384,60 +407,54 @@ export default function AncService23Client({
         'ได้รับบริการ (OK)',
         'สถานะ E-Claim',
         'E-Claim No',
-        'AuthenCode',
+        'ClaimCode',
         'ชดเชย (บาท)',
         'เลข Rep',
         'ข้อควรตรวจสอบ',
       ]
 
-      const csvRows = [headers.join(',')]
-      rows.forEach((r, idx) => {
-        const values = [
-          String(idx + 1),
-          `"${r.vn}"`,
-          `"${r.hn}"`,
-          `"${r.cid}"`,
-          `"${r.ptname.replace(/"/g, '""')}"`,
-          String(r.age ?? ''),
-          `"${r.nation || ''}"`,
-          `"${r.vstdate}"`,
-          `"${r.vsttime || ''}"`,
-          `"${r.room || ''}"`,
-          `"${(r.pttypename_visit || '').replace(/"/g, '""')}"`,
-          `"${r.uc}"`,
-          `"${r.groupname}"`,
-          `"${r.preg_no || ''}"`,
-          String(r.ga ?? ''),
-          `"${r.anc || ''}"`,
-          `"${r.lmp || ''}"`,
-          `"${r.lastdate || ''}"`,
-          `"${r.us || ''}"`,
-          `"${r.checkup || ''}"`,
-          `"${r.scalling || ''}"`,
-          `"${(r.itemname || '').replace(/"/g, '""')}"`,
-          `"${r.ok || ''}"`,
-          `"${(r.status_eclaim || '').replace(/"/g, '""')}"`,
-          `"${r.eclaim_no || ''}"`,
-          `"${r.authencode || ''}"`,
-          String(r.compensated || 0),
-          `"${r.rep || ''}"`,
-          `"${(r.mean || '').replace(/"/g, '""')}"`,
-        ]
-        csvRows.push(values.join(','))
-      })
+      const exportRows = rows.map((r, idx) => [
+        idx + 1,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
+        r.age ?? '',
+        r.nation || '',
+        r.vstdate,
+        r.vsttime || '',
+        r.room || '',
+        r.pttypename_visit || '',
+        r.uc,
+        r.groupname,
+        r.preg_no || '',
+        r.ga ?? '',
+        r.anc || '',
+        r.lmp || '',
+        r.lastdate || '',
+        r.us || '',
+        r.checkup || '',
+        r.scalling || '',
+        r.itemname || '',
+        r.ok || '',
+        r.status_eclaim || '',
+        r.eclaim_no || '',
+        r.authencode || '',
+        r.compensated || 0,
+        r.rep || '',
+        r.mean || '',
+      ])
 
-      const csvContent = '\uFEFF' + csvRows.join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `ANC_2_3_US_Dental_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      await exportRcmExcel({
+        filename: `ANC_2_3_US_Dental_${ds1}_to_${ds2}.xlsx`,
+        title: 'หญิงตั้งครรภ์ ได้รับบริการ Ultrasound - ตรวจช่องปาก - ขัดฟัน (2.3)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
+        headers,
+        rows: exportRows,
+      })
     } catch (err: unknown) {
       const e = err as Error
-      alert(e.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ CSV')
+      alert(e.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ Excel')
     } finally {
       setIsExporting(false)
     }
@@ -473,10 +490,10 @@ export default function AncService23Client({
             className="anc3-btn anc3-btn-primary"
             onClick={handleExportCsv}
             disabled={isExporting || totalCount === 0}
-            title="ดาวน์โหลดข้อมูลทั้งหมดเป็นไฟล์ CSV"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={16} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </header>
@@ -580,7 +597,7 @@ export default function AncService23Client({
             <input
               type="text"
               className="anc3-input"
-              placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล, VN, AuthenCode..."
+              placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล, VN, ClaimCode..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -596,24 +613,6 @@ export default function AncService23Client({
             )}
           </div>
 
-          <select
-            className="anc3-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as AncService23SearchField)
-              setCurrentPage(1)
-            }}
-            title="ค้นหาเจาะจงฟิลด์"
-          >
-            <option value="ALL">ค้นหาทุกฟิลด์</option>
-            <option value="HN">เฉพาะ HN</option>
-            <option value="CID">เฉพาะ เลขบัตรประชาชน (CID)</option>
-            <option value="PTNAME">เฉพาะ ชื่อ-สกุล</option>
-            <option value="VN">เฉพาะ VN</option>
-            <option value="AUTHEN">เฉพาะ AuthenCode</option>
-            <option value="ITEMNAME">เฉพาะ รหัสหัตถการ</option>
-          </select>
-
           {/* Service OK Dropdown */}
           <select
             className="anc3-select"
@@ -628,19 +627,16 @@ export default function AncService23Client({
             <option value="NOT_OK">ยังไม่ได้รับบริการ</option>
           </select>
 
-          {/* UC Dropdown */}
-          <select
-            className="anc3-select"
-            value={ucFilter}
-            onChange={(e) => {
-              setUcFilter(e.target.value as 'ALL' | 'UC' | 'NON_UC')
+          {/* Pttype Multi-Select Dropdown */}
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
               setCurrentPage(1)
             }}
-          >
-            <option value="ALL">สิทธิ: ทั้งหมด</option>
-            <option value="UC">เฉพาะ สิทธิ UC</option>
-            <option value="NON_UC">นอกสิทธิ UC</option>
-          </select>
+            items={items}
+          
+          />
 
           {/* E-Claim Status Dropdown */}
           {statusOptions.length > 0 && (
@@ -835,33 +831,26 @@ export default function AncService23Client({
           ) : (
             <table className="anc3-table">
               <thead>
-                {/* Header Row 1: Merged Group Headers */}
                 <tr>
-                  <th rowSpan={2} className="anc3-cell-center" style={{ width: 48 }}>
+                  <th className="anc3-cell-center" style={{ width: 48 }}>
                     ลำดับ
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc3-th-sortable"
+                    className="anc3-cell-center anc3-th-sortable"
                     onClick={() => handleSort('vstdate')}
                     title="คลิกเพื่อเรียงลำดับตามวันที่"
                   >
                     <div className="anc3-sort-wrap">
                       <span>วันที่รับบริการ</span>
                       {sortBy === 'vstdate' ? (
-                        sortOrder === 'asc' ? (
-                          <ArrowUp size={14} />
-                        ) : (
-                          <ArrowDown size={14} />
-                        )
+                        sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       ) : (
                         <ArrowUpDown size={14} />
                       )}
                     </div>
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc3-th-sortable"
+                    className="anc3-cell-center anc3-th-sortable"
                     onClick={() => handleSort('hn')}
                   >
                     <div className="anc3-sort-wrap">
@@ -872,8 +861,7 @@ export default function AncService23Client({
                     </div>
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc3-th-sortable"
+                    className="anc3-cell-center anc3-th-sortable"
                     onClick={() => handleSort('cid')}
                   >
                     <div className="anc3-sort-wrap">
@@ -884,8 +872,7 @@ export default function AncService23Client({
                     </div>
                   </th>
                   <th
-                    rowSpan={2}
-                    className="anc3-th-sortable"
+                    className="anc3-cell-center anc3-th-sortable"
                     onClick={() => handleSort('ptname')}
                   >
                     <div className="anc3-sort-wrap">
@@ -896,7 +883,6 @@ export default function AncService23Client({
                     </div>
                   </th>
                   <th
-                    rowSpan={2}
                     className="anc3-cell-center anc3-th-sortable"
                     onClick={() => handleSort('age')}
                     style={{ width: 64 }}
@@ -908,41 +894,12 @@ export default function AncService23Client({
                       )}
                     </div>
                   </th>
-                  <th rowSpan={2} style={{ width: 140 }}>
+                  <th className="anc3-cell-center" style={{ width: 140 }}>
                     สิทธิการรักษา
                   </th>
-                  <th rowSpan={2} className="anc3-cell-center" style={{ width: 44 }}>
+                  <th className="anc3-cell-center" style={{ width: 44 }}>
                     UC
                   </th>
-
-                  {/* Merged Header 1: การให้บริการ */}
-                  <th colSpan={3} className="is-group-head">
-                    การให้บริการ
-                  </th>
-
-                  {/* Merged Header 2: ข้อมูลการตั้งครรภ์ */}
-                  <th colSpan={6} className="is-group-head">
-                    ข้อมูลการตั้งครรภ์
-                  </th>
-
-                  {/* Merged Header 3: กลุ่ม & หัตถการ */}
-                  <th colSpan={2} className="is-group-head">
-                    กลุ่ม & หัตถการ
-                  </th>
-
-                  {/* Merged Header 4: การชดเชยค่าบริการ */}
-                  <th colSpan={4} className="is-group-head">
-                    การชดเชยค่าบริการ (E-Claim / สปสช.)
-                  </th>
-
-                  <th rowSpan={2} style={{ width: 150 }}>
-                    ข้อควรตรวจสอบ
-                  </th>
-                </tr>
-
-                {/* Header Row 2: Sub-columns */}
-                <tr>
-                  {/* การให้บริการ */}
                   <th className="anc3-cell-center" style={{ width: 48 }} title="Ultrasound (Y: Oper / S: Service)">
                     US
                   </th>
@@ -952,8 +909,6 @@ export default function AncService23Client({
                   <th className="anc3-cell-center" style={{ width: 72 }} title="ขัดฟัน/ขูดหินปูน">
                     ขัดฟัน
                   </th>
-
-                  {/* ข้อมูลการตั้งครรภ์ */}
                   <th className="anc3-cell-center" style={{ width: 56 }}>
                     ครรภ์ที่
                   </th>
@@ -970,18 +925,20 @@ export default function AncService23Client({
                       )}
                     </div>
                   </th>
-                  <th style={{ width: 100 }}>LMP</th>
-                  <th style={{ width: 110 }} title="ควรขัดฟันก่อนวันที่ (LMP + 24 สัปดาห์)">
+                  <th className="anc3-cell-center" style={{ width: 100 }}>
+                    LMP
+                  </th>
+                  <th className="anc3-cell-center" style={{ width: 110 }} title="ควรขัดฟันก่อนวันที่ (LMP + 24 สัปดาห์)">
                     ควรขัดฟันก่อน
                   </th>
                   <th className="anc3-cell-center" style={{ width: 56 }} title="ไตรมาส ANC (1-5)">
                     ANC
                   </th>
-                  <th style={{ width: 100 }}>กำหนดคลอด</th>
-
-                  {/* กลุ่ม & หัตถการ */}
+                  <th className="anc3-cell-center" style={{ width: 100 }}>
+                    กำหนดคลอด
+                  </th>
                   <th
-                    className="anc3-th-sortable"
+                    className="anc3-cell-center anc3-th-sortable"
                     style={{ width: 140 }}
                     onClick={() => handleSort('groupname')}
                   >
@@ -992,26 +949,33 @@ export default function AncService23Client({
                       )}
                     </div>
                   </th>
-                  <th style={{ width: 140 }}>รหัสหัตถการ</th>
-
-                  {/* การชดเชยค่าบริการ */}
-                  <th style={{ width: 150 }}>สถานะ E-Claim</th>
-                  <th className="anc3-cell-mono" style={{ width: 100 }}>
+                  <th className="anc3-cell-center" style={{ width: 140 }}>
+                    รหัสหัตถการ
+                  </th>
+                  <th className="anc3-cell-center" style={{ width: 150 }}>
+                    สถานะ E-Claim
+                  </th>
+                  <th className="anc3-cell-center anc3-cell-mono" style={{ width: 100 }}>
                     E-Claim No
                   </th>
                   <th
-                    className="anc3-cell-right anc3-th-sortable"
+                    className="anc3-cell-center anc3-th-sortable"
                     style={{ width: 100 }}
                     onClick={() => handleSort('compensated')}
                   >
-                    <div className="anc3-sort-wrap" style={{ justifyContent: 'flex-end' }}>
+                    <div className="anc3-sort-wrap">
                       <span>ชดเชย (บ.)</span>
                       {sortBy === 'compensated' && (
                         sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       )}
                     </div>
                   </th>
-                  <th style={{ width: 110 }}>เลข Rep</th>
+                  <th className="anc3-cell-center" style={{ width: 110 }}>
+                    เลข Rep
+                  </th>
+                  <th className="anc3-cell-center" style={{ width: 150 }}>
+                    ข้อควรตรวจสอบ
+                  </th>
                 </tr>
               </thead>
 
@@ -1354,7 +1318,7 @@ export default function AncService23Client({
                     </div>
 
                     <div className="anc3-info-tile">
-                      <span className="anc3-info-label">AuthenCode (สปสช.)</span>
+                      <span className="anc3-info-label">ClaimCode (สปสช.)</span>
                       <span className="anc3-info-value anc3-cell-mono">
                         {selectedItem.authencode || '—'}
                       </span>

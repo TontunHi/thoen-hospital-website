@@ -33,6 +33,8 @@ import type {
   DentalImplantAdpMappingCheck,
 } from '@/lib/clinical/rcmDentalImplantService'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import { formatThaiDate } from '@/lib/formatters'
 import './page.css'
 
@@ -56,7 +58,7 @@ const CARD_FILTER_LABELS: Record<DentalImplantCardFilter, string> = {
   COMPENSATED: 'ชดเชยแล้ว',
   UNCOMPENSATED: 'รอชดเชย / ยังไม่ชดเชย',
   WITH_AUTHEN: 'มี Authen Code',
-  NO_AUTHEN: 'ไม่มี Authen Code',
+  NO_AUTHEN: 'ไม่มี ClaimCode',
   UC_ONLY: 'สิทธิบัตรทอง (UC)',
 }
 
@@ -113,6 +115,7 @@ export default function DentalImplantDensurClient({
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<DentalImplantCardFilter>('ALL')
+  const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
   const [sortBy, setSortBy] = useState<DentalImplantSortField>('vstdate')
@@ -200,6 +203,7 @@ export default function DentalImplantDensurClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+        if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
         if (refresh) query.set('refresh', 'true')
 
         const res = await fetch(
@@ -233,7 +237,7 @@ export default function DentalImplantDensurClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch on parameter changes (skipping initial fetch if server data present)
@@ -359,8 +363,8 @@ export default function DentalImplantDensurClient({
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  // Export CSV
-  const handleExportCsv = async () => {
+  // Export Excel (.xlsx)
+  const handleExportExcel = async () => {
     try {
       setIsExporting(true)
       const query = new URLSearchParams({
@@ -372,6 +376,7 @@ export default function DentalImplantDensurClient({
         sortOrder,
         exportAll: 'true',
       })
+      if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/dental-implant/densur?${query.toString()}`
@@ -396,7 +401,7 @@ export default function DentalImplantDensurClient({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'สิทธิบัตรทอง (UC)',
         'แผนก',
@@ -421,57 +426,49 @@ export default function DentalImplantDensurClient({
         'กองทุนย่อย',
       ]
 
-      const csvRows = [headers.map(sanitizeCsvCell).join(',')]
+      const rows = exportItems.map((it) => [
+        it.no,
+        it.vn,
+        it.hn,
+        it.cid,
+        it.ptname,
+        it.sex,
+        it.age,
+        it.nation || '',
+        it.vstdate,
+        it.vsttime,
+        it.authencode || '',
+        it.pttypename,
+        it.isUc ? 'ใช่' : 'ไม่ใช่',
+        it.department || '',
+        it.clinic || '',
+        it.pdx || '',
+        it.dx0 || '',
+        it.dx1 || '',
+        it.dx2 || '',
+        it.dx3 || '',
+        it.dx4 || '',
+        it.dx5 || '',
+        it.op0 || '',
+        it.op1 || '',
+        it.op2 || '',
+        it.op3 || '',
+        it.op4 || '',
+        it.op5 || '',
+        it.listname || '',
+        it.status || 'รอตรวจสอบ',
+        it.rep || '',
+        it.compensated,
+        it.subfund || '',
+      ])
 
-      for (const it of exportItems) {
-        const row = [
-          it.no,
-          it.vn,
-          it.hn,
-          it.cid,
-          it.ptname,
-          it.sex,
-          it.age,
-          it.nation || '',
-          it.vstdate,
-          it.vsttime,
-          it.authencode || '',
-          it.pttypename,
-          it.isUc ? 'ใช่' : 'ไม่ใช่',
-          it.department || '',
-          it.clinic || '',
-          it.pdx || '',
-          it.dx0 || '',
-          it.dx1 || '',
-          it.dx2 || '',
-          it.dx3 || '',
-          it.dx4 || '',
-          it.dx5 || '',
-          it.op0 || '',
-          it.op1 || '',
-          it.op2 || '',
-          it.op3 || '',
-          it.op4 || '',
-          it.op5 || '',
-          it.listname || '',
-          it.status || 'รอตรวจสอบ',
-          it.rep || '',
-          it.compensated,
-          it.subfund || '',
-        ]
-        csvRows.push(row.map(sanitizeCsvCell).join(','))
-      }
-
-      const csvContent = '\uFEFF' + csvRows.join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `dental_implant_densur_${ds1}_to_${ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `dental_implant_densur_${ds1}_to_${ds2}.xlsx`,
+        title: 'กองทุนรากฟันเทียม (DENSUR)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportItems.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
       alert(`การส่งออกไฟล์ล้มเหลว: ${err?.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ'}`)
     } finally {
@@ -519,12 +516,12 @@ export default function DentalImplantDensurClient({
             <button
               type="button"
               className="densur-btn densur-btn-primary"
-              onClick={handleExportCsv}
+              onClick={handleExportExcel}
               disabled={isExporting || totalCount === 0}
-              title="ส่งออกไฟล์ CSV ทั้งหมดตามเงื่อนไขที่เลือก"
+              title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
             >
               <Download size={16} />
-              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+              <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
             </button>
           </div>
         </div>
@@ -721,14 +718,14 @@ export default function DentalImplantDensurClient({
           </div>
         </div>
 
-        {/* Card 4: มี Authen Code */}
+        {/* Card 4: มี ClaimCode */}
         <div
           className={`densur-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('WITH_AUTHEN')}
-          title="คลิกเพื่อกรองรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่มี ClaimCode"
         >
           <div className="densur-kpi-top">
-            <span className="densur-kpi-label">มี Authen Code</span>
+            <span className="densur-kpi-label">มี ClaimCode</span>
             <div className="densur-kpi-icon-wrap densur-kpi-icon-info">
               <ShieldCheck size={16} />
             </div>
@@ -744,14 +741,14 @@ export default function DentalImplantDensurClient({
           </div>
         </div>
 
-        {/* Card 5: ไม่มี Authen Code */}
+        {/* Card 5: ไม่มี ClaimCode */}
         <div
           className={`densur-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
           onClick={() => handleCardFilterClick('NO_AUTHEN')}
-          title="คลิกเพื่อกรองรายการที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองรายการที่ไม่มี ClaimCode"
         >
           <div className="densur-kpi-top">
-            <span className="densur-kpi-label">ไม่มี Authen Code</span>
+            <span className="densur-kpi-label">ไม่มี ClaimCode</span>
             <div className="densur-kpi-icon-wrap densur-kpi-icon-warning">
               <AlertTriangle size={16} />
             </div>
@@ -814,6 +811,16 @@ export default function DentalImplantDensurClient({
           )}
         </div>
 
+        <PttypeMultiSelect
+          selectedCodes={pttypes}
+          onChange={(codes) => {
+            setPttypes(codes)
+            setCurrentPage(1)
+            }}
+            items={items}
+        
+          />
+
         <div className="densur-toolbar-stats">
           <span>
             พบข้อมูล{' '}
@@ -870,10 +877,10 @@ export default function DentalImplantDensurClient({
           <div className="densur-table-responsive">
             <table className="densur-table">
               <thead>
-                {/* Header Row 1: Merged Headers */}
+                {/* Single Tier Centered Header */}
                 <tr>
-                  <th rowSpan={2} className="densur-col-no">ลำดับ</th>
-                  <th rowSpan={2} className="densur-col-date">
+                  <th className="densur-col-no densur-col-center">ลำดับ</th>
+                  <th className="densur-col-date densur-col-center">
                     <button
                       type="button"
                       className="densur-th-sort"
@@ -887,8 +894,8 @@ export default function DentalImplantDensurClient({
                       )}
                     </button>
                   </th>
-                  <th rowSpan={2} className="densur-col-time">เวลา</th>
-                  <th rowSpan={2} className="densur-col-hn">
+                  <th className="densur-col-time densur-col-center">เวลา</th>
+                  <th className="densur-col-hn densur-col-center">
                     <button
                       type="button"
                       className="densur-th-sort"
@@ -902,7 +909,7 @@ export default function DentalImplantDensurClient({
                       )}
                     </button>
                   </th>
-                  <th rowSpan={2} className="densur-col-cid">
+                  <th className="densur-col-cid densur-col-center">
                     <button
                       type="button"
                       className="densur-th-sort"
@@ -916,7 +923,7 @@ export default function DentalImplantDensurClient({
                       )}
                     </button>
                   </th>
-                  <th rowSpan={2} className="densur-col-name">
+                  <th className="densur-col-name densur-col-center">
                     <button
                       type="button"
                       className="densur-th-sort"
@@ -930,7 +937,7 @@ export default function DentalImplantDensurClient({
                       )}
                     </button>
                   </th>
-                  <th rowSpan={2} className="densur-col-age">
+                  <th className="densur-col-age densur-col-center">
                     <button
                       type="button"
                       className="densur-th-sort"
@@ -944,14 +951,33 @@ export default function DentalImplantDensurClient({
                       )}
                     </button>
                   </th>
-                  <th rowSpan={2} className="densur-col-pttype">สิทธิการรักษา</th>
-                  <th rowSpan={2} className="densur-col-authen">Authen Code</th>
-                  <th colSpan={7} style={{ borderBottom: '1px solid #cbd5e1' }}>การวินิจฉัย</th>
-                  <th colSpan={6} style={{ borderBottom: '1px solid #cbd5e1' }}>หัตถการ</th>
-                  <th rowSpan={2} className="densur-col-listname">รายการผ่าตัด DENSUR</th>
-                  <th rowSpan={2} className="densur-col-status">สถานะ</th>
-                  <th rowSpan={2} className="densur-col-rep">เลขที่ REP</th>
-                  <th rowSpan={2} className="densur-col-compensated">
+                  <th className="densur-col-pttype densur-col-center">สิทธิการรักษา</th>
+                  <th className="densur-col-authen densur-col-center">
+                    ClaimCode
+                  </th>
+                  <th className="densur-col-code densur-col-center">
+                    <span className="densur-th-line">PDX</span>
+                    <span className="densur-th-sub">การวินิจฉัย</span>
+                  </th>
+                  <th className="densur-col-code densur-col-center">DX0</th>
+                  <th className="densur-col-code densur-col-center">DX1</th>
+                  <th className="densur-col-code densur-col-center">DX2</th>
+                  <th className="densur-col-code densur-col-center">DX3</th>
+                  <th className="densur-col-code densur-col-center">DX4</th>
+                  <th className="densur-col-code densur-col-center">DX5</th>
+                  <th className="densur-col-code densur-col-center">
+                    <span className="densur-th-line">OP0</span>
+                    <span className="densur-th-sub">หัตถการ</span>
+                  </th>
+                  <th className="densur-col-code densur-col-center">OP1</th>
+                  <th className="densur-col-code densur-col-center">OP2</th>
+                  <th className="densur-col-code densur-col-center">OP3</th>
+                  <th className="densur-col-code densur-col-center">OP4</th>
+                  <th className="densur-col-code densur-col-center">OP5</th>
+                  <th className="densur-col-listname densur-col-center">รายการผ่าตัด DENSUR</th>
+                  <th className="densur-col-status densur-col-center">สถานะ</th>
+                  <th className="densur-col-rep densur-col-center">เลขที่ REP</th>
+                  <th className="densur-col-compensated densur-col-center">
                     <button
                       type="button"
                       className="densur-th-sort"
@@ -965,22 +991,6 @@ export default function DentalImplantDensurClient({
                       )}
                     </button>
                   </th>
-                </tr>
-                {/* Header Row 2: Sub-headers for Diagnosis and Procedures */}
-                <tr>
-                  <th className="densur-col-code">PDX</th>
-                  <th className="densur-col-code">DX0</th>
-                  <th className="densur-col-code">DX1</th>
-                  <th className="densur-col-code">DX2</th>
-                  <th className="densur-col-code">DX3</th>
-                  <th className="densur-col-code">DX4</th>
-                  <th className="densur-col-code">DX5</th>
-                  <th className="densur-col-code">OP0</th>
-                  <th className="densur-col-code">OP1</th>
-                  <th className="densur-col-code">OP2</th>
-                  <th className="densur-col-code">OP3</th>
-                  <th className="densur-col-code">OP4</th>
-                  <th className="densur-col-code">OP5</th>
                 </tr>
               </thead>
               <tbody>
@@ -1211,7 +1221,7 @@ export default function DentalImplantDensurClient({
                     </span>
                   </div>
                   <div className="densur-modal-item">
-                    <span className="densur-modal-item-label">Authen Code</span>
+                    <span className="densur-modal-item-label">ClaimCode:</span>
                     <span className="densur-modal-item-value">
                       {selectedItem.authencode ? (
                         <>
@@ -1222,7 +1232,7 @@ export default function DentalImplantDensurClient({
                             type="button"
                             className="densur-copy-btn"
                             onClick={() => handleCopy(selectedItem.authencode!, 'authen')}
-                            title="คัดลอก Authen Code"
+                            title="คัดลอก ClaimCode"
                           >
                             {copiedField === 'authen' ? <Check size={13} /> : <Copy size={13} />}
                           </button>

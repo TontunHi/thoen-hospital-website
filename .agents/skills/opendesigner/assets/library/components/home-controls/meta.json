@@ -1,0 +1,13 @@
+{
+  "name": "Home controls",
+  "summary": "Smart home controls: rooms as chips, and device tiles that switch on and off, with a brightness slider for lights, a dial-like thermostat stepper, a lock and a speaker with volume.",
+  "use": "in a smart home app's main screen, for switching lights, heating, locks and speakers room by room",
+  "type": "form",
+  "style": "friendly",
+  "industries": ["home"],
+  "tags": ["smart home", "devices", "thermostat", "lights", "toggle"],
+  "states": ["on", "off", "room filtered", "at limit", "hover", "focus"],
+  "source": null,
+  "a11y": "Rooms are a radio group; each device is a toggle button with aria-pressed whose name reads the device and its state, sliders are named range inputs, and the thermostat buttons say the temperature they will set.",
+  "width": "medium"
+}

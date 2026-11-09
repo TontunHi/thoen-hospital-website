@@ -1,0 +1,71 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-activity-feed { box-sizing: border-box; container-type: inline-size; inline-size: 100%; max-inline-size: 40rem; margin-inline: auto; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-activity-feed *, .odl-activity-feed *::before { box-sizing: border-box; }
+.odl-activity-feed .odl-card { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl);
+  background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-activity-feed h3 { margin: 0; font: var(--ds-text-title-md); }
+.odl-activity-feed ol { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--ds-space-stack-xl); }
+.odl-activity-feed li { position: relative; display: grid; grid-template-columns: var(--ds-size-control-md) minmax(0, 1fr); column-gap: var(--ds-space-inline-md); }
+/* The thread line runs from under one avatar to the next. */
+.odl-activity-feed li:not(:last-child)::before { content: ""; position: absolute; inset-inline-start: calc(var(--ds-size-control-md) / 2); inset-block: calc(var(--ds-size-control-md) + var(--ds-space-stack-sm)) calc(-1 * var(--ds-space-stack-xl) + var(--ds-space-stack-sm));
+  border-inline-start: var(--ds-border-width-default) solid var(--ds-color-border-subtle); }
+.odl-activity-feed .odl-who { position: relative; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); }
+.odl-activity-feed .odl-avatar { display: block; inline-size: 100%; block-size: 100%; border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+/* What kind of event: a small icon badge on the avatar's corner. */
+.odl-activity-feed .odl-kind { position: absolute; inset-inline-end: calc(-1 * var(--ds-space-4)); inset-block-end: calc(-1 * var(--ds-space-4)); display: grid; place-items: center;
+  inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised);
+  box-shadow: 0 0 0 var(--ds-border-width-emphasis) var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); color: var(--ds-color-icon-subtle); }
+.odl-activity-feed .odl-kind svg { inline-size: calc(var(--ds-size-icon-sm) * 0.625); block-size: calc(var(--ds-size-icon-sm) * 0.625); stroke-width: var(--ds-icon-stroke-lg); }
+.odl-activity-feed .odl-main { min-inline-size: 0; display: grid; gap: var(--ds-space-stack-sm); align-content: start; }
+.odl-activity-feed .odl-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); min-block-size: var(--ds-size-control-md); align-content: center; }
+.odl-activity-feed .odl-line p { margin: 0; color: var(--ds-color-text-secondary); }
+.odl-activity-feed .odl-line strong { color: var(--ds-color-text-primary); font-weight: var(--ds-font-weight-label); }
+.odl-activity-feed .odl-nb { white-space: nowrap; }
+.odl-activity-feed time { color: var(--ds-color-text-tertiary); font: var(--ds-text-label-md); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.odl-activity-feed dl { margin: 0; border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-nested); overflow: hidden; background: var(--ds-color-surface-base); }
+.odl-activity-feed dl div { display: grid; grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr); gap: var(--ds-space-stack-xs) var(--ds-space-inline-md); align-items: baseline;
+  padding: var(--ds-space-inset-sm) var(--ds-space-inset-md); font-variant-numeric: tabular-nums; }
+.odl-activity-feed dl div + div { border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-activity-feed dt { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-activity-feed dd { margin: 0; min-inline-size: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-stack-xs) var(--ds-space-inline-sm); }
+.odl-activity-feed .odl-to { white-space: nowrap; }
+.odl-activity-feed del { color: var(--ds-color-text-tertiary); }
+.odl-activity-feed ins { text-decoration: none; font-weight: var(--ds-font-weight-label); }
+.odl-activity-feed .odl-delta { color: var(--ds-color-text-success); font: var(--ds-text-label-md); }
+.odl-activity-feed blockquote { margin: 0; padding: var(--ds-space-inset-sm) var(--ds-space-inset-md); border-inline-start: var(--ds-border-width-emphasis) solid var(--ds-color-border-default);
+  border-radius: 0 var(--ds-radius-nested) var(--ds-radius-nested) 0; background: var(--ds-color-surface-sunken); color: var(--ds-color-text-secondary); }
+.odl-activity-feed a { color: var(--ds-color-text-link); text-underline-offset: 0.2em; }
+.odl-activity-feed a:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); border-radius: var(--ds-radius-detail); }
+@container (max-width: 30rem) {
+  .odl-activity-feed .odl-card { padding: var(--ds-space-inset-lg); }
+  .odl-activity-feed dl div { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+<section class="odl-activity-feed" aria-labelledby="odl-af-title"><div class="odl-card">
+  <h3 id="odl-af-title">Activity</h3>
+  <ol aria-label="Activity on Vessendon Airframes">
+    <li>
+      <span class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1601412436009-d964bd02edbc?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-kind" title="Edited"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span></span>
+      <div class="odl-main">
+        <div class="odl-line"><p><strong>Paloma Etxeberria</strong> changed 3 fields on <strong class="odl-nb">3-site rollout</strong></p><time>Today, 10:14</time></div>
+        <dl>
+          <div><dt>Deal value</dt><dd><del>$48,000.00</del><span class="odl-to"><span aria-hidden="true">→</span> <ins>$62,500.00</ins></span><span class="odl-delta">+$14,500</span></dd></div>
+          <div><dt>Seats</dt><dd><del>120</del><span class="odl-to"><span aria-hidden="true">→</span> <ins>155</ins></span></dd></div>
+          <div><dt>Stage</dt><dd><del>Evaluation</del><span class="odl-to"><span aria-hidden="true">→</span> <ins>Proposal</ins></span></dd></div>
+        </dl>
+      </div>
+    </li>
+    <li>
+      <span class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1523278669709-c05da80b6a65?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-kind" title="Email"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span></span>
+      <div class="odl-main">
+        <div class="odl-line"><p><strong>Hamish Dalgleish</strong> replied to <a href="#" class="odl-nb">Revised order form</a></p><time>Mon, 16:52</time></div>
+        <blockquote>Procurement signed off on 155. Can you confirm single sign-on is in the Team plan?</blockquote>
+      </div>
+    </li>
+    <li>
+      <span class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1601412436009-d964bd02edbc?w=80&h=80&fit=crop&crop=faces&auto=format&q=70" alt="" width="40" height="40" loading="lazy" decoding="async"><span class="odl-kind" title="Call"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span></span>
+      <div class="odl-main"><div class="odl-line"><p><strong>Paloma Etxeberria</strong> logged a <span class="odl-nb">34-minute call</span> with <strong>Annelies Vermeulen</strong></p><time>Mon, 11:30</time></div></div>
+    </li>
+  </ol>
+</div></section>

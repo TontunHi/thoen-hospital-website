@@ -1,0 +1,149 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-workout-summary { box-sizing: border-box; inline-size: 100%; max-inline-size: 34rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-workout-summary *, .odl-workout-summary *::before, .odl-workout-summary *::after { box-sizing: border-box; }
+.odl-workout-summary .odl-card { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); background: var(--ds-color-surface-raised);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-subtle); border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+.odl-workout-summary .odl-head { display: grid; gap: var(--ds-space-stack-md); }
+.odl-workout-summary .odl-who { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--ds-space-inline-md); }
+.odl-workout-summary .odl-avatar { inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-person); object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-workout-summary .odl-name { margin: 0; font: var(--ds-text-label-lg); }
+.odl-workout-summary .odl-when { margin: var(--ds-space-stack-xs) 0 0; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-workout-summary h3 { margin: 0; font: var(--ds-text-title-lg); }
+.odl-workout-summary .odl-map { position: relative; aspect-ratio: 5 / 2; overflow: hidden; border-radius: var(--ds-radius-nested); background: var(--ds-color-neutral-light-3); }
+.odl-workout-summary .odl-map svg { display: block; inline-size: 100%; block-size: 100%; }
+.odl-workout-summary .odl-road { fill: none; stroke: var(--ds-color-neutral-light-1); stroke-width: 6; stroke-linecap: round; }
+.odl-workout-summary .odl-road.is-main { stroke-width: 10; }
+.odl-workout-summary .odl-park { fill: var(--ds-color-success-light-4); }
+.odl-workout-summary .odl-water { fill: none; stroke: var(--ds-color-info-light-5); stroke-width: 16; stroke-linecap: round; }
+.odl-workout-summary .odl-casing { fill: none; stroke: var(--ds-color-white); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+.odl-workout-summary .odl-route { fill: none; stroke: var(--ds-color-accent-light-9); stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; }
+.odl-workout-summary .odl-start { fill: var(--ds-color-success-light-9); stroke: var(--ds-color-white); stroke-width: 3; }
+.odl-workout-summary .odl-end { fill: var(--ds-color-neutral-alpha-light-12); stroke: var(--ds-color-white); stroke-width: 3; }
+.odl-workout-summary .odl-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ds-space-stack-sm) var(--ds-space-inline-md); }
+.odl-workout-summary .odl-dist { margin: 0; font: var(--ds-text-headline-sm); font-variant-numeric: tabular-nums; }
+.odl-workout-summary .odl-dist small { color: var(--ds-color-text-secondary); font: var(--ds-text-title-sm); }
+.odl-workout-summary .odl-pr { display: inline-flex; align-items: center; gap: var(--ds-space-inline-sm); padding: var(--ds-space-inset-xs) var(--ds-space-inset-sm); border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-neutral-subtle); color: var(--ds-color-text-primary); font: var(--ds-text-label-md); white-space: nowrap; }
+.odl-workout-summary .odl-pr svg { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); stroke-width: var(--ds-icon-stroke-md); color: var(--ds-color-icon-default); }
+.odl-workout-summary .odl-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-stack-lg) var(--ds-space-inline-md); margin: 0; }
+.odl-workout-summary .odl-stats div { display: grid; align-content: start; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-workout-summary .odl-stats dt { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-workout-summary .odl-stats dd { margin: 0; font: var(--ds-text-title-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odl-workout-summary .odl-stats dd small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-workout-summary h4 { margin: 0 0 var(--ds-space-stack-md); font: var(--ds-text-title-sm); }
+.odl-workout-summary .odl-sec { padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator); }
+.odl-workout-summary .odl-zbar { display: flex; gap: var(--ds-space-2); block-size: var(--ds-space-12); overflow: hidden; border-radius: var(--ds-radius-full); }
+.odl-workout-summary .odl-zbar span { flex: var(--w) 1 0; background: var(--z); }
+.odl-workout-summary .odl-zones { display: grid; margin: var(--ds-space-stack-md) 0 0; padding: 0; list-style: none; }
+.odl-workout-summary .odl-zones li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); min-block-size: var(--ds-size-control-sm);
+  color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); }
+.odl-workout-summary .odl-zones li::before { content: ""; inline-size: var(--ds-space-12); block-size: var(--ds-space-12); border-radius: var(--ds-radius-full); background: var(--z); }
+.odl-workout-summary .odl-zones small { margin-inline-start: var(--ds-space-inline-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-workout-summary .odl-zones b { font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; }
+.odl-workout-summary .z1 { --z: var(--ds-color-info-light-8); } .odl-workout-summary .z2 { --z: var(--ds-color-success-light-9); } .odl-workout-summary .z3 { --z: var(--ds-color-warning-light-9); }
+.odl-workout-summary .z4 { --z: var(--ds-color-danger-light-8); } .odl-workout-summary .z5 { --z: var(--ds-color-danger-light-11); }
+.odl-workout-summary table { inline-size: 100%; border-collapse: collapse; font: var(--ds-text-body-md); font-variant-numeric: tabular-nums; }
+.odl-workout-summary thead th { padding: 0 0 var(--ds-space-stack-sm); color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); text-align: start; }
+.odl-workout-summary th, .odl-workout-summary td { padding: var(--ds-space-inset-xs) 0; text-align: start; }
+.odl-workout-summary tbody tr { block-size: var(--ds-size-control-sm); }
+.odl-workout-summary tbody th { inline-size: 3.5em; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-workout-summary td:nth-child(3), .odl-workout-summary td:nth-child(4), .odl-workout-summary thead th:nth-child(3), .odl-workout-summary thead th:nth-child(4) { inline-size: 4.5em; text-align: end; }
+.odl-workout-summary td:nth-child(4) { color: var(--ds-color-text-secondary); }
+.odl-workout-summary .odl-bar { padding-inline-end: var(--ds-space-inline-md); }
+/* Bar length: the run's slowest km (5:42) at 30%, its fastest (5:12) at 100%. */
+.odl-workout-summary .odl-bar span { display: block; inline-size: var(--w); block-size: var(--ds-space-12); border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-light-8); }
+.odl-workout-summary tr.is-best .odl-bar span { background: var(--ds-color-accent-light-9); }
+.odl-workout-summary tr.is-best td:nth-child(3) { color: var(--ds-color-text-accent); font-weight: var(--ds-text-label-lg-weight); }
+.odl-workout-summary .odl-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ds-space-inline-sm); }
+.odl-workout-summary .odl-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-touch));
+  padding: 0 var(--ds-space-inset-md); border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); font: var(--ds-text-label-lg); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-workout-summary .odl-btn:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-workout-summary .odl-btn.is-primary { border-color: transparent; background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); }
+.odl-workout-summary .odl-btn.is-primary:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-workout-summary .odl-btn[aria-pressed="true"] { border-color: var(--ds-color-border-accent); background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-accent); }
+.odl-workout-summary .odl-btn svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-workout-summary .odl-btn:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-workout-summary .odl-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@container (min-width: 30rem) { .odl-workout-summary .odl-map { aspect-ratio: 3 / 1; } }
+@container (max-width: 26rem) { .odl-workout-summary .odl-card { padding: var(--ds-space-inset-lg); } .odl-workout-summary .odl-stats { gap: var(--ds-space-stack-lg) var(--ds-space-inline-sm); } .odl-workout-summary .odl-stats dd { font: var(--ds-text-title-sm); } }
+@media (prefers-reduced-motion: reduce) { .odl-workout-summary, .odl-workout-summary *, .odl-workout-summary *::before { transition: none !important; animation: none !important; } }
+</style>
+<article class="odl-workout-summary" aria-labelledby="odl-ws-title">
+  <div class="odl-card">
+    <header class="odl-head">
+      <div class="odl-who"><img class="odl-avatar" src="https://images.unsplash.com/photo-1684598273404-2d94d7a7ce2f?w=96&h=96&fit=crop&auto=format&q=70" alt="" width="96" height="96" loading="lazy" decoding="async">
+        <div><p class="odl-name">Yuki Hanabusa</p><p class="odl-when">Thu 22 Oct · 18:42 · Riverside loop</p></div></div>
+      <h3 id="odl-ws-title">Evening run</h3>
+    </header>
+    <div class="odl-map" role="img" aria-label="Route map: a loop out along the river, through the park and back">
+      <svg viewBox="0 0 360 144" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path class="odl-road" d="M-5 18h370M-5 88c80 0 130-4 190-4s110 6 180 6M34 -5v100M176 -5v95M318 -5v98M120 18l-40 70"/><path class="odl-road is-main" d="M-5 52h370M104 -5v100M252 -5v96"/>
+        <rect class="odl-park" x="196" y="20" width="96" height="56" rx="12"/>
+        <path class="odl-water" d="M-10 124c60-18 110 4 170-8s110-34 210-22"/>
+        <path class="odl-casing" d="M58 106c10-22 30-34 52-36s28-24 50-26 34 6 52-2 40-12 58 2 16 30-2 40-34 10-58 14-40 18-70 18-48-4-66-2-24-2-16-8z"/>
+        <path class="odl-route" d="M58 106c10-22 30-34 52-36s28-24 50-26 34 6 52-2 40-12 58 2 16 30-2 40-34 10-58 14-40 18-70 18-48-4-66-2-24-2-16-8z"/>
+        <circle class="odl-start" cx="58" cy="106" r="7"/>
+        <circle class="odl-end" cx="74" cy="112" r="6"/>
+      </svg>
+    </div>
+    <div class="odl-hero">
+      <p class="odl-dist">8.42 <small>km</small></p>
+      <span class="odl-pr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>Fastest km this month</span>
+    </div>
+    <dl class="odl-stats">
+      <div><dt>Time</dt><dd>46:18</dd></div>
+      <div><dt>Avg pace</dt><dd>5:30<small> /km</small></dd></div>
+      <div><dt>Avg heart rate</dt><dd>154<small> bpm</small></dd></div>
+      <div><dt>Elevation gain</dt><dd>84<small> m</small></dd></div>
+      <div><dt>Active energy</dt><dd>612<small> kcal</small></dd></div>
+      <div><dt>Cadence</dt><dd>168<small> spm</small></dd></div>
+    </dl>
+    <section class="odl-sec" aria-labelledby="odl-ws-zones">
+      <h4 id="odl-ws-zones">Heart rate zones</h4>
+      <div class="odl-zbar" aria-hidden="true"><span class="z1" style="--w: 2"></span><span class="z2" style="--w: 8"></span><span class="z3" style="--w: 19"></span><span class="z4" style="--w: 13"></span><span class="z5" style="--w: 4"></span></div>
+      <ul class="odl-zones">
+        <li class="z1"><span>Zone 1<small>under 118 bpm</small></span><b>2 min</b></li>
+        <li class="z2"><span>Zone 2<small>118–137 bpm</small></span><b>8 min</b></li>
+        <li class="z3"><span>Zone 3<small>138–151 bpm</small></span><b>19 min</b></li>
+        <li class="z4"><span>Zone 4<small>152–166 bpm</small></span><b>13 min</b></li>
+        <li class="z5"><span>Zone 5<small>167 bpm and up</small></span><b>4 min</b></li>
+      </ul>
+    </section>
+    <section class="odl-sec" aria-labelledby="odl-ws-splits">
+      <h4 id="odl-ws-splits">Splits</h4>
+      <table>
+        <thead><tr><th scope="col">Km</th><th scope="col"><span class="odl-sr">Relative pace</span></th><th scope="col">Pace</th><th scope="col">Bpm</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">1</th><td class="odl-bar"><span style="--w: 30%"></span></td><td>5:42</td><td>148</td></tr>
+          <tr><th scope="row">2</th><td class="odl-bar"><span style="--w: 56%"></span></td><td>5:31</td><td>151</td></tr>
+          <tr><th scope="row">3</th><td class="odl-bar"><span style="--w: 63%"></span></td><td>5:28</td><td>153</td></tr>
+          <tr><th scope="row">4</th><td class="odl-bar"><span style="--w: 46%"></span></td><td>5:35</td><td>152</td></tr>
+          <tr><th scope="row">5</th><td class="odl-bar"><span style="--w: 84%"></span></td><td>5:19</td><td>156</td></tr>
+          <tr><th scope="row">6</th><td class="odl-bar"><span style="--w: 72%"></span></td><td>5:24</td><td>155</td></tr>
+          <tr><th scope="row">7</th><td class="odl-bar"><span style="--w: 51%"></span></td><td>5:33</td><td>154</td></tr>
+          <tr class="is-best"><th scope="row">8</th><td class="odl-bar"><span style="--w: 100%"></span></td><td>5:12</td><td>161</td></tr>
+          <tr><th scope="row">0.42</th><td class="odl-bar"><span style="--w: 72%"></span></td><td>5:24</td><td>163</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <div class="odl-actions">
+      <button type="button" class="odl-btn odl-save" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg><span>Save route</span></button>
+      <button type="button" class="odl-btn is-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>Share</button>
+    </div>
+  </div>
+</article>
+<script>
+document.querySelectorAll(".odl-workout-summary").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const save = root.querySelector(".odl-save");
+  save.addEventListener("click", () => {
+    const on = save.getAttribute("aria-pressed") !== "true";
+    save.setAttribute("aria-pressed", String(on));
+    save.querySelector("span").textContent = on ? "Route saved" : "Save route";
+  });
+});
+</script>

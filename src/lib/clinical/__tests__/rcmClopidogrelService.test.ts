@@ -312,5 +312,33 @@ describe('RcmClopidogrelService', () => {
       expect(searchByDiag.totalCount).toBe(1)
       expect(searchByDiag.items[0].hn).toBe('0000001')
     })
+
+    it('filters by pttypes multi-selector correctly', async () => {
+      const mockExecutor = createMockExecutor()
+      const res01 = await RcmClopidogrelService.getClopidogrelReport(
+        {
+          ds1: '2026-10-01',
+          ds2: '2026-10-31',
+          pttypes: '01',
+          refresh: true,
+        },
+        mockExecutor
+      )
+      expect(res01.summary.totalVisits).toBe(1)
+      expect(res01.totalCount).toBe(1)
+      expect(res01.items[0].hn).toBe('0000001')
+
+      const resEmpty = await RcmClopidogrelService.getClopidogrelReport(
+        {
+          ds1: '2026-10-01',
+          ds2: '2026-10-31',
+          pttypes: '37',
+          refresh: true,
+        },
+        mockExecutor
+      )
+      expect(resEmpty.summary.totalVisits).toBe(0)
+      expect(resEmpty.totalCount).toBe(0)
+    })
   })
 })

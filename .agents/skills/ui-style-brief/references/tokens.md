@@ -4,25 +4,38 @@
 
 ---
 
-## 1. Quiet Neutral Ramp & Brand Accent
+## 1. Quiet Neutral Ramp, Tactile Surfaces & Off-Black
 
-**หลักการ:** พื้นหลังและกรอบนำทางต้องสงบ (Quiet Chrome) เพื่อให้ข้อมูลทางคลินิกและสถานะเป็นตัวนำสายตา
+**หลักการ OpenDesigner:** พื้นหลังและกรอบนำทางต้องสงบ (Quiet Chrome) เพื่อให้ข้อมูลทางคลินิกและสถานะเป็นตัวนำสายตา
+ใช้หมึก Off-Black เพื่อความคมชัดโดยไม่สร้างความล้าสายตา (ห้ามใช้สีดำสนิท `#000000` บนขาว)
+
+### 1.1 Tactile Surface Levels (ลำดับขั้นพื้นผิว)
+
+| ระดับพื้นผิว | Token | ค่าสี HEX | บทบาทการใช้งาน |
+|---|---|---|---|
+| **Level 0 (Page Ground)** | `var(--bg-main)` | `#FAFCFB` | พื้นหลังหลักของหน้า อมเขียวจางลดแสงจ้าเมื่อจ้องทั้งวัน |
+| **Level 1 (Surface/Card)** | `var(--bg-surface)` | `#FFFFFF` | พื้นผิวการ์ด ตาราง แผงควบคุม และโมดอล (ขอบ 1px) |
+| **Level 2 (Toolbar/Header)** | `var(--bg-subtle)` | `#F4F7F5` | หัวตาราง แถบสรุป แถบเครื่องมือ ช่องกรอกแบบอ่านอย่างเดียว |
+| **Level 3 (Selection/Hover)** | `var(--primary-subtle)` | `#F0FDF4` | พื้นแถวตารางที่เลือก/hover และการ์ดที่ถูกกรอง |
+
+### 1.2 Off-Black Typography Ramp (หมึกข้อความ)
+
+| บทบาทข้อความ | Token | ค่าสี HEX | อัตราส่วน Contrast บนขาว | การใช้งาน |
+|---|---|---|---|---|
+| **Primary Ink** | `var(--gray-900)` | `#111E14` | ~15.2:1 | หัวข้อเรื่อง (`H1`, `H2`), ข้อความสำคัญ, ตัวเลข KPI |
+| **Secondary Ink** | `var(--gray-700)` | `#334237` | ~9.8:1 | ข้อความทั่วไป, คำอธิบายคอลัมน์, ป้ายกำกับตัวกรอง |
+| **Muted Ink** | `var(--gray-500)` | `#6B7B70` | ~4.7:1 (>= 4.5:1 AA) | คำอธิบายย่อย, หน่วยนับ, เวลาอ้างอิง, Breadcrumb |
+
+### 1.3 Borders & Brand Accent
 
 | Token | ค่าสี HEX | บทบาทการใช้งาน |
 |---|---|---|
-| `var(--bg-main)` | `#FAFCFB` | พื้นหลังหลักของหน้า อมเขียวจางลดแสงจ้าเมื่อจ้องทั้งวัน |
-| `var(--bg-surface)` | `#FFFFFF` | พื้นผิวการ์ด ตาราง แผงควบคุม และโมดอล |
-| `var(--bg-subtle)` | `#F4F7F5` | หัวตาราง แถบสรุป แถบเครื่องมือ ช่องกรอกแบบอ่านอย่างเดียว |
-| `var(--gray-900)` | `#111E14` | **Primary Ink:** หัวข้อเรื่อง ข้อความหลัก ตัวเลข KPI |
-| `var(--gray-700)` | `#334237` | **Secondary Ink:** ข้อความรอง คำอธิบาย ชื่อคอลัมน์ |
-| `var(--gray-500)` | `#6B7B70` | **Muted Ink:** คำอธิบายย่อย หน่วย เวลาอ้างอิง (คอนทราสต์ `>= 4.5:1` บนพื้นขาว) |
-| `var(--gray-200)` | `#E2E8E4` | **Hairline Border:** เส้นขอบการ์ด ขอบ input (หรือใช้ `rgba(17, 30, 20, 0.08)`) |
+| `var(--gray-200)` | `#E2E8E4` | **Hairline Border:** เส้นขอบการ์ด 1px, ขอบ input (หรือ `rgba(17, 30, 20, 0.08)`) |
 | `var(--gray-100)` | `#F1F5F3` | เส้นคั่นแถวในตาราง (Row divider) |
 | `var(--primary)` | `#0D7446` | **Single Brand Accent:** ปุ่ม Primary 1 ปุ่ม, แท็บที่เลือก, Focus ring, จุดเน้นหลักในกราฟ |
 | `var(--primary-hover)` | `#0B633C` | สี hover ของปุ่มหลัก |
 | `var(--primary-dark)` | `#095C38` | สี active ขณะกด และข้อความบนพื้น `--primary-light` |
 | `var(--primary-light)` | `#E8F5E9` | พื้นหลังสถานะเลือกเบาๆ หรือปุ่มรองเน้นขอบเขต |
-| `var(--primary-subtle)` | `#F0FDF4` | พื้นแถวตารางที่เลือก/hover และการ์ดที่ถูกกรอง (Selected state) |
 | `var(--accent-gold-dark)` | `#8C6D1F` | สีทองเข้มสำหรับเน้นตราสัญลักษณ์หรือข้อความพิเศษ (คอนทราสต์ `>= 4.5:1`) |
 
 ---
@@ -75,15 +88,22 @@
 
 ## 5. Radius Math, Elevation & Purposeful Motion
 
-- **Nested Radius Rule:** `innerRadius = max(4px, outerRadius - innerPadding)` เพื่อไม่ให้มุมด้านในดูอ้วนหรือแหลมผิดสัดส่วน
+### 5.1 Nested Radius Math Formula
+`innerRadius = max(4px, outerRadius - innerPadding)` เพื่อให้ความโค้งของขอบนอกและส่วนประกอบด้านในสอดรับกันอย่างกลมกลืน
+
+| ส่วนประกอบนอก (Outer) | Radius ภายนอก | Padding ด้านใน | คำนวณ Inner Radius | Element ภายในที่ใช้ |
+|---|---|---|---|---|
+| **Modal / Panel** | `16px` (`--radius-lg`) | `20–24px` | `max(4px, 16 - 20) = 4–8px` | ปุ่ม, Input, Search Bar ภายใน |
+| **Card / Box** | `12px` (`--radius-md`) | `16–20px` | `max(4px, 12 - 16) = 6–8px` | Filter Chips, Sub-buttons |
+| **Toolbar Ribbon** | `10px` | `8–12px` | `6–8px` | Date Tabs, Quick Selectors |
+
+### 5.2 Elevation, Shadows & Motion
 
 | รายการ | ค่ามาตรฐาน (`globals.css`) | ข้อกำหนด |
 |---|---|---|
-| **แผงใหญ่ / Modal** | `16px` (`var(--radius-lg)`) | ภายในมี padding `20–24px` |
-| **การ์ด / ตาราง** | `12px` (`var(--radius-md)`) | เส้นขอบ `1px solid var(--gray-200)` |
-| **ปุ่ม / Input / Select** | `8px` (`var(--radius)`) | สูงอย่างน้อย **44px** (`44–48px` บนมือถือ/จุดกดหลัก) |
-| **Status Tag / Badge** | `6px` (`var(--radius-sm)`) หรือ `9999px` | ใช้ Pill (`9999px`) เฉพาะป้ายสถานะสั้น ไม่ใช้กับทุกกล่อง |
-| **เงาการ์ด (Rest)** | `var(--shadow-card)` | `0 1px 3px rgba(13, 116, 70, 0.05), 0 4px 12px rgba(13, 116, 70, 0.04)` (หรือ hairline อย่างเดียวในตารางแน่น) |
-| **เงา Hover** | `var(--shadow-hover)` | ใช้เฉพาะการ์ดที่คลิกกรอง/เปิดดูได้เท่านั้น ไม่ใส่กับการ์ดสถิติที่กดไม่ได้ |
-| **Transition** | `--dur-fast: 150ms`, `--ease-out: cubic-bezier(0.16, 1, 0.3, 1)` | ระบุ property ที่เปลี่ยนเสมอ (`transition: background-color 150ms ..., border-color 150ms ...`) **ห้าม `transition: all`** |
+| **เงาการ์ด (Rest)** | `var(--shadow-card)` | `0 1px 3px rgba(17, 30, 20, 0.04), 0 2px 6px rgba(17, 30, 20, 0.02)` |
+| **เงา Modal / Popover** | `var(--shadow-lg)` | `0 8px 24px -4px rgba(17, 30, 20, 0.12), 0 4px 8px -2px rgba(17, 30, 20, 0.06)` |
+| **เงา Hover (Interactive)** | `var(--shadow-hover)` | ใช้เฉพาะการ์ดหรือแถวที่คลิกกรองได้เท่านั้น (ไม่ใส่กับการ์ดสถิตินิ่ง) |
+| **Transition** | `--dur-fast: 150ms`, `--ease-out: cubic-bezier(0.16, 1, 0.3, 1)` | ระบุ property ที่เปลี่ยนเสมอ (`transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out)`) **ห้าม `transition: all`** |
+| **Tactile Press** | `transform: translateY(1px)` หรือ `scale(0.98)` | ตอบสนองต่อการคลิกนิ่งๆ **ห้ามปุ่มเด้งดิ้น ขยายใหญ่ (hover:scale)** |
 | **Focus Ring** | `outline: 3px solid var(--primary); outline-offset: 2px;` | คงไว้ทุก interactive element เพื่อ Keyboard accessibility |

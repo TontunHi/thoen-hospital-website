@@ -23,6 +23,7 @@ const ancService23ParamsSchema = z.object({
     .optional(),
   serviceFilter: z.enum(['ALL', 'OK', 'NOT_OK']).optional(),
   ucFilter: z.enum(['ALL', 'UC', 'NON_UC']).optional(),
+  pttypes: z.string().max(300).optional(),
   statusFilter: z.string().max(100).optional(),
   searchField: z
     .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'AUTHEN', 'ITEMNAME'])

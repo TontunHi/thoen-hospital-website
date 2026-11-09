@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getSwrCachedData } from '@/lib/cache'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
@@ -277,17 +278,31 @@ export const IpdWardService = {
   async getWardSummary(
     executor: QueryExecutor = queryClinicalDb
   ): Promise<WardSummaryResult> {
-    const sql = `
-      SELECT 
-        an.ward,
-        p.bedno
-      FROM an_stat an
-      LEFT OUTER JOIN iptadm p ON an.an = p.an
-      WHERE an.dchdate IS NULL
-        AND an.ward IN ('02', '04', '05', '06', '09')
-    `
+    let rows: any[] | null = null
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRows = await apiGateway.clinical.getIpdWardRoster()
+        if (Array.isArray(gwRows)) {
+          rows = gwRows
+        }
+      } catch {
+        // Graceful fallback to executor query
+      }
+    }
 
-    const rows = await executor(sql)
+    if (rows === null) {
+      const sql = `
+        SELECT 
+          an.ward,
+          p.bedno
+        FROM an_stat an
+        LEFT OUTER JOIN iptadm p ON an.an = p.an
+        WHERE an.dchdate IS NULL
+          AND an.ward IN ('02', '04', '05', '06', '09')
+      `
+      rows = await executor(sql)
+    }
+
     const counts: Record<string, number> = {
       w1: 0,
       w2: 0,
@@ -323,24 +338,37 @@ export const IpdWardService = {
   async getWardPatientRoster(
     executor: QueryExecutor = queryClinicalDb
   ): Promise<WardRosterResult> {
-    const sql = `
-      SELECT 
-        pt.hn,
-        TRIM(CONCAT(COALESCE(pt.pname, ''), ' ', COALESCE(pt.fname, ''))) AS ptname,
-        TIMESTAMPDIFF(YEAR, pt.birthday, CURRENT_DATE()) AS age,
-        DATE_FORMAT(an.regdate, '%Y-%m-%d') AS regdate,
-        DATEDIFF(CURRENT_DATE(), an.regdate) AS admit_days,
-        p.bedno,
-        an.ward
-      FROM an_stat an
-      LEFT OUTER JOIN patient pt ON an.hn = pt.hn
-      LEFT OUTER JOIN iptadm p ON an.an = p.an
-      WHERE an.dchdate IS NULL
-        AND an.ward IN ('02', '04', '05', '06', '09')
-      ORDER BY p.bedno ASC
-    `
+    let rows: any[] | null = null
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRows = await apiGateway.clinical.getIpdWardRoster()
+        if (Array.isArray(gwRows)) {
+          rows = gwRows
+        }
+      } catch {
+        // Graceful fallback to executor query
+      }
+    }
 
-    const rows = await executor(sql)
+    if (rows === null) {
+      const sql = `
+        SELECT 
+          pt.hn,
+          TRIM(CONCAT(COALESCE(pt.pname, ''), ' ', COALESCE(pt.fname, ''))) AS ptname,
+          TIMESTAMPDIFF(YEAR, pt.birthday, CURRENT_DATE()) AS age,
+          DATE_FORMAT(an.regdate, '%Y-%m-%d') AS regdate,
+          DATEDIFF(CURRENT_DATE(), an.regdate) AS admit_days,
+          p.bedno,
+          an.ward
+        FROM an_stat an
+        LEFT OUTER JOIN patient pt ON an.hn = pt.hn
+        LEFT OUTER JOIN iptadm p ON an.an = p.an
+        WHERE an.dchdate IS NULL
+          AND an.ward IN ('02', '04', '05', '06', '09')
+        ORDER BY p.bedno ASC
+      `
+      rows = await executor(sql)
+    }
     const groups: Record<string, PatientRecord[]> = {
       w1: [],
       w2: [],

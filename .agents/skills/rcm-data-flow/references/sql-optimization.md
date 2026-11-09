@@ -8,9 +8,17 @@
 
 สคริปต์รายงานเดิมของโรงพยาบาลรันบน Visual FoxPro และใช้ตารางชั่วคราว เมื่อแปลงมาเป็น SQL บน MySQL/MariaDB ผ่าน Gateway ต้องยึดกฎนี้:
 
-1. **Authen Code ฟิลด์จริงคือ `cc.AuthenCode`:**
-   - ตารางจริงคือ `rcmdb.authencode` คอลัมน์คือ **`cc.AuthenCode`**
-   - **ห้าม** ใช้ `cc.claimcode` (เป็นชื่อใน temp table ของ FoxPro — จะ Error `Unknown column 'cc.claimcode'`)
+1. **Authen Code / ClaimCode สองชั้น (Two-Source ClaimCode Fallback):**
+   - **แหล่งที่ 1 (Direct Point of Care):** บันทึกจากเครื่องอ่านบัตรประชาชน/KIOSK/ห้องบัตรทันทีตอนลงทะเบียน อยู่ในตาราง **`visit_pttype.auth_code`** (หรือ `visit_pttype.claim_code`)
+   - **แหล่งที่ 2 (NHSO Batch Import):** นำเข้าจากไฟล์/API สปสช. เป็นรอบๆ อยู่ในตาราง **`rcmdb.authencode`** คอลัมน์คือ **`cc.AuthenCode`** (*ห้ามใช้ `cc.claimcode` เพราะเป็นชื่อคอลัมน์ใน FoxPro temp table*)
+   - **มาตรฐานการ JOIN และ COALESCE ที่สมบูรณ์:**
+     เพื่อไม่ให้เคสที่ยืนยันตัวตนหน้างานเรียบร้อยแล้ว หลุดกลายเป็น "ไม่มี ClaimCode" ในช่วงเวลาก่อนที่ฝ่ายประกันจะกดนำเข้า Batch สปสช. ต้องประกบทั้งสองแหล่งเสมอ:
+     ```sql
+     COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
+     ...
+     LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+     LEFT JOIN visit_pttype vt ON vt.vn = o.vn
+     ```
 2. **Lookup & Age Calculation:**
    - `thaiage(pt.birthday, o.vstdate)` → `IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate))`
    - `seeknames(pt.nationality, 'nation')` → `LEFT JOIN nationality nat ON nat.nationality = pt.nationality`
@@ -25,10 +33,24 @@
      - `eclaimdb.m_registerdata m` + `rcmdb.eclaimstatus ecs`
    - รวมค่าชดเชยและสถานะด้วย:
      ```sql
-     COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+     COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
      COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
      COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated
      ```
+     *(คอลัมน์ `rep` ต้อง SELECT ออกมาเสมอ เพื่อให้ฝั่ง UI นำเลข Rep ไปแสดงผลตามกฎ "ถ้ามี Rep ก็ต้องเอาเลข Rep มาแสดงด้วย" และใช้กระทบยอดบัญชี)*
+   - > [!CAUTION]
+     > **กับดักขอบเขตเวลา DATETIME Boundary (The Midnight Cut-off Bug):**
+     > คอลัมน์ `AdmDate` ใน `rcmdb.repdata` และ `rcmdb.repeclaim` มี Data Type เป็น **`DATETIME`** (เก็บเวลาด้วย เช่น `2026-09-30 13:31:00`)
+     > **ห้าม** เขียน `WHERE admdate BETWEEN ? AND ?` โดยส่งวันที่สตริง `'YYYY-MM-DD'` เด็ดขาด! เพราะ MySQL จะแคสต์วันที่ตัวหลังเป็น `'YYYY-MM-DD 00:00:00'` ทำให้ผู้ป่วยที่มารับบริการในวันสุดท้ายของช่วงเวลา (เช่น 30 ก.ย. สิ้นปีงบประมาณ) ที่มีเวลาหลังเที่ยงคืนหลุดช่วงทันที เกิดอาการบั๊กเงียบ `rep` กลายเป็น `NULL` และสถานะตกไปเป็น `'-:ยังไม่ได้ส่ง'`
+     > 
+     > **แนวทางที่ถูกต้อง:** ให้ใช้เงื่อนไข Half-Open Interval เสมอ:
+     > ```sql
+     > WHERE department = 'OP' 
+     >   AND IFNULL(vn, '') <> '' 
+     >   AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+     > ```
+   - **ข้อควรระวังสำหรับ `eclaimdb.m_registerdata`:**
+     คอลัมน์ `DATEADM` เก็บสตริงปี พ.ศ. ไม่มีขีด (`YYYYMMDD` เช่น `'25650509'`) และเป็นตารางประวัติเก่าถึงปี 2566 ห้ามส่งวันที่ ค.ศ. (`'2025-10-01'`) ไปกรองด้วย `m.dateadm BETWEEN ? AND ?` เพราะจะไม่แมตช์เลย ให้ใช้เพียงการ JOIN `ON m.opdseq = o.vn` ร่วมกับ `WHERE m.person_type = '1' AND IFNULL(m.opdseq, '') <> ''` ก็เพียงพอแล้ว
 4. **Timeout สำหรับ Query ข้ามเดือนบน `opitemrece`:**
    - ส่ง `{ timeoutMs: 90000 }` เสมอเมื่อ Query แตะ `opitemrece` พร้อมตารางชดเชยข้ามหลายเดือน
 5. **NHSO ADP Mapping Pre-Check:**
@@ -88,7 +110,7 @@ FROM (
 
 ---
 
-## 4. Upstream SQL Audit Checklist 6 ข้อ (ห้าม Copy-Paste SQL ต้นทางตรงๆ)
+## 4. Upstream SQL Audit Checklist 8 ข้อ (ห้าม Copy-Paste SQL ต้นทางตรงๆ)
 
 | # | ข้อตรวจ | แนวทางที่ถูกต้อง |
 |---|---|---|
@@ -98,6 +120,8 @@ FROM (
 | **4** | **Projection Pruning** | ห้าม `SELECT pt.*, o.*, v.*`; เลือกเฉพาะคอลัมน์ที่ใช้จริงบน UI/Export |
 | **5** | **Consolidate Scans** | รวม Subquery ที่แตะ `opitemrece` หรือ `repdata` ซ้ำหลายครั้งเป็นครั้งเดียวด้วย Conditional Aggregation (`SUM(CASE WHEN ... END)`) |
 | **6** | **Service-Layer Text** | ดึง Raw Code จาก SQL แล้วแปลงข้อความ/การจัดกลุ่มเป็นภาษาไทยใน TypeScript |
+| **7** | **DATETIME Boundary** | คอลัมน์ประเภท `DATETIME` (`admdate`, `date_rep`) **ห้าม** ใช้ `BETWEEN ? AND ?` กับสตริงวันที่เพียวๆ (`'YYYY-MM-DD'`) เพราะจะตัดเคสในวันสุดท้ายหลัง 00:00:00 ทิ้งทั้งหมด — ต้องใช้ `>= ? AND < DATE_ADD(?, INTERVAL 1 DAY)` เสมอ |
+| **8** | **Two-Source ClaimCode** | การดึง ClaimCode/AuthenCode **ห้าม** ดึงจาก `rcmdb.authencode` เพียงแหล่งเดียว เพราะหากยังไม่นำเข้า Batch สปสช. เคสที่ยืนยันตัวตนหน้างานผ่าน KIOSK/ห้องบัตรจะหลุดเป็น "ไม่มี ClaimCode" — ต้องใช้ `COALESCE(cc.AuthenCode, vt.auth_code, vt.claim_code)` คู่กับ `LEFT JOIN visit_pttype vt ON vt.vn = o.vn` เสมอ |
 
 ---
 

@@ -1,0 +1,94 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-media-shelf { box-sizing: border-box; inline-size: 100%; max-inline-size: 76rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-media-shelf *, .odl-media-shelf *::before, .odl-media-shelf *::after { box-sizing: border-box; }
+.odl-media-shelf .odl-shelf { display: grid; gap: var(--ds-space-stack-md); }
+.odl-media-shelf .odl-shelf + .odl-shelf { margin-block-start: var(--ds-space-stack-xl); }
+.odl-media-shelf .odl-top { display: flex; align-items: center; gap: var(--ds-space-inline-md); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); }
+.odl-media-shelf h3 { margin: 0; font: var(--ds-text-title-md); text-wrap: balance; }
+.odl-media-shelf h3 em { font-style: normal; color: var(--ds-color-text-secondary); }
+.odl-media-shelf .odl-nav { display: none; gap: var(--ds-space-inline-sm); margin-inline-start: auto; }
+.odl-media-shelf .odl-nav button { display: grid; place-items: center; min-inline-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); min-block-size: max(var(--ds-size-control-md), var(--ds-size-target-min)); padding: 0;
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); border-radius: var(--ds-radius-full); background: var(--ds-color-surface-raised); color: var(--ds-color-text-primary); cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-media-shelf .odl-nav button:hover { background: var(--ds-color-bg-neutral-subtle); }
+.odl-media-shelf .odl-nav button:disabled { color: var(--ds-color-text-disabled); cursor: default; background: var(--ds-color-surface-raised); }
+.odl-media-shelf .odl-i { display: block; inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-media-shelf ul { display: grid; grid-auto-flow: column; grid-auto-columns: 78%; gap: var(--ds-space-inline-md); margin: 0; padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-stack-sm); list-style: none;
+  overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: var(--ds-space-4); scrollbar-width: none; border-radius: var(--ds-radius-nested); }
+.odl-media-shelf ul::-webkit-scrollbar { display: none; }
+.odl-media-shelf ul:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-media-shelf .odl-posters ul { grid-auto-columns: 42%; }
+.odl-media-shelf li { scroll-snap-align: start; min-inline-size: 0; }
+.odl-media-shelf .odl-item { display: grid; align-content: start; gap: var(--ds-space-stack-sm); inline-size: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; border-radius: var(--ds-radius-container); }
+.odl-media-shelf .odl-art { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--ds-radius-container); background: var(--ds-color-bg-neutral-subtle); box-shadow: var(--ds-elevation-raised);
+  transition: transform var(--ds-motion-duration-medium) var(--ds-motion-easing-standard), box-shadow var(--ds-motion-duration-medium) var(--ds-motion-easing-standard); }
+.odl-media-shelf .odl-posters .odl-art { aspect-ratio: 2 / 3; }
+.odl-media-shelf .odl-art img { position: absolute; inset: 0; display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.odl-media-shelf .odl-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, var(--ds-color-neutral-alpha-light-9), transparent 45%); pointer-events: none; }
+.odl-media-shelf .odl-posters .odl-art::after { background: none; }
+.odl-media-shelf .odl-item:hover .odl-art { transform: translateY(calc(-1 * var(--ds-space-2))); box-shadow: var(--ds-elevation-floating); }
+.odl-media-shelf .odl-item:focus-visible { outline: none; }
+.odl-media-shelf .odl-item:focus-visible .odl-art, .odl-media-shelf .odl-nav button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-media-shelf .odl-go { position: absolute; z-index: 1; inset-inline-start: var(--ds-space-inset-md); inset-block-end: calc(var(--ds-space-inset-md) + var(--ds-space-stack-sm)); display: grid; place-items: center;
+  inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-alpha-light-11); color: var(--ds-color-neutral-dark-12); }
+.odl-media-shelf .odl-go .odl-i { inline-size: var(--ds-size-icon-sm); block-size: var(--ds-size-icon-sm); fill: currentColor; translate: 6% 0; }
+.odl-media-shelf .odl-bar { position: absolute; z-index: 1; inset-inline: var(--ds-space-inset-md); inset-block-end: var(--ds-space-inset-sm); block-size: var(--ds-space-4); overflow: hidden; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-alpha-light-11); }
+.odl-media-shelf .odl-bar i { display: block; inline-size: var(--w); block-size: 100%; border-radius: var(--ds-radius-full); background: var(--ds-color-neutral-dark-12); }
+.odl-media-shelf .odl-text { display: grid; gap: var(--ds-space-stack-xs); min-inline-size: 0; }
+.odl-media-shelf .odl-name { overflow: hidden; font: var(--ds-text-label-lg); text-overflow: ellipsis; white-space: nowrap; }
+.odl-media-shelf .odl-sub { overflow: hidden; color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.odl-media-shelf .odl-sub.is-new { color: var(--ds-color-text-accent); }
+@container (min-width: 36rem) {
+  .odl-media-shelf ul { grid-auto-columns: calc((100% - var(--ds-space-inline-md) * 2) / 2.35); }
+  .odl-media-shelf .odl-posters ul { grid-auto-columns: calc((100% - var(--ds-space-inline-md) * 3) / 3.5); }
+}
+@container (min-width: 48rem) {
+  .odl-media-shelf .odl-nav { display: flex; }
+  .odl-media-shelf ul { grid-auto-columns: calc((100% - var(--ds-space-inline-md) * 3) / 4); }
+  .odl-media-shelf .odl-posters ul { grid-auto-columns: calc((100% - var(--ds-space-inline-md) * 5) / 6); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-media-shelf, .odl-media-shelf *, .odl-media-shelf *::before, .odl-media-shelf *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+<section class="odl-media-shelf" aria-label="Your shelves">
+  <div class="odl-shelf">
+    <div class="odl-top"><h3 id="odl-ms-cw">Continue watching</h3><div class="odl-nav"><button type="button" class="odl-prev" aria-label="Scroll Continue watching back"><svg class="odl-i odl-i-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button type="button" class="odl-next" aria-label="Scroll Continue watching forward"><svg class="odl-i odl-i-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+    <ul aria-labelledby="odl-ms-cw" tabindex="0">
+      <li><button type="button" class="odl-item" aria-label="Resume Fogbound, season 2 episode 4, 22 minutes left"><span class="odl-art"><img src="https://images.unsplash.com/photo-1578429827733-272eb6d7972e?w=640&h=360&fit=crop&auto=format&q=70" alt="An empty road through bare trees in fog" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg class="odl-i odl-i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 58%"></i></span></span><span class="odl-text"><span class="odl-name">Fogbound</span><span class="odl-sub">S2 · E4 · 22 min left</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Resume Night Station, episode 7, 41 minutes left"><span class="odl-art"><img src="https://images.unsplash.com/photo-1617195737496-bc30194e3a19?w=640&h=360&fit=crop&auto=format&q=70" alt="A roadside station lit blue in orange fog at night" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg class="odl-i odl-i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 18%"></i></span></span><span class="odl-text"><span class="odl-name">Night Station</span><span class="odl-sub">E7 · 41 min left</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Resume The Copper Canyon, film, 1 hour 12 minutes left"><span class="odl-art"><img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=640&h=360&fit=crop&auto=format&q=70" alt="A road through red desert rocks" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg class="odl-i odl-i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 34%"></i></span></span><span class="odl-text"><span class="odl-name">The Copper Canyon</span><span class="odl-sub">Film · 1 h 12 min left</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Resume The Lone Elm, season 1 episode 2, 9 minutes left"><span class="odl-art"><img src="https://images.unsplash.com/photo-1707340733209-d8adf5ad25e6?w=640&h=360&fit=crop&auto=format&q=70" alt="A lone tree in a field" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg class="odl-i odl-i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 82%"></i></span></span><span class="odl-text"><span class="odl-name">The Lone Elm</span><span class="odl-sub">S1 · E2 · 9 min left</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Resume Coldspring Line, season 3 episode 1, 48 minutes left"><span class="odl-art"><img src="https://images.unsplash.com/photo-1589194837853-340f4a2f6559?w=640&h=360&fit=crop&auto=format&q=70" alt="Light trails on a tree-lined street at night" width="320" height="180" loading="lazy" decoding="async"><span class="odl-go"><svg class="odl-i odl-i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="odl-bar"><i style="--w: 6%"></i></span></span><span class="odl-text"><span class="odl-name">Coldspring Line</span><span class="odl-sub">S3 · E1 · 48 min left</span></span></button></li>
+    </ul>
+  </div>
+  <div class="odl-shelf odl-posters">
+    <div class="odl-top"><h3 id="odl-ms-bw"><em>Because you watched</em> Fogbound</h3><div class="odl-nav"><button type="button" class="odl-prev" aria-label="Scroll Because you watched back"><svg class="odl-i odl-i-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><button type="button" class="odl-next" aria-label="Scroll Because you watched forward"><svg class="odl-i odl-i-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+    <ul aria-labelledby="odl-ms-bw" tabindex="0">
+      <li><button type="button" class="odl-item" aria-label="Long Road North, new episodes"><span class="odl-art"><img src="https://images.unsplash.com/photo-1494783367193-149034c05e8f?w=400&h=600&fit=crop&auto=format&q=70" alt="A lone road heading to mountains" width="200" height="300" loading="lazy" decoding="async"></span><span class="odl-text"><span class="odl-name">Long Road North</span><span class="odl-sub is-new">New episodes</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Ember Valley"><span class="odl-art"><img src="https://images.unsplash.com/photo-1625851823298-70d1151f5b71?w=400&h=600&fit=crop&auto=format&q=70" alt="Silhouettes around a bonfire at night" width="200" height="300" loading="lazy" decoding="async"></span><span class="odl-text"><span class="odl-name">Ember Valley</span><span class="odl-sub">Series</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Night Corridor, film"><span class="odl-art"><img src="https://images.unsplash.com/photo-1608126199278-50a5f584dbdd?w=400&h=600&fit=crop&auto=format&q=70" alt="A silhouette walking down a hallway" width="200" height="300" loading="lazy" decoding="async"></span><span class="odl-text"><span class="odl-name">Night Corridor</span><span class="odl-sub">Film</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Dust Country"><span class="odl-art"><img src="https://images.unsplash.com/photo-1547235001-d703406d3f17?w=400&h=600&fit=crop&auto=format&q=70" alt="A dusty desert valley" width="200" height="300" loading="lazy" decoding="async"></span><span class="odl-text"><span class="odl-name">Dust Country</span><span class="odl-sub">Series</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Neon Rain, new season"><span class="odl-art"><img src="https://images.unsplash.com/photo-1601042879364-f3947d3f9c16?w=400&h=600&fit=crop&auto=format&q=70" alt="A wet street at night with neon reflections" width="200" height="300" loading="lazy" decoding="async"></span><span class="odl-text"><span class="odl-name">Neon Rain</span><span class="odl-sub is-new">New season</span></span></button></li>
+      <li><button type="button" class="odl-item" aria-label="Encore"><span class="odl-art"><img src="https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&h=600&fit=crop&auto=format&q=70" alt="Stage lights over an audience" width="200" height="300" loading="lazy" decoding="async"></span><span class="odl-text"><span class="odl-name">Encore</span><span class="odl-sub">Series</span></span></button></li>
+    </ul>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-media-shelf").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  root.querySelectorAll(".odl-shelf").forEach((shelf) => {
+    const list = shelf.querySelector("ul"), prev = shelf.querySelector(".odl-prev"), next = shelf.querySelector(".odl-next");
+    const sync = () => {
+      prev.disabled = list.scrollLeft <= 2;
+      next.disabled = list.scrollLeft + list.clientWidth >= list.scrollWidth - 2;
+    };
+    const go = (dir) => list.scrollBy({ left: dir * list.clientWidth * 0.9, behavior: still.matches ? "auto" : "smooth" });
+    prev.addEventListener("click", () => go(-1));
+    next.addEventListener("click", () => go(1));
+    list.addEventListener("scroll", sync, { passive: true });
+    sync();
+  });
+});
+</script>

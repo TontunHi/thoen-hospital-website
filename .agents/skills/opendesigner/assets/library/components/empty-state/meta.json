@@ -1,0 +1,13 @@
+{
+  "name": "Empty state",
+  "summary": "What a list shows when there is nothing in it: a small drawing in the system's own colours, what it means, when that changes, and one thing to do.",
+  "use": "when a list or page has nothing in it yet",
+  "type": "feedback",
+  "style": "friendly",
+  "industries": ["any"],
+  "tags": ["empty state", "zero data", "illustration", "onboarding", "call to action"],
+  "states": ["empty, all done", "hover", "focus"],
+  "source": null,
+  "a11y": "The drawing is decorative and hidden from screen readers; the heading says what the state means, and the one primary action is a real button.",
+  "width": "narrow"
+}

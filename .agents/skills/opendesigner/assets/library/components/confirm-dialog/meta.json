@@ -1,0 +1,13 @@
+{
+  "name": "Confirm dialog",
+  "summary": "A destructive confirmation shown open: what will be deleted, what happens next, and a typed workspace name that unlocks the red Delete button. Placement and the backdrop are the project's.",
+  "use": "before an action that cannot be undone, such as deleting data",
+  "type": "overlay",
+  "style": "quiet",
+  "industries": ["saas", "finance", "any"],
+  "tags": ["dialog", "modal", "confirm", "delete", "destructive"],
+  "states": ["open", "delete disabled", "delete enabled", "hover", "pressed", "focus"],
+  "source": null,
+  "a11y": "An alertdialog labelled by its title and described by its sentence; the input has a visible label and hint, Delete stays a disabled native button until the typed name matches, and Enter confirms once it does.",
+  "width": "narrow"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Sleep chart",
+  "summary": "Last night's sleep as a hypnogram of awake, REM, light and deep sleep across the night, the time and share spent in each stage, and the last seven nights as bars against a goal line.",
+  "use": "in a sleep, health or wearable app, for the morning summary of last night",
+  "type": "chart",
+  "style": "quiet",
+  "industries": ["health", "fitness"],
+  "tags": ["sleep", "hypnogram", "stages", "week", "wearable"],
+  "states": ["last night", "goal line"],
+  "source": null,
+  "a11y": "The hypnogram is one image with a written summary of the night; stage totals are a description list and each night's bar carries its date and hours as text for screen readers.",
+  "width": "medium"
+}

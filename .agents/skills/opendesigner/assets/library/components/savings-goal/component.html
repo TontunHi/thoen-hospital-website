@@ -1,0 +1,140 @@
+<!-- Icons: Lucide (lucide.dev), ISC licence -->
+<style>
+.odl-savings-goal { box-sizing: border-box; inline-size: 100%; max-inline-size: 28rem; margin-inline: auto; container-type: inline-size; color: var(--ds-color-text-primary); font: var(--ds-text-body-md); text-wrap: pretty; }
+.odl-savings-goal *, .odl-savings-goal *::before, .odl-savings-goal *::after { box-sizing: border-box; }
+.odl-savings-goal p, .odl-savings-goal h3 { margin: 0; }
+.odl-savings-goal svg { flex: none; }
+.odl-savings-goal .odl-card { overflow: hidden; background: var(--ds-color-surface-raised); border: var(--ds-border-width-default) solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container); box-shadow: var(--ds-elevation-raised); }
+/* The pot's cover: a photo the saver picked, like a pot in a banking app. */
+.odl-savings-goal .odl-cover { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 16 / 9; object-fit: cover; background: var(--ds-color-bg-neutral-subtle); }
+.odl-savings-goal .odl-body { display: grid; gap: var(--ds-space-stack-lg); padding: var(--ds-space-inset-xl); }
+.odl-savings-goal .odl-title { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-savings-goal h3 { font: var(--ds-text-title-lg); }
+.odl-savings-goal .odl-goal { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-savings-goal .odl-main { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--ds-space-inset-xl); }
+.odl-savings-goal .odl-ring { position: relative; display: grid; place-items: center; inline-size: calc(var(--ds-size-control-lg) * 2.6); aspect-ratio: 1; }
+.odl-savings-goal .odl-ring svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; transform: rotate(-90deg); }
+.odl-savings-goal .odl-ring circle { fill: none; stroke-width: 9; }
+.odl-savings-goal .odl-track { stroke: var(--ds-color-bg-neutral-subtle); }
+.odl-savings-goal .odl-arc { stroke: var(--ds-color-bg-success-bold); stroke-linecap: round; transition: stroke-dasharray var(--ds-motion-duration-long) var(--ds-motion-easing-standard); }
+.odl-savings-goal .odl-pct { position: relative; display: grid; justify-items: center; font: var(--ds-text-title-lg); font-variant-numeric: tabular-nums; }
+.odl-savings-goal .odl-pct small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-savings-goal .odl-facts { display: grid; gap: var(--ds-space-stack-md); margin: 0; }
+.odl-savings-goal .odl-facts div { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-savings-goal .odl-facts dt { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); }
+.odl-savings-goal .odl-facts dd { margin: 0; font: var(--ds-text-title-md); font-variant-numeric: tabular-nums; }
+.odl-savings-goal .odl-on { display: flex; align-items: center; gap: var(--ds-space-inline-md); padding-block-start: var(--ds-space-stack-lg); border-block-start: var(--ds-border-width-default) solid var(--ds-color-border-separator);
+  color: var(--ds-color-text-success); font: var(--ds-text-label-lg); }
+.odl-savings-goal .odl-on svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-savings-goal .odl-on span { color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); }
+/* Round-ups: a whole-row switch */
+.odl-savings-goal .odl-round { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ds-space-inline-md); inline-size: 100%; min-block-size: var(--ds-size-row-two-line);
+  padding: var(--ds-space-inset-md); border: 0; border-radius: var(--ds-radius-nested); background: var(--ds-color-bg-neutral-subtle); color: inherit; font: inherit; text-align: start; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-savings-goal .odl-round:hover { background: var(--ds-color-bg-neutral-subtle-hover); }
+.odl-savings-goal .odl-tile { display: grid; place-items: center; inline-size: var(--ds-size-control-md); block-size: var(--ds-size-control-md); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-raised); color: var(--ds-color-icon-default); }
+.odl-savings-goal .odl-tile svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-savings-goal .odl-round > span:nth-child(2) { display: grid; gap: var(--ds-space-stack-xs); }
+.odl-savings-goal .odl-round b { font: var(--ds-text-label-lg); }
+.odl-savings-goal .odl-round small { color: var(--ds-color-text-secondary); font: var(--ds-text-label-md); font-variant-numeric: tabular-nums; }
+.odl-savings-goal .odl-switch { position: relative; inline-size: calc(var(--ds-size-icon-lg) * 2); block-size: calc(var(--ds-size-icon-lg) * 1.2); border-radius: var(--ds-radius-full); background: var(--ds-color-border-strong);
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-savings-goal .odl-switch::after { content: ""; position: absolute; inset-block-start: 10%; inset-inline-start: 6%; block-size: 80%; aspect-ratio: 1; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-white); box-shadow: var(--ds-elevation-raised); transition: transform var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-savings-goal .odl-round[aria-checked="true"] .odl-switch { background: var(--ds-color-bg-accent-bold); }
+.odl-savings-goal .odl-round[aria-checked="true"] .odl-switch::after { transform: translateX(105%); }
+/* Add money */
+.odl-savings-goal .odl-add { display: grid; gap: var(--ds-space-stack-md); margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.odl-savings-goal legend { padding: 0; margin-block-end: var(--ds-space-stack-md); font: var(--ds-text-title-sm); }
+.odl-savings-goal .odl-amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-inline-sm); }
+.odl-savings-goal .odl-amounts label { position: relative; }
+.odl-savings-goal .odl-amounts input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.odl-savings-goal .odl-amounts span { display: grid; place-items: center; min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-touch)); border-radius: var(--ds-radius-control);
+  border: var(--ds-border-width-default) solid var(--ds-color-border-default); font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard), border-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-savings-goal .odl-amounts label:hover span { border-color: var(--ds-color-border-strong); }
+.odl-savings-goal .odl-amounts input:checked + span { border-color: var(--ds-color-border-accent); background: var(--ds-color-bg-accent-subtle); color: var(--ds-color-text-accent);
+  box-shadow: inset 0 0 0 var(--ds-border-width-default) var(--ds-color-border-accent); }
+.odl-savings-goal .odl-amounts input:focus-visible + span { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-savings-goal .odl-go { display: inline-flex; align-items: center; justify-content: center; gap: var(--ds-space-inline-sm); min-block-size: max(var(--ds-size-control-lg), var(--ds-size-target-touch)); padding: 0 var(--ds-space-inset-md);
+  border: 0; border-radius: var(--ds-radius-control); background: var(--ds-color-bg-action-primary); color: var(--ds-color-text-on-action); font: var(--ds-text-label-lg); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background-color var(--ds-motion-duration-short) var(--ds-motion-easing-standard); }
+.odl-savings-goal .odl-go svg { inline-size: var(--ds-size-icon-md); block-size: var(--ds-size-icon-md); stroke-width: var(--ds-icon-stroke-md); }
+.odl-savings-goal .odl-go:hover { background: var(--ds-color-bg-action-primary-hover); }
+.odl-savings-goal .odl-go:active { background: var(--ds-color-bg-action-primary-pressed); }
+.odl-savings-goal .odl-go:disabled { background: var(--ds-color-bg-disabled); color: var(--ds-color-text-disabled); cursor: not-allowed; }
+.odl-savings-goal button:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: var(--ds-focus-ring-offset); }
+.odl-savings-goal .odl-said { color: var(--ds-color-text-secondary); font: var(--ds-text-body-md); text-align: center; }
+.odl-savings-goal .odl-said:empty { display: none; }
+@container (max-width: 26rem) {
+  .odl-savings-goal .odl-body { padding: var(--ds-space-inset-lg); }
+  .odl-savings-goal .odl-main { gap: var(--ds-space-inset-lg); }
+  .odl-savings-goal .odl-ring { inline-size: calc(var(--ds-size-control-lg) * 2.3); }
+}
+@media (prefers-reduced-motion: reduce) { .odl-savings-goal, .odl-savings-goal *, .odl-savings-goal *::before, .odl-savings-goal *::after { transition: none !important; animation: none !important; } }
+</style>
+<section class="odl-savings-goal" aria-labelledby="odl-sg-title">
+  <div class="odl-card">
+    <img class="odl-cover" src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=896&h=504&fit=crop&auto=format&q=70" alt="Beach at golden hour" width="896" height="504" loading="lazy" decoding="async">
+    <div class="odl-body">
+      <div class="odl-title"><h3 id="odl-sg-title">Coast trip</h3><p class="odl-goal">Goal £3,000 · Savings pot</p></div>
+      <div class="odl-main">
+        <div class="odl-ring" role="progressbar" aria-label="Saved toward Coast trip" aria-valuemin="0" aria-valuemax="3000" aria-valuenow="1840" aria-valuetext="£1,840 of £3,000, 61%">
+          <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="odl-track" cx="50" cy="50" r="44"/><circle class="odl-arc" cx="50" cy="50" r="44" pathLength="100" stroke-dasharray="61.3 100"/></svg>
+          <p class="odl-pct" aria-hidden="true"><span class="odl-p">61%</span><small>saved</small></p>
+        </div>
+        <dl class="odl-facts">
+          <div><dt>Saved so far</dt><dd class="odl-saved">£1,840</dd></div>
+          <div><dt>Still to go</dt><dd class="odl-left">£1,160</dd></div>
+        </dl>
+      </div>
+      <p class="odl-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>On track for 24 Apr <span>· £40 a week</span></p>
+      <button type="button" class="odl-round" role="switch" aria-checked="true">
+        <span class="odl-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg></span>
+        <span><b>Round-ups</b><small>£18.40 this month</small></span><span class="odl-switch" aria-hidden="true"></span>
+      </button>
+      <fieldset class="odl-add">
+        <legend>Add money</legend>
+        <div class="odl-amounts">
+          <label><input type="radio" name="odl-sg-amount" value="10"><span>£10</span></label>
+          <label><input type="radio" name="odl-sg-amount" value="25" checked><span>£25</span></label>
+          <label><input type="radio" name="odl-sg-amount" value="50"><span>£50</span></label>
+        </div>
+        <button type="button" class="odl-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg><span>Add £25 from Everyday</span></button>
+        <p class="odl-said" aria-live="polite"></p>
+      </fieldset>
+    </div>
+  </div>
+</section>
+<script>
+document.querySelectorAll(".odl-savings-goal").forEach((root) => {
+  if (root.dataset.odlReady) return; // wire once, even if the file is pasted twice
+  root.dataset.odlReady = "1";
+  const GOAL = 3000, money = (n) => "£" + n.toLocaleString("en-GB");
+  let saved = 1840;
+  const ring = root.querySelector(".odl-ring"), arc = root.querySelector(".odl-arc"), go = root.querySelector(".odl-go"), goLabel = go.querySelector("span"), said = root.querySelector(".odl-said");
+  const amount = () => Number((root.querySelector(".odl-amounts input:checked") || { value: 25 }).value);
+  const show = () => {
+    const pct = Math.min(100, (saved / GOAL) * 100);
+    arc.setAttribute("stroke-dasharray", `${pct.toFixed(1)} 100`);
+    root.querySelector(".odl-p").textContent = Math.floor(pct) + "%";
+    root.querySelector(".odl-saved").textContent = money(saved);
+    root.querySelector(".odl-left").textContent = saved >= GOAL ? "Nothing" : money(GOAL - saved);
+    ring.setAttribute("aria-valuenow", String(Math.min(saved, GOAL)));
+    ring.setAttribute("aria-valuetext", `${money(saved)} of ${money(GOAL)}, ${Math.floor(pct)}%`);
+    goLabel.textContent = saved >= GOAL ? "Goal reached" : `Add ${money(amount())} from Everyday`;
+    go.disabled = saved >= GOAL;
+  };
+  root.querySelectorAll(".odl-amounts input").forEach((i) => i.addEventListener("change", show));
+  go.addEventListener("click", () => {
+    const a = Math.min(amount(), GOAL - saved);
+    saved += a; show();
+    said.textContent = saved >= GOAL ? "Goal reached. Time to book it." : `Added ${money(a)}. ${money(GOAL - saved)} to go.`;
+  });
+  const round = root.querySelector(".odl-round");
+  round.addEventListener("click", () => round.setAttribute("aria-checked", String(round.getAttribute("aria-checked") !== "true")));
+  show();
+});
+</script>

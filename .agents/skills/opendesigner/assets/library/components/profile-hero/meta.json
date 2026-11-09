@@ -1,0 +1,61 @@
+{
+  "name": "Profile hero",
+  "summary": "The top of a person's profile: a cover photo, their photo in a story ring, name, handle and tags, a short bio with a link, posts, followers and following, Follow and Message, and a row of story highlights with photo covers.",
+  "use": "at the top of a profile page in a social or creator app",
+  "type": "content",
+  "style": "friendly",
+  "industries": [
+    "social",
+    "media"
+  ],
+  "tags": [
+    "profile",
+    "followers",
+    "bio",
+    "header",
+    "highlights"
+  ],
+  "states": [
+    "follow",
+    "following",
+    "hover",
+    "focus",
+    "phone",
+    "wide"
+  ],
+  "source": null,
+  "a11y": "The name is the section heading, Follow is a toggle with aria-pressed that also updates the follower count, the counts and highlights are buttons with visible text, the cover photo has a description, and the profile photo and highlight covers are decorative next to their visible names.",
+  "width": "medium",
+  "photos": [
+    {
+      "img": "photo-1609194246158-702022cc4f13",
+      "author": "Juan Karmy",
+      "page": "r6msFtvtt74"
+    },
+    {
+      "img": "photo-1512531123205-560f5974e686",
+      "author": "Shea Rouda",
+      "page": "Vtl6cOhO87Y"
+    },
+    {
+      "img": "photo-1578429827733-272eb6d7972e",
+      "author": "Keagan Henman",
+      "page": "Jfz6IdxMSuQ"
+    },
+    {
+      "img": "photo-1520485521983-bfaa0bc6c80e",
+      "author": "Nong",
+      "page": "2dDJdOlA3CY"
+    },
+    {
+      "img": "photo-1559310589-2673bfe16970",
+      "author": "Adam Vradenburg",
+      "page": "GA09PKfRIQY"
+    },
+    {
+      "img": "photo-1705645930353-0e335311ef20",
+      "author": "Danny Postma",
+      "page": "zNxOw2JFNKs"
+    }
+  ]
+}

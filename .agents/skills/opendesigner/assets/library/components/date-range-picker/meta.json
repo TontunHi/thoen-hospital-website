@@ -1,0 +1,13 @@
+{
+  "name": "Date range picker",
+  "summary": "Pick a start and end day from two months side by side, or one quick range such as last 7 days, then apply it to a report.",
+  "use": "for filtering a report or table by dates",
+  "type": "form",
+  "style": "quiet",
+  "industries": ["any"],
+  "tags": ["date range", "calendar", "presets", "filter", "report"],
+  "states": ["hover", "focus", "selected start", "in range", "selected end", "today", "disabled future day", "picking end"],
+  "source": "brand/showcase/components/03-date-range-picker",
+  "a11y": "Every day is a button with its full date as its label and aria-pressed on the start and end; today has aria-current, future days are disabled, and the range length is announced in a polite live region.",
+  "width": "wide"
+}

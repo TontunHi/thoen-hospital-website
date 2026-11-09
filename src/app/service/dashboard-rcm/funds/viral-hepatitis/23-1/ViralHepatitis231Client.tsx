@@ -34,6 +34,9 @@ import type {
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -93,6 +96,9 @@ export default function ViralHepatitis231Client({
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<ViralHepatitisCardFilter>(
     initialData?.cardFilter ?? 'ALL'
+  )
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>(
+    initialData?.ucOnly ? [...UC_ECLAIM_CODES] : []
   )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
@@ -181,7 +187,6 @@ export default function ViralHepatitis231Client({
           ds1,
           ds2,
           cardFilter,
-          ucOnly: String(ucOnly),
           searchField: 'ALL',
           search: debouncedSearch,
           sortBy,
@@ -189,6 +194,12 @@ export default function ViralHepatitis231Client({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+
+        if (selectedPttypes.length > 0) {
+          queryParams.set('pttypes', selectedPttypes.join(','))
+        } else if (ucOnly) {
+          queryParams.set('ucOnly', 'true')
+        }
 
         if (refresh) queryParams.set('refresh', 'true')
 
@@ -227,6 +238,7 @@ export default function ViralHepatitis231Client({
       ds1,
       ds2,
       cardFilter,
+      selectedPttypes,
       ucOnly,
       debouncedSearch,
       sortBy,
@@ -345,21 +357,26 @@ export default function ViralHepatitis231Client({
     setCurrentPage(1)
   }
 
-  // Handle CSV Export
-  const handleExportCsv = async () => {
+  // Handle Excel (.xlsx) Export
+  const handleExportExcel = async () => {
     setIsExporting(true)
     try {
       const queryParams = new URLSearchParams({
         ds1,
         ds2,
         cardFilter,
-        ucOnly: String(ucOnly),
         searchField: 'ALL',
         search: debouncedSearch,
         sortBy,
         sortOrder,
         exportAll: 'true',
       })
+
+      if (selectedPttypes.length > 0) {
+        queryParams.set('pttypes', selectedPttypes.join(','))
+      } else if (ucOnly) {
+        queryParams.set('ucOnly', 'true')
+      }
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/viral-hepatitis/service-23-1?${queryParams.toString()}`
@@ -381,7 +398,7 @@ export default function ViralHepatitis231Client({
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
-        'Authen Code',
+        'ClaimCode',
         'สิทธิการรักษา',
         'แผนก',
         'คลินิก',
@@ -402,50 +419,44 @@ export default function ViralHepatitis231Client({
         'กองทุนย่อย',
       ]
 
-      const csvContent = exportRows.map((r, i) => [
+      const rows = exportRows.map((r, i) => [
         i + 1,
-        `"${r.vn}"`,
-        `"${r.hn}"`,
-        `"${r.cid}"`,
-        `"${r.ptname.replace(/"/g, '""')}"`,
+        r.vn,
+        r.hn,
+        r.cid,
+        r.ptname,
         r.age,
-        `"${r.nation || ''}"`,
-        `"${r.vstdate}"`,
-        `"${r.vsttime}"`,
-        `"${r.authencode || ''}"`,
-        `"${(r.pttypename || '').replace(/"/g, '""')}"`,
-        `"${(r.department || '').replace(/"/g, '""')}"`,
-        `"${(r.clinic || '').replace(/"/g, '""')}"`,
-        `"${(r.cc || '').replace(/"/g, '""')}"`,
-        `"${r.pdx || ''}"`,
-        `"${(r.sdx || '').replace(/"/g, '""')}"`,
-        `"${(r.listname || '').replace(/"/g, '""')}"`,
-        `"${(r.labresult || '').replace(/"/g, '""')}"`,
-        `"${(r.status || '').replace(/"/g, '""')}"`,
-        `"${r.rep || ''}"`,
+        r.nation || '',
+        r.vstdate,
+        r.vsttime,
+        r.authencode || '',
+        r.pttypename || '',
+        r.department || '',
+        r.clinic || '',
+        r.cc || '',
+        r.pdx || '',
+        r.sdx || '',
+        r.listname || '',
+        r.labresult || '',
+        r.status || '',
+        r.rep || '',
         r.compensated,
-        `"${r.status_sm || ''}"`,
-        `"${r.rep_sm || ''}"`,
+        r.status_sm || '',
+        r.rep_sm || '',
         r.compensated_sm,
-        `"${(r.address || '').replace(/"/g, '""')}"`,
-        `"${r.tel || r.mobile || ''}"`,
-        `"${r.fund || ''}"`,
-        `"${r.subfund || ''}"`,
+        r.address || '',
+        r.tel || r.mobile || '',
+        r.fund || '',
+        r.subfund || '',
       ])
 
-      const csvString =
-        '\uFEFF' +
-        [headers.join(','), ...csvContent.map((row) => row.join(','))].join('\r\n')
-
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `viral-hepatitis-b-36318-36319-${ds1}-to-${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      await exportRcmExcel({
+        filename: `viral-hepatitis-b-36318-36319-${ds1}-to-${ds2}.xlsx`,
+        title: '23.1 บริการตรวจคัดกรองไวรัสตับอักเสบ B (Hepatitis B Screening)',
+        subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${exportRows.length.toLocaleString('th-TH')} รายการ)`,
+        headers,
+        rows,
+      })
     } catch (err: any) {
       alert(`การส่งออกล้มเหลว: ${err.message || 'เกิดข้อผิดพลาด'}`)
     } finally {
@@ -492,12 +503,12 @@ export default function ViralHepatitis231Client({
           <button
             type="button"
             className="vh-btn vh-btn-primary"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={isExporting || items.length === 0}
-            title="ดาวน์โหลดข้อมูลเป็นไฟล์ CSV (UTF-8)"
+            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
             <Download size={15} />
-            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}</span>
+            <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
@@ -696,16 +707,16 @@ export default function ViralHepatitis231Client({
           </div>
         </div>
 
-        {/* Card 4: มี Authen Code */}
+        {/* Card 4: มี ClaimCode */}
         <div
           className={`vh-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('WITH_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่มี ClaimCode"
         >
           <div className="vh-kpi-header">
-            <span className="vh-kpi-title">มี Authen Code</span>
+            <span className="vh-kpi-title">มี ClaimCode</span>
             <div className="vh-kpi-icon icon-success">
               <UserCheck size={16} />
             </div>
@@ -716,16 +727,16 @@ export default function ViralHepatitis231Client({
           </div>
         </div>
 
-        {/* Card 5: ไม่มี Authen Code */}
+        {/* Card 5: ไม่มี ClaimCode */}
         <div
           className={`vh-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('NO_AUTHEN')}
           role="button"
           tabIndex={0}
-          title="คลิกเพื่อกรองเฉพาะรายการที่ไม่มี Authen Code"
+          title="คลิกเพื่อกรองเฉพาะรายการที่ไม่มี ClaimCode"
         >
           <div className="vh-kpi-header">
-            <span className="vh-kpi-title">ไม่มี Authen Code</span>
+            <span className="vh-kpi-title">ไม่มี ClaimCode</span>
             <div className="vh-kpi-icon icon-danger">
               <AlertTriangle size={16} />
             </div>
@@ -735,7 +746,7 @@ export default function ViralHepatitis231Client({
               {summary.withoutAuthenCount.toLocaleString('th-TH')}
             </span>
             <span className="vh-kpi-sub">
-              {(100 - summary.authenRate).toFixed(1)}% ต้องขอ Authen ย้อนหลัง
+              {(100 - summary.authenRate).toFixed(1)}% ต้องขอ ClaimCode ย้อนหลัง
             </span>
           </div>
         </div>
@@ -808,7 +819,7 @@ export default function ViralHepatitis231Client({
           <input
             type="text"
             className="vh-search-input"
-            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ผล Lab, Authen Code, Rep..."
+            placeholder="ค้นหา HN, CID, ชื่อ-สกุล, VN, PDX, ผล Lab, ClaimCode, Rep..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -825,18 +836,56 @@ export default function ViralHepatitis231Client({
         </div>
 
         <div className="vh-secondary-filters">
-          <label className="vh-checkbox-label">
-            <input
-              type="checkbox"
-              className="vh-checkbox"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
+          <PttypeMultiSelect
+            selectedCodes={selectedPttypes}
+            onChange={(codes) => {
+              setSelectedPttypes(codes)
+              setCurrentPage(1)
+            }}
+            items={items}
+          
+          />
+
+          {selectedPttypes.length > 0 && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: '#e0f2fe',
+                color: '#0369a1',
+                padding: '2px 8px',
+                borderRadius: 6,
+                fontSize: '0.8rem',
               }}
-            />
-            <span>เฉพาะสิทธิบัตรทอง (UC)</span>
-          </label>
+            >
+              <span>
+                สิทธิ:{' '}
+                {selectedPttypes.length === UC_ECLAIM_CODES.length &&
+                UC_ECLAIM_CODES.every((c) => selectedPttypes.includes(c))
+                  ? 'เฉพาะ UC (01-09)'
+                  : `${selectedPttypes.length} สิทธิ`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setCurrentPage(1)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#0369a1',
+                  padding: 0,
+                  display: 'flex',
+                }}
+                title="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           {cardFilter !== 'ALL' && (
             <div className="vh-active-filter-badge">
@@ -972,7 +1021,7 @@ export default function ViralHepatitis231Client({
                       className="vh-sort-btn"
                       onClick={() => handleSort('authencode')}
                     >
-                      Authen Code{' '}
+                      ClaimCode{' '}
                       {sortBy === 'authencode' ? (
                         sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       ) : (
@@ -1295,7 +1344,7 @@ export default function ViralHepatitis231Client({
                         </span>
                       </div>
                       <div className="vh-info-item">
-                        <span className="vh-info-label">Authen Code</span>
+                        <span className="vh-info-label">ClaimCode:</span>
                         <span className="vh-info-val font-mono">
                           {selectedItem.authencode ? (
                             <span className="vh-badge vh-badge-ok">{selectedItem.authencode}</span>

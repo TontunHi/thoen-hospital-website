@@ -19,6 +19,7 @@ import type {
   RepFundsSummaryMetrics,
   RepFundsSummaryResult,
 } from '@/lib/clinical/rcmRepFundsService'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
 export type { PatientClaimRecord, FundSummaryGroup, RepStatementSummary, RepFundsSummaryMetrics, RepFundsSummaryResult }
@@ -442,56 +443,114 @@ export default function RepFundsClient({
     setSearchTerm('')
   }
 
-  // Export CSV functions
-  const handleExportCsv = () => {
-    const BOM = '\uFEFF'
+  // Export modern Excel (.xlsx) functions
+  const handleExportExcel = async () => {
     const timeframeTag = dateMode === 'year' ? `FY${selectedFiscalYear}` : `${ds1}_to_${ds2}`
     if (activeTab === 'funds') {
-      const header = 'กองทุนหลัก,กองทุนย่อย/รายการ,แผนก,จำนวนเคส,ค่ารักษาจริง (บาท),เงินชดเชยที่ได้ (บาท),อัตราชดเชย (%),ส่วนต่าง (บาท),เคสอุทธรณ์\n'
-      const rows = fundGroups
-        .map(
-          (g) =>
-            `"${g.fundLabel}","${g.subFundLabel}","${g.department === 'IP' ? 'IPD' : 'OPD'}",${g.caseCount},${g.totalIncome},${g.totalCompensated},${g.reimbursementRate},${g.netDiff},${g.appealCount}`
-        )
-        .join('\n')
-      const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rep-funds-matrix-${timeframeTag}.csv`
-      a.click()
+      const headers = [
+        'กองทุนหลัก',
+        'กองทุนย่อย/รายการ',
+        'แผนก',
+        'จำนวนเคส',
+        'ค่ารักษาจริง (บาท)',
+        'เงินชดเชยที่ได้ (บาท)',
+        'อัตราชดเชย (%)',
+        'ส่วนต่าง (บาท)',
+        'เคสอุทธรณ์',
+      ]
+      const rows = fundGroups.map((g) => [
+        g.fundLabel,
+        g.subFundLabel,
+        g.department === 'IP' ? 'IPD' : 'OPD',
+        g.caseCount,
+        g.totalIncome,
+        g.totalCompensated,
+        g.reimbursementRate,
+        g.netDiff,
+        g.appealCount,
+      ])
+      await exportRcmExcel({
+        filename: `rep-funds-matrix-${timeframeTag}.xlsx`,
+        title: '3.1.1 ข้อมูล Rep แต่ละกองทุน - สรุปตามกองทุน',
+        subtitle: `ช่วงเวลา: ${timeframeTag} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
     } else {
-      const header = 'เลขที่ใบ REP,เลขประจำตัว (HN),ชื่อ-สกุลคนไข้,วันที่รับบริการ,แผนก,กองทุน,ค่ารักษาจริง (บาท),เงินชดเชย (บาท),ส่วนต่าง (บาท),อัตราชดเชย (%),สถานะ,รหัส Error\n'
-      const rows = statementCases
-        .map(
-          (c) =>
-            `"${c.rep}","${c.hn}","${c.ptName}","${c.serviceDateThai}","${c.departmentLabel}","${c.fundLabel}",${c.income},${c.compensated},${c.diff},${c.percentPay}%,"${c.compensated > 0 ? 'ได้รับชดเชย' : 'ไม่ได้รับชดเชย'}","${c.errorCode || ''}"`
-        )
-        .join('\n')
-      const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `rep-statement-cases-${timeframeTag}.csv`
-      a.click()
+      const headers = [
+        'เลขที่ใบ REP',
+        'เลขประจำตัว (HN)',
+        'ชื่อ-สกุลคนไข้',
+        'วันที่รับบริการ',
+        'แผนก',
+        'กองทุน',
+        'ค่ารักษาจริง (บาท)',
+        'เงินชดเชย (บาท)',
+        'ส่วนต่าง (บาท)',
+        'อัตราชดเชย (%)',
+        'สถานะ',
+        'รหัส Error',
+      ]
+      const rows = statementCases.map((c) => [
+        c.rep,
+        c.hn,
+        c.ptName,
+        c.serviceDateThai,
+        c.departmentLabel,
+        c.fundLabel,
+        c.income,
+        c.compensated,
+        c.diff,
+        `${c.percentPay}%`,
+        c.compensated > 0 ? 'ได้รับชดเชย' : 'ไม่ได้รับชดเชย',
+        c.errorCode || '',
+      ])
+      await exportRcmExcel({
+        filename: `rep-statement-cases-${timeframeTag}.xlsx`,
+        title: '3.1.1 ข้อมูล Rep แต่ละกองทุน - รายการเคส Rep',
+        subtitle: `ช่วงเวลา: ${timeframeTag} | โรงพยาบาลเถิน`,
+        headers,
+        rows,
+      })
     }
   }
 
-  const handleExportFundModalCsv = () => {
-    const BOM = '\uFEFF'
-    const header = 'เลขประจำตัว (HN),ชื่อ-สกุลคนไข้,วันที่รับบริการ,เลขที่ใบ REP,แผนก,กองทุน,ค่ารักษาจริง (บาท),เงินชดเชย (บาท),ส่วนต่าง (บาท),อัตราชดเชย (%),สถานะ,รหัส Error\n'
-    const rows = fundModalCases
-      .map(
-        (c) =>
-          `"${c.hn}","${c.ptName}","${c.serviceDateThai}","${c.rep}","${c.departmentLabel}","${c.fundLabel}",${c.income},${c.compensated},${c.diff},${c.percentPay}%,"${c.compensated > 0 ? 'ได้รับชดเชย' : 'ไม่ได้รับชดเชย'}","${c.errorCode || ''}"`
-      )
-      .join('\n')
-    const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `fund-cases-export.csv`
-    a.click()
+  const handleExportFundModalExcel = async () => {
+    const headers = [
+      'เลขประจำตัว (HN)',
+      'ชื่อ-สกุลคนไข้',
+      'วันที่รับบริการ',
+      'เลขที่ใบ REP',
+      'แผนก',
+      'กองทุน',
+      'ค่ารักษาจริง (บาท)',
+      'เงินชดเชย (บาท)',
+      'ส่วนต่าง (บาท)',
+      'อัตราชดเชย (%)',
+      'สถานะ',
+      'รหัส Error',
+    ]
+    const rows = fundModalCases.map((c) => [
+      c.hn,
+      c.ptName,
+      c.serviceDateThai,
+      c.rep,
+      c.departmentLabel,
+      c.fundLabel,
+      c.income,
+      c.compensated,
+      c.diff,
+      `${c.percentPay}%`,
+      c.compensated > 0 ? 'ได้รับชดเชย' : 'ไม่ได้รับชดเชย',
+      c.errorCode || '',
+    ])
+    await exportRcmExcel({
+      filename: `fund-cases-export.xlsx`,
+      title: 'รายชื่อผู้ป่วยในกองทุน',
+      subtitle: `โรงพยาบาลเถิน | จำนวน ${fundModalCases.length} เคส`,
+      headers,
+      rows,
+    })
   }
 
   return (
@@ -523,9 +582,14 @@ export default function RepFundsClient({
               <RefreshCw size={16} />
               รีเฟรชข้อมูล
             </button>
-            <button type="button" className="btn-primary" onClick={handleExportCsv}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleExportExcel}
+              title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
+            >
               <Download size={16} />
-              ส่งออก CSV ({activeTab === 'reps' ? 'รายการเคส Rep' : 'ตารางกองทุน'})
+              ส่งออก Excel ({activeTab === 'reps' ? 'รายการเคส Rep' : 'ตารางกองทุน'})
             </button>
           </div>
         </div>
@@ -1414,11 +1478,12 @@ export default function RepFundsClient({
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={handleExportFundModalCsv}
+                    onClick={handleExportFundModalExcel}
                     disabled={fundModalCases.length === 0}
+                    title="ส่งออกรายชื่อคนไข้เป็นไฟล์ Excel (.xlsx)"
                   >
                     <Download size={15} />
-                    ส่งออกรายชื่อคนไข้ (CSV)
+                    ส่งออกรายชื่อคนไข้ (Excel)
                   </button>
                 </div>
               </div>
