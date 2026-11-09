@@ -45,8 +45,13 @@ const securityHeaders = [
   },
 ]
 
+const isFastBuild = process.env.FAST_BUILD === 'true'
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  typescript: {
+    ignoreBuildErrors: isFastBuild,
+  },
   images: {
     unoptimized: true,
   },
