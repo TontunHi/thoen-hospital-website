@@ -1687,7 +1687,7 @@ export class RcmDashboardService {
           visits: Number(r.visits ?? r['จำนวนครั้ง'] ?? 0),
         }))
       },
-      60 * 5 // 5 minutes TTL
+      60_000 * 5 // 5 minutes TTL (300_000ms)
     )
   }
 
@@ -1898,7 +1898,7 @@ export class RcmDashboardService {
           },
         }
       },
-      60 * 3 // 3 minutes TTL
+      60_000 * 3 // 3 minutes TTL (180_000ms)
     )
   }
 

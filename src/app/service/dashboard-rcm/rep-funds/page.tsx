@@ -23,9 +23,9 @@ export default async function RepFundsPage() {
   let initialData: RepFundsSummaryResult | null = null
 
   try {
-    const years = await RcmRepFundsService.getAvailableYears()
+    // getRepFundsSummary() calls getAvailableYears() internally and applies the same fallback
+    // — no need to fetch years separately here (avoids a waterfall round-trip)
     initialData = await RcmRepFundsService.getRepFundsSummary({
-      fiscalYear: years[0] || '2570',
       department: 'ALL',
     })
   } catch {
