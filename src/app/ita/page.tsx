@@ -1,6 +1,6 @@
 import { Calendar, User, ChevronRight, FileText, Award } from 'lucide-react'
 import Link from 'next/link'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import Breadcrumb from '@/components/ui/Breadcrumb'
 import { siteConfig } from '@/config/site'
 import './page.css'
@@ -19,9 +19,7 @@ export const metadata = {
 export default async function ItaPage() {
   let blogs: any[] = []
   try {
-    blogs = await queryMemberDb(
-      'SELECT id, title, content, author_name, author_position, created_at FROM ita_blogs ORDER BY created_at DESC'
-    )
+    blogs = await apiGateway.app.getItaBlogs()
   } catch (error) {
     console.error('Failed to load public ITA blogs:', error)
   }

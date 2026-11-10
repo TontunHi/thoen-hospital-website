@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 
 export async function GET(
@@ -12,19 +12,22 @@ export async function GET(
 
     if (isNaN(fileId)) return NextResponse.json({ error: 'รหัสไฟล์ไม่ถูกต้อง' }, { status: 400 })
 
-    const fileRows = await queryMemberDb(
-      `SELECT f.id, f.display_name, f.file_name, f.file_path, d.folder_name FROM rdu_files f JOIN rdu_folders d ON f.folder_id = d.id WHERE f.id = ? LIMIT 1`, [fileId]
-    )
+    const res: any = await apiGateway.app.getRduFileById(fileId)
+    const fileRow = (res && typeof res === 'object')
+      ? (res.data ? res.data : (res.file_name ? res : null))
+      : null
 
-    if (!fileRows || fileRows.length === 0) return NextResponse.json({ error: 'ไม่พบไฟล์ที่ระบุในฐานข้อมูล' }, { status: 404 })
+    if (!fileRow) return NextResponse.json({ error: 'ไม่พบไฟล์ที่ระบุในฐานข้อมูล' }, { status: 404 })
 
-    const { file_name, folder_name, display_name } = fileRows[0]
-    const sanitizedFolder = String(folder_name).replace(/[\\/:*?"<>|]/g, '_')
+    const { file_name, folder_name, display_name, file_path } = fileRow
+    const sanitizedFolder = String(folder_name || '').replace(/[\\/:*?"<>|]/g, '_')
     const candidates = [
-      `public/uploads/rdu/${sanitizedFolder}/${file_name}`,
-      `public/documents/rdu/${sanitizedFolder}/${file_name}`,
+      file_path,
       `public/documents/rdu/${String(folder_name)}/${file_name}`,
-    ]
+      `public/documents/rdu/${sanitizedFolder}/${file_name}`,
+      `public/uploads/rdu/${sanitizedFolder}/${file_name}`,
+      `public/uploads/rdu/${String(folder_name)}/${file_name}`,
+    ].filter(Boolean)
 
     let fileBuffer: Buffer | null = null
     for (const p of candidates) {

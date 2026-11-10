@@ -385,7 +385,33 @@
   position: relative;
   flex: 1;
   min-width: 280px;
-  max-width: 520px;
+  max-width: 480px;
+}
+
+.inst-instrument-filter-wrapper {
+  min-width: 240px;
+  max-width: 360px;
+  flex: 1;
+}
+
+.inst-instrument-select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.inst-instrument-select:focus {
+  border-color: #0d7446;
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.12);
 }
 
 .inst-search-icon {
@@ -507,7 +533,7 @@
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
-  min-width: 1280px;
+  min-width: 1420px;
 }
 
 .inst-table th {
@@ -574,6 +600,77 @@
 
 .col-left {
   text-align: left;
+}
+
+/* ── Table Instrument Items Cell (ui-style-brief) ── */
+.inst-items-cell {
+  padding: 8px 12px;
+  max-width: 380px;
+}
+
+.inst-table-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inst-table-item-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  flex-wrap: wrap;
+}
+
+.inst-item-adp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inst-item-adp:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.inst-adp-oa {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.inst-adp-dm {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.inst-adp-default {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.inst-item-name {
+  color: #1e293b;
+  font-weight: 400;
+}
+
+.inst-item-price {
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Patient Name Wrap Protection */

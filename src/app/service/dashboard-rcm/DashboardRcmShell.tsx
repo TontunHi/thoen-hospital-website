@@ -32,6 +32,7 @@ import {
   Search,
   Accessibility,
   Footprints,
+  Upload,
 } from 'lucide-react'
 
 export interface NavSubItem {
@@ -594,6 +595,18 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
+  {
+    id: 'import',
+    title: 'นำเข้าข้อมูล',
+    items: [
+      {
+        href: '/service/dashboard-rcm/seamless-import',
+        label: 'นำเข้าข้อมูล Seamless',
+        badge: 'Import',
+        icon: Upload,
+      },
+    ],
+  },
 ]
 
 function isPathMatch(pathname: string | null, targetHref: string): boolean {
@@ -898,6 +911,7 @@ export default function DashboardRcmShell({
 
       {/* Sidebar Navigation */}
       <aside
+        suppressHydrationWarning
         className={`rcm-sidebar ${isCollapsed ? 'collapsed' : ''} ${
           isMobileOpen ? 'mobile-open' : ''
         } ${isResizing ? 'is-resizing' : ''}`}
@@ -989,7 +1003,7 @@ export default function DashboardRcmShell({
         )}
 
         {/* Navigation Categories */}
-        <nav className="rcm-sidebar-nav">
+        <nav suppressHydrationWarning className="rcm-sidebar-nav">
           {searchQuery.trim().length > 0 ? (
             <div className="rcm-search-results">
               <div className="rcm-search-results-header">
@@ -1039,10 +1053,10 @@ export default function DashboardRcmShell({
                               )}
                             </div>
                             <div className="rcm-search-title-row">
-                              <span className="rcm-search-title">{result.label}</span>
                               {result.badge && (
                                 <span className="rcm-nav-subbadge">{result.badge}</span>
                               )}
+                              <span className="rcm-search-title">{result.label}</span>
                             </div>
                           </div>
                         </Link>
@@ -1070,6 +1084,7 @@ export default function DashboardRcmShell({
               return (
                 <div
                   key={group.id}
+                  suppressHydrationWarning
                   className={`rcm-nav-group ${
                     !isCollapsed && !isGroupExpanded ? 'is-group-collapsed' : ''
                   }`}
@@ -1148,7 +1163,10 @@ export default function DashboardRcmShell({
                                   <Icon size={18} />
                                 </div>
                                 <div className="rcm-nav-label-wrapper">
-                                  <span className="rcm-nav-label">{item.label}</span>
+                                  <div className="rcm-nav-title-group">
+                                    {item.badge && <span className="rcm-nav-badge">{item.badge}</span>}
+                                    <span className="rcm-nav-label">{item.label}</span>
+                                  </div>
                                   <span className="rcm-nav-chevron">
                                     {isExpanded ? (
                                       <ChevronDown size={14} />
@@ -1186,12 +1204,12 @@ export default function DashboardRcmShell({
                                               style={{
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                gap: '0.5rem',
+                                                gap: '0.45rem',
                                                 minWidth: 0,
                                                 flex: 1,
                                               }}
                                             >
-                                              <span className="rcm-nav-subbadge">{sub.badge}</span>
+                                              {sub.badge && <span className="rcm-nav-subbadge">{sub.badge}</span>}
                                               <span className="rcm-nav-sublabel">{sub.label}</span>
                                             </div>
                                             <span className="rcm-nav-subchevron">
@@ -1218,9 +1236,11 @@ export default function DashboardRcmShell({
                                                         isSubSubActive ? 'active' : ''
                                                       }`}
                                                     >
-                                                      <span className="rcm-nav-subsubbadge">
-                                                        {subSub.badge}
-                                                      </span>
+                                                      {subSub.badge && (
+                                                        <span className="rcm-nav-subsubbadge">
+                                                          {subSub.badge}
+                                                        </span>
+                                                      )}
                                                       <span className="rcm-nav-subsublabel">
                                                         {subSub.label}
                                                       </span>
@@ -1244,7 +1264,7 @@ export default function DashboardRcmShell({
                                             isSubActive ? 'active' : ''
                                           }`}
                                         >
-                                          <span className="rcm-nav-subbadge">{sub.badge}</span>
+                                          {sub.badge && <span className="rcm-nav-subbadge">{sub.badge}</span>}
                                           <span className="rcm-nav-sublabel">{sub.label}</span>
                                         </Link>
                                       </li>
@@ -1278,8 +1298,8 @@ export default function DashboardRcmShell({
                               </div>
                               {!isCollapsed && (
                                 <div className="rcm-nav-label-wrapper">
+                                  {item.badge && <span className="rcm-nav-badge">{item.badge}</span>}
                                   <span className="rcm-nav-label">{item.label}</span>
-                                  <span className="rcm-nav-badge">{item.badge}</span>
                                 </div>
                               )}
                             </Link>

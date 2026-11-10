@@ -588,6 +588,8 @@ export const instrumentReportQuerySchema = baseFiscalDateSchema
     ucOnly: z
       .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
       .optional(),
+    pttypes: z.string().max(300).optional(),
+    instrumentFilter: z.string().max(120).optional(),
   })
   .merge(paginationSchema.partial())
 

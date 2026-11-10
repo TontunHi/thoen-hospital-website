@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData } from '@/lib/cache'
 
 export const dynamic = 'force-dynamic'
@@ -29,42 +29,7 @@ export async function GET() {
     const result = await getCachedData<RduFolder[]>(
       cacheKey,
       async () => {
-        const folders = (await queryMemberDb(
-          'SELECT id, folder_name, display_order, is_active FROM rdu_folders WHERE is_active = 1 ORDER BY id DESC'
-        )) as Omit<RduFolder, 'files'>[]
-
-        if (!folders || folders.length === 0) {
-          return []
-        }
-
-        const folderIds = folders.map((f) => f.id)
-        const placeholders = folderIds.map(() => '?').join(',')
-        
-        const files = (await queryMemberDb(
-          `SELECT id, folder_id, display_name, file_name, file_path, file_size, display_order 
-           FROM rdu_files 
-           WHERE folder_id IN (${placeholders}) 
-           ORDER BY display_order ASC, id ASC`,
-          folderIds
-        )) as RduFile[]
-
-        const filesByFolder: Record<number, RduFile[]> = {}
-        files.forEach((file) => {
-          if (!filesByFolder[file.folder_id]) {
-            filesByFolder[file.folder_id] = []
-          }
-          // Always route through API streamer /api/rdu/file/[id] to bypass Next.js static production cache & IIS double escape 404
-          const streamUrl = `/api/rdu/file/${file.id}`
-          filesByFolder[file.folder_id].push({
-            ...file,
-            file_path: streamUrl,
-          })
-        })
-
-        return folders.map((folder) => ({
-          ...folder,
-          files: filesByFolder[folder.id] || []
-        }))
+        return (await apiGateway.app.getRduTree({ includeInactive: false })) as RduFolder[]
       },
       10000
     )

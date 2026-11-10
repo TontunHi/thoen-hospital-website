@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
 
@@ -20,11 +20,7 @@ export async function GET() {
     const { error } = await requireMemberApi({ requiredPermission: 'manage_outgoing_doc' })
     if (error) return error
 
-    const documents = await queryMemberDb(`
-      SELECT id, year, label, note, url, status, display_order AS displayOrder, is_active AS isActive, created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt
-      FROM outgoing_documents
-      ORDER BY display_order ASC, year ASC
-    `)
+    const documents = await apiGateway.app.getOutgoingDocuments({ activeOnly: false, order: 'manager' })
 
     return NextResponse.json({
       success: true,
@@ -51,15 +47,7 @@ export async function POST(request: Request) {
 
     const { year, label, note, url, status, displayOrder, isActive } = parsed.data
 
-    const insertRes = await queryMemberDb(`
-      INSERT INTO outgoing_documents (year, label, note, url, status, display_order, is_active, created_by, updated_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `, [year, label, note || '', url, status, displayOrder, isActive ? 1 : 0, member.username, member.username])
-
-    const insertId = (insertRes as any)?.insertId || (insertRes as any)?.[0]?.insertId
-
-    const created = {
-      id: insertId,
+    const res = await apiGateway.app.createOutgoingDocument({
       year,
       label,
       note: note || '',
@@ -69,7 +57,7 @@ export async function POST(request: Request) {
       isActive,
       createdBy: member.username,
       updatedBy: member.username,
-    }
+    })
 
     await logAudit(
       'CREATE',
@@ -80,7 +68,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      document: created,
+      document: res.document,
       message: 'บันทึกข้อมูลลิงก์หนังสือส่งออกสำเร็จ'
     })
   } catch (error: any) {
@@ -110,18 +98,16 @@ export async function PUT(request: Request) {
 
     const { year, label, note, url, status, displayOrder, isActive } = parsed.data
 
-    const existingRows = await queryMemberDb('SELECT id, year, label FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
-    if (existingRows.length === 0) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลรายการหนังสือส่งออกนี้' }, { status: 404 })
-    }
-
-    await queryMemberDb(`
-      UPDATE outgoing_documents
-      SET year = ?, label = ?, note = ?, url = ?, status = ?, display_order = ?, is_active = ?, updated_by = ?, updated_at = NOW()
-      WHERE id = ?
-    `, [year, label, note || '', url, status, displayOrder, isActive ? 1 : 0, member.username, id])
-
-    const updatedRows = await queryMemberDb('SELECT * FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
+    const res = await apiGateway.app.updateOutgoingDocument(id, {
+      year,
+      label,
+      note: note || '',
+      url,
+      status,
+      displayOrder,
+      isActive,
+      updatedBy: member.username,
+    })
 
     await logAudit(
       'UPDATE',
@@ -132,7 +118,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({
       success: true,
-      document: updatedRows[0] || { id, year, label },
+      document: res.document || { id, year, label },
       message: 'อัปเดตข้อมูลสำเร็จ'
     })
   } catch (error: any) {
@@ -155,13 +141,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'รหัสเอกสาร (id) ไม่ถูกต้อง' }, { status: 400 })
     }
 
-    const existingRows = await queryMemberDb('SELECT id, year, label FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
-    if (existingRows.length === 0) {
-      return NextResponse.json({ error: 'ไม่พบรายการที่ต้องการลบ' }, { status: 404 })
-    }
-    const existing = existingRows[0]
-
-    await queryMemberDb('DELETE FROM outgoing_documents WHERE id = ?', [id])
+    const res = await apiGateway.app.deleteOutgoingDocument(id)
+    const existing = res.document || { year: '', label: '' }
 
     await logAudit(
       'DELETE',

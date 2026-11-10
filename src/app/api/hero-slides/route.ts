@@ -10,11 +10,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const all = searchParams.get('all') === 'true'
 
-    const res = await apiGateway.app.getSlides(all)
+    const res: any = await apiGateway.app.getSlides(all)
+    const slides = Array.isArray(res)
+      ? res
+      : (Array.isArray(res?.slides) ? res.slides : (Array.isArray(res?.data) ? res.data : []))
+    const slideDuration = (!Array.isArray(res) && typeof res?.slideDuration === 'number')
+      ? res.slideDuration
+      : 6
+
     return NextResponse.json({
       success: true,
-      slides: res.slides || res.data || [],
-      slideDuration: res.slideDuration || 6,
+      slides,
+      slideDuration,
     })
   } catch (error: any) {
     console.error('Fetch slides error:', error)

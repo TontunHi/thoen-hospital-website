@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { z } from 'zod'
 
 const UpdateBlogSchema = z.object({
@@ -36,19 +36,16 @@ export async function GET(
       )
     }
 
-    const blogs = await queryMemberDb(
-      'SELECT id, title, slug, content, author_id, author_name, author_position, created_at, updated_at FROM ita_blogs WHERE id = ? LIMIT 1',
-      [id]
-    )
+    const blog = await apiGateway.app.getItaBlogById(id)
 
-    if (!blogs || blogs.length === 0) {
+    if (!blog) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบข่าวหรือบทความนี้' } },
         { status: 404 }
       )
     }
 
-    return NextResponse.json({ success: true, data: blogs[0] })
+    return NextResponse.json({ success: true, data: blog })
   } catch (error: any) {
     console.error('Failed to fetch ITA blog details:', error)
     return NextResponse.json(
@@ -82,31 +79,23 @@ export async function PUT(
       )
     }
 
-    // Check if blog exists
-    const blogs = await queryMemberDb('SELECT author_id FROM ita_blogs WHERE id = ? LIMIT 1', [id])
-    if (!blogs || blogs.length === 0) {
+    const blog = await apiGateway.app.getItaBlogById(id)
+    if (!blog) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบบทความที่ต้องการแก้ไข' } },
         { status: 404 }
       )
     }
 
-    const blog = blogs[0]
+    const members = await apiGateway.app.getMembers({ search: session.username, limit: 5 })
+    const member = members.find((m: any) => m.username === session.username)
 
-    // Fetch user details
-    const users = await queryMemberDb('SELECT id, role FROM members WHERE username = ? AND email = ? LIMIT 1', [
-      session.username,
-      session.email,
-    ])
-
-    if (!users || users.length === 0) {
+    if (!member) {
       return NextResponse.json(
         { success: false, error: { code: 'USER_NOT_FOUND', message: 'ไม่พบข้อมูลผู้ใช้นี้ในระบบ' } },
         { status: 404 }
       )
     }
-
-    const member = users[0]
 
     // Verify ownership or admin role
     if (blog.author_id !== member.id && member.role !== 'admin') {
@@ -129,7 +118,7 @@ export async function PUT(
     const { title, content } = parsed.data
     const slug = generateSlug(title)
 
-    await queryMemberDb('UPDATE ita_blogs SET title = ?, slug = ?, content = ? WHERE id = ?', [title, slug, content, id])
+    await apiGateway.app.updateItaBlog(id, { title, slug, content })
 
     return NextResponse.json({ success: true, message: 'แก้ไขบทความสำเร็จแล้ว' })
   } catch (error: any) {
@@ -165,31 +154,23 @@ export async function DELETE(
       )
     }
 
-    // Check if blog exists
-    const blogs = await queryMemberDb('SELECT author_id FROM ita_blogs WHERE id = ? LIMIT 1', [id])
-    if (!blogs || blogs.length === 0) {
+    const blog = await apiGateway.app.getItaBlogById(id)
+    if (!blog) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบบทความที่ต้องการลบ' } },
         { status: 404 }
       )
     }
 
-    const blog = blogs[0]
+    const members = await apiGateway.app.getMembers({ search: session.username, limit: 5 })
+    const member = members.find((m: any) => m.username === session.username)
 
-    // Fetch user details
-    const users = await queryMemberDb('SELECT id, role FROM members WHERE username = ? AND email = ? LIMIT 1', [
-      session.username,
-      session.email,
-    ])
-
-    if (!users || users.length === 0) {
+    if (!member) {
       return NextResponse.json(
         { success: false, error: { code: 'USER_NOT_FOUND', message: 'ไม่พบข้อมูลผู้ใช้นี้ในระบบ' } },
         { status: 404 }
       )
     }
-
-    const member = users[0]
 
     // Verify ownership or admin role
     if (blog.author_id !== member.id && member.role !== 'admin') {
@@ -199,7 +180,7 @@ export async function DELETE(
       )
     }
 
-    await queryMemberDb('DELETE FROM ita_blogs WHERE id = ?', [id])
+    await apiGateway.app.deleteItaBlog(id)
 
     return NextResponse.json({ success: true, message: 'ลบบทความสำเร็จแล้ว' })
   } catch (error: any) {

@@ -1,7 +1,7 @@
 import { Calendar, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import '../page.css'
 
 export const dynamic = 'force-dynamic'
@@ -15,18 +15,10 @@ export async function generateMetadata(props: Props) {
   const slugOrId = decodeURIComponent(params.slug)
   
   try {
-    let blogs = []
-    const isId = /^\d+$/.test(slugOrId)
-    
-    if (isId) {
-      blogs = await queryMemberDb('SELECT title FROM ita_blogs WHERE id = ? LIMIT 1', [parseInt(slugOrId)])
-    } else {
-      blogs = await queryMemberDb('SELECT title FROM ita_blogs WHERE slug = ? LIMIT 1', [slugOrId])
-    }
-
-    if (blogs && blogs.length > 0) {
+    const blog = await apiGateway.app.getItaBlogById(slugOrId)
+    if (blog && blog.title) {
       return {
-        title: `${blogs[0].title} | โรงพยาบาลเถิน`,
+        title: `${blog.title} | โรงพยาบาลเถิน`,
       }
     }
   } catch (e) {}
@@ -40,24 +32,7 @@ export default async function ItaBlogDetailPage(props: Props) {
 
   let blog = null
   try {
-    let blogs = []
-    const isId = /^\d+$/.test(slugOrId)
-
-    if (isId) {
-      blogs = await queryMemberDb(
-        'SELECT id, title, content, created_at, updated_at FROM ita_blogs WHERE id = ? LIMIT 1',
-        [parseInt(slugOrId)]
-      )
-    } else {
-      blogs = await queryMemberDb(
-        'SELECT id, title, content, created_at, updated_at FROM ita_blogs WHERE slug = ? LIMIT 1',
-        [slugOrId]
-      )
-    }
-
-    if (blogs && blogs.length > 0) {
-      blog = blogs[0]
-    }
+    blog = await apiGateway.app.getItaBlogById(slugOrId)
   } catch (error) {
     console.error('Failed to load ITA blog detail:', error)
   }

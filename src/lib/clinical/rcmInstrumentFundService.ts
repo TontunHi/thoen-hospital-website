@@ -55,6 +55,14 @@ export interface InstrumentItemParsedItem {
   price: number
 }
 
+export interface InstrumentOptionItem {
+  id: string
+  code: string
+  name: string
+  count: number
+  category?: 'OA' | 'DM' | 'OTHER'
+}
+
 export interface InstrumentItem {
   no: number
   patientType: InstrumentPatientType
@@ -150,6 +158,7 @@ export interface InstrumentReportParams extends FiscalDateRangeParams {
   refresh?: boolean
   pttypes?: string
   ucOnly?: boolean
+  instrumentFilter?: string
 }
 
 export interface InstrumentReportResponse {
@@ -164,6 +173,7 @@ export interface InstrumentReportResponse {
     endDate: string
   }
   adpMapping: InstrumentAdpMappingCheck
+  availableInstruments?: InstrumentOptionItem[]
 }
 
 // ── 2. Helper Functions ─────────────────────────────────────────────────────
@@ -272,6 +282,7 @@ export class RcmInstrumentFundService {
     const pageSize = Math.max(1, Number(params.pageSize || 50))
     const cardFilter: InstrumentCardFilter = params.cardFilter || 'ALL'
     const search = params.search ? params.search.trim().toLowerCase() : ''
+    const instrumentFilter = params.instrumentFilter ? params.instrumentFilter.trim().toLowerCase() : ''
     const sortBy: InstrumentSortField = params.sortBy || 'date'
     const sortOrder = params.sortOrder === 'asc' ? 'asc' : 'desc'
     const exportAll = Boolean(params.exportAll)
@@ -659,6 +670,53 @@ export class RcmInstrumentFundService {
       ucRate,
     }
 
+    // รวบรวมรายการอุปกรณ์ทั้งหมดที่มีในชุดข้อมูลพร้อมจำนวนผู้รับบริการ เพื่อส่งให้ UI ใช้ทำระบบ Filter
+    const instrumentMap = new Map<string, InstrumentOptionItem>()
+    for (const item of summaryCohort) {
+      for (const it of item.items) {
+        const rawCode = it.adpCode ? it.adpCode.trim() : ''
+        const code = rawCode && rawCode !== '-' ? rawCode : '-'
+        const name = it.name ? it.name.trim() : ''
+        const key = code !== '-' ? code : name
+        if (!key) continue
+        const existing = instrumentMap.get(key)
+        if (existing) {
+          existing.count++
+        } else {
+          let category: 'OA' | 'DM' | 'OTHER' = 'OTHER'
+          if (/^700[4-5]/.test(code)) category = 'OA'
+          else if (/^8612|^8813|^8814/.test(code)) category = 'DM'
+          instrumentMap.set(key, {
+            id: key,
+            code,
+            name,
+            count: 1,
+            category,
+          })
+        }
+      }
+    }
+
+    // เรียงลำดับตัวเลือกตามเลขรหัส ADP จากน้อยไปมาก ตามข้อกำหนดผู้ใช้งาน
+    const availableInstruments = Array.from(instrumentMap.values()).sort((a, b) => {
+      const aIsNum = a.code !== '-' && !isNaN(Number(a.code))
+      const bIsNum = b.code !== '-' && !isNaN(Number(b.code))
+
+      if (aIsNum && bIsNum) {
+        return Number(a.code) - Number(b.code)
+      }
+      if (aIsNum) return -1
+      if (bIsNum) return 1
+
+      if (a.code !== '-' && b.code !== '-') {
+        return a.code.localeCompare(b.code, 'th', { numeric: true })
+      }
+      if (a.code !== '-') return -1
+      if (b.code !== '-') return 1
+
+      return a.name.localeCompare(b.name, 'th')
+    })
+
     // กรองตาม Card Filter
     let filtered = summaryCohort
     switch (cardFilter) {
@@ -714,6 +772,20 @@ export class RcmInstrumentFundService {
           (i.list && i.list.toLowerCase().includes(search)) ||
           (i.room && i.room.toLowerCase().includes(search)) ||
           (i.ward && i.ward.toLowerCase().includes(search))
+        )
+      })
+    }
+
+    // กรองตามรายการอวัยวะเทียมและอุปกรณ์ (Instrument Filter)
+    if (instrumentFilter.length > 0 && instrumentFilter !== 'all') {
+      filtered = filtered.filter((i) => {
+        return (
+          (i.list && i.list.toLowerCase().includes(instrumentFilter)) ||
+          i.items.some(
+            (it) =>
+              it.adpCode.toLowerCase().includes(instrumentFilter) ||
+              it.name.toLowerCase().includes(instrumentFilter)
+          )
         )
       })
     }
@@ -839,6 +911,7 @@ export class RcmInstrumentFundService {
         endDate: ds2,
       },
       adpMapping,
+      availableInstruments,
     }
   }
 }

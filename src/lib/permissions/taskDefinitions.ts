@@ -553,5 +553,41 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
       },
     ],
   },
+  {
+    id: 'RCM_SEAMLESS_IMPORT',
+    name: 'งานนำเข้าข้อมูล RCM / Seamless',
+    shortName: 'นำเข้าข้อมูล RCM',
+    category: 'system',
+    categoryLabel: 'ระบบบริหาร & กำกับดูแล',
+    description: 'ระบบนำเข้าไฟล์ Excel ข้อมูลการชดเชยค่าบริการ Seamless, ตรวจสอบความถูกต้อง, ดึงข้อมูล HN/VN จาก HOSxP และประมวลผลข้อมูลการเบิกจ่ายชดเชย',
+    iconName: 'Upload',
+    badgeColor: '#059669',
+    roles: [
+      {
+        roleType: 'view',
+        label: 'ผู้ดูข้อมูลและประวัติการนำเข้า (View)',
+        shortLabel: 'ดูข้อมูลการนำเข้า',
+        description: 'สามารถเปิดดูหน้าสรุปข้อมูลและประวัติการนำเข้าข้อมูล Seamless ได้',
+        permissionKey: 'view_rcm_import',
+        allowedActions: ['ดูภาพรวมข้อมูลนำเข้า', 'ดูประวัติการนำเข้าและสถิติ', 'ตรวจสอบความถูกต้องของข้อมูล'],
+      },
+      {
+        roleType: 'edit',
+        label: 'ผู้นำเข้าข้อมูล Seamless (Import / Edit)',
+        shortLabel: 'นำเข้าไฟล์ Seamless',
+        description: 'เจ้าหน้าที่ผู้รับผิดชอบในการอัปโหลดไฟล์ Excel (.xlsx/.xls) และนำเข้าข้อมูลเข้าสู่ระบบ',
+        permissionKey: 'import_rcm_data',
+        allowedActions: ['อัปโหลดไฟล์ Excel Seamless', 'ประมวลผลและนำเข้าข้อมูล', 'ตรวจสอบข้อผิดพลาด'],
+      },
+      {
+        roleType: 'manage',
+        label: 'ผู้ดูแลระบบนำเข้าข้อมูล RCM (Manage)',
+        shortLabel: 'ผู้ดูแลการนำเข้า RCM',
+        description: 'หัวหน้างานหรือผู้ดูแลระบบ จัดการข้อมูลการนำเข้า ลบข้อมูลไฟล์ที่นำเข้าผิดพลาด และตั้งค่าระบบ',
+        permissionKey: 'manage_rcm_import',
+        allowedActions: ['ลบข้อมูลไฟล์ที่นำเข้าผิดพลาด', 'จัดการตารางและข้อมูลนำเข้า', 'จัดการสิทธิ์การนำเข้า'],
+      },
+    ],
+  },
 ]
 

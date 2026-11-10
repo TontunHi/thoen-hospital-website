@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { z } from 'zod'
 
 const CreateBlogSchema = z.object({
@@ -23,9 +23,7 @@ function generateSlug(title: string): string {
 // Public GET: Fetch all blog posts
 export async function GET() {
   try {
-    const blogs = await queryMemberDb(
-      'SELECT id, title, slug, content, author_name, author_position, created_at, updated_at FROM ita_blogs ORDER BY created_at DESC'
-    )
+    const blogs = await apiGateway.app.getItaBlogs()
     return NextResponse.json({ success: true, data: blogs })
   } catch (error: any) {
     console.error('Failed to fetch ITA blogs:', error)
@@ -47,20 +45,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Fetch author details
-    const users = await queryMemberDb(
-      'SELECT id, name, position FROM members WHERE username = ? AND email = ? LIMIT 1',
-      [session.username, session.email]
-    )
+    const members = await apiGateway.app.getMembers({ search: session.username, limit: 5 })
+    const author = members.find((m: any) => m.username === session.username)
 
-    if (!users || users.length === 0) {
+    if (!author) {
       return NextResponse.json(
         { success: false, error: { code: 'USER_NOT_FOUND', message: 'ไม่พบข้อมูลผู้ใช้นี้ในระบบ' } },
         { status: 404 }
       )
     }
 
-    const author = users[0]
     const body = await request.json()
     const parsed = CreateBlogSchema.safeParse(body)
     
@@ -72,16 +66,20 @@ export async function POST(request: Request) {
     }
 
     const { title, content } = parsed.data
-    const authorName = author.name || session.username
-    const authorPosition = author.position ? author.position.trim() : 'เจ้าพนักงานเครื่องคอมพิวเตอร์'
+    const authorName = typeof author.name === 'string' ? author.name : session.username
+    const authorPosition = author.position ? String(author.position).trim() : 'เจ้าพนักงานเครื่องคอมพิวเตอร์'
     const slug = generateSlug(title)
 
-    const result = await queryMemberDb(
-      'INSERT INTO ita_blogs (title, slug, content, author_id, author_name, author_position) VALUES (?, ?, ?, ?, ?, ?)',
-      [title, slug, content, author.id, authorName, authorPosition]
-    )
+    const result = await apiGateway.app.createItaBlog({
+      title,
+      slug,
+      content,
+      authorId: author.id as number,
+      authorName,
+      authorPosition,
+    })
 
-    return NextResponse.json({ success: true, data: { id: (result as any).insertId } })
+    return NextResponse.json({ success: true, data: { id: result.id } })
   } catch (error: any) {
     console.error('Failed to create ITA blog:', error)
     return NextResponse.json(

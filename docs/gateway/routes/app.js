@@ -2035,5 +2035,807 @@ fastify.delete('/api/v1/app/ltc/registries/:id', {
   }
 })
 
+// ============================================================================
+// 4.16 ITA Blogs Services
+// ============================================================================
+
+// 4.16.1 List ITA Blogs
+fastify.get('/api/v1/app/ita/blogs', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการบทความ ITA (รองรับ filter authorId, admin, search, limit)',
+    querystring: {
+      type: 'object',
+      properties: {
+        authorId: { type: 'string' },
+        admin: { type: 'string' },
+        search: { type: 'string' },
+        limit: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { authorId = '', admin = '', search = '', limit = '' } = req.query || {}
+  try {
+    let sql = `
+      SELECT id, title, slug, content, author_id, author_name, author_position, created_at, updated_at
+      FROM ita_blogs
+    `
+    const params = []
+    const wheres = []
+
+    if (authorId && admin !== 'true') {
+      wheres.push('author_id = ?')
+      params.push(parseInt(authorId, 10))
+    }
+
+    if (search && search.trim()) {
+      wheres.push('(title LIKE ? OR content LIKE ?)')
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`)
+    }
+
+    if (wheres.length > 0) {
+      sql += ` WHERE ${wheres.join(' AND ')}`
+    }
+
+    sql += ' ORDER BY created_at DESC'
+
+    if (limit && parseInt(limit, 10) > 0) {
+      sql += ' LIMIT ?'
+      params.push(parseInt(limit, 10))
+    }
+
+    const [rows] = await appPool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.16.2 Get ITA Blog by ID or Slug
+fastify.get('/api/v1/app/ita/blogs/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงข้อมูลบทความ ITA ตาม ID หรือ Slug',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    querystring: {
+      type: 'object',
+      properties: { slug: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params || {}
+  const { slug } = req.query || {}
+  const rawTarget = slug || id
+
+  try {
+    const isNumeric = /^\d+$/.test(rawTarget)
+    let sql = 'SELECT id, title, slug, content, author_id, author_name, author_position, created_at, updated_at FROM ita_blogs'
+    const params = []
+
+    if (isNumeric) {
+      sql += ' WHERE id = ? LIMIT 1'
+      params.push(parseInt(rawTarget, 10))
+    } else {
+      sql += ' WHERE slug = ? LIMIT 1'
+      params.push(decodeURIComponent(rawTarget))
+    }
+
+    const [rows] = await appPool.query(sql, params)
+    if (rows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบบทความ' }
+    }
+    return { success: true, data: rows[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.16.3 Create ITA Blog
+fastify.post('/api/v1/app/ita/blogs', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'สร้างบทความ ITA ใหม่',
+    body: {
+      type: 'object',
+      required: ['title', 'content'],
+      properties: {
+        title: { type: 'string' },
+        slug: { type: 'string' },
+        content: { type: 'string' },
+        authorId: { type: 'number' },
+        authorName: { type: 'string' },
+        authorPosition: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { title, slug = '', content, authorId = null, authorName = '', authorPosition = '' } = req.body || {}
+  try {
+    const finalSlug = slug || title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    const [res] = await appPool.query(
+      'INSERT INTO ita_blogs (title, slug, content, author_id, author_name, author_position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [title, finalSlug, content, authorId, authorName, authorPosition]
+    )
+    return { success: true, id: res.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.16.4 Update ITA Blog
+fastify.put('/api/v1/app/ita/blogs/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขบทความ ITA',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        slug: { type: 'string' },
+        content: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const { title, slug, content } = req.body || {}
+  try {
+    const [existing] = await appPool.query('SELECT id, author_id FROM ita_blogs WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลบทความที่ต้องการแก้ไข' }
+    }
+
+    const updates = []
+    const params = []
+    if (title !== undefined) { updates.push('title = ?'); params.push(title) }
+    if (slug !== undefined) { updates.push('slug = ?'); params.push(slug) }
+    if (content !== undefined) { updates.push('content = ?'); params.push(content) }
+
+    if (updates.length === 0) {
+      reply.code(400); return { success: false, error: 'ไม่มีข้อมูลที่ต้องการอัปเดต' }
+    }
+
+    updates.push('updated_at = NOW()')
+    params.push(id)
+
+    const [res] = await appPool.query(`UPDATE ita_blogs SET ${updates.join(', ')} WHERE id = ?`, params)
+    return { success: true, affectedRows: res.affectedRows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.16.5 Delete ITA Blog
+fastify.delete('/api/v1/app/ita/blogs/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบบทความ ITA',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [existing] = await appPool.query('SELECT id, author_id FROM ita_blogs WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลบทความที่ต้องการลบ' }
+    }
+    const [res] = await appPool.query('DELETE FROM ita_blogs WHERE id = ?', [id])
+    return { success: true, message: 'ลบบทความสำเร็จ', authorId: existing[0].author_id }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// ============================================================================
+// 4.17 RDU (Rational Drug Use) Services
+// ============================================================================
+
+// 4.17.1 Get RDU Folder & File Tree
+fastify.get('/api/v1/app/rdu/tree', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงโครงสร้างโฟลเดอร์และไฟล์ RDU ทั้งหมด',
+    querystring: {
+      type: 'object',
+      properties: {
+        includeInactive: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { includeInactive = 'false' } = req.query || {}
+  try {
+    let folderSql = 'SELECT id, folder_name, display_order, is_active, created_at, updated_at FROM rdu_folders'
+    if (includeInactive !== 'true') {
+      folderSql += ' WHERE is_active = 1'
+    }
+    folderSql += ' ORDER BY id DESC'
+
+    const [folders] = await appPool.query(folderSql)
+    if (!folders || folders.length === 0) {
+      return { success: true, folders: [] }
+    }
+
+    const folderIds = folders.map(f => f.id)
+    const placeholders = folderIds.map(() => '?').join(',')
+    const [files] = await appPool.query(
+      `SELECT id, folder_id, display_name, file_name, file_path, file_size, display_order, created_at, updated_at
+       FROM rdu_files
+       WHERE folder_id IN (${placeholders})
+       ORDER BY display_order ASC, id ASC`,
+      folderIds
+    )
+
+    const filesByFolder = {}
+    for (const f of files) {
+      if (!filesByFolder[f.folder_id]) {
+        filesByFolder[f.folder_id] = []
+      }
+      filesByFolder[f.folder_id].push({
+        ...f,
+        file_path: `/api/rdu/file/${f.id}`
+      })
+    }
+
+    const tree = folders.map(folder => ({
+      ...folder,
+      files: filesByFolder[folder.id] || []
+    }))
+
+    return { success: true, folders: tree }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.17.2 Create RDU Folder
+fastify.post('/api/v1/app/rdu/folders', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'สร้างโฟลเดอร์ RDU ใหม่',
+    body: {
+      type: 'object',
+      required: ['folder_name'],
+      properties: {
+        folder_name: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const folderName = (req.body?.folder_name || '').trim()
+  if (!folderName) {
+    reply.code(400); return { success: false, error: 'กรุณาระบุชื่อโฟลเดอร์' }
+  }
+
+  try {
+    const [dup] = await appPool.query('SELECT id FROM rdu_folders WHERE folder_name = ? LIMIT 1', [folderName])
+    if (dup.length > 0) {
+      reply.code(400); return { success: false, error: 'มีโฟลเดอร์ชื่อนี้อยู่ในระบบแล้ว' }
+    }
+
+    const [maxRes] = await appPool.query('SELECT MAX(display_order) as maxOrder FROM rdu_folders')
+    const nextOrder = (maxRes[0]?.maxOrder ?? -1) + 1
+
+    const [res] = await appPool.query(
+      'INSERT INTO rdu_folders (folder_name, display_order, is_active, created_at, updated_at) VALUES (?, ?, 1, NOW(), NOW())',
+      [folderName, nextOrder]
+    )
+
+    return { success: true, folderId: res.insertId, folderName, displayOrder: nextOrder }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.17.3 Update RDU Folder (Rename or Reorder)
+fastify.put('/api/v1/app/rdu/folders/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขชื่อโฟลเดอร์หรือสลับลำดับโฟลเดอร์ RDU',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        action: { type: 'string' },
+        folder_name: { type: 'string' },
+        orders: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              display_order: { type: 'number' }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const body = req.body || {}
+
+  try {
+    if (body.action === 'reorder' && Array.isArray(body.orders)) {
+      for (const item of body.orders) {
+        if (item.id !== undefined && item.display_order !== undefined) {
+          await appPool.query('UPDATE rdu_folders SET display_order = ? WHERE id = ?', [item.display_order, item.id])
+        }
+      }
+      return { success: true, message: 'ปรับปรุงลำดับโฟลเดอร์เรียบร้อยแล้ว' }
+    }
+
+    const newFolderName = (body.folder_name || '').trim()
+    if (!id || !newFolderName) {
+      reply.code(400); return { success: false, error: 'ข้อมูลไม่ครบถ้วน' }
+    }
+
+    const [existing] = await appPool.query('SELECT folder_name FROM rdu_folders WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบโฟลเดอร์ที่ต้องการแก้ไข' }
+    }
+
+    const oldFolderName = existing[0].folder_name
+    if (oldFolderName !== newFolderName) {
+      const [dup] = await appPool.query('SELECT id FROM rdu_folders WHERE folder_name = ? AND id != ? LIMIT 1', [newFolderName, id])
+      if (dup.length > 0) {
+        reply.code(400); return { success: false, error: 'มีโฟลเดอร์ชื่อนี้อยู่แล้ว' }
+      }
+
+      await appPool.query('UPDATE rdu_folders SET folder_name = ?, updated_at = NOW() WHERE id = ?', [newFolderName, id])
+      
+      const newSanitized = newFolderName.replace(/[\\/:*?"<>|]/g, '_')
+      const [files] = await appPool.query('SELECT id, file_name FROM rdu_files WHERE folder_id = ?', [id])
+      for (const f of files) {
+        const updatedFilePath = `/documents/rdu/${encodeURIComponent(newSanitized)}/${encodeURIComponent(f.file_name)}`
+        await appPool.query('UPDATE rdu_files SET file_path = ?, updated_at = NOW() WHERE id = ?', [updatedFilePath, f.id])
+      }
+
+      return { success: true, message: 'แก้ไขชื่อโฟลเดอร์เรียบร้อยแล้ว', oldFolderName, newFolderName }
+    }
+
+    return { success: true, message: 'ไม่มีการเปลี่ยนแปลงชื่อโฟลเดอร์' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.17.4 Delete RDU Folder
+fastify.delete('/api/v1/app/rdu/folders/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบโฟลเดอร์ RDU และไฟล์ทั้งหมดในโฟลเดอร์',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [existing] = await appPool.query('SELECT folder_name FROM rdu_folders WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบโฟลเดอร์' }
+    }
+
+    await appPool.query('DELETE FROM rdu_files WHERE folder_id = ?', [id])
+    await appPool.query('DELETE FROM rdu_folders WHERE id = ?', [id])
+
+    return { success: true, message: 'ลบโฟลเดอร์และไฟล์เรียบร้อยแล้ว', folderName: existing[0].folder_name }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.17.5 Get RDU File by ID (For streaming)
+fastify.get('/api/v1/app/rdu/files/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงข้อมูลไฟล์ RDU เดี่ยวสำหรับแสดงผลหรือดาวน์โหลด',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [rows] = await appPool.query(
+      `SELECT f.id, f.folder_id, f.display_name, f.file_name, f.file_path, f.file_size, f.display_order, d.folder_name
+       FROM rdu_files f
+       JOIN rdu_folders d ON f.folder_id = d.id
+       WHERE f.id = ? LIMIT 1`,
+      [id]
+    )
+    if (rows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบไฟล์ที่ระบุในฐานข้อมูล' }
+    }
+    return { success: true, data: rows[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.17.6 Create RDU File Record
+fastify.post('/api/v1/app/rdu/files', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'บันทึกข้อมูลไฟล์ PDF ของ RDU เข้าสู่ระบบ',
+    body: {
+      type: 'object',
+      required: ['folder_id', 'display_name', 'file_name'],
+      properties: {
+        folder_id: { type: 'number' },
+        display_name: { type: 'string' },
+        file_name: { type: 'string' },
+        file_path: { type: 'string' },
+        file_size: { type: 'number' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { folder_id, display_name, file_name, file_path = '', file_size = null } = req.body || {}
+  try {
+    const [folderRes] = await appPool.query('SELECT folder_name FROM rdu_folders WHERE id = ? LIMIT 1', [folder_id])
+    if (folderRes.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบโฟลเดอร์ที่ระบุ' }
+    }
+
+    const [maxRes] = await appPool.query('SELECT MAX(display_order) as maxOrder FROM rdu_files WHERE folder_id = ?', [folder_id])
+    const nextOrder = (maxRes[0]?.maxOrder ?? -1) + 1
+
+    const [res] = await appPool.query(
+      `INSERT INTO rdu_files (folder_id, display_name, file_name, file_path, file_size, display_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [folder_id, display_name, file_name, file_path, file_size, nextOrder]
+    )
+
+    return {
+      success: true,
+      file: {
+        id: res.insertId,
+        folder_id,
+        display_name,
+        file_name,
+        file_path: `/api/rdu/file/${res.insertId}`,
+        file_size,
+        display_order: nextOrder
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.17.7 Update RDU File (Rename or Reorder)
+fastify.put('/api/v1/app/rdu/files/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขชื่อแสดงผลหรือสลับลำดับไฟล์ RDU',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        action: { type: 'string' },
+        display_name: { type: 'string' },
+        orders: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              display_order: { type: 'number' }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const body = req.body || {}
+
+  try {
+    if (body.action === 'reorder' && Array.isArray(body.orders)) {
+      for (const item of body.orders) {
+        if (item.id !== undefined && item.display_order !== undefined) {
+          await appPool.query('UPDATE rdu_files SET display_order = ? WHERE id = ?', [item.display_order, item.id])
+        }
+      }
+      return { success: true, message: 'ปรับปรุงลำดับไฟล์เรียบร้อยแล้ว' }
+    }
+
+    const displayName = (body.display_name || '').trim()
+    if (!id || !displayName) {
+      reply.code(400); return { success: false, error: 'กรุณาระบุชื่อแสดงผลของไฟล์' }
+    }
+
+    const [res] = await appPool.query('UPDATE rdu_files SET display_name = ?, updated_at = NOW() WHERE id = ?', [displayName, id])
+    if (res.affectedRows === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบไฟล์ที่ต้องการแก้ไข' }
+    }
+
+    return { success: true, message: 'แก้ไขชื่อแสดงผลสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.17.8 Delete RDU File
+fastify.delete('/api/v1/app/rdu/files/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบข้อมูลไฟล์ RDU',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [rows] = await appPool.query(
+      `SELECT f.id, f.file_name, f.file_path, d.folder_name 
+       FROM rdu_files f 
+       JOIN rdu_folders d ON f.folder_id = d.id 
+       WHERE f.id = ? LIMIT 1`,
+      [id]
+    )
+    if (rows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบไฟล์ที่ต้องการลบ' }
+    }
+
+    await appPool.query('DELETE FROM rdu_files WHERE id = ?', [id])
+    return { success: true, message: 'ลบไฟล์เรียบร้อยแล้ว', file: rows[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// ============================================================================
+// 4.18 Outgoing Documents Services
+// ============================================================================
+
+// 4.18.1 List Outgoing Documents
+fastify.get('/api/v1/app/outgoing-documents', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการหนังสือส่งออก Online',
+    querystring: {
+      type: 'object',
+      properties: {
+        activeOnly: { type: 'string' },
+        order: { type: 'string', enum: ['service', 'manager'] }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { activeOnly = 'false', order = 'manager' } = req.query || {}
+  try {
+    let sql = `
+      SELECT id, year, label, note, url, status, display_order AS displayOrder, is_active AS isActive,
+             created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt
+      FROM outgoing_documents
+    `
+    const params = []
+    if (activeOnly === 'true') {
+      sql += ' WHERE is_active = 1'
+    }
+
+    if (order === 'service') {
+      sql += ' ORDER BY year DESC, display_order DESC'
+    } else {
+      sql += ' ORDER BY display_order ASC, year ASC'
+    }
+
+    const [rows] = await appPool.query(sql, params)
+    return { success: true, count: rows.length, documents: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.18.2 Get Outgoing Document by ID
+fastify.get('/api/v1/app/outgoing-documents/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงข้อมูลหนังสือส่งออกตาม ID',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [rows] = await appPool.query(
+      `SELECT id, year, label, note, url, status, display_order AS displayOrder, is_active AS isActive,
+              created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt
+       FROM outgoing_documents
+       WHERE id = ? LIMIT 1`,
+      [id]
+    )
+    if (rows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลรายการหนังสือส่งออกนี้' }
+    }
+    return { success: true, document: rows[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.18.3 Create Outgoing Document
+fastify.post('/api/v1/app/outgoing-documents', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'เพิ่มรายการหนังสือส่งออกใหม่',
+    body: {
+      type: 'object',
+      required: ['year', 'label', 'url'],
+      properties: {
+        year: { type: 'string' },
+        label: { type: 'string' },
+        note: { type: 'string' },
+        url: { type: 'string' },
+        status: { type: 'string' },
+        displayOrder: { type: 'number' },
+        isActive: { type: 'boolean' },
+        createdBy: { type: 'string' },
+        updatedBy: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const {
+    year,
+    label,
+    note = '',
+    url,
+    status = 'เสร็จสิ้น',
+    displayOrder = 0,
+    isActive = true,
+    createdBy = '',
+    updatedBy = ''
+  } = req.body || {}
+
+  try {
+    const [res] = await appPool.query(
+      `INSERT INTO outgoing_documents (year, label, note, url, status, display_order, is_active, created_by, updated_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [year, label, note || '', url, status, displayOrder, isActive ? 1 : 0, createdBy, updatedBy || createdBy]
+    )
+
+    const created = {
+      id: res.insertId,
+      year,
+      label,
+      note: note || '',
+      url,
+      status,
+      displayOrder,
+      isActive: Boolean(isActive),
+      createdBy,
+      updatedBy: updatedBy || createdBy
+    }
+
+    return { success: true, document: created, message: 'บันทึกข้อมูลลิงก์หนังสือส่งออกสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.18.4 Update Outgoing Document
+fastify.put('/api/v1/app/outgoing-documents/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขรายการหนังสือส่งออก',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        year: { type: 'string' },
+        label: { type: 'string' },
+        note: { type: 'string' },
+        url: { type: 'string' },
+        status: { type: 'string' },
+        displayOrder: { type: 'number' },
+        isActive: { type: 'boolean' },
+        updatedBy: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const body = req.body || {}
+
+  try {
+    const [existing] = await appPool.query('SELECT id, year, label FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลรายการหนังสือส่งออกนี้' }
+    }
+
+    const updates = []
+    const params = []
+
+    if (body.year !== undefined) { updates.push('year = ?'); params.push(body.year) }
+    if (body.label !== undefined) { updates.push('label = ?'); params.push(body.label) }
+    if (body.note !== undefined) { updates.push('note = ?'); params.push(body.note || '') }
+    if (body.url !== undefined) { updates.push('url = ?'); params.push(body.url) }
+    if (body.status !== undefined) { updates.push('status = ?'); params.push(body.status) }
+    if (body.displayOrder !== undefined) { updates.push('display_order = ?'); params.push(body.displayOrder) }
+    if (body.isActive !== undefined) { updates.push('is_active = ?'); params.push(body.isActive ? 1 : 0) }
+    if (body.updatedBy !== undefined) { updates.push('updated_by = ?'); params.push(body.updatedBy) }
+
+    if (updates.length === 0) {
+      reply.code(400); return { success: false, error: 'ไม่มีข้อมูลที่ต้องการอัปเดต' }
+    }
+
+    updates.push('updated_at = NOW()')
+    params.push(id)
+
+    await appPool.query(`UPDATE outgoing_documents SET ${updates.join(', ')} WHERE id = ?`, params)
+
+    const [updatedRows] = await appPool.query(
+      `SELECT id, year, label, note, url, status, display_order AS displayOrder, is_active AS isActive,
+              created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt
+       FROM outgoing_documents WHERE id = ? LIMIT 1`,
+      [id]
+    )
+
+    return {
+      success: true,
+      document: updatedRows[0] || { id, year: body.year, label: body.label },
+      message: 'อัปเดตข้อมูลสำเร็จ'
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.18.5 Delete Outgoing Document
+fastify.delete('/api/v1/app/outgoing-documents/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบรายการหนังสือส่งออก',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [existing] = await appPool.query('SELECT id, year, label FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบรายการที่ต้องการลบ' }
+    }
+
+    await appPool.query('DELETE FROM outgoing_documents WHERE id = ?', [id])
+    return { success: true, message: 'ลบรายการสำเร็จ', document: existing[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
 }
 

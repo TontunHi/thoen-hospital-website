@@ -4,6 +4,18 @@ import { POST as handleUploadPhoto } from '../upload/route'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { generateTaskNo } from '@/lib/taskInboxService'
+import { apiGateway } from '@/lib/apiGateway'
+
+vi.mock('@/lib/apiGateway', () => ({
+  apiGateway: {
+    app: {
+      getMemberAuthContext: vi.fn().mockResolvedValue(null),
+    },
+    tasks: {
+      createTask: vi.fn(),
+    },
+  },
+}))
 
 vi.mock('@/lib/memberAuth', () => ({
   verifyMemberSession: vi.fn(),
@@ -121,7 +133,7 @@ describe('Repair Submission APIs', () => {
       expect(json.error).toContain('กรุณาระบุเลขทะเบียนครุภัณฑ์ หรือชื่อครุภัณฑ์')
     })
 
-    it('successfully creates an IT repair ticket and inserts inbox task, steps, details, and audit log', async () => {
+    it('successfully creates an IT repair ticket via Gateway named API without touching database', async () => {
       vi.mocked(verifyMemberSession).mockResolvedValue({
         username: 'nurse01',
         email: 'nurse@thoenhospital.go.th',
@@ -134,14 +146,14 @@ describe('Repair Submission APIs', () => {
       ])
       // 2. generateTaskNo
       vi.mocked(generateTaskNo).mockResolvedValueOnce('IT-2570-10-0005')
-      // 3. Insert inbox_tasks
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any)
-      // 4. Insert inbox_task_steps
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any)
-      // 5. Insert repair_details
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any)
-      // 6. Insert inbox_task_audit_logs
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any)
+      // 3. Mock apiGateway.tasks.createTask
+      vi.mocked(apiGateway.tasks.createTask).mockResolvedValueOnce({
+        success: true,
+        data: {
+          taskId: 'mock-task-uuid-1234',
+          taskNo: 'IT-2570-10-0005',
+        },
+      } as any)
 
       const payload = {
         repairType: 'IT_REPAIR',
@@ -171,7 +183,62 @@ describe('Repair Submission APIs', () => {
       expect(json.data.taskNo).toBe('IT-2570-10-0005')
       expect(json.data.taskId).toBeDefined()
 
-      // Verify DB queries called
+      // Verify Gateway called
+      expect(apiGateway.tasks.createTask).toHaveBeenCalledTimes(1)
+      // Only member lookup was executed via queryMemberDb
+      expect(queryMemberDb).toHaveBeenCalledTimes(1)
+    })
+
+    it('successfully falls back to direct queryMemberDb when gateway fails', async () => {
+      vi.mocked(verifyMemberSession).mockResolvedValue({
+        username: 'nurse01',
+        email: 'nurse@thoenhospital.go.th',
+        role: 'member',
+      } as any)
+
+      // 1. Member query
+      vi.mocked(queryMemberDb).mockResolvedValueOnce([
+        { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' }
+      ])
+      // 2. generateTaskNo
+      vi.mocked(generateTaskNo).mockResolvedValueOnce('IT-2570-10-0005')
+      // 3. Mock apiGateway failure
+      vi.mocked(apiGateway.tasks.createTask).mockRejectedValueOnce(new Error('Gateway down'))
+      // 4. Fallback inserts
+      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // inbox_tasks
+      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // inbox_task_steps
+      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // repair_details
+      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // inbox_task_audit_logs
+
+      const payload = {
+        repairType: 'IT_REPAIR',
+        itemCategory: 'EQUIPMENT',
+        equipmentNumber: '7440-001-0001',
+        equipmentName: 'คอมพิวเตอร์ All-in-One Dell',
+        nonEquipmentItem: '',
+        locationId: 10,
+        locationFullName: 'อาคารผู้ป่วยนอก (OPD) ชั้น 1 ห้องตรวจ 1',
+        symptomDetail: 'เครื่องเปิดติดแต่จอดำ เข้าใช้งาน HOSxP ไม่ได้',
+        assignedTechnicianId: null,
+        urgency: 'HIGH',
+        photos: ['/uploads/repairs/2026-10/repair-1.jpg'],
+      }
+
+      const req = new Request('http://localhost:3000/api/member/repairs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const res = await handleCreateRepair(req)
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.success).toBe(true)
+      expect(json.message).toBe('ยื่นใบแจ้งซ่อมสำเร็จเรียบร้อยแล้ว')
+      expect(json.data.taskNo).toBe('IT-2570-10-0005')
+      expect(json.data.taskId).toBeDefined()
+
+      // 1 member lookup + 4 inserts = 5 calls
       expect(queryMemberDb).toHaveBeenCalledTimes(5)
     })
   })

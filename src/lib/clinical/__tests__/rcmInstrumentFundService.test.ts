@@ -270,6 +270,40 @@ describe('RcmInstrumentFundService', () => {
       expect(result.items).toHaveLength(1)
       expect(result.items[0].hn).toBe('0022222')
     })
+
+    it('filters by specific instrument and returns availableInstruments', async () => {
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce(mockOpdRows)
+        .mockResolvedValueOnce([])
+
+      const result = await RcmInstrumentFundService.getReportData(
+        {
+          ds1: '2026-10-01',
+          ds2: '2027-09-30',
+          patientType: 'OPD',
+          instrumentFilter: '7004',
+        },
+        mockExecutor
+      )
+
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0].hn).toBe('0011111')
+      expect(result.availableInstruments).toBeDefined()
+      expect(result.availableInstruments?.length).toBeGreaterThan(0)
+      const kneeItem = result.availableInstruments?.find((x) => x.code === '7004')
+      expect(kneeItem).toBeDefined()
+      expect(kneeItem?.id).toBe('7004')
+      expect(kneeItem?.category).toBe('OA')
+
+      // Verifies numeric ascending sorting (e.g. 7004, 7005, 8612)
+      const codes = result.availableInstruments?.map((x) => x.code).filter((c) => c !== '-') || []
+      for (let i = 0; i < codes.length - 1; i++) {
+        if (!isNaN(Number(codes[i])) && !isNaN(Number(codes[i + 1]))) {
+          expect(Number(codes[i])).toBeLessThanOrEqual(Number(codes[i + 1]))
+        }
+      }
+    })
   })
 
   describe('getReportData (IPD)', () => {

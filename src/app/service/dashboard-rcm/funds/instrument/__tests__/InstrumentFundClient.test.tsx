@@ -176,6 +176,21 @@ describe('InstrumentFundClient', () => {
     expect(screen.getByText('นาง สมศรี มีสุข')).toBeInTheDocument()
     expect(screen.getByText('1529900011111')).toBeInTheDocument()
     expect(screen.getByText('1529900022222')).toBeInTheDocument()
+
+    // Table headers: 'รายการอวัยวะเทียมและอุปกรณ์' must be present, 'ประเภท' must be removed
+    expect(
+      screen.getByRole('columnheader', { name: 'รายการอวัยวะเทียมและอุปกรณ์' })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('columnheader', { name: 'ประเภท' })
+    ).not.toBeInTheDocument()
+
+    // Table row cells: instruments displayed on front page without needing to open modal
+    expect(screen.getByText('ข้อเข่าเทียม')).toBeInTheDocument()
+    expect(screen.getByText('เบ้ารองข้อเข่า')).toBeInTheDocument()
+    expect(screen.getByText('แถบตรวจน้ำตาล')).toBeInTheDocument()
+    expect(screen.getByText('7004')).toBeInTheDocument()
+    expect(screen.getByText('8612')).toBeInTheDocument()
   })
 
   it('filters data when KPI card is clicked', async () => {
@@ -219,9 +234,41 @@ describe('InstrumentFundClient', () => {
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument()
       expect(screen.getByText('ข้อมูลทั่วไปและการรับบริการ')).toBeInTheDocument()
-      expect(screen.getByText(/รายการอวัยวะเทียมและอุปกรณ์/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/รายการอวัยวะเทียมและอุปกรณ์/i).length).toBeGreaterThanOrEqual(2)
       expect(screen.getByText('การเงินและการกระทบยอดชดเชย')).toBeInTheDocument()
-      expect(screen.getByText('ข้อเข่าเทียม')).toBeInTheDocument()
+      expect(screen.getAllByText('ข้อเข่าเทียม').length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  it('filters data when instrument dropdown is changed', async () => {
+    render(
+      <InstrumentFundClient
+        initialData={{
+          ...mockInitialData,
+          availableInstruments: [
+            { id: '7004', code: '7004', name: 'ข้อเข่าเทียม', count: 1, category: 'OA' },
+            { id: '8612', code: '8612', name: 'แถบตรวจน้ำตาล', count: 1, category: 'DM' },
+          ],
+        }}
+      />
+    )
+
+    const triggerBtn = screen.getByTestId('instrument-select-trigger')
+    expect(triggerBtn).toBeInTheDocument()
+
+    // Click to open dropdown popover
+    fireEvent.click(triggerBtn)
+
+    // Select the knee option in the dropdown list using data-testid
+    const option = screen.getByTestId('instrument-option-7004')
+    expect(option).toBeInTheDocument()
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('instrumentFilter=7004'),
+        expect.anything()
+      )
     })
   })
 

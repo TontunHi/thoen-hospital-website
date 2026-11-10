@@ -1,5 +1,5 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { redirect } from 'next/navigation'
 import ItaManagementClient from './ItaManagementClient'
 import './page.css'
@@ -19,34 +19,25 @@ export default async function MemberItaPage() {
   }
 
   // Get current user details
-  const members = await queryMemberDb(
-    'SELECT id, username, name, position, role FROM members WHERE username = ? LIMIT 1',
-    [session.username]
-  )
+  const members = await apiGateway.app.getMembers({ search: session.username, limit: 5 })
+  const member = members.find((m: any) => m.username === session.username)
 
-  if (!members || members.length === 0) {
+  if (!member) {
     redirect('/member/login')
   }
 
-  const member = members[0]
   const isAdmin = member.role === 'admin'
 
   // Fetch blogs: admin can view/manage all blogs, normal members view/manage only their own
-  let blogs = []
+  let blogs: any[] = []
   try {
-    if (isAdmin) {
-      blogs = await queryMemberDb(
-        'SELECT id, title, author_name, author_position, created_at, updated_at FROM ita_blogs ORDER BY created_at DESC'
-      )
-    } else {
-      blogs = await queryMemberDb(
-        'SELECT id, title, author_name, author_position, created_at, updated_at FROM ita_blogs WHERE author_id = ? ORDER BY created_at DESC',
-        [member.id]
-      )
-    }
+    blogs = await apiGateway.app.getItaBlogs({
+      authorId: member.id as number,
+      admin: isAdmin
+    })
   } catch (error) {
     console.error('Failed to query blogs:', error)
   }
 
-  return <ItaManagementClient initialBlogs={blogs} currentUserId={member.id} isAdmin={isAdmin} />
+  return <ItaManagementClient initialBlogs={blogs} currentUserId={member.id as number} isAdmin={isAdmin} />
 }

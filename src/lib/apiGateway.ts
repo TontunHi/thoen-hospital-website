@@ -167,7 +167,12 @@ export class ApiGatewayClient {
       }
 
       // Return unwrapped data if response follows standard { success: true, data: ... }
-      if (json.data !== undefined) {
+      // but preserve full envelope if response has pagination metadata or custom envelope fields like slideDuration
+      if (
+        json.data !== undefined &&
+        json.pagination === undefined &&
+        json.slideDuration === undefined
+      ) {
         return json.data as T
       }
 
@@ -922,15 +927,22 @@ export class ApiGatewayClient {
     },
 
     // ── Hero Slides ──
-    getSlides: (all = false) => {
+    getSlides: async (all = false) => {
       const qs = all ? '?all=true' : ''
-      return this.get<{
-        success: boolean
-        count: number
-        slides: Array<Record<string, any>>
-        data: Array<Record<string, any>>
-        slideDuration: number
-      }>(`/api/v1/app/slides${qs}`)
+      const res = await this.get<any>(`/api/v1/app/slides${qs}`)
+      const slides = Array.isArray(res)
+        ? res
+        : (Array.isArray(res?.slides) ? res.slides : (Array.isArray(res?.data) ? res.data : []))
+      const slideDuration = (!Array.isArray(res) && typeof res?.slideDuration === 'number')
+        ? res.slideDuration
+        : 6
+      return {
+        success: true,
+        count: slides.length,
+        slides,
+        data: slides,
+        slideDuration,
+      }
     },
 
     getActiveSlides: () => {
@@ -1359,6 +1371,178 @@ export class ApiGatewayClient {
 
     deleteLtcRegistry: (id: string | number) => {
       return this.delete<{ success: boolean; message: string }>(`/api/v1/app/ltc/registries/${id}`)
+    },
+
+    // ── ITA Blogs ──
+    getItaBlogs: async (options?: { authorId?: string | number; admin?: boolean | string; search?: string; limit?: number }) => {
+      const q = new URLSearchParams()
+      if (options?.authorId !== undefined) q.set('authorId', String(options.authorId))
+      if (options?.admin !== undefined) q.set('admin', String(options.admin))
+      if (options?.search) q.set('search', options.search)
+      if (options?.limit !== undefined) q.set('limit', String(options.limit))
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<{ success?: boolean; data?: any[] } | any[]>(`/api/v1/app/ita/blogs${qs}`)
+      if (Array.isArray(res)) return res
+      return (res as any)?.data || []
+    },
+
+    getItaBlogById: async (idOrSlug: string | number) => {
+      const target = String(idOrSlug).trim()
+      const isNumeric = /^\d+$/.test(target)
+      const path = isNumeric
+        ? `/api/v1/app/ita/blogs/${encodeURIComponent(target)}`
+        : `/api/v1/app/ita/blogs/by-slug?slug=${encodeURIComponent(target)}`
+      const res = await this.get<{ success?: boolean; data?: any } | any>(path)
+      if (res && typeof res === 'object' && 'data' in res) return res.data
+      return res
+    },
+
+    createItaBlog: (data: {
+      title: string
+      slug?: string
+      content: string
+      authorId?: number | null
+      authorName?: string
+      authorPosition?: string
+    }) => {
+      return this.post<{ success: boolean; id: number }>('/api/v1/app/ita/blogs', data)
+    },
+
+    updateItaBlog: (
+      id: string | number,
+      data: {
+        title?: string
+        slug?: string
+        content?: string
+      }
+    ) => {
+      return this.put<{ success: boolean; affectedRows: number }>(`/api/v1/app/ita/blogs/${id}`, data)
+    },
+
+    deleteItaBlog: (id: string | number) => {
+      return this.delete<{ success: boolean; message: string; authorId?: number }>(`/api/v1/app/ita/blogs/${id}`)
+    },
+
+    // ── RDU (Rational Drug Use) ──
+    getRduTree: async (options?: { includeInactive?: boolean }) => {
+      const q = new URLSearchParams()
+      if (options?.includeInactive) q.set('includeInactive', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<{ success?: boolean; folders?: any[] }>(`/api/v1/app/rdu/tree${qs}`)
+      return res?.folders || []
+    },
+
+    createRduFolder: (data: { folder_name: string }) => {
+      return this.post<{ success: boolean; folderId: number; folderName: string; displayOrder: number }>(
+        '/api/v1/app/rdu/folders',
+        data
+      )
+    },
+
+    updateRduFolder: (
+      id: string | number,
+      data: {
+        action?: string
+        folder_name?: string
+        orders?: Array<{ id: number; display_order: number }>
+      }
+    ) => {
+      return this.put<{ success: boolean; message: string; oldFolderName?: string; newFolderName?: string }>(
+        `/api/v1/app/rdu/folders/${id}`,
+        data
+      )
+    },
+
+    deleteRduFolder: (id: string | number) => {
+      return this.delete<{ success: boolean; message: string; folderName: string }>(`/api/v1/app/rdu/folders/${id}`)
+    },
+
+    getRduFileById: async (id: string | number) => {
+      const res = await this.get<any>(`/api/v1/app/rdu/files/${id}`)
+      if (res && typeof res === 'object') {
+        if ('data' in res && res.data) return res.data
+        if ('file_name' in res || 'id' in res) return res
+      }
+      return null
+    },
+
+    createRduFile: (data: {
+      folder_id: number
+      display_name: string
+      file_name: string
+      file_path?: string
+      file_size?: number | null
+    }) => {
+      return this.post<{ success: boolean; file: any }>('/api/v1/app/rdu/files', data)
+    },
+
+    updateRduFile: (
+      id: string | number,
+      data: {
+        action?: string
+        display_name?: string
+        orders?: Array<{ id: number; display_order: number }>
+      }
+    ) => {
+      return this.put<{ success: boolean; message: string }>(`/api/v1/app/rdu/files/${id}`, data)
+    },
+
+    deleteRduFile: (id: string | number) => {
+      return this.delete<{ success: boolean; message: string; file: any }>(`/api/v1/app/rdu/files/${id}`)
+    },
+
+    // ── Outgoing Documents ──
+    getOutgoingDocuments: async (options?: { activeOnly?: boolean; order?: 'service' | 'manager' }) => {
+      const q = new URLSearchParams()
+      if (options?.activeOnly) q.set('activeOnly', 'true')
+      if (options?.order) q.set('order', options.order)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<{ success?: boolean; documents?: any[] }>(`/api/v1/app/outgoing-documents${qs}`)
+      return res?.documents || []
+    },
+
+    getOutgoingDocumentById: async (id: string | number) => {
+      const res = await this.get<any>(`/api/v1/app/outgoing-documents/${id}`)
+      if (res && typeof res === 'object') {
+        if ('document' in res && res.document) return res.document
+        if ('data' in res && res.data) return res.data
+        if ('id' in res) return res
+      }
+      return null
+    },
+
+    createOutgoingDocument: (data: {
+      year: string
+      label: string
+      note?: string
+      url: string
+      status?: string
+      displayOrder?: number
+      isActive?: boolean
+      createdBy?: string
+      updatedBy?: string
+    }) => {
+      return this.post<{ success: boolean; document: any; message: string }>('/api/v1/app/outgoing-documents', data)
+    },
+
+    updateOutgoingDocument: (
+      id: string | number,
+      data: {
+        year?: string
+        label?: string
+        note?: string
+        url?: string
+        status?: string
+        displayOrder?: number
+        isActive?: boolean
+        updatedBy?: string
+      }
+    ) => {
+      return this.put<{ success: boolean; document: any; message: string }>(`/api/v1/app/outgoing-documents/${id}`, data)
+    },
+
+    deleteOutgoingDocument: (id: string | number) => {
+      return this.delete<{ success: boolean; message: string; document: any }>(`/api/v1/app/outgoing-documents/${id}`)
     }
   }
 

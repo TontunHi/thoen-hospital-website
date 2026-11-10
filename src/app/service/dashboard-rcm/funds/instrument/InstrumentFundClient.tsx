@@ -34,9 +34,11 @@ import type {
   InstrumentCardFilter,
   InstrumentSortField,
   InstrumentAdpMappingCheck,
+  InstrumentOptionItem,
 } from '@/lib/clinical/rcmInstrumentFundService'
 import { formatThaiDate } from '@/lib/formatters'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
+import { InstrumentSelect } from './InstrumentSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
@@ -108,6 +110,7 @@ export default function InstrumentFundClient({
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<InstrumentCardFilter>('ALL')
+  const [instrumentFilter, setInstrumentFilter] = useState<string>('')
   const [pttypes, setPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -122,6 +125,9 @@ export default function InstrumentFundClient({
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(initialError)
   const [items, setItems] = useState<InstrumentItem[]>(initialData?.items ?? [])
+  const [availableInstruments, setAvailableInstruments] = useState<InstrumentOptionItem[]>(
+    initialData?.availableInstruments ?? []
+  )
   const [totalCount, setTotalCount] = useState<number>(initialData?.total ?? 0)
   const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages ?? 1)
   const [adpMapping, setAdpMapping] = useState<InstrumentAdpMappingCheck | null>(
@@ -199,6 +205,9 @@ export default function InstrumentFundClient({
           page: String(currentPage),
           pageSize: String(pageSize),
         })
+        if (instrumentFilter) {
+          queryParams.set('instrumentFilter', instrumentFilter)
+        }
         if (pttypes.length > 0) {
           queryParams.set('pttypes', pttypes.join(','))
         }
@@ -224,6 +233,7 @@ export default function InstrumentFundClient({
         setTotalPages(data.totalPages || 1)
         if (data.summary) setSummary(data.summary)
         if (data.adpMapping) setAdpMapping(data.adpMapping)
+        if (data.availableInstruments) setAvailableInstruments(data.availableInstruments)
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return
         setError(
@@ -243,6 +253,7 @@ export default function InstrumentFundClient({
       ds2,
       patientType,
       cardFilter,
+      instrumentFilter,
       pttypes,
       debouncedSearch,
       sortBy,
@@ -372,6 +383,9 @@ export default function InstrumentFundClient({
         sortOrder,
         exportAll: 'true',
       })
+      if (instrumentFilter) {
+        queryParams.set('instrumentFilter', instrumentFilter)
+      }
       if (pttypes.length > 0) {
         queryParams.set('pttypes', pttypes.join(','))
       }
@@ -840,7 +854,18 @@ export default function InstrumentFundClient({
               setCurrentPage(1)
             }}
             items={items}
-          
+          />
+        </div>
+
+        {/* ตัวกรองรายการอวัยวะเทียมและอุปกรณ์ */}
+        <div className="inst-instrument-filter-wrapper">
+          <InstrumentSelect
+            value={instrumentFilter}
+            onChange={(val) => {
+              setInstrumentFilter(val)
+              setCurrentPage(1)
+            }}
+            items={availableInstruments}
           />
         </div>
 
@@ -852,6 +877,23 @@ export default function InstrumentFundClient({
                 type="button"
                 onClick={() => handleCardFilterClick('ALL')}
                 title="ยกเลิกตัวกรอง"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+          {instrumentFilter && (
+            <div className="inst-active-filter-badge">
+              <span>
+                อุปกรณ์: {availableInstruments.find((x) => x.code === instrumentFilter)?.name || instrumentFilter}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setInstrumentFilter('')
+                  setCurrentPage(1)
+                }}
+                title="ยกเลิกตัวกรองอุปกรณ์"
               >
                 <X size={12} />
               </button>
@@ -916,8 +958,8 @@ export default function InstrumentFundClient({
                 <th className="col-center" style={{ width: '100px' }}>
                   สิทธิการรักษา
                 </th>
-                <th className="col-center" style={{ width: '90px' }}>
-                  ประเภท
+                <th className="col-center" style={{ minWidth: '240px' }}>
+                  รายการอวัยวะเทียมและอุปกรณ์
                 </th>
                 <th
                   className="col-right sortable"
@@ -1011,11 +1053,49 @@ export default function InstrumentFundClient({
                       <td className="col-center" title={row.pttypename}>
                         <span style={{ fontSize: '12px' }}>{row.inscl || row.pttypename}</span>
                       </td>
-                      <td className="col-center">
-                        {row.oa === 'Y' && <span className="inst-tag-oa">OA</span>}
-                        {row.dm === 'Y' && <span className="inst-tag-dm">DM</span>}
-                        {row.oa !== 'Y' && row.dm !== 'Y' && (
-                          <span style={{ color: '#94a3b8', fontSize: '12px' }}>ทั่วไป</span>
+                      <td className="col-left inst-items-cell">
+                        {row.items && row.items.length > 0 ? (
+                          <div className="inst-table-item-list">
+                            {row.items.map((it, idx) => {
+                              let badgeClass = 'inst-adp-default'
+                              if (/^700[4-5]/.test(it.adpCode)) badgeClass = 'inst-adp-oa'
+                              else if (/^8612|^8813|^8814/.test(it.adpCode)) badgeClass = 'inst-adp-dm'
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className="inst-table-item-row"
+                                  title={`${it.adpCode}: ${it.name}${it.price > 0 ? ` (${formatMoney(it.price)} บาท)` : ''}`}
+                                >
+                                  <span
+                                    className={`inst-item-adp ${badgeClass}`}
+                                    onClick={(e) => {
+                                      if (it.adpCode && it.adpCode !== '-') {
+                                        e.stopPropagation()
+                                        setInstrumentFilter(it.adpCode)
+                                        setCurrentPage(1)
+                                      }
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    title="คลิกเพื่อกรองเฉพาะอุปกรณ์นี้"
+                                  >
+                                    {it.adpCode}
+                                  </span>
+                                  <span className="inst-item-name">{it.name}</span>
+                                  {it.price > 0 && (
+                                    <span className="inst-item-price inst-tabular">
+                                      ({formatMoney(it.price)}&nbsp;บ.)
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : row.list ? (
+                          <span className="inst-item-name" style={{ fontSize: '12px' }}>{row.list}</span>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
                         )}
                       </td>
                       <td className="col-right" style={{ fontWeight: 600 }}>

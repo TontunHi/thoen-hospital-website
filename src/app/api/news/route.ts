@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const category = url.searchParams.get('category') || undefined
     const search = url.searchParams.get('search') || undefined
 
-    const res = await apiGateway.app.getNews({
+    const res: any = await apiGateway.app.getNews({
       page,
       limit,
       category,
@@ -74,17 +74,20 @@ export async function GET(request: Request) {
       search,
     })
 
+    const rawList: any[] = Array.isArray(res) ? res : (res?.data || [])
+    const pagination = (!Array.isArray(res) && res?.pagination) ? res.pagination : {
+      page,
+      limit,
+      total: (!Array.isArray(res) && typeof res?.total === 'number') ? res.total : rawList.length,
+      totalPages: Math.ceil(((!Array.isArray(res) && typeof res?.total === 'number' ? res.total : rawList.length)) / limit) || 1,
+    }
+
     const now = new Date()
-    const adaptedNews = (res.data || []).map((item: any) => adaptNewsItem(item, now))
+    const adaptedNews = rawList.map((item: any) => adaptNewsItem(item, now))
 
     return NextResponse.json({
       news: adaptedNews,
-      pagination: res.pagination || {
-        page,
-        limit,
-        total: res.total || adaptedNews.length,
-        totalPages: Math.ceil((res.total || adaptedNews.length) / limit) || 1,
-      },
+      pagination,
     })
   } catch (error) {
     console.error('News list error:', error)

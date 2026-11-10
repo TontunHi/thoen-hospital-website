@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
 import path from 'path'
 
@@ -19,13 +19,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'กรุณาระบุโฟลเดอร์และเลือกไฟล์ PDF' }, { status: 400 })
     }
 
-    // Verify folder exists
-    const folderRes = await queryMemberDb('SELECT folder_name FROM rdu_folders WHERE id = ?', [folderId])
-    if (folderRes.length === 0) {
-      return NextResponse.json({ success: false, error: 'ไม่พบโฟลเดอร์ที่ระบุ' }, { status: 404 })
-    }
-
-    const folderName = folderRes[0].folder_name
     const originalFileName = file.name
     const ext = path.extname(originalFileName).toLowerCase()
 
@@ -36,12 +29,10 @@ export async function POST(request: Request) {
       displayName = baseWithoutExt.replace(/[_\-]+/g, ' ').trim()
     }
 
-    const sanitizedFolderName = sanitizeName(folderName)
+    // Save using DocumentStorage with folderId placeholder or direct save
     const baseClean = sanitizeName(path.basename(originalFileName, ext))
-
-    // Save using DocumentStorage
     const saved = await DocumentStorage.save(file, {
-      destinationDir: `public/documents/rdu/${sanitizedFolderName}`,
+      destinationDir: `public/documents/rdu/folder_${folderId}`,
       baseName: baseClean,
       allowedMimeTypes: ['application/pdf'],
       allowedExtensions: ['.pdf'],
@@ -49,37 +40,25 @@ export async function POST(request: Request) {
       collisionStrategy: 'increment',
     })
 
-    const maxOrderRes = await queryMemberDb('SELECT MAX(display_order) as maxOrder FROM rdu_files WHERE folder_id = ?', [
-      folderId
-    ])
-    const nextOrder = (maxOrderRes[0]?.maxOrder ?? -1) + 1
-
-    const insertRes = await queryMemberDb(
-      `INSERT INTO rdu_files (folder_id, display_name, file_name, file_path, file_size, display_order) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [folderId, displayName, saved.fileName, saved.publicUrl, saved.fileSize, nextOrder]
-    )
-    const newFileId = (insertRes as any).insertId
+    const res = await apiGateway.app.createRduFile({
+      folder_id: Number(folderId),
+      display_name: displayName,
+      file_name: saved.fileName,
+      file_path: saved.publicUrl,
+      file_size: saved.fileSize,
+    })
 
     return NextResponse.json({
       success: true,
       message: 'อัปโหลดไฟล์ PDF เรียบร้อยแล้ว',
-      file: {
-        id: newFileId,
-        folder_id: Number(folderId),
-        display_name: displayName,
-        file_name: saved.fileName,
-        file_path: `/api/rdu/file/${newFileId}`,
-        file_size: saved.fileSize,
-        display_order: nextOrder
-      }
+      file: res.file
     })
   } catch (error: any) {
     if (error instanceof StorageValidationError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 })
     }
     console.error('Error in POST /api/member/rdu/files:', error)
-    return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' }, { status: 500 })
   }
 }
 
@@ -93,11 +72,10 @@ export async function PUT(request: Request) {
 
     // Case 1: Reorder files
     if (body.action === 'reorder' && Array.isArray(body.orders)) {
-      for (const item of body.orders) {
-        if (item.id !== undefined && item.display_order !== undefined) {
-          await queryMemberDb('UPDATE rdu_files SET display_order = ? WHERE id = ?', [item.display_order, item.id])
-        }
-      }
+      await apiGateway.app.updateRduFile(0, {
+        action: 'reorder',
+        orders: body.orders
+      })
       return NextResponse.json({ success: true, message: 'ปรับปรุงลำดับไฟล์เรียบร้อยแล้ว' })
     }
 
@@ -109,12 +87,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: 'กรุณาระบุชื่อแสดงผลของไฟล์' }, { status: 400 })
     }
 
-    await queryMemberDb('UPDATE rdu_files SET display_name = ? WHERE id = ?', [displayName, fileId])
+    await apiGateway.app.updateRduFile(fileId, {
+      display_name: displayName
+    })
 
     return NextResponse.json({ success: true, message: 'แก้ไขชื่อแสดงผลสำเร็จ' })
   } catch (error: any) {
     console.error('Error in PUT /api/member/rdu/files:', error)
-    return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการแก้ไขไฟล์' }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการแก้ไขไฟล์' }, { status: 500 })
   }
 }
 
@@ -131,31 +111,18 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'กรุณาระบุ id ของไฟล์' }, { status: 400 })
     }
 
-    const fileRes = await queryMemberDb(
-      `SELECT f.id, f.file_name, f.file_path, d.folder_name 
-       FROM rdu_files f 
-       JOIN rdu_folders d ON f.folder_id = d.id 
-       WHERE f.id = ?`,
-      [fileId]
-    )
-
-    if (fileRes.length === 0) {
-      return NextResponse.json({ success: false, error: 'ไม่พบไฟล์ที่ต้องการลบ' }, { status: 404 })
-    }
-
-    const { file_name, file_path, folder_name } = fileRes[0]
-
-    // Delete DB record
-    await queryMemberDb('DELETE FROM rdu_files WHERE id = ?', [fileId])
+    const res = await apiGateway.app.deleteRduFile(fileId)
 
     // Delete physical file via DocumentStorage
-    const targetPath = file_path || `/documents/rdu/${sanitizeName(folder_name)}/${file_name}`
-    await DocumentStorage.delete(targetPath)
+    if (res.file) {
+      const { file_name, file_path, folder_name } = res.file
+      const targetPath = file_path || `/documents/rdu/${sanitizeName(folder_name)}/${file_name}`
+      await DocumentStorage.delete(targetPath).catch(() => {})
+    }
 
     return NextResponse.json({ success: true, message: 'ลบไฟล์เรียบร้อยแล้ว' })
   } catch (error: any) {
     console.error('Error in DELETE /api/member/rdu/files:', error)
-    return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการลบไฟล์' }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบไฟล์' }, { status: 500 })
   }
 }
-
