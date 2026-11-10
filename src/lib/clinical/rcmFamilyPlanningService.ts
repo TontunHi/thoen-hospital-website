@@ -1262,10 +1262,10 @@ export class RcmFamilyPlanningService {
           try {
             const [mRes, gwRes] = await Promise.all([
               RcmFamilyPlanningService.checkFamilyPlanningAdpMapping(adpCode, executor),
-              apiGateway.clinical.getRcmFundData('family-planning', { ds1, ds2, adpCode, patientType }),
+              apiGateway.clinical.getRcmFundData('family-planning', { ds1, ds2, adpCode, patientType, expectedDx }),
             ])
             mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
               rows = gwRes.data.rawRows
               fetchedViaNamedApi = true
             }
@@ -1609,7 +1609,7 @@ export class RcmFamilyPlanningService {
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
           ptt.pttype_eclaim_id,
-          cc.AuthenCode AS claimcode,
+          COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS claimcode,
           dep.department AS department,
           spc.name AS clinic,
           s.cc AS cc,
@@ -1651,6 +1651,7 @@ export class RcmFamilyPlanningService {
         LEFT JOIN opitemrece oo ON oo.vn = o.vn
         LEFT JOIN s_drugitems d ON d.icode = oo.icode
         LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+        LEFT JOIN visit_pttype vt ON vt.vn = o.vn
         LEFT JOIN (
           SELECT e.opdseq AS vn,
                  SUM(COALESCE(cc.totpay1, 0)) AS income
@@ -1804,7 +1805,7 @@ export class RcmFamilyPlanningService {
           TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
           ptt.pttype_eclaim_id,
-          cc.AuthenCode AS claimcode,
+          COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS claimcode,
           w.name AS department,
           spc.name AS clinic,
           '' AS cc,
@@ -1846,6 +1847,7 @@ export class RcmFamilyPlanningService {
         LEFT JOIN opitemrece oo ON oo.an = i.an
         LEFT JOIN s_drugitems d ON d.icode = oo.icode
         LEFT JOIN rcmdb.authencode cc ON cc.vn = i.an
+        LEFT JOIN visit_pttype vt ON vt.vn = i.an
         LEFT JOIN (
           SELECT e.an,
                  SUM(COALESCE(cc.totpay1, 0)) AS income

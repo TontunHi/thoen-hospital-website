@@ -14,10 +14,10 @@ describe('RcmAdpSearchService', () => {
   })
 
   describe('parseAdpCodes', () => {
-    it('returns default 14001 when input is undefined or empty', () => {
-      expect(parseAdpCodes(undefined)).toEqual(['14001'])
-      expect(parseAdpCodes('')).toEqual(['14001'])
-      expect(parseAdpCodes('   ')).toEqual(['14001'])
+    it('returns default SPECC when input is undefined or empty', () => {
+      expect(parseAdpCodes(undefined)).toEqual(['SPECC'])
+      expect(parseAdpCodes('')).toEqual(['SPECC'])
+      expect(parseAdpCodes('   ')).toEqual(['SPECC'])
     })
 
     it('parses single ADP code cleanly', () => {

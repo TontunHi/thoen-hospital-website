@@ -335,8 +335,21 @@ export class RcmAnemiaScreeningService {
               v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
               IFNULL(v.income, 0) AS income,
               dd.name AS listname,
-              nd.listname1 AS listname1,
-              GROUP_CONCAT(DISTINCT DATE_FORMAT(prev_claim.camedate, '%Y-%m-%d') ORDER BY prev_claim.camedate SEPARATOR ', ') AS camedate,
+              (
+                SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
+                FROM opitemrece a
+                JOIN nondrugitems b ON b.icode = a.icode
+                WHERE a.vn = o.vn
+              ) AS listname1,
+              (
+                SELECT GROUP_CONCAT(DISTINCT DATE_FORMAT(o2.vstdate, '%Y-%m-%d') ORDER BY o2.vstdate SEPARATOR ', ')
+                FROM ovst o2
+                JOIN opitemrece oo2 ON oo2.vn = o2.vn
+                JOIN s_drugitems d2 ON d2.icode = oo2.icode
+                WHERE o2.hn = o.hn
+                  AND o2.vstdate >= ? AND o2.vstdate < o.vstdate
+                  AND TRIM(d2.nhso_adp_code) = ?
+              ) AS camedate,
               COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
@@ -363,34 +376,6 @@ export class RcmAnemiaScreeningService {
             LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
             LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
             LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            LEFT JOIN (
-              SELECT 
-                a.vn, 
-                GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ') AS listname1
-              FROM (
-                SELECT DISTINCT oo_nd.vn
-                FROM opitemrece oo_nd
-                JOIN s_drugitems d_nd ON d_nd.icode = oo_nd.icode
-                WHERE IFNULL(oo_nd.vn, '') <> ''
-                  AND oo_nd.vstdate BETWEEN ? AND ?
-                  AND TRIM(d_nd.nhso_adp_code) = ?
-              ) target_vn
-              JOIN opitemrece a ON a.vn = target_vn.vn
-              JOIN nondrugitems b ON b.icode = a.icode
-              GROUP BY a.vn
-            ) nd ON nd.vn = o.vn
-            LEFT JOIN (
-              SELECT DISTINCT
-                o2.hn,
-                o2.vstdate AS camedate
-              FROM opitemrece oo2
-              JOIN s_drugitems d2 ON d2.icode = oo2.icode
-              JOIN ovst o2 ON o2.vn = oo2.vn
-              WHERE IFNULL(oo2.vn, '') <> ''
-                AND oo2.vstdate BETWEEN ? AND ?
-                AND o2.vstdate BETWEEN ? AND ?
-                AND TRIM(d2.nhso_adp_code) = ?
-            ) prev_claim ON prev_claim.hn = o.hn AND prev_claim.camedate < o.vstdate
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
             LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
@@ -437,9 +422,8 @@ export class RcmAnemiaScreeningService {
         `
 
         const sqlParams: any[] = [
+          fiscalStartYear, adpCode, // camedate
           ds1, ds2, adpCode, // dd
-          ds1, ds2, adpCode, // nd (listname1)
-          fiscalStartYear, ds2, fiscalStartYear, ds2, adpCode, // prev_claim
           ds1, ds2, // nhso
           ds1, ds2, // rep
           ds1, ds2, // main ovst o

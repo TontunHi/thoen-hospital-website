@@ -1,4 +1,5 @@
 import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { sendTelegramMessage } from '@/lib/telegramService'
 import { logger } from '@/lib/logger'
 import { resolveTaskPermissions, MemberLike } from '@/lib/taskPermissionResolver'
@@ -247,6 +248,16 @@ export async function generateTaskNo(
   const monthStr = String(monthNumber).padStart(2, '0')
   const ymPrefix = `${prefix}-${thaiFiscalYear}-${monthStr}-`
 
+  const isMock = typeof (executor as any).mock !== 'undefined'
+  if (executor === queryMemberDb && !isMock) {
+    try {
+      const res = await apiGateway.app.generateTaskNo(ymPrefix)
+      if (res && res.taskNo) return res.taskNo
+    } catch (err) {
+      logger.warn({ err }, 'Fallback to raw query for generateTaskNo')
+    }
+  }
+
   const rows = await executor(
     'SELECT COUNT(*) as cnt FROM inbox_tasks WHERE task_no LIKE ?',
     [`${ymPrefix}%`]
@@ -384,6 +395,61 @@ export async function executeRepairAction(
       success: false,
       error: 'เฉพาะช่างผู้รับผิดชอบ ผู้ยื่นคำขอ หรือผู้ดูแลระบบเท่านั้นที่สามารถดำเนินการได้',
       statusCode: 403,
+    }
+  }
+
+  const isMock = typeof (executor as any).mock !== 'undefined'
+  if (executor === queryMemberDb && !isMock) {
+    try {
+      const res = await apiGateway.app.executeRepairAction({
+        taskId,
+        action,
+        performer,
+        payload
+      })
+      if (res && res.success) {
+        if (dispatchNotifications) {
+          if (action === 'ACCEPT_JOB') {
+            notifyRepairAcceptedOnTelegram({
+              taskId,
+              taskNo: task.task_no,
+              taskType: task.task_type,
+              title: task.title,
+              requesterId: task.requester_id,
+              technicianName: performer.name || performer.username,
+              technicianPosition: performer.position,
+              equipmentNumber: repairDetail.equipment_number || null,
+              location: repairDetail.location_full_name || null,
+            }).catch((e) => logger.error({ error: e }, 'Telegram dispatch error on accept job'))
+          } else if (action === 'COMPLETE_REPAIR') {
+            notifyRepairCompletedOnTelegram({
+              taskId,
+              taskNo: task.task_no,
+              taskType: task.task_type,
+              title: task.title,
+              requesterId: task.requester_id,
+              technicianName: performer.name || performer.username,
+              costType: payload.costType || repairDetail.cost_type,
+              costAmount: payload.costAmount ? Number(payload.costAmount) : repairDetail.cost_amount,
+              location: repairDetail.location_full_name || null,
+              solutionStep: payload.solutionStep?.trim() || repairDetail.solution_step || null,
+            }).catch((e) => logger.error({ error: e }, 'Telegram dispatch error on complete repair'))
+          } else if (action === 'CANCEL_JOB') {
+            notifyRepairCancelledOnTelegram({
+              taskId,
+              taskNo: task.task_no,
+              taskType: task.task_type,
+              title: task.title,
+              targetMemberId: task.requester_id,
+              cancelledByName: performer.name || performer.username,
+              reason: payload.reason || null,
+            }).catch((e) => logger.error({ error: e }, 'Telegram dispatch error on cancel job'))
+          }
+        }
+        return res
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Fallback to direct executor for executeRepairAction')
     }
   }
 
@@ -1110,6 +1176,109 @@ export async function executeWorkflowAction(
   } else {
     if (!perms.canApprove && !perms.isAdmin && !perms.isCurrentAssignee) {
       throw new Error('คุณไม่มีสิทธิ์ดำเนินการในขั้นตอนนี้')
+    }
+  }
+
+  const isMock = typeof (executor as any).mock !== 'undefined'
+  if (executor === queryMemberDb && !isMock) {
+    try {
+      let sigHash = null
+      if (signaturePath) {
+        sigHash = generateSignatureStampHash({
+          taskId,
+          stepNo: currentStep.step_no,
+          signerId: actorMemberId,
+          timestamp: new Date().toISOString(),
+        })
+      }
+
+      const res = await apiGateway.app.executeWorkflowAction({
+        taskId,
+        action,
+        comment,
+        nextAssigneeId,
+        partialEdits,
+        holdReason,
+        holdDetails,
+        targetStepNo,
+        signaturePath,
+        signatureHash: sigHash,
+        actor: {
+          id: actorMemberId,
+          username: actorUsername,
+          name: actorName,
+          position: actorPosition,
+          role: actorRole,
+        }
+      })
+
+      if (res && res.success) {
+        if (action === 'HOLD') {
+          notifyTaskHoldOnTelegram({
+            taskId,
+            taskNo: task.task_no,
+            title: task.title,
+            requesterId: task.requester_id,
+            requesterName: task.requester_name,
+            heldByName: actorName || actorUsername,
+            heldByPosition: actorPosition || null,
+            holdReason: holdReason || comment || 'รอการจัดสรรงบ',
+            holdDetails: holdDetails?.trim() || null,
+            stepName: currentStep.step_name,
+          }).catch((e) => logger.error({ error: e }, 'Telegram task hold notify error'))
+        } else if (action === 'RESUME') {
+          notifyTaskResumeOnTelegram({
+            taskId,
+            taskNo: task.task_no,
+            title: task.title,
+            requesterId: task.requester_id,
+            resumedByName: actorName || actorUsername,
+            resumedByPosition: actorPosition || null,
+            stepName: currentStep.step_name,
+          }).catch((e) => logger.error({ error: e }, 'Telegram task resume notify error'))
+        } else if (action === 'APPROVE') {
+          const nextStep = res.nextStep
+          if (nextStep && task.task_type === 'MEDIA_REQUEST') {
+            notifyMediaRequestStepApprovedOnTelegram({
+              taskId,
+              taskNo: task.task_no,
+              title: task.title,
+              requesterId: task.requester_id,
+              requesterName: task.requester_name,
+              requesterDept: task.requester_dept,
+              approverName: actorName || actorUsername,
+              approverPosition: actorPosition,
+              stepNo: currentStep.step_no,
+              stepName: currentStep.step_name,
+              isFinalStep: false,
+              nextStepName: nextStep.step_name,
+            }).catch((e) => logger.error({ error: e }, 'Telegram media step approval notify error'))
+
+            const isNextStepPrRole =
+              !nextStep.assigned_role ||
+              nextStep.assigned_role === MEDIA_REQUEST_ROLES.PR_OFFICER ||
+              nextStep.assigned_role.includes('ประชาสัมพันธ์')
+
+            if (!isNextStepPrRole) {
+              notifyAssigneeOnTelegram({
+                taskId,
+                taskNo: task.task_no,
+                taskType: task.task_type,
+                title: task.title,
+                requesterName: task.requester_name,
+                requesterDept: task.requester_dept,
+                assigneeId: nextAssigneeId || nextStep.assigned_to_id,
+                targetRole: nextStep.assigned_role,
+                stepName: nextStep.step_name,
+                urgency: task.urgency,
+              }).catch((e) => logger.error({ error: e }, 'Telegram dispatch error on next assignee'))
+            }
+          }
+        }
+        return { success: true, message: res.message }
+      }
+    } catch (err: any) {
+      logger.warn({ err }, 'Fallback to direct executor for executeWorkflowAction')
     }
   }
 

@@ -290,14 +290,14 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         icon: PhoneCall,
         children: [
           {
-            href: '/service/dashboard-rcm/funds/telemed-drug/postal-drug',
-            label: 'ส่งยาไปรษณีย์ Drug',
-            badge: '11.52',
-          },
-          {
             href: '/service/dashboard-rcm/funds/telemed-drug/telemed',
             label: 'บริการ Telemed',
-            badge: '11.53',
+            badge: 'บริการ',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/telemed-drug/postal-drug',
+            label: 'ยาไปรษณีย์ Drug',
+            badge: 'ยา',
           },
         ],
       },
@@ -366,7 +366,7 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         children: [
           {
             href: '/service/dashboard-rcm/funds/fluoride-varnish/20-1',
-            label: 'บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001)',
+            label: 'บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001)',
             badge: '20.1',
           },
         ],

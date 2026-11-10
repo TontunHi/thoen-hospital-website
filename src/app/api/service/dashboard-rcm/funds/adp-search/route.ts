@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     logThrottledAudit(
       'READ',
       'rcm_funds_adp_search',
-      `Viewed ADP Search report (type: ${params.patientType}, ADP: ${params.adpCode || '14001'}, range: ${params.ds1 || 'default'} to ${params.ds2 || 'default'}, filter: ${params.cardFilter || 'ALL'}, export: ${Boolean(params.exportAll)})`,
+      `Viewed ADP Search report (type: ${params.patientType}, ADP: ${params.adpCode || 'SPECC'}, range: ${params.ds1 || 'default'} to ${params.ds2 || 'default'}, filter: ${params.cardFilter || 'ALL'}, export: ${Boolean(params.exportAll)})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'ADP search audit log failed'))
 

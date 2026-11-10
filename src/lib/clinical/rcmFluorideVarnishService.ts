@@ -9,7 +9,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 
-// ── 1. Domain Types: 20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001) ──
+// ── 1. Domain Types: 20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001) ──
 
 export type FluorideVarnishCardFilter =
   | 'ALL'
@@ -78,7 +78,7 @@ export interface FluorideVarnishItem {
   ptname: string
   sex: string
   age: number
-  isTargetAge: boolean // Age between 25 and 29 years
+  isTargetAge: boolean // Age between 25 and 59 years
   nation: string | null
   vstdate: string
   vsttime: string
@@ -126,7 +126,7 @@ export interface FluorideVarnishSummary {
   compensationRate: number
   totalCompensated: number
   averageCompensated: number
-  targetAgeCount: number // อายุ 25-29 ปี
+  targetAgeCount: number // อายุ 25-59 ปี
   targetAgeRate: number
   withAuthenCount: number
   withoutAuthenCount: number
@@ -267,9 +267,9 @@ export class RcmFluorideVarnishService {
   }
 
   /**
-   * Generate 20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001) Report:
+   * Generate 20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001) Report:
    * - Queries visits with dispensing of ADP code 15001 in opitemrece
-   * - Filters age between 25 and 59 from database, with target age 25-29 years
+   * - Filters age between 25 and 59 from database, with target age 25-59 years
    * - Aggregates KPIs, calculates card filter counts, supports sorting, search, pagination.
    */
   static async getFluorideVarnishReport(
@@ -277,7 +277,7 @@ export class RcmFluorideVarnishService {
     executor: QueryExecutor = queryClinicalDb
   ): Promise<FluorideVarnishReportResult> {
     const adpCode = '15001'
-    const reportTitle = '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001)'
+    const reportTitle = '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001)'
 
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
 
@@ -470,7 +470,7 @@ export class RcmFluorideVarnishService {
       const pttypeEclaimId = String(r.pttype_eclaim_id || '').trim()
       const isUc = isUniversalCoverageScheme(maininscl, pttypename, pttypeEclaimId)
       const age = Number(r.age) || 0
-      const isTargetAge = age >= 25 && age <= 29
+      const isTargetAge = age >= 25 && age <= 59
       const sex = formatThaiSex(r.sex_code, r.sex)
 
       const sDxList = [r.dx1, r.dx2, r.dx3, r.dx4, r.dx5]

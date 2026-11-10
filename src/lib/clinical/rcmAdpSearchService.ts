@@ -165,6 +165,7 @@ export interface AdpOption {
 }
 
 export const POPULAR_ADP_PRESETS: readonly AdpPreset[] = [
+  { code: 'SPECC', title: 'ค่าบริการเก็บสิ่งส่งตรวจ Self test HPV / Projected code:SPECC', category: 'ตรวจทางห้องปฏิบัติการ' },
   { code: '14001', title: 'ยาเสริมธาตุเหล็ก (13-45 ปี)', category: 'ยา & เวชภัณฑ์' },
   { code: '12003', title: 'ตรวจ Fasting Plasma Glucose', category: 'ตรวจทางห้องปฏิบัติการ' },
   { code: '12004', title: 'ตรวจ Total Cholesterol / HDL', category: 'ตรวจทางห้องปฏิบัติการ' },
@@ -192,12 +193,12 @@ export const POPULAR_ADP_PRESETS: readonly AdpPreset[] = [
 // ── Helper: Parse ADP Codes ──────────────────────────────────────────
 
 export function parseAdpCodes(rawInput?: string): string[] {
-  if (!rawInput) return ['14001']
+  if (!rawInput) return ['SPECC']
   const codes = rawInput
     .split(/[,;\s]+/)
     .map((c) => c.replace(/['"`]/g, '').trim())
     .filter(Boolean)
-  return codes.length > 0 ? Array.from(new Set(codes)) : ['14001']
+  return codes.length > 0 ? Array.from(new Set(codes)) : ['SPECC']
 }
 
 export function isUniversalCoverageScheme(maininscl?: string | null, pttypename?: string | null): boolean {
@@ -544,6 +545,7 @@ export class RcmAdpSearchService {
             e.name AS pttype_eclaim_name,
             e.gf_ipd AS gfmis,
             e.ar_ipd AS accountcode,
+            ca.name AS accountname,
             CONCAT(v.hospmain, '#', IFNULL(h.name, '')) AS hospmain,
             CONCAT(v.hospsub, '#', IFNULL(h2.name, '')) AS hospsub,
             vs.auth_code,
@@ -562,6 +564,12 @@ export class RcmAdpSearchService {
               FROM ovstdiag dx
               WHERE dx.vn = o.vn
             ) AS diag,
+
+            (
+              SELECT GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ')
+              FROM ovstdiag dx
+              WHERE dx.vn = o.vn
+            ) AS operation,
             
             (
               SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
@@ -587,7 +595,7 @@ export class RcmAdpSearchService {
             MAX(rep_d.subfund) AS subfund,
             MAX(rep_d.projectcode) AS projectcode,
             MAX(rep_d.remark) AS remark,
-            COALESCE(MAX(rep_c.compensated), MAX(rep_d.compensated), MAX(se.compensated), 0) AS compensated
+            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), NULLIF(MAX(se.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
 
           FROM (
             SELECT 
@@ -610,6 +618,7 @@ export class RcmAdpSearchService {
           LEFT JOIN vn_stat v ON v.vn = o.vn
           LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
           LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
+          LEFT JOIN codeaccount ca ON ca.code = e.ar_opd
           LEFT JOIN hospcode h ON h.hospcode = v.hospmain
           LEFT JOIN hospcode h2 ON h2.hospcode = v.hospsub
           LEFT JOIN visit_pttype vs ON vs.vn = o.vn
@@ -665,6 +674,7 @@ export class RcmAdpSearchService {
             eclaimPttypeName: r.pttype_eclaim_name ? String(r.pttype_eclaim_name).trim() : null,
             gfmis: r.gfmis ? String(r.gfmis).trim() : null,
             accountcode: r.accountcode ? String(r.accountcode).trim() : null,
+            accountname: r.accountname ? String(r.accountname).trim() : null,
             authCode: r.auth_code ? String(r.auth_code).trim() : null,
             ovstist: r.ovstist ? String(r.ovstist).trim() : null,
             ovstost: r.ovstost ? String(r.ovstost).trim() : null,
@@ -675,7 +685,7 @@ export class RcmAdpSearchService {
             pdx: null,
             pdxname: null,
             sdx: null,
-            operation: null,
+            operation: r.operation ? String(r.operation).trim() : null,
             proc: null,
             nhsoAdpCode: String(r.nhso_adp_code || '').trim(),
             icode: String(r.icode || '').trim(),
@@ -700,7 +710,7 @@ export class RcmAdpSearchService {
             isCompensated,
             isUc,
             hasAuthen,
-            hasOperation: false,
+            hasOperation: Boolean(r.operation && String(r.operation).trim() !== '' && String(r.operation).trim() !== '-'),
           }
         })
       },
@@ -746,6 +756,10 @@ export class RcmAdpSearchService {
             ptt.hipdata_code,
             ptt.name AS pttypename,
             IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
+            e.name AS pttype_eclaim_name,
+            e.gf_ipd AS gfmis,
+            e.ar_ipd AS accountcode,
+            ca.name AS accountname,
             w.name AS department,
             
             a.pdx,
@@ -783,7 +797,7 @@ export class RcmAdpSearchService {
             MAX(rep_d.subfund) AS subfund,
             MAX(rep_d.projectcode) AS projectcode,
             MAX(rep_d.remark) AS remark,
-            COALESCE(MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
+            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
 
           FROM (
             SELECT 
@@ -806,6 +820,8 @@ export class RcmAdpSearchService {
           LEFT JOIN patient pt ON pt.hn = i.hn
           LEFT JOIN an_stat a ON a.an = i.an
           LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
+          LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
+          LEFT JOIN codeaccount ca ON ca.code = e.ar_ipd
           LEFT JOIN ward w ON w.ward = i.ward
           LEFT JOIN icd101 icd ON icd.code = a.pdx
           LEFT JOIN rcmdb.repdata rep_d ON rep_d.an = i.an
@@ -847,9 +863,10 @@ export class RcmAdpSearchService {
             hipdataCode,
             hospmain: null,
             hospsub: null,
-            eclaimPttypeName: null,
-            gfmis: null,
-            accountcode: null,
+            eclaimPttypeName: r.pttype_eclaim_name ? String(r.pttype_eclaim_name).trim() : null,
+            gfmis: r.gfmis ? String(r.gfmis).trim() : null,
+            accountcode: r.accountcode ? String(r.accountcode).trim() : null,
+            accountname: r.accountname ? String(r.accountname).trim() : null,
             authCode: null,
             ovstist: null,
             ovstost: null,

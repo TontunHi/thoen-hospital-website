@@ -428,6 +428,8 @@ export default function ColorectalCancer212Client({
         'เพศ',
         'อายุ (ปี)',
         'สิทธิการรักษา',
+        'PDX',
+        'SDX',
         'ClaimCode',
         'ผล Lab (FIT)',
         'รหัส Special PP',
@@ -453,6 +455,8 @@ export default function ColorectalCancer212Client({
         it.sex,
         it.age,
         `"${it.pttypename.replace(/"/g, '""')}"`,
+        it.pdx || '—',
+        it.sdx || '—',
         it.authencode || '—',
         it.labresult || '—',
         it.pp_special_code || '—',
@@ -1020,6 +1024,21 @@ export default function ColorectalCancer212Client({
                   </div>
                 </th>
                 <th style={{ minWidth: '150px' }}>สิทธิการรักษา</th>
+                <th
+                  className="crc-col-center sortable"
+                  onClick={() => handleSort('pdx')}
+                  style={{ width: '75px' }}
+                  title="คลิกเพื่อเรียงตามรหัสการวินิจฉัยโรค (PDX)"
+                >
+                  <div className="crc-th-content">
+                    <span>PDX</span>
+                    {sortBy === 'pdx' ? (
+                      sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                    ) : (
+                      <ArrowUpDown size={14} style={{ opacity: 0.3 }} />
+                    )}
+                  </div>
+                </th>
                 <th className="crc-col-center" style={{ width: '120px' }}>
                     ClaimCode
                   </th>
@@ -1050,7 +1069,7 @@ export default function ColorectalCancer212Client({
               {loading && !isRefreshing ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={`skel-${i}`} className="crc-table-skeleton-row">
-                    {Array.from({ length: 16 }).map((_, j) => (
+                    {Array.from({ length: 17 }).map((_, j) => (
                       <td key={`skel-td-${j}`}>
                         <div className="crc-skeleton-box" />
                       </td>
@@ -1059,7 +1078,7 @@ export default function ColorectalCancer212Client({
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={16}>
+                  <td colSpan={17}>
                     <div className="crc-empty-state">
                       <TestTube2 size={40} className="crc-empty-icon" />
                       <p className="crc-empty-title">ไม่พบข้อมูลผู้รับบริการคัดกรอง FIT test</p>
@@ -1106,6 +1125,9 @@ export default function ColorectalCancer212Client({
                       </td>
                       <td style={{ color: 'var(--gray-700)', fontSize: '0.8125rem' }}>
                         {item.pttypename}
+                      </td>
+                      <td className="crc-col-center" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                        {item.pdx || '—'}
                       </td>
                       <td className="crc-col-center">
                         {item.authencode ? (
@@ -1402,9 +1424,9 @@ export default function ColorectalCancer212Client({
                     </div>
                   </div>
 
-                  {(selectedItem.pdx || selectedItem.sdx) && (
+                  {(selectedItem.pdx || selectedItem.sdx || selectedItem.ops) && (
                     <div>
-                      <h3 className="crc-modal-section-title">การวินิจฉัยโรค</h3>
+                      <h3 className="crc-modal-section-title">การวินิจฉัยและหัตถการ</h3>
                       <div className="crc-modal-grid">
                         <div className="crc-modal-card">
                           <span className="crc-modal-card-label">การวินิจฉัยหลัก (PDX)</span>
@@ -1414,6 +1436,12 @@ export default function ColorectalCancer212Client({
                           <span className="crc-modal-card-label">การวินิจฉัยร่วม (SDX)</span>
                           <span className="crc-modal-card-value">{selectedItem.sdx || '—'}</span>
                         </div>
+                        {selectedItem.ops && (
+                          <div className="crc-modal-card full-width">
+                            <span className="crc-modal-card-label">รหัสหัตถการ (ICD-9-CM)</span>
+                            <span className="crc-modal-card-value">{selectedItem.ops}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

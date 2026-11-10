@@ -69,7 +69,7 @@ const mockItem = {
 
 const mockInitialData = {
   adpCode: '15001',
-  title: '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001)',
+  title: '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001)',
   ds1: '2026-10-01',
   ds2: '2026-10-31',
   adpMapping: {
@@ -111,7 +111,7 @@ describe('FluorideVarnish201Client Component', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001)',
+        name: '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001)',
       })
     ).toBeInTheDocument()
 
@@ -120,7 +120,7 @@ describe('FluorideVarnish201Client Component', () => {
     expect(screen.getAllByText('ชดเชยแล้ว').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('ยังไม่ชดเชย / รอชดเชย')).toBeInTheDocument()
     expect(screen.getByText('ยอดเงินชดเชยรวม')).toBeInTheDocument()
-    expect(screen.getByText('กลุ่มเป้าหมาย (25-29 ปี)')).toBeInTheDocument()
+    expect(screen.getByText('กลุ่มเป้าหมาย (25-59 ปี)')).toBeInTheDocument()
     expect(screen.getByText('สิทธิบัตรทอง (UC)')).toBeInTheDocument()
     expect(screen.getByText('มี ClaimCode')).toBeInTheDocument()
     expect(screen.getByText('ไม่มี ClaimCode')).toBeInTheDocument()
@@ -136,7 +136,7 @@ describe('FluorideVarnish201Client Component', () => {
   it('clicking a KPI card toggles cardFilter', async () => {
     render(<FluorideVarnish201Client initialData={mockInitialData} />)
 
-    const targetAgeCard = screen.getByTitle('คลิกเพื่อกรองเฉพาะกลุ่มเป้าหมายอายุ 25-29 ปี')
+    const targetAgeCard = screen.getByTitle('คลิกเพื่อกรองเฉพาะกลุ่มเป้าหมายอายุ 25-59 ปี')
     fireEvent.click(targetAgeCard)
 
     await waitFor(() => {

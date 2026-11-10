@@ -11,5 +11,5 @@ export default async function TelemedDrugIndexPage() {
     redirect('/service')
   }
 
-  redirect('/service/dashboard-rcm/funds/telemed-drug/postal-drug')
+  redirect('/service/dashboard-rcm/funds/telemed-drug/telemed')
 }

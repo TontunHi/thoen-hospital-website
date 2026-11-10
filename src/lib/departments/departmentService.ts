@@ -469,7 +469,7 @@ export class DepartmentService {
   }
 
   /**
-   * Retrieves members for a specific group sorted by role level and order_index.
+   * Retrieves members for a specific group ordered by order_index (the admin's saved drag order).
    * If isPublic=true, phone number is stripped for privacy (PDPA compliance).
    */
   async getMembersByGroupId(groupId: number, options: { isPublic?: boolean } = {}): Promise<DepartmentMemberRecord[]> {
@@ -482,24 +482,6 @@ export class DepartmentService {
     )
 
     if (!Array.isArray(rows)) return []
-
-    const roleRankMap = new Map<string, number>()
-    try {
-      const roles = await this.getRoles()
-      roles.forEach((r, idx) => {
-        roleRankMap.set(r.name.toLowerCase().trim(), idx)
-      })
-    } catch {
-      // Ignore
-    }
-
-    const getRank = (roleStr: string): number => {
-      const lower = (roleStr || '').toLowerCase().trim()
-      if (lower === 'leader') return 0
-      if (roleRankMap.has(lower)) return roleRankMap.get(lower)!
-      if (lower === 'member') return 999
-      return 500
-    }
 
     const records: DepartmentMemberRecord[] = rows.map((row: any) => {
       const record: DepartmentMemberRecord = {
@@ -520,13 +502,8 @@ export class DepartmentService {
       return record
     })
 
-    records.sort((a, b) => {
-      const rankA = getRank(a.role)
-      const rankB = getRank(b.role)
-      if (rankA !== rankB) return rankA - rankB
-      if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex
-      return a.id - b.id
-    })
+    // Members are already ordered by order_index ASC, id ASC from the DB query above.
+    // Do NOT re-sort here by role rank — that would override the admin's saved drag order.
 
     return records
   }
@@ -719,24 +696,6 @@ export class DepartmentService {
 
     if (!Array.isArray(groups) || !Array.isArray(members)) return []
 
-    const roleRankMap = new Map<string, number>()
-    try {
-      const roles = await this.getRoles()
-      roles.forEach((r, idx) => {
-        roleRankMap.set(r.name.toLowerCase().trim(), idx)
-      })
-    } catch {
-      // Ignore
-    }
-
-    const getRank = (roleStr: string): number => {
-      const lower = (roleStr || '').toLowerCase().trim()
-      if (lower === 'leader') return 0
-      if (roleRankMap.has(lower)) return roleRankMap.get(lower)!
-      if (lower === 'member') return 999
-      return 500
-    }
-
     const memberMap = new Map<number, any[]>()
     members.forEach((m: any) => {
       const gid = Number(m.group_id)
@@ -752,16 +711,8 @@ export class DepartmentService {
       })
     })
 
-    // Sort members in each group according to role rank, then orderIndex, then id
-    memberMap.forEach((list) => {
-      list.sort((a, b) => {
-        const rankA = getRank(a.role)
-        const rankB = getRank(b.role)
-        if (rankA !== rankB) return rankA - rankB
-        if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex
-        return a.id - b.id
-      })
-    })
+    // Members are already ordered by order_index ASC, id ASC from the DB query above.
+    // Do NOT re-sort here by role rank — that would override the admin's saved drag order.
 
     const nodeMap = new Map<number, any>()
     const rootNodes: any[] = []

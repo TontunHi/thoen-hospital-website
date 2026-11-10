@@ -108,7 +108,7 @@ export async function GET(request: Request) {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายงานบริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (20.1)',
+          message: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายงานบริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (20.1)',
         },
       },
       { status: 500 }

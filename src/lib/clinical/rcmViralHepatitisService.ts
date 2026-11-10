@@ -1,5 +1,4 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
@@ -195,27 +194,6 @@ export class RcmViralHepatitisService {
     return getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('36318')
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                  source: 's_drugitems' as const,
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
         try {
           const sql = `
             SELECT 
@@ -226,7 +204,7 @@ export class RcmViralHepatitisService {
               's_drugitems' AS source
             FROM s_drugitems 
             WHERE TRIM(nhso_adp_code) IN ('36318', '36319')
-            UNION ALL
+            UNION
             SELECT 
               icode, 
               name, 
@@ -328,21 +306,20 @@ export class RcmViralHepatitisService {
                 WHEN m.statusname IS NOT NULL THEN m.statusname
                 ELSE '-::ยังไม่ได้ส่ง'
               END AS status,
+              COALESCE(
+                NULLIF(TRIM(sm.rep), ''),
+                NULLIF(TRIM(nhso.rep), ''),
+                NULLIF(TRIM(rep.rep), ''),
+                NULLIF(TRIM(nn.Rep), ''),
+                NULLIF(TRIM(m.rep), '')
+              ) AS rep,
               CASE
-                WHEN sm.vn IS NOT NULL THEN sm.rep
-                WHEN nhso.rep IS NOT NULL THEN nhso.rep
-                WHEN rep.rep IS NOT NULL THEN rep.rep
-                WHEN nn.Rep IS NOT NULL THEN nn.Rep
-                WHEN m.rep IS NOT NULL THEN m.rep
-                ELSE NULL
-              END AS rep,
-              CASE
-                WHEN sm.vn IS NOT NULL THEN sm.compensated
-                WHEN nhso.compensated IS NOT NULL THEN nhso.compensated
-                WHEN rep.compensated IS NOT NULL THEN rep.compensated
-                WHEN nn.Income IS NOT NULL THEN nn.Income
-                WHEN m.compensated IS NOT NULL THEN m.compensated
-                ELSE 0
+                WHEN sm.vn IS NOT NULL AND sm.compensated > 0 THEN sm.compensated
+                WHEN nhso.vn IS NOT NULL AND nhso.compensated > 0 THEN nhso.compensated
+                WHEN rep.vn IS NOT NULL AND rep.compensated > 0 THEN rep.compensated
+                WHEN nn.Seq IS NOT NULL AND nn.Income > 0 THEN nn.Income
+                WHEN m.vn IS NOT NULL AND m.compensated > 0 THEN m.compensated
+                ELSE COALESCE(sm.compensated, nhso.compensated, rep.compensated, nn.Income, m.compensated, 0)
               END AS compensated,
               sm.status AS status_sm,
               sm.rep AS rep_sm,
@@ -361,7 +338,7 @@ export class RcmViralHepatitisService {
                 SELECT icode, name, strength 
                 FROM s_drugitems 
                 WHERE TRIM(nhso_adp_code) IN ('36318', '36319')
-                UNION ALL
+                UNION
                 SELECT icode, name, NULL AS strength 
                 FROM nondrugitems 
                 WHERE TRIM(nhso_adp_code) IN ('36318', '36319')
@@ -394,7 +371,7 @@ export class RcmViralHepatitisService {
             LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
+                     'NHSO :: ได้รับ Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
               WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND (errorcode = '' OR errorcode IS NULL)
@@ -404,7 +381,7 @@ export class RcmViralHepatitisService {
               SELECT vn,
                      GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
                      SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                     IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
+                     IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: ส่ง Rep แล้ว', NULL) AS statusname,
                      GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
                      GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                      GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
@@ -444,42 +421,15 @@ export class RcmViralHepatitisService {
       `
       const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
 
-        let rows: any[] = []
-        let mappingRes: ViralHepatitisAdpMappingCheck = {
-          isMapped: false,
-          mappedCount: 0,
-          items: [],
-        }
+      const [mappingRes, dbRows] = await Promise.all([
+        RcmViralHepatitisService.checkViralHepatitisAdpMapping(executor, Boolean(params.refresh)),
+        executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+      ])
+      const rows = dbRows || []
 
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmViralHepatitisService.checkViralHepatitisAdpMapping(executor, Boolean(params.refresh)),
-              apiGateway.clinical.getRcmFundData('viral-hepatitis', { ds1, ds2 }),
-            ])
-            mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [mRes, dbRows] = await Promise.all([
-            RcmViralHepatitisService.checkViralHepatitisAdpMapping(executor, Boolean(params.refresh)),
-            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
-          ])
-          rows = dbRows || []
-          mappingRes = mRes
-        }
-
-        return { rawRows: rows, adpMapping: mappingRes }
-      },
-      180000 // Cache TTL 3 minutes
+      return { rawRows: rows, adpMapping: mappingRes }
+    },
+    180000 // Cache TTL 3 minutes
     )
 
     // Transform raw rows into structured domain items

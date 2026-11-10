@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { apiGateway } from '@/lib/apiGateway'
 import { queryMemberDb } from '@/lib/memberDb'
 import { resolveTaskPermissions } from '@/lib/taskPermissionResolver'
 import { updateTaskByManager } from '@/lib/taskInboxService'
@@ -19,70 +20,90 @@ export async function GET(
 
     const { id: taskId } = await params
 
-    // 1. Fetch Task
-    const tasks = await queryMemberDb(
-      `SELECT 
-        t.id, t.task_no, t.task_type, t.title, t.description, t.urgency,
-        t.requester_id, t.requester_name, t.requester_dept,
-        t.status, t.current_step_no, t.current_assignee, t.\`current_role\`,
-        t.reference_id, t.custom_payload, t.created_at, t.updated_at,
-        req.signature_path as requester_signature_path
-       FROM inbox_tasks t
-       LEFT JOIN members req ON t.requester_id = req.id
-       WHERE t.id = ? LIMIT 1`,
-      [taskId]
-    )
+    let task: any = null
+    let steps: any[] = []
+    let auditLogs: any[] = []
+    let rawRepairRow: any = null
 
-    if (!tasks || tasks.length === 0) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลงานนี้' }, { status: 404 })
+    try {
+      const fullRes = await apiGateway.app.getTaskFullDetails(taskId)
+      if (fullRes?.success && fullRes.data) {
+        task = fullRes.data.task
+        steps = fullRes.data.steps || []
+        auditLogs = fullRes.data.auditLogs || []
+        rawRepairRow = fullRes.data.repairDetail
+      }
+    } catch {
+      // Fallback to queryMemberDb
     }
 
-    const task = tasks[0]
+    // Fallback if gateway did not return task
+    if (!task) {
+      const tasks = await queryMemberDb(
+        `SELECT 
+          t.id, t.task_no, t.task_type, t.title, t.description, t.urgency,
+          t.requester_id, t.requester_name, t.requester_dept,
+          t.status, t.current_step_no, t.current_assignee, t.\`current_role\`,
+          t.reference_id, t.custom_payload, t.created_at, t.updated_at,
+          req.signature_path as requester_signature_path
+         FROM inbox_tasks t
+         LEFT JOIN members req ON t.requester_id = req.id
+         WHERE t.id = ? LIMIT 1`,
+        [taskId]
+      )
+
+      if (!tasks || tasks.length === 0) {
+        return NextResponse.json({ error: 'ไม่พบข้อมูลงานนี้' }, { status: 404 })
+      }
+      task = tasks[0]
+
+      steps = await queryMemberDb(
+        `SELECT 
+          s.id, s.step_no, s.step_name, s.assignee_type, s.assigned_to_id, s.assigned_role,
+          s.status, s.action_taken, s.action_by, s.action_by_name, s.action_at,
+          s.comment, s.signature_path, s.signature_hash,
+          m.name as assigned_to_name, m.position as assigned_to_position
+         FROM inbox_task_steps s
+         LEFT JOIN members m ON s.assigned_to_id = m.id
+         WHERE s.task_id = ?
+         ORDER BY s.step_no ASC`,
+        [taskId]
+      )
+
+      auditLogs = await queryMemberDb(
+        `SELECT 
+          id, action, performed_by, performer_name, details, created_at
+         FROM inbox_task_audit_logs
+         WHERE task_id = ?
+         ORDER BY created_at ASC`,
+        [taskId]
+      )
+
+      const repairRows = await queryMemberDb(
+        'SELECT * FROM repair_details WHERE task_id = ? LIMIT 1',
+        [taskId]
+      )
+      if (repairRows && repairRows.length > 0) {
+        rawRepairRow = repairRows[0]
+      }
+    }
+
     let customPayload = null
     try {
-      customPayload = task.custom_payload ? JSON.parse(task.custom_payload) : null
+      customPayload = task.custom_payload ? (typeof task.custom_payload === 'string' ? JSON.parse(task.custom_payload) : task.custom_payload) : null
     } catch {}
-
-    // 2. Fetch Workflow Steps
-    const steps = await queryMemberDb(
-      `SELECT 
-        s.id, s.step_no, s.step_name, s.assignee_type, s.assigned_to_id, s.assigned_role,
-        s.status, s.action_taken, s.action_by, s.action_by_name, s.action_at,
-        s.comment, s.signature_path, s.signature_hash,
-        m.name as assigned_to_name, m.position as assigned_to_position
-       FROM inbox_task_steps s
-       LEFT JOIN members m ON s.assigned_to_id = m.id
-       WHERE s.task_id = ?
-       ORDER BY s.step_no ASC`,
-      [taskId]
-    )
-
-    // 3. Fetch Audit Logs
-    const auditLogs = await queryMemberDb(
-      `SELECT 
-        id, action, performed_by, performer_name, details, created_at
-       FROM inbox_task_audit_logs
-       WHERE task_id = ?
-       ORDER BY created_at ASC`,
-      [taskId]
-    )
 
     const parsedAuditLogs = auditLogs.map((log: any) => {
       let details = log.details
       try {
-        details = log.details ? JSON.parse(log.details) : null
+        details = log.details ? (typeof log.details === 'string' ? JSON.parse(log.details) : log.details) : null
       } catch {}
       return { ...log, details }
     })
 
-    // 4. Fetch Repair Details (if repair task)
-    const repairRows = await queryMemberDb(
-      'SELECT * FROM repair_details WHERE task_id = ? LIMIT 1',
-      [taskId]
-    )
     let repairDetail = null
-    if (repairRows && repairRows.length > 0) {
-      const row = repairRows[0]
+    if (rawRepairRow) {
+      const row = rawRepairRow
       let photos = []
       let coWorkers = []
       try {

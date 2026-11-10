@@ -93,11 +93,11 @@ export default function AdpSearchClient({
 
   // ADP Code input & multi-select states
   const initialCodes = useMemo(() => {
-    return parseAdpCodes(initialData?.adpCode ?? '14001')
+    return parseAdpCodes(initialData?.adpCode ?? 'SPECC')
   }, [initialData?.adpCode])
 
   const [selectedCodes, setSelectedCodes] = useState<string[]>(initialCodes)
-  const [appliedAdpCode, setAppliedAdpCode] = useState<string>(initialData?.adpCode ?? '14001')
+  const [appliedAdpCode, setAppliedAdpCode] = useState<string>(initialData?.adpCode ?? 'SPECC')
 
   // Available ADP options
   const defaultOptions: AdpOption[] = useMemo(() => {
@@ -162,7 +162,7 @@ export default function AdpSearchClient({
   const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages ?? 1)
   const [adpMapping, setAdpMapping] = useState<AdpMappingCheck>(
     initialData?.adpMapping ?? {
-      adpCodes: ['14001'],
+      adpCodes: ['SPECC'],
       isMapped: true,
       mappedCount: 0,
       items: [],
@@ -363,7 +363,7 @@ export default function AdpSearchClient({
   const handleApplyAdpCode = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     const cleanCodes = selectedCodes.map((c) => c.trim()).filter(Boolean)
-    const codeString = cleanCodes.length > 0 ? cleanCodes.join(', ') : '14001'
+    const codeString = cleanCodes.length > 0 ? cleanCodes.join(', ') : 'SPECC'
     setAppliedAdpCode(codeString)
     setCardFilter('ALL')
     setCurrentPage(1)
@@ -1525,6 +1525,23 @@ export default function AdpSearchClient({
                         <div className="adp-field-row">
                           <span className="adp-field-label">รหัสโครงการ (Project Code)</span>
                           <div className="adp-field-value">{selectedItem.projectcode}</div>
+                        </div>
+                      )}
+
+                      {(selectedItem.accountcode || selectedItem.accountname) && (
+                        <div className="adp-field-row">
+                          <span className="adp-field-label">รหัสผังบัญชี (Account Code)</span>
+                          <div className="adp-field-value">
+                            {selectedItem.accountcode ? selectedItem.accountcode : ''}
+                            {selectedItem.accountname ? ` (${selectedItem.accountname})` : ''}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedItem.gfmis && (
+                        <div className="adp-field-row">
+                          <span className="adp-field-label">รหัส GFMIS</span>
+                          <div className="adp-field-value">{selectedItem.gfmis}</div>
                         </div>
                       )}
 

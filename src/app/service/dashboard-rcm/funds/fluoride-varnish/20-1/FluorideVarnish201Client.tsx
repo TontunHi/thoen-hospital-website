@@ -414,7 +414,7 @@ export default function FluorideVarnish201Client({
         'ชื่อ-สกุล',
         'เพศ',
         'อายุ (ปี)',
-        'กลุ่มเสี่ยง 25-29 ปี',
+        'กลุ่มเสี่ยง 25-59 ปี',
         'สัญชาติ',
         'วันที่รับบริการ',
         'เวลา',
@@ -440,7 +440,7 @@ export default function FluorideVarnish201Client({
         `"${r.ptname.replace(/"/g, '""')}"`,
         `"${r.sex}"`,
         r.age,
-        r.isTargetAge ? '"ใช่ (25-29 ปี)"' : '"ไม่ใช่"',
+        r.isTargetAge ? '"ใช่ (25-59 ปี)"' : '"ไม่ใช่"',
         `"${r.nation || ''}"`,
         `"${r.vstdate}"`,
         `"${r.vsttime}"`,
@@ -487,7 +487,7 @@ export default function FluorideVarnish201Client({
             <span className="fluoride-breadcrumb-cur">20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง)</span>
           </nav>
           <h1 className="fluoride-title">
-            20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001)
+            20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001)
           </h1>
           <p className="fluoride-subtitle">
             รายงานติดตามผู้รับบริการเคลือบฟลูออไรด์วานิชในกลุ่มเสี่ยง การเบิกชดเชยค่าบริการ และสถานะ e-Claim
@@ -759,17 +759,17 @@ export default function FluorideVarnish201Client({
           </div>
         </div>
 
-        {/* Card 5: กลุ่มเป้าหมาย 25-29 ปี */}
+        {/* Card 5: กลุ่มเป้าหมาย 25-59 ปี */}
         <div
           role="button"
           tabIndex={0}
           className={`fluoride-kpi-card ${cardFilter === 'TARGET_AGE' ? 'is-active' : ''}`}
           onClick={() => handleCardFilter('TARGET_AGE')}
           onKeyDown={(e) => e.key === 'Enter' && handleCardFilter('TARGET_AGE')}
-          title="คลิกเพื่อกรองเฉพาะกลุ่มเป้าหมายอายุ 25-29 ปี"
+          title="คลิกเพื่อกรองเฉพาะกลุ่มเป้าหมายอายุ 25-59 ปี"
         >
           <div className="fluoride-kpi-header">
-            <span className="fluoride-kpi-title">กลุ่มเป้าหมาย (25-29 ปี)</span>
+            <span className="fluoride-kpi-title">กลุ่มเป้าหมาย (25-59 ปี)</span>
             <span className="fluoride-kpi-icon" style={{ color: '#2563eb', backgroundColor: '#dbeafe' }}>
               <UserCheck size={16} />
             </span>
@@ -905,7 +905,7 @@ export default function FluorideVarnish201Client({
                 setCurrentPage(1)
               }}
             />
-            <span>เฉพาะกลุ่มเป้าหมาย (25-29 ปี)</span>
+            <span>เฉพาะกลุ่มเป้าหมาย (25-59 ปี)</span>
           </label>
 
           <label className="fluoride-checkbox-label">
@@ -925,7 +925,7 @@ export default function FluorideVarnish201Client({
             <div className="fluoride-active-filter-badge">
               <span>
                 กรอง:{' '}
-                {cardFilter === 'TARGET_AGE' && 'กลุ่มเป้าหมาย 25-29 ปี'}
+                {cardFilter === 'TARGET_AGE' && 'กลุ่มเป้าหมาย 25-59 ปี'}
                 {cardFilter === 'COMPENSATED' && 'ชดเชยแล้ว'}
                 {cardFilter === 'UNCOMPENSATED' && 'ยังไม่ชดเชย'}
                 {cardFilter === 'WITH_AUTHEN' && 'มี Authen'}

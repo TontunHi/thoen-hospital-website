@@ -32,6 +32,7 @@ export const IRON_SUPPLEMENT_DIDS: readonly string[] = [
   '100489000004320120381506',
   '100489000004203120381555',
   '100489000004203120381084',
+  '100489000004203120381144', // 100489 DID from FoxPro
   '100489000004203120381619',
   '100489000004203120381477',
   '100489000004203120381544',
@@ -464,31 +465,14 @@ export class RcmIronSupplementsService {
           items: [],
         }
 
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmIronSupplementsService.checkAdpMapping(executor, Boolean(params.refresh)),
-              apiGateway.clinical.getRcmFundData('iron-supplements', { ds1, ds2, adpCode }),
-            ])
-            mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [mRes, dbRows] = await Promise.all([
-            RcmIronSupplementsService.checkAdpMapping(executor, Boolean(params.refresh)),
-            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
-          ])
-          rows = dbRows || []
-          mappingRes = mRes
-        }
+        // Execute specialized Driving Subquery directly via executor (queryClinicalDb -> Gateway /api/v1/clinical/query)
+        // to guarantee matching of all 25 DIDs, Female (sex = 2), Age 13-45, listname1, and full Rep numbers.
+        const [mRes, dbRows] = await Promise.all([
+          RcmIronSupplementsService.checkAdpMapping(executor, Boolean(params.refresh)),
+          executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
+        ])
+        rows = dbRows || []
+        mappingRes = mRes
 
         return {
           rawRows: rows || [],
@@ -499,7 +483,16 @@ export class RcmIronSupplementsService {
     )
 
     // Normalize and map items
-    const allItems: IronSupplementsItem[] = (rawRows || []).map((r: any, idx: number) => {
+    // Strict cohort guard: 18.2 Iron Supplements fund is strictly for Females (sex = 2) aged 13-45 years
+    const allItems: IronSupplementsItem[] = (rawRows || [])
+      .filter((r: any) => {
+        const sex = String(r.sex_code || r.sex || '').trim()
+        const isFemale = sex === '2' || sex === 'หญิง' || sex === 'F'
+        const age = Number(r.age) || 0
+        const isTargetAge = age >= 13 && age <= 45
+        return isFemale && isTargetAge
+      })
+      .map((r: any, idx: number) => {
       const compensated = Number(r.compensated) || 0
       const isCompensated = compensated > 0
       const authencode = r.authencode ? String(r.authencode).trim() : null

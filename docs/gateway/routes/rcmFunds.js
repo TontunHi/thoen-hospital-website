@@ -65,6 +65,15 @@ export default async function rcmFundsRoutes(fastify, options) {
     return { ds1, ds2 }
   }
 
+  function getFiscalYearStart(dateStr) {
+    const parts = (dateStr || '').split('-')
+    if (parts.length < 2) return dateStr
+    const y = parseInt(parts[0], 10)
+    const m = parseInt(parts[1], 10)
+    const startY = m >= 10 ? y : y - 1
+    return `${startY}-10-01`
+  }
+
   // ------------------------------------------------------------------
   // 2. Dental Implant (รากฟันเทียม DENSUR)
   // ------------------------------------------------------------------
@@ -213,7 +222,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   fastify.get('/api/v1/clinical/rcm/funds/fluoride-varnish', {
     schema: {
       tags: ['1. Clinical Services (HOSxP)'],
-      summary: 'รายงานบริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001)',
+      summary: 'รายงานบริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001)',
       querystring: {
         type: 'object',
         properties: {
@@ -311,8 +320,8 @@ export default async function rcmFundsRoutes(fastify, options) {
           ) m ON m.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
             AND (
-              v.age_y BETWEEN 25 AND 29
-              OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) BETWEEN 25 AND 29
+              v.age_y BETWEEN 25 AND 59
+              OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) BETWEEN 25 AND 59
             )
           GROUP BY o.vn
           ORDER BY o.hn ASC, o.vn ASC;
@@ -868,6 +877,780 @@ export default async function rcmFundsRoutes(fastify, options) {
   })
 
   // ------------------------------------------------------------------
+  // 5.8 Family Planning Fund (9.1 - 9.7)
+  // Supports OPD and IPD with FoxPro-compliant Diagnosis (Z304/Z308) + ADP Union
+  // ------------------------------------------------------------------
+  fastify.get('/api/v1/clinical/rcm/funds/family-planning', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'รายงานบริการวางแผนครอบครัว (Family Planning 9.1 - 9.7) OPD/IPD',
+      querystring: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string' },
+          endDate: { type: 'string' },
+          ds1: { type: 'string' },
+          ds2: { type: 'string' },
+          adpCode: { type: 'string' },
+          patientType: { type: 'string', enum: ['OPD', 'IPD'] },
+          expectedDx: { type: 'string' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { ds1, ds2 } = getRange(req.query)
+    const adpCode = (req.query?.adpCode || 'FP003_2').trim()
+    const patientType = (req.query?.patientType === 'IPD') ? 'IPD' : 'OPD'
+    const expectedDx = (req.query?.expectedDx || (adpCode.startsWith('FP002') ? 'Z308' : 'Z304')).trim()
+    const codePattern = `${adpCode}%`
+    const cacheKey = `rcm-fund-family-planning-${patientType}-${ds1}-${ds2}-${adpCode}-${expectedDx}`
+
+    try {
+      const data = await getCached(cacheKey, 300000, async () => {
+        if (patientType === 'IPD') {
+          const sql = `
+            SELECT 
+              i.an AS vn,
+              i.an,
+              IFNULL(pt.cid, '') AS cid,
+              i.hn,
+              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
+              IFNULL(pt.sex, '') AS sex_code,
+              IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
+              IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, i.regdate), 0) AS age,
+              DATE_FORMAT(i.regdate, '%Y-%m-%d') AS vstdate,
+              DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
+              DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
+              TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
+              CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
+              ptt.pttype_eclaim_id,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS claimcode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
+              w.name AS department,
+              spc.name AS clinic,
+              '' AS cc,
+              IFNULL(a.income, 0) AS income,
+              GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ipt_diag_id SEPARATOR ', ') AS dx,
+              GROUP_CONCAT(DISTINCT IF(op.icd9 REGEXP '^[0-9]', op.icd9, NULL) SEPARATOR ', ') AS op,
+              GROUP_CONCAT(DISTINCT IF(TRIM(d.nhso_adp_code) = ? OR (? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004')) OR (? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691') OR (? IN ('FP003_1','FP003_2','FP003_3','FP003_4') AND TRIM(d.nhso_adp_code) IN ('20003','71681','71682','FP003_1','FP003_2','FP003_3','FP003_4')), CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+              GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
+              COALESCE(e.income, 0) AS money_eclaim,
+              COALESCE(r.income, 0) AS money_rep,
+              COALESCE(n.income, 0) AS money_invoice,
+              COALESCE(n.rep, r.rep, IF(m.status = '4', m.rep, NULL), '') AS rep,
+              CASE
+                WHEN n.an IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
+                WHEN r.an IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+                WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
+                ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
+              END AS status
+            FROM (
+              SELECT DISTINCT an FROM (
+                SELECT i.an 
+                FROM ipt i 
+                JOIN iptdiag dx ON dx.an = i.an 
+                WHERE i.dchdate BETWEEN ? AND ? 
+                  AND dx.icd10 REGEXP ?
+                UNION
+                SELECT oo.an 
+                FROM opitemrece oo
+                JOIN s_drugitems d ON d.icode = oo.icode
+                WHERE oo.vstdate BETWEEN ? AND ?
+                  AND IFNULL(oo.an, '') <> ''
+                  AND (TRIM(d.nhso_adp_code) = ? OR (? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004')) OR (? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691'))
+              ) u
+            ) t
+            JOIN ipt i ON i.an = t.an
+            LEFT JOIN patient pt ON pt.hn = i.hn
+            LEFT JOIN an_stat a ON a.an = i.an
+            LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
+            LEFT JOIN ward w ON w.ward = i.ward
+            LEFT JOIN spclty spc ON spc.spclty = i.spclty
+            LEFT JOIN iptdiag dx ON dx.an = i.an
+            LEFT JOIN iptoprt op ON op.an = i.an
+            LEFT JOIN opitemrece oo ON oo.an = i.an
+            LEFT JOIN s_drugitems d ON d.icode = oo.icode
+            LEFT JOIN rcmdb.authencode cc ON cc.vn = i.an
+            LEFT JOIN visit_pttype vt ON vt.vn = i.an
+            LEFT JOIN (
+              SELECT e.an,
+                     SUM(COALESCE(cc.totpay1, 0)) AS income
+              FROM eclaimdb.m_registerdata e
+              JOIN eclaimdb.m_serviceother cc ON cc.eclaim_no = e.eclaim_no
+              WHERE e.person_type = '2'
+                AND (cc.code LIKE ? OR cc.code LIKE 'FP001%' OR cc.code LIKE 'FP002%' OR cc.code LIKE 'FP003%')
+              GROUP BY e.an
+            ) e ON e.an = i.an
+            LEFT JOIN (
+              SELECT an,
+                     SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
+                     GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
+              FROM rcmdb.repdata
+              WHERE department = 'IP'
+                AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+                AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
+              GROUP BY an
+            ) r ON r.an = i.an
+            LEFT JOIN (
+              SELECT an,
+                     SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
+                     GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
+              FROM rcmdb.repeclaim
+              WHERE department = 'IP'
+                AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+                AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
+              GROUP BY an
+            ) n ON n.an = i.an
+            LEFT JOIN (
+              SELECT m.an,
+                     MAX(m.eclaim_no) AS eclaim_no,
+                     SUBSTRING_INDEX(GROUP_CONCAT(IF(m.status = '4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                     SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status
+              FROM eclaimdb.m_registerdata m
+              WHERE m.person_type = '2'
+              GROUP BY m.an
+            ) m ON m.an = i.an
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            GROUP BY i.an
+            ORDER BY i.dchdate DESC;
+          `
+          const sqlParams = [
+            adpCode, adpCode, adpCode, adpCode,
+            ds1, ds2, expectedDx,
+            ds1, ds2,
+            adpCode, adpCode, adpCode,
+            codePattern,
+            ds1, ds2,
+            ds1, ds2
+          ]
+          const [rows] = await hosPool.query(sql, sqlParams)
+          return rows || []
+        } else {
+          const sql = `
+            SELECT 
+              o.vn,
+              IFNULL(pt.cid, '') AS cid,
+              o.hn,
+              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
+              IFNULL(pt.sex, '') AS sex_code,
+              IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
+              IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
+              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
+              CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
+              ptt.pttype_eclaim_id,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS claimcode,
+              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
+              dep.department AS department,
+              spc.name AS clinic,
+              s.cc AS cc,
+              IFNULL(v.income, 0) AS income,
+              GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ') AS dx,
+              GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS op,
+              GROUP_CONCAT(DISTINCT IF(TRIM(d.nhso_adp_code) = ? OR (? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004')) OR (? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691'), CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
+              GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
+              COALESCE(e.income, 0) AS money_eclaim,
+              COALESCE(r.income, 0) AS money_rep,
+              COALESCE(n.income, 0) AS money_invoice,
+              COALESCE(n.rep, r.rep, IF(m.status = '4', m.rep, NULL), '') AS rep,
+              CASE
+                WHEN n.vn IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
+                WHEN r.vn IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+                WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
+                ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
+              END AS status
+            FROM (
+              SELECT DISTINCT vn FROM (
+                SELECT vn FROM ovstdiag WHERE vstdate BETWEEN ? AND ? AND icd10 REGEXP ?
+                UNION
+                SELECT oo.vn 
+                FROM opitemrece oo
+                JOIN s_drugitems d ON d.icode = oo.icode
+                WHERE oo.vstdate BETWEEN ? AND ?
+                  AND IFNULL(oo.vn, '') <> ''
+                  AND (TRIM(d.nhso_adp_code) = ? OR (? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004')) OR (? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691'))
+              ) u
+            ) t
+            JOIN ovst o ON o.vn = t.vn
+            LEFT JOIN patient pt ON pt.hn = o.hn
+            LEFT JOIN vn_stat v ON v.vn = o.vn
+            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+            LEFT JOIN opdscreen s ON s.vn = o.vn
+            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
+            LEFT JOIN spclty spc ON spc.spclty = o.spclty
+            LEFT JOIN ovstdiag dx ON dx.vn = o.vn
+            LEFT JOIN opitemrece oo ON oo.vn = o.vn
+            LEFT JOIN s_drugitems d ON d.icode = oo.icode
+            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
+            LEFT JOIN (
+              SELECT e.opdseq AS vn,
+                     SUM(COALESCE(cc.totpay1, 0)) AS income
+              FROM eclaimdb.m_registerdata e
+              JOIN eclaimdb.m_serviceother cc ON cc.eclaim_no = e.eclaim_no
+              WHERE e.person_type = '1'
+                AND (cc.code LIKE ? OR cc.code LIKE 'FP003%' OR cc.code LIKE 'FP002%')
+              GROUP BY e.opdseq
+            ) e ON e.vn = o.vn
+            LEFT JOIN (
+              SELECT vn,
+                     SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
+                     GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
+              FROM rcmdb.repdata
+              WHERE department = 'OP'
+                AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+                AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
+              GROUP BY vn
+            ) r ON r.vn = o.vn
+            LEFT JOIN (
+              SELECT vn,
+                     SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
+                     GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
+              FROM rcmdb.repeclaim
+              WHERE department = 'OP'
+                AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+                AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
+              GROUP BY vn
+            ) n ON n.vn = o.vn
+            LEFT JOIN (
+              SELECT m.opdseq AS vn,
+                     MAX(m.eclaim_no) AS eclaim_no,
+                     SUBSTRING_INDEX(GROUP_CONCAT(IF(m.status = '4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                     SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status
+              FROM eclaimdb.m_registerdata m
+              WHERE m.person_type = '1'
+                AND m.opdseq IS NOT NULL
+              GROUP BY m.opdseq
+            ) m ON m.vn = o.vn
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            GROUP BY o.vn
+            ORDER BY o.vstdate DESC, o.vsttime DESC;
+          `
+          const sqlParams = [
+            adpCode, adpCode, adpCode,
+            ds1, ds2, expectedDx,
+            ds1, ds2,
+            adpCode, adpCode, adpCode,
+            codePattern,
+            ds1, ds2,
+            ds1, ds2
+          ]
+          const [rows] = await hosPool.query(sql, sqlParams)
+          return rows || []
+        }
+      })
+
+      return { success: true, fundKey: 'family-planning', data: { rawRows: data } }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  // ------------------------------------------------------------------
+  // 5.9. Anemia Screening (17.1 บริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก หญิง 13-24 ปี ADP 13001)
+  // ------------------------------------------------------------------
+  fastify.get('/api/v1/clinical/rcm/funds/anemia-screening', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'รายงานบริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก อายุ 13-24 ปี ADP (13001)',
+      querystring: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string' },
+          endDate: { type: 'string' },
+          ds1: { type: 'string' },
+          ds2: { type: 'string' },
+          adpCode: { type: 'string', default: '13001' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { ds1, ds2 } = getRange(req.query)
+    const adpCode = (req.query?.adpCode || '13001').trim()
+    const fiscalStartYear = getFiscalYearStart(ds1)
+    const cacheKey = `rcm-fund-anemia-screening-${ds1}-${ds2}-${adpCode}`
+
+    try {
+      const data = await getCached(cacheKey, 300000, async () => {
+        const sql = `
+          SELECT 
+            o.vn,
+            IFNULL(pt.cid, '') AS cid,
+            o.hn,
+            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
+            IFNULL(pt.sex, '') AS sex_code,
+            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
+            IFNULL(nat.name, pt.nationality) AS nation,
+            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), ''), '') AS authencode,
+            IFNULL(ptt.hipdata_code, '') AS maininscl,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
+            ptt.name AS pttypename,
+            dep.department AS department,
+            spc.name AS clinic,
+            v.pdx,
+            v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
+            v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
+            IFNULL(v.income, 0) AS income,
+            dd.name AS listname,
+            (
+              SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
+              FROM opitemrece a
+              JOIN nondrugitems b ON b.icode = a.icode
+              WHERE a.vn = o.vn
+            ) AS listname1,
+            (
+              SELECT GROUP_CONCAT(DISTINCT DATE_FORMAT(o2.vstdate, '%Y-%m-%d') ORDER BY o2.vstdate SEPARATOR ', ')
+              FROM ovst o2
+              JOIN opitemrece oo2 ON oo2.vn = o2.vn
+              JOIN s_drugitems d2 ON d2.icode = oo2.icode
+              WHERE o2.hn = o.hn
+                AND o2.vstdate >= ? AND o2.vstdate < o.vstdate
+                AND TRIM(d2.nhso_adp_code) = ?
+            ) AS camedate,
+            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
+            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep, '') AS rep,
+            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
+            rep.agency,
+            rep.fund,
+            rep.subfund,
+            rep.errorcode,
+            rep.transactiontype
+          FROM (
+            SELECT 
+              oo.vn,
+              GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
+            FROM opitemrece oo
+            JOIN s_drugitems d ON d.icode = oo.icode
+            WHERE IFNULL(oo.vn, '') <> ''
+              AND oo.vstdate BETWEEN ? AND ?
+              AND TRIM(d.nhso_adp_code) = ?
+            GROUP BY oo.vn
+          ) dd
+          JOIN ovst o ON o.vn = dd.vn
+          LEFT JOIN patient pt ON pt.hn = o.hn
+          LEFT JOIN vn_stat v ON v.vn = o.vn
+          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
+          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
+          LEFT JOIN spclty spc ON spc.spclty = o.spclty
+          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
+          LEFT JOIN (
+            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
+                   'NHSO :: มี Invoice แล้ว' AS statusname
+            FROM rcmdb.repeclaim
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+              AND (errorcode = '' OR errorcode IS NULL)
+            GROUP BY vn
+          ) nhso ON nhso.vn = o.vn
+          LEFT JOIN (
+            SELECT vn,
+                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
+                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
+                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
+                   GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
+                   GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
+                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
+                   GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
+                   GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
+            FROM rcmdb.repdata
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY vn
+          ) rep ON rep.vn = o.vn
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
+          LEFT JOIN (
+            SELECT m.opdseq AS vn,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
+                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
+            FROM eclaimdb.m_registerdata m
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
+            GROUP BY m.opdseq
+          ) m ON m.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ?
+            AND (v.sex = 2 OR v.sex = '2' OR pt.sex = '2' OR pt.sex = 2)
+            AND (
+              v.age_y BETWEEN 13 AND 24 
+              OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) BETWEEN 13 AND 24
+            )
+          GROUP BY o.vn
+          ORDER BY o.hn ASC, o.vn ASC;
+        `
+        const sqlParams = [
+          fiscalStartYear, adpCode,
+          ds1, ds2, adpCode,
+          ds1, ds2,
+          ds1, ds2,
+          ds1, ds2
+        ]
+        const [rows] = await hosPool.query(sql, sqlParams)
+        return rows || []
+      })
+
+      return { success: true, fundKey: 'anemia-screening', data: { rawRows: data } }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  // ------------------------------------------------------------------
+  // Dedicated Fund: Iron Supplements 18.2 (ยาเม็ดเสริมธาตุเหล็ก หญิงอายุ 13-45 ปี ADP 14001)
+  // ------------------------------------------------------------------
+  fastify.get('/api/v1/clinical/rcm/funds/iron-supplements', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'รายงานบริการยาเม็ดเสริมธาตุเหล็ก หญิงอายุ 13-45 ปี ADP (14001) + 25 DIDs',
+      querystring: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string' },
+          endDate: { type: 'string' },
+          ds1: { type: 'string' },
+          ds2: { type: 'string' },
+          adpCode: { type: 'string', default: '14001' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { ds1, ds2 } = getRange(req.query)
+    const adpCode = (req.query?.adpCode || '14001').trim()
+    const cacheKey = `rcm-fund-iron-supplements-${ds1}-${ds2}-${adpCode}`
+
+    const IRON_DIDS = [
+      '202030120137819920381422',
+      '100488000004203120381169',
+      '100489000004320121881267',
+      '100488000004203121781674',
+      '100488000004203120381442',
+      '100488000004203120381013',
+      '100488000004203121781144',
+      '100488000004203120381053',
+      '100488000004203120381144',
+      '100488000004203120381271',
+      '100488000004203120381341',
+      '100488000004203120381626',
+      '100488000004203121881626',
+      '100488000004203121881442',
+      '100488000004203121881553',
+      '100489000004192121881506',
+      '100489000004320120381122',
+      '100489000004320120381506',
+      '100489000004203120381555',
+      '100489000004203120381084',
+      '100489000004203120381144',
+      '100489000004203120381619',
+      '100489000004203120381477',
+      '100489000004203120381544',
+      '100489000004203120381546',
+    ]
+    const didPlaceholders = IRON_DIDS.map(() => '?').join(', ')
+
+    try {
+      const data = await getCached(cacheKey, 300000, async () => {
+        const sql = `
+          SELECT 
+            o.vn,
+            IFNULL(pt.cid, '') AS cid,
+            o.hn,
+            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
+            DATE_FORMAT(pt.birthday, '%Y-%m-%d') AS birthday,
+            IFNULL(pt.sex, '') AS sex_code,
+            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
+            IFNULL(nat.name, pt.nationality) AS nation,
+            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
+            IFNULL(ptt.hipdata_code, '') AS maininscl,
+            ptt.name AS pttypename,
+            ptt.pttype_eclaim_id,
+            dep.department AS department,
+            spc.name AS clinic,
+            v.pdx,
+            v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
+            v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
+            IFNULL(v.income, 0) AS income,
+            dd.drugname AS drugname,
+            dd.name AS listname,
+            (
+              SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
+              FROM opitemrece a
+              JOIN nondrugitems b ON b.icode = a.icode
+              WHERE a.vn = o.vn
+            ) AS listname1,
+            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
+            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
+            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
+            rep.agency,
+            rep.fund AS fund,
+            rep.subfund AS subfund,
+            rep.errorcode,
+            rep.transactiontype
+          FROM (
+            SELECT 
+              oo.vn,
+              GROUP_CONCAT(DISTINCT target_items.drug_name SEPARATOR ', ') AS drugname,
+              GROUP_CONCAT(DISTINCT target_items.adp_name SEPARATOR ', ') AS name
+            FROM (
+              SELECT 
+                icode, 
+                CONCAT_WS(' ', name, NULLIF(strength, '')) AS drug_name, 
+                NULL AS adp_name
+              FROM drugitems 
+              WHERE did IN (${didPlaceholders})
+              UNION ALL
+              SELECT 
+                icode, 
+                NULL AS drug_name, 
+                CONCAT_WS(' ', s_sub.name, NULLIF(s_sub.strength, '')) AS adp_name
+              FROM s_drugitems s_sub 
+              WHERE TRIM(s_sub.nhso_adp_code) = ?
+            ) target_items
+            JOIN opitemrece oo ON oo.icode = target_items.icode
+            WHERE IFNULL(oo.vn, '') <> ''
+              AND oo.vstdate BETWEEN ? AND ?
+            GROUP BY oo.vn
+          ) dd
+          JOIN ovst o ON o.vn = dd.vn
+          LEFT JOIN patient pt ON pt.hn = o.hn
+          LEFT JOIN vn_stat v ON v.vn = o.vn
+          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
+          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
+          LEFT JOIN spclty spc ON spc.spclty = o.spclty
+          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
+          LEFT JOIN (
+            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
+                   'NHSO :: มี Invoice แล้ว' AS statusname
+            FROM rcmdb.repeclaim
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+              AND (errorcode = '' OR errorcode IS NULL)
+            GROUP BY vn
+          ) nhso ON nhso.vn = o.vn
+          LEFT JOIN (
+            SELECT vn,
+                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
+                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
+                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
+                   GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
+                   GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
+                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
+                   GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
+                   GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
+            FROM rcmdb.repdata
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY vn
+          ) rep ON rep.vn = o.vn
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
+          LEFT JOIN (
+            SELECT m.opdseq AS vn,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
+                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
+            FROM eclaimdb.m_registerdata m
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
+            GROUP BY m.opdseq
+          ) m ON m.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ?
+            AND (v.sex = 2 OR v.sex = '2' OR pt.sex = '2' OR pt.sex = 2)
+            AND (
+              v.age_y BETWEEN 13 AND 45 
+              OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) BETWEEN 13 AND 45
+            )
+          GROUP BY o.vn
+          ORDER BY o.hn ASC, o.vn ASC;
+        `
+        const sqlParams = [
+          ...IRON_DIDS,
+          adpCode,
+          ds1, ds2,
+          ds1, ds2,
+          ds1, ds2,
+          ds1, ds2
+        ]
+        const [rows] = await hosPool.query(sql, sqlParams)
+        return rows || []
+      })
+
+      return { success: true, fundKey: 'iron-supplements', data: { rawRows: data } }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  // ------------------------------------------------------------------
+  // 11. Colorectal Cancer (ตรวจคัดกรองมะเร็งลำไส้ใหญ่ Fit test ADP 90005)
+  // ------------------------------------------------------------------
+  fastify.get('/api/v1/clinical/rcm/funds/colorectal-cancer', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'รายงานบริการตรวจคัดกรองมะเร็งลำไส้ใหญ่และลำไส้ตรง (Fit test) อายุ 50-70 ปี (21.2 ADP 90005)',
+      querystring: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string' },
+          endDate: { type: 'string' },
+          ds1: { type: 'string' },
+          ds2: { type: 'string' },
+          adpCode: { type: 'string', default: '90005' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { ds1, ds2 } = getRange(req.query)
+    const adpCode = (req.query?.adpCode || '90005').trim()
+    const cacheKey = `rcm-fund-colorectal-cancer-${ds1}-${ds2}-${adpCode}`
+
+    try {
+      const data = await getCached(cacheKey, 300000, async () => {
+        const sql = `
+          SELECT 
+            o.vn,
+            IFNULL(pt.cid, '') AS cid,
+            o.hn,
+            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
+            DATE_FORMAT(pt.birthday, '%Y-%m-%d') AS birthday,
+            IFNULL(pt.sex, '') AS sex_code,
+            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
+            IFNULL(nat.name, pt.nationality) AS nation,
+            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
+            IFNULL(o.pttype, '') AS pttype,
+            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
+            IFNULL(ptt.hipdata_code, '') AS maininscl,
+            ptt.name AS pttypename,
+            dep.department AS department,
+            spc.name AS clinic,
+            v.pdx,
+            v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
+            v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
+            IFNULL(v.income, 0) AS income,
+            lo.labresult AS labresult,
+            tt.pp_special_code AS pp_special_code,
+            tt.code AS code,
+            dd.name AS listname,
+            sm.status AS status_seamless,
+            sm.rep AS rep_seamless,
+            IFNULL(sm.compensated, 0) AS compensated_seamless,
+            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, sm.status, '-:ยังไม่ได้ส่ง') AS status,
+            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep, sm.rep) AS rep,
+            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, sm.compensated, 0) AS compensated,
+            rep.agency,
+            rep.fund,
+            rep.subfund
+          FROM ovst o
+          LEFT JOIN patient pt ON pt.hn = o.hn
+          LEFT JOIN vn_stat v ON v.vn = o.vn
+          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
+          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
+          LEFT JOIN spclty spc ON spc.spclty = o.spclty
+          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
+          LEFT JOIN (
+            SELECT 
+              oo.vn,
+              GROUP_CONCAT(DISTINCT CONCAT_WS(' ', s_sub.name, NULLIF(s_sub.strength, '')) SEPARATOR ', ') AS name
+            FROM s_drugitems s_sub
+            JOIN opitemrece oo ON oo.icode = s_sub.icode
+            WHERE TRIM(s_sub.nhso_adp_code) = ?
+              AND IFNULL(oo.vn, '') <> ''
+              AND oo.vstdate BETWEEN ? AND ?
+            GROUP BY oo.vn
+          ) dd ON dd.vn = o.vn
+          LEFT JOIN (
+            SELECT 
+              pp.vn,
+              GROUP_CONCAT(DISTINCT tt_sub.pp_special_code SEPARATOR ', ') AS pp_special_code,
+              GROUP_CONCAT(DISTINCT tt_sub.pp_special_type_name SEPARATOR ', ') AS code
+            FROM pp_special pp
+            JOIN pp_special_type tt_sub ON tt_sub.pp_special_type_id = pp.pp_special_type_id
+            WHERE tt_sub.pp_special_code REGEXP '1B006'
+            GROUP BY pp.vn
+          ) tt ON tt.vn = o.vn
+          LEFT JOIN (
+            SELECT 
+              lh.vn,
+              GROUP_CONCAT(DISTINCT lo_sub.lab_order_result SEPARATOR ', ') AS labresult
+            FROM lab_head lh
+            JOIN lab_order lo_sub ON lo_sub.lab_order_number = lh.lab_order_number 
+                                 AND lo_sub.lab_items_name_ref REGEXP 'stool'
+            WHERE lh.order_date BETWEEN ? AND ?
+            GROUP BY lh.vn
+          ) lo ON lo.vn = o.vn
+          LEFT JOIN (
+            SELECT vn, 
+                   SUBSTRING_INDEX(GROUP_CONCAT(status ORDER BY vn), ',', 1) AS status,
+                   SUBSTRING_INDEX(GROUP_CONCAT(rep ORDER BY vn), ',', 1) AS rep,
+                   SUM(compensated) AS compensated
+            FROM rcmdb.seamless
+            WHERE IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) sm ON sm.vn = o.vn
+          LEFT JOIN (
+            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
+                   'NHSO :: มี Invoice แล้ว' AS statusname
+            FROM rcmdb.repeclaim
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+              AND (errorcode = '' OR errorcode IS NULL)
+            GROUP BY vn
+          ) nhso ON nhso.vn = o.vn
+          LEFT JOIN (
+            SELECT vn,
+                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
+                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
+                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
+                   GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
+                   GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
+                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
+            FROM rcmdb.repdata
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY vn
+          ) rep ON rep.vn = o.vn
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
+          LEFT JOIN (
+            SELECT m.opdseq AS vn,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
+                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
+            FROM eclaimdb.m_registerdata m
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
+            GROUP BY m.opdseq
+          ) m ON m.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ?
+            AND (
+              v.age_y BETWEEN 50 AND 70
+              OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) BETWEEN 50 AND 70
+            )
+            AND (tt.vn IS NOT NULL OR dd.vn IS NOT NULL)
+          GROUP BY o.vn
+          ORDER BY o.hn ASC, o.vn ASC;
+        `
+        const sqlParams = [
+          adpCode,
+          ds1, ds2,
+          ds1, ds2,
+          ds1, ds2,
+          ds1, ds2,
+          ds1, ds2
+        ]
+        const [rows] = await hosPool.query(sql, sqlParams)
+        return rows || []
+      })
+
+      return { success: true, fundKey: 'colorectal-cancer', isDedicated: true, data: { rawRows: data } }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  // ------------------------------------------------------------------
   // 6. Generic Dispatcher for All Other RCM Funds
   // Allows any RCM fund to be fetched cleanly by fundKey
   // ------------------------------------------------------------------
@@ -898,8 +1681,6 @@ export default async function rcmFundsRoutes(fastify, options) {
 
     // Map fundKey to target ADP code if not explicitly given
     const fundAdpMap = {
-      'anemia-screening': '13001',
-      'iron-supplements': '14001',
       'postpartum': '30015',
       't1dm-gdm-pdm': '11005',
       'telemed-drug': 'TELMED',
@@ -909,7 +1690,6 @@ export default async function rcmFundsRoutes(fastify, options) {
       'viral-hepatitis': 'HEPB',
       'hepatitis-c': 'HEPC',
       'health-screening': 'SCREEN',
-      'colorectal-cancer': 'FIT',
       'clopidogrel': '37999771001',
       'cancer': 'CANCER',
       'walkin': 'WALKIN',

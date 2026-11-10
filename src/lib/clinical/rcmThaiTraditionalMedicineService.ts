@@ -1,5 +1,4 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -342,17 +341,6 @@ export class RcmThaiTraditionalMedicineService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('thai-traditional-medicine-3', { ds1, ds2 })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return gwRes.data.rawRows
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
         const sql = `
           SELECT 
             o.vn,
@@ -365,7 +353,7 @@ export class RcmThaiTraditionalMedicineService {
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
             DATE_FORMAT(s.service_date, '%Y-%m-%d') AS servicedate,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vi.auth_code), ''), NULLIF(TRIM(vi.claim_code), '')) AS authencode,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(cp.nhso_authen_code), ''), NULLIF(TRIM(vi.auth_code), ''), NULLIF(TRIM(vi.claim_code), '')) AS authencode,
             IFNULL(ptt.hipdata_code, '') AS maininscl,
             IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
             IFNULL(ptt.name, o.pttype) AS pttypename,
@@ -383,9 +371,26 @@ export class RcmThaiTraditionalMedicineService {
             hd.herb_drugs,
             v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
             IFNULL(v.income, 0) AS income,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, 'ยังไม่ได้ส่ง') AS status,
-            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
+            COALESCE(
+              NULLIF(TRIM(nhso.statusname), ''),
+              NULLIF(TRIM(rep.statusname), ''),
+              NULLIF(TRIM(nn.StatusName), ''),
+              NULLIF(TRIM(m.statusname), ''),
+              'ยังไม่ได้ส่ง'
+            ) AS status,
+            COALESCE(
+              NULLIF(TRIM(nhso.rep), ''),
+              NULLIF(TRIM(rep.rep), ''),
+              NULLIF(TRIM(nn.Rep), ''),
+              NULLIF(TRIM(m.rep), '')
+            ) AS rep,
+            CASE 
+              WHEN nhso.compensated IS NOT NULL AND nhso.compensated > 0 THEN nhso.compensated
+              WHEN rep.compensated IS NOT NULL AND rep.compensated > 0 THEN rep.compensated
+              WHEN nn.Income IS NOT NULL AND nn.Income > 0 THEN nn.Income
+              WHEN m.compensated IS NOT NULL AND m.compensated > 0 THEN m.compensated
+              ELSE COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0)
+            END AS compensated,
             sm.payno AS seamless_payno,
             sm.compensated AS seamless_compensated
           FROM ovst o
@@ -393,13 +398,13 @@ export class RcmThaiTraditionalMedicineService {
           LEFT JOIN (
             SELECT 
               tt.health_med_service_id,
-              GROUP_CONCAT(DISTINCT IF(st.health_med_treatment_id = 1, 'Y', NULL)) AS tm1,
-              GROUP_CONCAT(DISTINCT IF(st.health_med_treatment_id = 2, 'Y', NULL)) AS tm2,
-              GROUP_CONCAT(DISTINCT IF(st.health_med_treatment_id = 3, 'Y', NULL)) AS tm3,
-              GROUP_CONCAT(DISTINCT IF(st.health_med_treatment_id = 4, 'Y', NULL)) AS tm4,
-              GROUP_CONCAT(DISTINCT IF(st.health_med_treatment_id = 5, 'Y', NULL)) AS tm5,
-              GROUP_CONCAT(DISTINCT IF(st.health_med_treatment_id = 6, 'Y', NULL)) AS tm6,
-              GROUP_CONCAT(DISTINCT IF(st.health_med_treatment_id = 7, 'Y', NULL)) AS tm7,
+              GROUP_CONCAT(DISTINCT IF(COALESCE(st.health_med_treatment_id, CASE WHEN st.health_med_treatment_subtype_name REGEXP 'ยา' THEN 1 WHEN st.health_med_treatment_subtype_name REGEXP 'นวด' THEN 2 WHEN st.health_med_treatment_subtype_name REGEXP 'ประคบ' THEN 3 WHEN st.health_med_treatment_subtype_name REGEXP 'อบ|อาบ' THEN 4 WHEN st.health_med_treatment_subtype_name REGEXP 'ทับหม้อเกลือ' THEN 5 WHEN st.health_med_treatment_subtype_name REGEXP 'สมาธิบำบัด' THEN 6 ELSE 7 END) = 1, 'Y', NULL)) AS tm1,
+              GROUP_CONCAT(DISTINCT IF(COALESCE(st.health_med_treatment_id, CASE WHEN st.health_med_treatment_subtype_name REGEXP 'ยา' THEN 1 WHEN st.health_med_treatment_subtype_name REGEXP 'นวด' THEN 2 WHEN st.health_med_treatment_subtype_name REGEXP 'ประคบ' THEN 3 WHEN st.health_med_treatment_subtype_name REGEXP 'อบ|อาบ' THEN 4 WHEN st.health_med_treatment_subtype_name REGEXP 'ทับหม้อเกลือ' THEN 5 WHEN st.health_med_treatment_subtype_name REGEXP 'สมาธิบำบัด' THEN 6 ELSE 7 END) = 2, 'Y', NULL)) AS tm2,
+              GROUP_CONCAT(DISTINCT IF(COALESCE(st.health_med_treatment_id, CASE WHEN st.health_med_treatment_subtype_name REGEXP 'ยา' THEN 1 WHEN st.health_med_treatment_subtype_name REGEXP 'นวด' THEN 2 WHEN st.health_med_treatment_subtype_name REGEXP 'ประคบ' THEN 3 WHEN st.health_med_treatment_subtype_name REGEXP 'อบ|อาบ' THEN 4 WHEN st.health_med_treatment_subtype_name REGEXP 'ทับหม้อเกลือ' THEN 5 WHEN st.health_med_treatment_subtype_name REGEXP 'สมาธิบำบัด' THEN 6 ELSE 7 END) = 3, 'Y', NULL)) AS tm3,
+              GROUP_CONCAT(DISTINCT IF(COALESCE(st.health_med_treatment_id, CASE WHEN st.health_med_treatment_subtype_name REGEXP 'ยา' THEN 1 WHEN st.health_med_treatment_subtype_name REGEXP 'นวด' THEN 2 WHEN st.health_med_treatment_subtype_name REGEXP 'ประคบ' THEN 3 WHEN st.health_med_treatment_subtype_name REGEXP 'อบ|อาบ' THEN 4 WHEN st.health_med_treatment_subtype_name REGEXP 'ทับหม้อเกลือ' THEN 5 WHEN st.health_med_treatment_subtype_name REGEXP 'สมาธิบำบัด' THEN 6 ELSE 7 END) = 4, 'Y', NULL)) AS tm4,
+              GROUP_CONCAT(DISTINCT IF(COALESCE(st.health_med_treatment_id, CASE WHEN st.health_med_treatment_subtype_name REGEXP 'ยา' THEN 1 WHEN st.health_med_treatment_subtype_name REGEXP 'นวด' THEN 2 WHEN st.health_med_treatment_subtype_name REGEXP 'ประคบ' THEN 3 WHEN st.health_med_treatment_subtype_name REGEXP 'อบ|อาบ' THEN 4 WHEN st.health_med_treatment_subtype_name REGEXP 'ทับหม้อเกลือ' THEN 5 WHEN st.health_med_treatment_subtype_name REGEXP 'สมาธิบำบัด' THEN 6 ELSE 7 END) = 5, 'Y', NULL)) AS tm5,
+              GROUP_CONCAT(DISTINCT IF(COALESCE(st.health_med_treatment_id, CASE WHEN st.health_med_treatment_subtype_name REGEXP 'ยา' THEN 1 WHEN st.health_med_treatment_subtype_name REGEXP 'นวด' THEN 2 WHEN st.health_med_treatment_subtype_name REGEXP 'ประคบ' THEN 3 WHEN st.health_med_treatment_subtype_name REGEXP 'อบ|อาบ' THEN 4 WHEN st.health_med_treatment_subtype_name REGEXP 'ทับหม้อเกลือ' THEN 5 WHEN st.health_med_treatment_subtype_name REGEXP 'สมาธิบำบัด' THEN 6 ELSE 7 END) = 6, 'Y', NULL)) AS tm6,
+              GROUP_CONCAT(DISTINCT IF(COALESCE(st.health_med_treatment_id, CASE WHEN st.health_med_treatment_subtype_name REGEXP 'ยา' THEN 1 WHEN st.health_med_treatment_subtype_name REGEXP 'นวด' THEN 2 WHEN st.health_med_treatment_subtype_name REGEXP 'ประคบ' THEN 3 WHEN st.health_med_treatment_subtype_name REGEXP 'อบ|อาบ' THEN 4 WHEN st.health_med_treatment_subtype_name REGEXP 'ทับหม้อเกลือ' THEN 5 WHEN st.health_med_treatment_subtype_name REGEXP 'สมาธิบำบัด' THEN 6 ELSE 7 END) = 7, 'Y', NULL)) AS tm7,
               GROUP_CONCAT(DISTINCT st.health_med_treatment_subtype_name SEPARATOR ', ') AS treatment_names
             FROM health_med_service_treatment tt
             JOIN health_med_treatment_subtype st ON st.health_med_treatment_subtype_id = tt.health_med_treatment_subtype_id
@@ -423,13 +428,14 @@ export class RcmThaiTraditionalMedicineService {
           LEFT JOIN patient pt ON pt.hn = o.hn
           LEFT JOIN vn_stat v ON v.vn = o.vn
           LEFT JOIN visit_pttype vi ON vi.vn = o.vn
+          LEFT JOIN nhso_confirm_privilege cp ON cp.vn = o.vn
           LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
           LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: มี Invoice แล้ว' AS statusname
+                   'NHSO :: ได้รับ Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
             WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
@@ -439,7 +445,7 @@ export class RcmThaiTraditionalMedicineService {
             SELECT vn,
                    GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
                    SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
+                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: ส่ง Rep แล้ว', NULL) AS statusname,
                    GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                    GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
                    GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode
@@ -741,17 +747,6 @@ export class RcmThaiTraditionalMedicineService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('thai-traditional-medicine-11', { ds1, ds2 })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return gwRes.data.rawRows
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
         const sql = `
           SELECT 
             o.vn,
@@ -764,7 +759,7 @@ export class RcmThaiTraditionalMedicineService {
             IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
             TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vs.auth_code), ''), NULLIF(TRIM(vs.claim_code), '')) AS auth_code,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(cp.nhso_authen_code), ''), NULLIF(TRIM(vs.auth_code), ''), NULLIF(TRIM(vs.claim_code), '')) AS auth_code,
             IFNULL(cp.nhso_authen_code, '') AS authen_endpoint,
             IFNULL(ptt.hipdata_code, '') AS hipdata_code,
             IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
@@ -774,11 +769,11 @@ export class RcmThaiTraditionalMedicineService {
             IF(hs.hospcode IS NOT NULL, CONCAT(hs.hospcode, ' ', hs.name), v.hospsub) AS hospsub,
             v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
             IFNULL(v.income, 0) AS income,
-            dd.drug_names,
-            dd.ttmt_codes,
-            dd.total_qty,
-            dd.total_drug_amount,
-            dd.item_count,
+            GROUP_CONCAT(DISTINCT CONCAT(di.name, ' (', oo.qty, ' ', IFNULL(di.units, 'ชิ้น'), ')') SEPARATOR ', ') AS drug_names,
+            GROUP_CONCAT(DISTINCT di.ttmt_code SEPARATOR ', ') AS ttmt_codes,
+            SUM(oo.qty) AS total_qty,
+            SUM(oo.qty * oo.unitprice) AS total_drug_amount,
+            COUNT(DISTINCT di.icode) AS item_count,
             re.rep AS rep,
             re.compensated AS compensated,
             re.fund AS fund,
@@ -786,33 +781,12 @@ export class RcmThaiTraditionalMedicineService {
             re.errorcode AS errorcode,
             rd.rep AS rep_invoice,
             rd.compensated AS compensated_invoice,
-            COALESCE(re.statusname, rd.statusname, 'ยังไม่ได้ส่ง') AS status
-          FROM (
-            SELECT 
-              oo.vn,
-              GROUP_CONCAT(DISTINCT CONCAT(target_herbs.name, ' (', oo.qty, ' ', IFNULL(target_herbs.units, 'ชิ้น'), ')') SEPARATOR ', ') AS drug_names,
-              GROUP_CONCAT(DISTINCT target_herbs.ttmt_code SEPARATOR ', ') AS ttmt_codes,
-              SUM(oo.qty) AS total_qty,
-              SUM(oo.qty * oo.unitprice) AS total_drug_amount,
-              COUNT(DISTINCT target_herbs.icode) AS item_count
-            FROM (
-              SELECT 
-                icode, 
-                name, 
-                strength, 
-                units, 
-                ttmt_code, 
-                did, 
-                sks_product_category_id
-              FROM drugitems
-              WHERE ttmt_code IS NOT NULL AND TRIM(ttmt_code) <> ''
-                AND sks_product_category_id IN (4, 3)
-            ) target_herbs
-            JOIN opitemrece oo ON oo.icode = target_herbs.icode
-            WHERE oo.vstdate BETWEEN ? AND ?
-            GROUP BY oo.vn
-          ) dd
-          JOIN ovst o ON o.vn = dd.vn
+            COALESCE(rd.statusname, re.statusname, 'ยังไม่ได้ส่ง') AS status
+          FROM ovst o
+          JOIN opitemrece oo ON oo.vn = o.vn
+          JOIN drugitems di ON di.icode = oo.icode
+            AND di.ttmt_code IS NOT NULL AND TRIM(di.ttmt_code) <> ''
+            AND di.sks_product_category_id IN (4, 3)
           LEFT JOIN patient pt ON pt.hn = o.hn
           LEFT JOIN vn_stat v ON v.vn = o.vn
           LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
@@ -827,7 +801,7 @@ export class RcmThaiTraditionalMedicineService {
               vn,
               GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
               SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-              IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
+              IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: ส่ง Rep แล้ว', NULL) AS statusname,
               GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
               GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
               GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode
@@ -840,7 +814,7 @@ export class RcmThaiTraditionalMedicineService {
               vn,
               GROUP_CONCAT(DISTINCT rep) AS rep,
               SUM(compensated) AS compensated,
-              'NHSO :: มี Invoice แล้ว' AS statusname
+              'NHSO :: ได้รับ Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
             WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
@@ -848,10 +822,10 @@ export class RcmThaiTraditionalMedicineService {
           ) rd ON rd.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
             AND ptt.hipdata_code IN ('UCS', 'WEL')
+          GROUP BY o.vn
           ORDER BY o.vstdate DESC, o.vsttime DESC
         `
         const sqlParams = [
-          ds1, ds2, // dd oo.vstdate
           ds1, ds2, // re admdate
           ds1, ds2, // rd admdate
           ds1, ds2, // o.vstdate

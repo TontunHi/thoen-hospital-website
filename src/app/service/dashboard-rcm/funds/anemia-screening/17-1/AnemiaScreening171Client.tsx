@@ -437,7 +437,7 @@ export default function AnemiaScreening171Client({
 
       await exportRcmExcel({
         filename: `anemia_screening_17_1_${ds1}_to_${ds2}.xlsx`,
-        title: 'การคัดกรองภาวะซีดในเด็ก 6-12 เดือน (17.1)',
+        title: '17.1 บริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก อายุ 13-24 ปี ADP (13001)',
         subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} | โรงพยาบาลเถิน`,
         headers,
         rows,

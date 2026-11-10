@@ -70,7 +70,7 @@ describe('RcmFluorideVarnishService', () => {
         hn: '0000001',
         ptname: 'นาย สมชาย ฟันดี',
         sex_code: '1',
-        age: 26, // Target age (25-29)
+        age: 26, // Target age (25-59)
         nation: 'ไทย',
         vstdate: '2026-10-01',
         vsttime: '08:30:00',
@@ -96,7 +96,7 @@ describe('RcmFluorideVarnishService', () => {
         hn: '0000002',
         ptname: 'น.ส. สมหญิง สดใส',
         sex_code: '2',
-        age: 35, // Non-target age (35, in 25-59)
+        age: 65, // Non-target age (outside 25-59)
         nation: 'ไทย',
         vstdate: '2026-10-02',
         vsttime: '09:15:00',

@@ -5,9 +5,9 @@ import { RcmFluorideVarnishService } from '@/lib/clinical/rcmFluorideVarnishServ
 import FluorideVarnish201Client from './FluorideVarnish201Client'
 
 export const metadata: Metadata = {
-  title: '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001) | กองทุน RCM โรงพยาบาลเถิน',
+  title: '20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001) | กองทุน RCM โรงพยาบาลเถิน',
   description:
-    'บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP รหัส ADP 15001 รายงานกองทุนและการชดเชยค่าบริการทางการแพทย์ RCM โรงพยาบาลเถิน',
+    'บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP รหัส ADP 15001 รายงานกองทุนและการชดเชยค่าบริการทางการแพทย์ RCM โรงพยาบาลเถิน',
 }
 
 export default async function FluorideVarnish201Page() {

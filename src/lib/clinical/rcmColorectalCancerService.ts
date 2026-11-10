@@ -510,7 +510,18 @@ export class RcmColorectalCancerService {
               apiGateway.clinical.getRcmFundData('colorectal-cancer', { ds1, ds2, adpCode }),
             ])
             mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+            // Only accept gateway data if it is from a dedicated route containing Special PP code fields,
+            // avoiding incomplete generic fallback rows that lack code, pp_special_code, and labresult.
+            const hasDedicatedData =
+              gwRes &&
+              (Boolean((gwRes as any).isDedicated) ||
+                (gwRes.data &&
+                  Array.isArray(gwRes.data.rawRows) &&
+                  gwRes.data.rawRows.length > 0 &&
+                  gwRes.data.rawRows[0] &&
+                  ('code' in gwRes.data.rawRows[0] || 'pp_special_code' in gwRes.data.rawRows[0])))
+
+            if (hasDedicatedData && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
               rows = gwRes.data.rawRows
               fetchedViaNamedApi = true
             }

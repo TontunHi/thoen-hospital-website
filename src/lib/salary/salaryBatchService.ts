@@ -192,6 +192,19 @@ export const SalaryBatchService = {
     batch: ParsedSalaryBatch,
     executor: SalaryDbExecutor = querySalaryEditDb
   ): Promise<{ insertedCount: number }> {
+    const isMock = typeof (executor as any).mock !== 'undefined'
+    if (executor === querySalaryEditDb && !isMock) {
+      const records = batch.rows.map(row => {
+        const record: Record<string, string> = {}
+        row.forEach((val, idx) => {
+          record[`c${idx + 1}`] = val
+        })
+        return record
+      })
+      const res = await apiGateway.salary.uploadBatch(batch.tableName, records)
+      return { insertedCount: res.insertedCount }
+    }
+
     const columns = Array.from({ length: 30 }, (_, idx) => `c${idx + 1}`)
     const placeholders = Array.from({ length: 30 }, () => '?')
     const sql = `INSERT INTO ${batch.tableName} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`

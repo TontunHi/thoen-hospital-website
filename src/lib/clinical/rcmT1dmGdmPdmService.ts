@@ -1,5 +1,4 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -184,17 +183,6 @@ export class RcmT1dmGdmPdmService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('t1dm-gdm-pdm', { ds1, ds2 })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return gwRes.data.rawRows
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
         // Safe check / query: join rcmdb.t1dm if available, otherwise coalesce
         const sql = `
           SELECT 
@@ -232,8 +220,19 @@ export class RcmT1dmGdmPdmService {
             v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
             v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
             COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
-            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
+            COALESCE(
+              NULLIF(TRIM(nhso.rep), ''),
+              NULLIF(TRIM(rep.rep), ''),
+              NULLIF(TRIM(nn.Rep), ''),
+              NULLIF(TRIM(m.rep), '')
+            ) AS rep,
+            CASE
+              WHEN nhso.vn IS NOT NULL AND nhso.compensated > 0 THEN nhso.compensated
+              WHEN rep.vn IS NOT NULL AND rep.compensated > 0 THEN rep.compensated
+              WHEN nn.Seq IS NOT NULL AND nn.Income > 0 THEN nn.Income
+              WHEN m.vn IS NOT NULL AND m.compensated > 0 THEN m.compensated
+              ELSE COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0)
+            END AS compensated,
             rep.fund,
             rep.subfund
           FROM ovst o
@@ -250,7 +249,7 @@ export class RcmT1dmGdmPdmService {
           LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: มี Invoice แล้ว' AS statusname
+                   'NHSO :: ได้รับ Invoice แล้ว' AS statusname
             FROM rcmdb.repeclaim
             WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
               AND (errorcode = '' OR errorcode IS NULL)
@@ -260,7 +259,7 @@ export class RcmT1dmGdmPdmService {
             SELECT vn,
                    GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
                    SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
+                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: ส่ง Rep แล้ว', NULL) AS statusname,
                    GROUP_CONCAT(DISTINCT fund SEPARATOR ', ') AS fund,
                    GROUP_CONCAT(DISTINCT subfund SEPARATOR ', ') AS subfund
             FROM rcmdb.repdata

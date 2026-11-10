@@ -117,4 +117,11 @@ describe('AdpSearchClient Component with Multi-Select Dropdown', () => {
       expect(ipdBtn).toHaveClass('active')
     })
   })
+
+  it('defaults to SPECC when initialData is null or not provided', async () => {
+    render(<AdpSearchClient />)
+    await waitFor(() => {
+      expect(screen.getAllByText('SPECC').length).toBeGreaterThan(0)
+    })
+  })
 })

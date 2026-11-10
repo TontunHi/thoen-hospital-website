@@ -507,6 +507,7 @@ export class ApiGatewayClient {
       if (params?.adpCode) q.set('adpCode', params.adpCode as string)
       if (params?.patientType) q.set('patientType', params.patientType as string)
       if (params?.serviceType) q.set('serviceType', params.serviceType as string)
+      if (params?.expectedDx) q.set('expectedDx', params.expectedDx as string)
       const qs = q.toString() ? `?${q.toString()}` : ''
       const res = await this.get<any>(`/api/v1/clinical/rcm/funds/${encodeURIComponent(fundKey)}${qs}`)
 
@@ -916,6 +917,84 @@ export class ApiGatewayClient {
       if (params?.limit) q.set('limit', String(params.limit))
       const qs = q.toString() ? `?${q.toString()}` : ''
       return this.get<Array<Record<string, unknown>>>(`/api/v1/app/tasks${qs}`)
+    },
+
+    generateTaskNo: (ymPrefix: string) => {
+      return this.post<{ success: boolean; count: number; taskNo: string }>('/api/v1/app/tasks/generate-no', {
+        ymPrefix
+      })
+    },
+
+    getTaskFullDetails: (id: string | number) => {
+      return this.get<{
+        success: boolean
+        data: {
+          task: Record<string, any>
+          steps: Array<Record<string, any>>
+          repairDetail: Record<string, any> | null
+          auditLogs: Array<Record<string, any>>
+        }
+      }>(`/api/v1/app/tasks/${encodeURIComponent(String(id))}/full-details`)
+    },
+
+    executeWorkflowAction: (data: {
+      taskId: string
+      action: string
+      comment?: string
+      nextAssigneeId?: number | null
+      partialEdits?: Record<string, any>
+      holdReason?: string
+      holdDetails?: string
+      targetStepNo?: number | null
+      signaturePath?: string | null
+      signatureHash?: string | null
+      actor: {
+        id: number
+        username: string
+        name?: string | null
+        position?: string | null
+        role?: string | null
+      }
+    }) => {
+      return this.post<{
+        success: boolean
+        message: string
+        isFinalStep: boolean
+        nextStep: Record<string, any> | null
+      }>('/api/v1/app/tasks/workflow-action', data)
+    },
+
+    executeRepairAction: (data: {
+      taskId: string
+      action: string
+      performer: {
+        id: number
+        username: string
+        name?: string | null
+        position?: string | null
+        role?: string | null
+      }
+      payload?: Record<string, any>
+    }) => {
+      return this.post<{
+        success: boolean
+        message: string
+      }>('/api/v1/app/tasks/repair-action', data)
+    },
+
+    updateTaskByManager: (
+      id: string | number,
+      data: {
+        performer: { id: number; username: string; name?: string | null }
+        taskUpdates?: Record<string, any>
+        repairUpdates?: Record<string, any>
+        diffDetails?: Record<string, any>
+      }
+    ) => {
+      return this.put<{ success: boolean; message: string }>(
+        `/api/v1/app/tasks/${encodeURIComponent(String(id))}/manager-edit`,
+        data
+      )
     },
 
     // ── Member Registrations ──

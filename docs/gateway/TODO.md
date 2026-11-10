@@ -157,8 +157,10 @@
     - [x] `src/app/api/er/status/route.ts`:
       - [x] เชื่อมต่อ `apiGateway.clinical.getErStatus('tv')` ดึง active patients และ emergency level counts แบบเรียลไทม์
     - [x] รัน Unit Tests ผ่าน 100% (45 test suites, 364 tests passed)
-  - [ ] **Task Inbox & Legacy CMS Queries in `src/lib/memberDb.ts`** (Domain ถัดไป):
+  - [ ] **Task Inbox & Legacy CMS Queries in `src/lib/memberDb.ts`** (Domain ถัดไป - ดูแผนงานฉบับละเอียดที่ [`docs/gateway/TASK_INBOX_NAMED_API_PLAN.md`](TASK_INBOX_NAMED_API_PLAN.md)):
     - [ ] สำรวจและสร้าง Named API รองรับ Task Inbox workflows ใน `src/lib/taskInboxService.ts`
+    - [ ] สลับ `ingestBatch` ใน `salaryBatchService.ts` ให้เรียก `apiGateway.salary.uploadBatch`
+    - [ ] สำรวจและแปลงคำสั่ง SQL ดิบใน Legacy CMS & Peripheral Services (ITA, RDU, Outgoing Documents, Departments, Locations)
     - [ ] เมื่อไม่มีส่วนใดในระบบเรียกใช้แล้ว ให้ปิดตาย (Disable) Endpoint `/api/v1/app/query`, `/execute`, `/transaction` และ `/api/v1/salary/execute` ในไฟล์ `routes/rawSql.js`
 
 ---

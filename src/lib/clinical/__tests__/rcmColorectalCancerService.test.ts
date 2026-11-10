@@ -4,12 +4,13 @@ import {
   evaluateFitTestDataQuality,
   isUniversalCoverageScheme,
 } from '../rcmColorectalCancerService'
-import { invalidateCacheKey } from '@/lib/cache'
+import { clearMemoryCache, invalidateCacheKey } from '@/lib/cache'
+import { apiGateway } from '@/lib/apiGateway'
 
 describe('RcmColorectalCancerService (21.2 บริการตรวจคัดกรองมะเร็งลำไส้ใหญ่ Fit test)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    invalidateCacheKey('rcm-fit-test-adp-mapping-check-90005')
+    clearMemoryCache()
   })
 
   describe('evaluateFitTestDataQuality helper', () => {
@@ -328,6 +329,83 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
       expect(res.summary.totalVisits).toBe(2)
       expect(res.items.every((it) => it.isUc)).toBe(true)
       expect(res.pttypes).toBe('01,02,03,04,05,06,07,08,09')
+    })
+
+    it('falls back to executor query when gateway returns generic stripped rows without code', async () => {
+      const { queryClinicalDb } = await import('@/lib/clinicalDb')
+
+      // Mock gateway returning rows without code or pp_special_code
+      vi.spyOn(apiGateway.clinical, 'getAdpMapping').mockResolvedValue({
+        adpCode: '90005',
+        isMapped: true,
+        mappedCount: 1,
+        items: [{ icode: '3000501', name: 'Fit test', strength: null, nhso_adp_code: '90005' }],
+      } as any)
+      vi.spyOn(apiGateway.clinical, 'getRcmFundData').mockResolvedValue({
+        success: true,
+        fundKey: 'colorectal-cancer',
+        data: {
+          rawRows: [
+            {
+              vn: '670101080001',
+              hn: '0001234',
+              // Notice: code, pp_special_code are completely missing (legacy generic route)
+              listname: 'ตรวจคัดกรอง FIT test 90005',
+            },
+          ],
+        },
+      } as any)
+
+      // Spy on queryClinicalDb/apiGateway.clinical.query fallback
+      const querySpy = vi.spyOn(apiGateway.clinical, 'query').mockImplementation((sql: string) => {
+        if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) return Promise.resolve([])
+        return Promise.resolve(mockDbRows)
+      })
+
+      // When executor is queryClinicalDb, it checks gateway, sees rows lack code, and falls back to executor
+      const res = await RcmColorectalCancerService.getColorectalCancerReport(
+        { refresh: true },
+        queryClinicalDb
+      )
+
+      expect(querySpy).toHaveBeenCalled()
+      const completeItem = res.items.find((it) => it.hn === '0001234')
+      expect(completeItem?.code).toBe('1B0060 FIT test ผลปกติ')
+      expect(completeItem?.dataQualityStatus).toBe('COMPLETE')
+    })
+
+    it('accepts gateway data when dedicated fields or isDedicated are present', async () => {
+      const { queryClinicalDb } = await import('@/lib/clinicalDb')
+
+      vi.spyOn(apiGateway.clinical, 'getAdpMapping').mockResolvedValue({
+        adpCode: '90005',
+        isMapped: true,
+        mappedCount: 1,
+        items: [{ icode: '3000501', name: 'Fit test', strength: null, nhso_adp_code: '90005' }],
+      } as any)
+      vi.spyOn(apiGateway.clinical, 'getRcmFundData').mockResolvedValue({
+        success: true,
+        fundKey: 'colorectal-cancer',
+        isDedicated: true,
+        data: {
+          rawRows: mockDbRows,
+        },
+      } as any)
+
+      // Query spy that should not be called for main data if gateway has dedicated response
+      const querySpy = vi.spyOn(apiGateway.clinical, 'query')
+
+      const res = await RcmColorectalCancerService.getColorectalCancerReport(
+        { refresh: true },
+        queryClinicalDb
+      )
+
+      expect(res.items).toHaveLength(3)
+      const completeItem = res.items.find((it) => it.hn === '0001234')
+      expect(completeItem?.code).toBe('1B0060 FIT test ผลปกติ')
+      expect(completeItem?.dataQualityStatus).toBe('COMPLETE')
+      // Ensure raw SQL query was not executed because dedicated gateway data was accepted
+      expect(querySpy).not.toHaveBeenCalled()
     })
   })
 })

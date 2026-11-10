@@ -31,7 +31,7 @@ export default async function AdpSearchAdpCodePage() {
     const [report, options] = await Promise.all([
       RcmAdpSearchService.getAdpSearchReport({
         patientType: 'OPD',
-        adpCode: '14001',
+        adpCode: 'SPECC',
         page: 1,
         pageSize: 50,
       }),

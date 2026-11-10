@@ -32,11 +32,12 @@ describe('RcmIronSupplementsService', () => {
   })
 
   describe('IRON_SUPPLEMENT_DIDS', () => {
-    it('contains all 24 required DIDs for iron supplement medications', () => {
-      expect(IRON_SUPPLEMENT_DIDS.length).toBe(24)
+    it('contains all 25 required DIDs for iron supplement medications from FoxPro', () => {
+      expect(IRON_SUPPLEMENT_DIDS.length).toBe(25)
       expect(IRON_SUPPLEMENT_DIDS).toContain('202030120137819920381422')
       expect(IRON_SUPPLEMENT_DIDS).toContain('100488000004203120381169')
       expect(IRON_SUPPLEMENT_DIDS).toContain('100489000004320121881267')
+      expect(IRON_SUPPLEMENT_DIDS).toContain('100489000004203120381144')
     })
   })
 
