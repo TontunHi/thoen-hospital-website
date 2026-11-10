@@ -145,6 +145,46 @@ function getFileIcon(fileName: string) {
 }
 import { resolveTaskPermissions } from '@/lib/taskPermissionResolver'
 
+function RepairPhotoItem({ photo, index }: { photo: string; index: number }) {
+  const [hasError, setHasError] = useState(false)
+
+  if (hasError) {
+    return (
+      <a
+        href={photo}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="photoThumbItem photoThumbError"
+        title="รูปภาพโหลดไม่สำเร็จ คลิกเพื่อเปิดลิงก์โดยตรง"
+      >
+        <div className="photoThumbFallback">
+          <FileImage size={24} className="text-slate-400" />
+          <span style={{ fontSize: '0.65rem', color: '#64748b', textAlign: 'center' }}>
+            รูปแนบ {index + 1}
+          </span>
+        </div>
+      </a>
+    )
+  }
+
+  return (
+    <a
+      href={photo}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="photoThumbItem"
+      title={`คลิกเพื่อดูรูปแนบที่ ${index + 1} ขนาดเต็ม`}
+    >
+      <img
+        src={photo}
+        alt={`รูปแนบ ${index + 1}`}
+        loading="lazy"
+        onError={() => setHasError(true)}
+      />
+    </a>
+  )
+}
+
 interface TaskStep {
   id: string
   step_no: number
@@ -1587,16 +1627,7 @@ export default function TaskDetailClient({
                   <span className="infoItemLabel">รูปภาพความเสียหายแนบ ({repairDetail.photos.length} รูป)</span>
                   <div className="photoThumbList">
                     {repairDetail.photos.map((photo: string, idx: number) => (
-                      <a
-                        key={idx}
-                        href={photo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="photoThumbItem"
-                        title="คลิกเพื่อดูภาพขนาดเต็ม"
-                      >
-                        <img src={photo} alt={`รูปแนบ ${idx + 1}`} />
-                      </a>
+                      <RepairPhotoItem key={idx} photo={photo} index={idx} />
                     ))}
                   </div>
                 </div>

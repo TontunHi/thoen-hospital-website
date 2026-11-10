@@ -439,11 +439,15 @@ fastify.get('/api/v1/app/news/:id', {
     }
   }
 }, async (req, reply) => {
-  const { id } = req.params
+  const rawTarget = (req.query && req.query.slug) ? String(req.query.slug) : req.params.id
   try {
-    const isNumeric = /^\d+$/.test(id)
+    const isNumeric = /^\d+$/.test(rawTarget)
     let sql = 'SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt FROM news WHERE '
-    const params = isNumeric ? [parseInt(id, 10)] : [decodeURIComponent(id)]
+    let searchKey = rawTarget
+    try {
+      searchKey = decodeURIComponent(rawTarget)
+    } catch {}
+    const params = isNumeric ? [parseInt(rawTarget, 10)] : [searchKey]
     sql += isNumeric ? 'id = ? LIMIT 1' : 'slug = ? LIMIT 1'
 
     const [rows] = await appPool.query(sql, params)
@@ -470,13 +474,17 @@ fastify.post('/api/v1/app/news/:id/view', {
     }
   }
 }, async (req, reply) => {
-  const { id } = req.params
+  const rawTarget = (req.query && req.query.slug) ? String(req.query.slug) : req.params.id
   try {
-    const isNumeric = /^\d+$/.test(id)
+    const isNumeric = /^\d+$/.test(rawTarget)
     const sql = isNumeric
       ? 'UPDATE news SET view_count = view_count + 1 WHERE id = ?'
       : 'UPDATE news SET view_count = view_count + 1 WHERE slug = ?'
-    const param = isNumeric ? parseInt(id, 10) : decodeURIComponent(id)
+    let searchKey = rawTarget
+    try {
+      searchKey = decodeURIComponent(rawTarget)
+    } catch {}
+    const param = isNumeric ? parseInt(rawTarget, 10) : searchKey
     await appPool.query(sql, [param])
     return { success: true, message: 'เพิ่มยอดเข้าชมสำเร็จ' }
   } catch (err) {

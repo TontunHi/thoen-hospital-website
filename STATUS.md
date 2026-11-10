@@ -4,6 +4,17 @@ Goal: ทยอยแทนที่ Raw SQL ด้วย Named APIs สำห�
 Updated: 2026-11-10
 
 ## Done
+- **Gateway Max Param Length & Long Thai News Slug Fix (`FST_ERR_MAX_PARAM_LENGTH` 414 Fix):**
+  - แก้ไขปัญหา Fastify บน Gateway VM (`192.168.1.208`) ปฏิเสธคำขอด้วย `FST_ERR_MAX_PARAM_LENGTH` (414 Bad Request) เมื่อ URL slug ข่าวสารภาษาไทยมีความยาวเกิน 100 ตัวอักษร (URI-encoded เกิน 800+ chars)
+  - กำหนดค่า `maxParamLength: 5000` ใน `docs/gateway/server.js` เพื่อรองรับ URL parameter ภาษาไทยความยาวสูง
+  - ปรับปรุง `docs/gateway/routes/app.js` รองรับทั้ง Path Param `:id` และ Query Param `?slug=...` พร้อม Safe URI Decoding
+  - ซิงค์ไฟล์ `server.js` และ `routes/app.js` ขึ้น Gateway Host VM (`192.168.1.208`) พร้อมตรวจสอบ Syntax Pre-flight ภายใน Container ผ่าน 100%
+  - รีสตาร์ต `thoen-api-gateway` และทดสอบยิงดึงข่าวจริงด้วย Slug ภาษาไทยขนาดยาว (`ประกาศผู้ชนะเสนอราคาประกวดราคา-จัดซื้อยาและเวชภัณฑ์-จำนวน-๓-รายการ...`) ได้รับข้อมูลสำเร็จพร้อมสถานะ HTTP 200
+  - ปรับแต่ง `src/lib/apiGateway.ts`, `src/app/news/[slug]/page.tsx`, และ `src/app/api/news/[id]/route.ts` ให้อ่านทั้ง Unwrap Response และ `{ success, data }` ได้อย่างราบรื่น
+- **Clean Deletion & UI Resilience for Test Repair Ticket (`54e1ecfc-950c-413e-8570-98d23e5a0786`):**
+  - ลบใบงานทดสอบ `IT-2570-10-0005` ออกจากฐานข้อมูลจริงทุกตาราง (`inbox_tasks`, `inbox_task_steps`, `repair_details`, `inbox_task_audit_logs`) แบบ Atomic Transaction
+  - ลบไฟล์แนบออกจาก MinIO Object Storage (`192.168.1.24`) และ Local Disk
+  - เพิ่มคอมโพเนนต์ `RepairPhotoItem` ใน `TaskDetailClient.tsx` พร้อม `onError` Fallback UI และปรับแต่ง CSS ป้องกันภาพแตกในกรณีที่รูปภาพสูญหาย
 - **Gateway Server Live Deployment Phase 3 (`routes/app.js` on `192.168.1.208` via `/ssh-thlp`):**
   - ซิงค์ไฟล์ `docs/gateway/routes/app.js` ขึ้น Gateway Host สำเร็จผ่าน SSH/SFTP (พร้อม auto-backup: `app.js.bak_20261110_125750`)
   - ทดสอบ Syntax Pre-flight ภายใน Container (`docker exec thoen-api-gateway node --check /app/routes/app.js`) ผ่าน 100%

@@ -20,7 +20,8 @@ import rcmFundsRoutes from './routes/rcmFunds.js'
 import rawSqlRoutes from './routes/rawSql.js'
 
 const fastify = Fastify({
-  logger: { level: 'info' }
+  logger: { level: 'info' },
+  maxParamLength: 5000
 })
 
 await fastify.register(cors, { origin: true })

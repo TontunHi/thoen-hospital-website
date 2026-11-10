@@ -857,14 +857,18 @@ export class ApiGatewayClient {
     },
 
     getNewsById: (id: string | number) => {
+      const strId = String(id)
+      const encoded = encodeURIComponent(strId)
       return this.get<{
         success: boolean
         data: Record<string, any>
-      }>(`/api/v1/app/news/${encodeURIComponent(String(id))}`)
+      }>(`/api/v1/app/news/${encoded}?slug=${encoded}`)
     },
 
     incrementNewsView: (id: string | number) => {
-      return this.post<{ success: boolean; message?: string }>(`/api/v1/app/news/${encodeURIComponent(String(id))}/view`, {})
+      const strId = String(id)
+      const encoded = encodeURIComponent(strId)
+      return this.post<{ success: boolean; message?: string }>(`/api/v1/app/news/${encoded}/view?slug=${encoded}`, {})
     },
 
     createNews: (news: {

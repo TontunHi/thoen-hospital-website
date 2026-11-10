@@ -18,9 +18,9 @@ function getYouTubeId(url: string): string | null {
 
 async function getNewsBySlug(slug: string) {
   try {
-    const res = await apiGateway.app.getNewsById(slug)
-    if (!res.success || !res.data) return null
-    const news = res.data
+    const rawRes: any = await apiGateway.app.getNewsById(slug)
+    const news = rawRes?.data || rawRes
+    if (!news || !news.id) return null
 
     const attachments = news.attachments || []
     const now = new Date()

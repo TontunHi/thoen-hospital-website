@@ -84,12 +84,13 @@ export async function GET(
 ) {
   try {
     const { id } = await ctx.params
-    const res = await apiGateway.app.getNewsById(id)
-    if (!res.success || !res.data) {
+    const rawRes: any = await apiGateway.app.getNewsById(id)
+    const news = rawRes?.data || rawRes
+    if (!news || !news.id) {
       return NextResponse.json({ error: 'ไม่พบข่าวที่ต้องการ' }, { status: 404 })
     }
 
-    const adaptedNews = adaptNewsItem(res.data, new Date())
+    const adaptedNews = adaptNewsItem(news, new Date())
     return NextResponse.json({ news: adaptedNews })
   } catch (error) {
     console.error('News detail error:', error)
