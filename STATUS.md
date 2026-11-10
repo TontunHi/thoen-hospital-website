@@ -4,6 +4,10 @@ Goal: ทยอยแทนที่ Raw SQL ด้วย Named APIs สำห�
 Updated: 2026-11-10
 
 ## Done
+- **Clean Deletion for Test Repair Ticket (`d74c6caf-8173-4091-a77d-7aa78a9ccf18`):**
+  - ลบใบงานทดสอบแจ้งซ่อม `IT-2570-10-0005`: คอมพิวเตอร์ All-in-One Dell (7440-001-0001) ออกจากฐานข้อมูลจริงทุกตาราง (`inbox_tasks`, `inbox_task_steps`, `repair_details`, `inbox_task_audit_logs`) แบบ Atomic Transaction ผ่าน Thoen API Gateway
+  - ทำการตรวจสอบ Foreign Key Dependencies และลบข้อมูลครบถ้วน 0 rows คงเหลือ
+  - บันทึก Compliance Audit Log (`action: DELETE`, `entity: inbox_tasks`) เพื่อความถูกต้องตามมาตรฐานการตรวจสอบ Tier 1
 - **Gateway Max Param Length & Long Thai News Slug Fix (`FST_ERR_MAX_PARAM_LENGTH` 414 Fix):**
   - แก้ไขปัญหา Fastify บน Gateway VM (`192.168.1.208`) ปฏิเสธคำขอด้วย `FST_ERR_MAX_PARAM_LENGTH` (414 Bad Request) เมื่อ URL slug ข่าวสารภาษาไทยมีความยาวเกิน 100 ตัวอักษร (URI-encoded เกิน 800+ chars)
   - กำหนดค่า `maxParamLength: 5000` ใน `docs/gateway/server.js` เพื่อรองรับ URL parameter ภาษาไทยความยาวสูง
