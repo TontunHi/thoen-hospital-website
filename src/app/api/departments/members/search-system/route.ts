@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { resolvePublicProfilePath } from '@/lib/departments/departmentImageUtils'
 
 export async function GET(request: Request) {
@@ -15,32 +15,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: [] })
     }
 
-    const kw = `%${q}%`
-    const rows = await queryMemberDb(
-      `SELECT id, name, position, department, profile_path AS profilePath
-       FROM members
-       WHERE name LIKE ? OR department LIKE ? OR position LIKE ?
-       ORDER BY name ASC
-       LIMIT 20`,
-      [kw, kw, kw]
-    )
+    const rows = await apiGateway.app.getMembers({ search: q, limit: 20 })
 
     const data = await Promise.all(
-      rows.map(async (r: any) => {
-        const publicProfile = await resolvePublicProfilePath(r.profilePath, Number(r.id))
+      (rows || []).map(async (r: any) => {
+        const publicProfile = await resolvePublicProfilePath(r.profilePath || r.profile_path, Number(r.id))
         return {
           id: Number(r.id),
           name: r.name ? String(r.name).trim() : '',
           position: r.position ? String(r.position).trim() : '',
           department: r.department ? String(r.department).trim() : '',
-          profilePath: publicProfile
+          profilePath: publicProfile,
         }
       })
     )
 
     return NextResponse.json({
       success: true,
-      data
+      data,
     })
   } catch (error: any) {
     return NextResponse.json(

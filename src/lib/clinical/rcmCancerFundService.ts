@@ -40,6 +40,7 @@ export type CancerFundSortField =
 
 export interface CancerFundReportParams extends FiscalDateRangeParams {
   cardFilter?: CancerFundCardFilter
+  statusFilter?: string
   ucOnly?: boolean
   pttypes?: string
   search?: string
@@ -146,6 +147,8 @@ export interface CancerFundReportResult {
   ds2: string
   adpMapping: CancerFundAdpMappingCheck
   cardFilter: CancerFundCardFilter
+  statusFilter: string
+  statusOptions: string[]
   ucOnly: boolean
   pttypes?: string
   search: string
@@ -292,6 +295,7 @@ export class RcmCancerFundService {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
 
     const cardFilter: CancerFundCardFilter = params.cardFilter || 'ALL'
+    const statusFilter = (params.statusFilter || 'ALL').trim()
     const ucOnly = Boolean(params.ucOnly)
     const search = (params.search || '').trim().toLowerCase()
     const sortBy: CancerFundSortField = params.sortBy || 'vstdate'
@@ -613,6 +617,11 @@ export class RcmCancerFundService {
       ucRate,
     }
 
+    // Available status options for dropdown
+    const statusOptions = Array.from(
+      new Set(summaryCohort.map((i) => i.status_eclaim).filter(Boolean))
+    ).sort() as string[]
+
     // Apply Filters
     let filtered = summaryCohort
 
@@ -631,12 +640,23 @@ export class RcmCancerFundService {
       filtered = filtered.filter((i) => i.isUc)
     }
 
-    // 2. UC-Only explicit toggle (fallback when pttypes is empty)
+    // 2. Status e-Claim / REP Filter
+    if (statusFilter && statusFilter !== 'ALL') {
+      if (statusFilter === 'HAS_REP') {
+        filtered = filtered.filter((i) => Boolean(i.rep))
+      } else if (statusFilter === 'NO_REP') {
+        filtered = filtered.filter((i) => !i.rep)
+      } else {
+        filtered = filtered.filter((i) => i.status_eclaim === statusFilter || i.status === statusFilter)
+      }
+    }
+
+    // 3. UC-Only explicit toggle (fallback when pttypes is empty)
     if (selectedPttypesList.length === 0 && ucOnly) {
       filtered = filtered.filter((i) => i.isUc)
     }
 
-    // 3. Unified Global Search
+    // 4. Unified Global Search
     if (search) {
       filtered = filtered.filter((i) => {
         return (
@@ -648,7 +668,8 @@ export class RcmCancerFundService {
           (i.rep && i.rep.toLowerCase().includes(search)) ||
           (i.pdx && i.pdx.toLowerCase().includes(search)) ||
           (i.listname && i.listname.toLowerCase().includes(search)) ||
-          (i.pttypename && i.pttypename.toLowerCase().includes(search))
+          (i.pttypename && i.pttypename.toLowerCase().includes(search)) ||
+          (i.status_eclaim && i.status_eclaim.toLowerCase().includes(search))
         )
       })
     }
@@ -694,6 +715,8 @@ export class RcmCancerFundService {
       ds2,
       adpMapping,
       cardFilter,
+      statusFilter,
+      statusOptions,
       ucOnly,
       pttypes,
       search,

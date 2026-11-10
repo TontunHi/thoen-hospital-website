@@ -11,13 +11,30 @@ export default async function appRoutes(fastify, options) {
 fastify.get('/api/v1/app/members', {
   schema: {
     tags: ['3. Members Management'],
-    summary: 'ดึงรายชื่อสมาชิก/บุคลากรทั้งหมด'
+    summary: 'ดึงรายชื่อสมาชิก/บุคลากรทั้งหมด (รองรับ search และ limit)',
+    querystring: {
+      type: 'object',
+      properties: {
+        search: { type: 'string' },
+        limit: { type: 'string' }
+      }
+    }
   }
 }, async (req, reply) => {
+  const { search = '', limit = '' } = req.query || {}
   try {
-    const [rows] = await appPool.query(
-      "SELECT id, username, email, name, department, position, salary_user, role, created_at, updated_at FROM members ORDER BY created_at DESC"
-    )
+    let sql = "SELECT id, username, email, name, department, position, salary_user, role, profile_path AS profilePath, created_at, updated_at FROM members"
+    const params = []
+    if (search && search.trim()) {
+      sql += " WHERE (name LIKE ? OR department LIKE ? OR position LIKE ? OR username LIKE ?)"
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`)
+    }
+    sql += " ORDER BY name ASC, created_at DESC"
+    if (limit && parseInt(limit, 10) > 0) {
+      sql += " LIMIT ?"
+      params.push(parseInt(limit, 10))
+    }
+    const [rows] = await appPool.query(sql, params)
     return { success: true, count: rows.length, data: rows }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
@@ -240,28 +257,92 @@ fastify.delete('/api/v1/app/members/:id/permissions/:key', {
 fastify.get('/api/v1/app/news', {
   schema: {
     tags: ['4. Website Application Services'],
-    summary: 'ดึงรายการข่าวสาร/ประชาสัมพันธ์ (มีแคช 30 วิ)',
+    summary: 'ดึงรายการข่าวสาร/ประชาสัมพันธ์ (รองรับ pagination, category, all, search)',
     querystring: {
       type: 'object',
       properties: {
+        page: { type: 'string', default: '1' },
+        limit: { type: 'string', default: '10' },
         category: { type: 'string' },
-        limit: { type: 'string', default: '10' }
+        all: { type: 'string', default: 'false' },
+        search: { type: 'string' }
       }
     }
   }
 }, async (req, reply) => {
-  const { category = '', limit = '10' } = req.query || {}
+  const { page = '1', limit = '10', category = '', all = 'false', search = '' } = req.query || {}
   try {
-    const cacheKey = `app-news-${category}-${limit}`
-    const data = await getCached(cacheKey, 30000, async () => {
-      let sql = 'SELECT id, title, slug, category, view_count, created_at FROM news'
-      const params = []
-      if (category) { sql += ' WHERE category = ?'; params.push(category) }
-      sql += ' ORDER BY created_at DESC LIMIT ?'; params.push(parseInt(limit, 10))
-      const [rows] = await appPool.query(sql, params)
-      return rows
-    })
-    return { success: true, count: data.length, data }
+    const pageNum = Math.max(1, parseInt(page, 10) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10))
+    const offset = (pageNum - 1) * limitNum
+
+    const whereClauses = []
+    const params = []
+
+    if (all !== 'true') {
+      whereClauses.push('start_date <= NOW() AND end_date >= NOW()')
+    }
+
+    if (category) {
+      whereClauses.push('category = ?')
+      params.push(category)
+    }
+
+    if (search && search.trim()) {
+      whereClauses.push('(title LIKE ? OR slug LIKE ?)')
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`)
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const [countRows] = await appPool.query(`SELECT COUNT(*) AS total FROM news ${whereSql}`, params)
+    const total = countRows[0]?.total ? Number(countRows[0].total) : 0
+
+    const [rawNews] = await appPool.query(`
+      SELECT id, title, slug, category, youtube_link AS youtubeLink,
+             start_date AS startDate, end_date AS endDate, view_count AS viewCount,
+             created_at AS createdAt, updated_at AS updatedAt
+      FROM news
+      ${whereSql}
+      ORDER BY start_date DESC
+      LIMIT ? OFFSET ?
+    `, [...params, limitNum, offset])
+
+    const attachmentsByNewsId = new Map()
+    if (rawNews.length > 0) {
+      const newsIds = rawNews.map(n => n.id)
+      const placeholders = newsIds.map(() => '?').join(',')
+      const [attachments] = await appPool.query(`
+        SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
+        FROM attachments
+        WHERE news_id IN (${placeholders})
+        ORDER BY id ASC
+      `, newsIds)
+
+      for (const att of attachments) {
+        const list = attachmentsByNewsId.get(att.newsId) || []
+        list.push(att)
+        attachmentsByNewsId.set(att.newsId, list)
+      }
+    }
+
+    const data = rawNews.map(item => ({
+      ...item,
+      attachments: attachmentsByNewsId.get(item.id) || []
+    }))
+
+    return {
+      success: true,
+      count: data.length,
+      total,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum) || 1
+      },
+      data
+    }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
   }
@@ -270,7 +351,7 @@ fastify.get('/api/v1/app/news', {
 fastify.post('/api/v1/app/news', {
   schema: {
     tags: ['4. Website Application Services'],
-    summary: 'สร้างข่าวสาร/กิจกรรมใหม่',
+    summary: 'สร้างข่าวสาร/กิจกรรมใหม่ (พร้อมแนบไฟล์รูป/PDF ใน 1 transaction)',
     body: {
       type: 'object',
       required: ['title', 'slug', 'category', 'startDate', 'endDate'],
@@ -278,30 +359,80 @@ fastify.post('/api/v1/app/news', {
         title: { type: 'string' },
         slug: { type: 'string' },
         category: { type: 'string' },
-        youtubeLink: { type: 'string' },
+        youtubeLink: { type: 'string', nullable: true },
         startDate: { type: 'string', description: 'YYYY-MM-DD HH:mm:ss' },
-        endDate: { type: 'string', description: 'YYYY-MM-DD HH:mm:ss' }
+        endDate: { type: 'string', description: 'YYYY-MM-DD HH:mm:ss' },
+        attachments: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              filePath: { type: 'string' },
+              fileType: { type: 'string' },
+              originalName: { type: 'string' }
+            }
+          }
+        }
       }
     }
   }
 }, async (req, reply) => {
-  const { title, slug, category, youtubeLink = null, startDate, endDate } = req.body || {}
+  const { title, slug, category, youtubeLink = null, startDate, endDate, attachments = [] } = req.body || {}
+  const conn = await appPool.getConnection()
   try {
-    const [res] = await appPool.query(
+    await conn.beginTransaction()
+    const [res] = await conn.query(
       'INSERT INTO news (title, slug, category, youtube_link, start_date, end_date, view_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, NOW(), NOW())',
       [title, slug, category, youtubeLink, startDate, endDate]
     )
-    return { success: true, insertId: res.insertId }
+    const insertId = res.insertId
+
+    const createdAttachments = []
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      for (const att of attachments) {
+        const [attRes] = await conn.query(
+          'INSERT INTO attachments (news_id, file_path, file_type, original_name, created_at) VALUES (?, ?, ?, ?, NOW())',
+          [insertId, att.filePath, att.fileType || 'image/jpeg', att.originalName || 'file']
+        )
+        createdAttachments.push({
+          id: attRes.insertId,
+          newsId: insertId,
+          filePath: att.filePath,
+          fileType: att.fileType,
+          originalName: att.originalName
+        })
+      }
+    }
+
+    await conn.commit()
+    return {
+      success: true,
+      insertId,
+      data: {
+        id: insertId,
+        title,
+        slug,
+        category,
+        youtubeLink,
+        startDate,
+        endDate,
+        viewCount: 0,
+        attachments: createdAttachments
+      }
+    }
   } catch (err) {
+    await conn.rollback()
     reply.code(500); return { success: false, error: err.message }
+  } finally {
+    conn.release()
   }
 })
 
-// 4.2 News Detail & Update & Delete
+// 4.2 News Detail & Update & Delete & View Count
 fastify.get('/api/v1/app/news/:id', {
   schema: {
     tags: ['4. Website Application Services'],
-    summary: 'ดึงรายละเอียดข่าวสารตาม ID (พร้อมอัปเดตยอดวิวอัตโนมัติ)',
+    summary: 'ดึงรายละเอียดข่าวสารตาม ID หรือ Slug (พร้อมไฟล์แนบ)',
     params: {
       type: 'object',
       properties: { id: { type: 'string' } }
@@ -310,11 +441,44 @@ fastify.get('/api/v1/app/news/:id', {
 }, async (req, reply) => {
   const { id } = req.params
   try {
-    const [rows] = await appPool.query('SELECT * FROM news WHERE id = ? LIMIT 1', [id])
-    if (rows.length === 0) { reply.code(404); return { success: false, error: 'ไม่พบข่าว' } }
-    appPool.query('UPDATE news SET view_count = view_count + 1 WHERE id = ?', [id]).catch(() => {})
-    const [attachments] = await appPool.query('SELECT id, file_path, file_type, original_name FROM attachments WHERE news_id = ?', [id])
-    return { success: true, data: { ...rows[0], attachments } }
+    const isNumeric = /^\d+$/.test(id)
+    let sql = 'SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt FROM news WHERE '
+    const params = isNumeric ? [parseInt(id, 10)] : [decodeURIComponent(id)]
+    sql += isNumeric ? 'id = ? LIMIT 1' : 'slug = ? LIMIT 1'
+
+    const [rows] = await appPool.query(sql, params)
+    if (rows.length === 0) { reply.code(404); return { success: false, error: 'ไม่พบข่าวที่ต้องการ' } }
+    const news = rows[0]
+
+    const [attachments] = await appPool.query(
+      'SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName FROM attachments WHERE news_id = ? ORDER BY id ASC',
+      [news.id]
+    )
+    return { success: true, data: { ...news, attachments } }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/news/:id/view', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'เพิ่มจำนวนผู้เข้าชมข่าวสาร (View Count Increment)',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const isNumeric = /^\d+$/.test(id)
+    const sql = isNumeric
+      ? 'UPDATE news SET view_count = view_count + 1 WHERE id = ?'
+      : 'UPDATE news SET view_count = view_count + 1 WHERE slug = ?'
+    const param = isNumeric ? parseInt(id, 10) : decodeURIComponent(id)
+    await appPool.query(sql, [param])
+    return { success: true, message: 'เพิ่มยอดเข้าชมสำเร็จ' }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
   }
@@ -323,7 +487,7 @@ fastify.get('/api/v1/app/news/:id', {
 fastify.put('/api/v1/app/news/:id', {
   schema: {
     tags: ['4. Website Application Services'],
-    summary: 'แก้ไขข้อมูลข่าวสาร',
+    summary: 'แก้ไขข้อมูลข่าวสาร (พร้อมอัปเดตไฟล์แนบ)',
     params: {
       type: 'object',
       properties: { id: { type: 'string' } }
@@ -333,17 +497,30 @@ fastify.put('/api/v1/app/news/:id', {
       properties: {
         title: { type: 'string' },
         category: { type: 'string' },
-        youtubeLink: { type: 'string' },
+        youtubeLink: { type: 'string', nullable: true },
         startDate: { type: 'string' },
-        endDate: { type: 'string' }
+        endDate: { type: 'string' },
+        attachments: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              filePath: { type: 'string' },
+              fileType: { type: 'string' },
+              originalName: { type: 'string' }
+            }
+          }
+        }
       }
     }
   }
 }, async (req, reply) => {
   const { id } = req.params
-  const { title, category, youtubeLink, startDate, endDate } = req.body || {}
+  const { title, category, youtubeLink, startDate, endDate, attachments } = req.body || {}
+  const conn = await appPool.getConnection()
   try {
-    await appPool.query(
+    await conn.beginTransaction()
+    await conn.query(
       `UPDATE news SET 
          title = COALESCE(?, title),
          category = COALESCE(?, category),
@@ -352,11 +529,43 @@ fastify.put('/api/v1/app/news/:id', {
          end_date = COALESCE(?, end_date),
          updated_at = NOW()
        WHERE id = ?`,
-      [title, category, youtubeLink, startDate, endDate, id]
+      [title !== undefined ? title : null, category !== undefined ? category : null, youtubeLink !== undefined ? youtubeLink : null, startDate || null, endDate || null, id]
     )
-    return { success: true, message: 'แก้ไขข่าวสารสำเร็จ' }
+
+    if (Array.isArray(attachments)) {
+      await conn.query('DELETE FROM attachments WHERE news_id = ?', [id])
+      for (const att of attachments) {
+        await conn.query(
+          'INSERT INTO attachments (news_id, file_path, file_type, original_name, created_at) VALUES (?, ?, ?, ?, NOW())',
+          [id, att.filePath, att.fileType || 'image/jpeg', att.originalName || 'file']
+        )
+      }
+    }
+
+    await conn.commit()
+
+    const [updatedRows] = await appPool.query(
+      'SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt FROM news WHERE id = ? LIMIT 1',
+      [id]
+    )
+    const [updatedAttachments] = await appPool.query(
+      'SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName FROM attachments WHERE news_id = ? ORDER BY id ASC',
+      [id]
+    )
+
+    return {
+      success: true,
+      message: 'แก้ไขข่าวสารสำเร็จ',
+      data: {
+        ...(updatedRows[0] || {}),
+        attachments: updatedAttachments
+      }
+    }
   } catch (err) {
+    await conn.rollback()
     reply.code(500); return { success: false, error: err.message }
+  } finally {
+    conn.release()
   }
 })
 
@@ -372,6 +581,10 @@ fastify.delete('/api/v1/app/news/:id', {
 }, async (req, reply) => {
   const { id } = req.params
   try {
+    const [existingRows] = await appPool.query('SELECT id FROM news WHERE id = ? LIMIT 1', [id])
+    if (existingRows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข่าวที่ต้องการลบ' }
+    }
     await appPool.query('DELETE FROM attachments WHERE news_id = ?', [id])
     await appPool.query('DELETE FROM news WHERE id = ?', [id])
     return { success: true, message: 'ลบข่าวสารสำเร็จ' }
@@ -384,15 +597,79 @@ fastify.delete('/api/v1/app/news/:id', {
 fastify.get('/api/v1/app/slides', {
   schema: {
     tags: ['4. Website Application Services'],
-    summary: 'ดึงแบนเนอร์สไลด์หน้าแรก (มีแคช 60 วิ)'
+    summary: 'ดึงแบนเนอร์สไลด์หน้าแรก (รองรับ all=true และคืนค่า slideDuration)',
+    querystring: {
+      type: 'object',
+      properties: {
+        all: { type: 'string', default: 'false' }
+      }
+    }
   }
 }, async (req, reply) => {
+  const { all = 'false' } = req.query || {}
   try {
-    const data = await getCached('app-slides', 60000, async () => {
-      const [rows] = await appPool.query('SELECT id, title, image_path, link_url, display_order, duration FROM hero_slides ORDER BY display_order ASC')
-      return rows
-    })
-    return { success: true, count: data.length, data }
+    let slides = []
+    if (all === 'true') {
+      const [rows] = await appPool.query(`
+        SELECT id, image_path AS imagePath, title, link_url AS linkUrl,
+               start_date AS startDate, end_date AS endDate,
+               display_order AS displayOrder, duration,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM hero_slides
+        ORDER BY display_order ASC, created_at DESC
+      `)
+      slides = rows
+
+      // Normalize gaps if any exist
+      let hasGap = false
+      for (let i = 0; i < slides.length; i++) {
+        if (slides[i].displayOrder !== i + 1) {
+          hasGap = true
+          break
+        }
+      }
+
+      if (hasGap) {
+        for (let i = 0; i < slides.length; i++) {
+          if (slides[i].displayOrder !== i + 1) {
+            await appPool.query('UPDATE hero_slides SET display_order = ? WHERE id = ?', [i + 1, slides[i].id])
+            slides[i].displayOrder = i + 1
+          }
+        }
+      }
+    } else {
+      const [rows] = await appPool.query(`
+        SELECT id, image_path AS imagePath, title, link_url AS linkUrl,
+               start_date AS startDate, end_date AS endDate,
+               display_order AS displayOrder, duration,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM hero_slides
+        WHERE start_date <= NOW() AND end_date >= NOW()
+        ORDER BY display_order ASC, created_at DESC
+      `)
+      slides = rows
+    }
+
+    let slideDuration = 6
+    try {
+      const [durationRows] = await appPool.query(
+        "SELECT config_value AS configValue FROM member_system_settings WHERE config_key = 'hero_slide_duration_seconds' LIMIT 1"
+      )
+      if (durationRows.length > 0 && durationRows[0]?.configValue) {
+        const parsedSec = parseInt(durationRows[0].configValue, 10)
+        if (!isNaN(parsedSec) && parsedSec >= 2 && parsedSec <= 30) {
+          slideDuration = parsedSec
+        }
+      }
+    } catch {}
+
+    return {
+      success: true,
+      count: slides.length,
+      slides,
+      data: slides,
+      slideDuration
+    }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
   }
@@ -419,11 +696,83 @@ fastify.post('/api/v1/app/slides', {
 }, async (req, reply) => {
   const { title = '', imagePath, linkUrl = '', displayOrder = 0, duration = 6, startDate, endDate } = req.body || {}
   try {
+    let finalOrder = displayOrder
+    if (!finalOrder || finalOrder <= 0) {
+      const [maxSlideRows] = await appPool.query('SELECT MAX(display_order) AS maxOrder FROM hero_slides')
+      const maxOrder = maxSlideRows[0]?.maxOrder ?? 0
+      finalOrder = maxOrder + 1
+    }
+
     const [res] = await appPool.query(
-      'INSERT INTO hero_slides (title, image_path, link_url, display_order, duration, start_date, end_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
-      [title, imagePath, linkUrl, displayOrder, duration, startDate, endDate]
+      'INSERT INTO hero_slides (image_path, title, link_url, start_date, end_date, display_order, duration, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [imagePath, title || null, linkUrl || null, startDate, endDate, finalOrder, duration || 6]
     )
-    return { success: true, insertId: res.insertId }
+
+    const slide = {
+      id: res.insertId,
+      imagePath,
+      title: title || null,
+      linkUrl: linkUrl || null,
+      startDate,
+      endDate,
+      displayOrder: finalOrder,
+      duration: duration || 6
+    }
+
+    return { success: true, insertId: res.insertId, slide }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.put('/api/v1/app/slides/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขภาพสไลด์แบนเนอร์',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        imagePath: { type: 'string' },
+        linkUrl: { type: 'string' },
+        displayOrder: { type: 'integer' },
+        duration: { type: 'integer' },
+        startDate: { type: 'string' },
+        endDate: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const { title, imagePath, linkUrl, displayOrder = 0, duration = 6, startDate, endDate } = req.body || {}
+  try {
+    const [existingRows] = await appPool.query('SELECT id, image_path AS imagePath FROM hero_slides WHERE id = ? LIMIT 1', [id])
+    if (existingRows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบสไลด์ภาพที่ต้องการแก้ไข' }
+    }
+
+    await appPool.query(`
+      UPDATE hero_slides
+      SET image_path = ?, title = ?, link_url = ?, start_date = ?, end_date = ?, display_order = ?, duration = ?, updated_at = NOW()
+      WHERE id = ?
+    `, [imagePath, title || null, linkUrl || null, startDate, endDate, displayOrder, duration, id])
+
+    const slide = {
+      id: parseInt(id, 10),
+      imagePath,
+      title: title || null,
+      linkUrl: linkUrl || null,
+      startDate,
+      endDate,
+      displayOrder,
+      duration
+    }
+
+    return { success: true, slide, previousImagePath: existingRows[0].imagePath }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
   }
@@ -432,7 +781,7 @@ fastify.post('/api/v1/app/slides', {
 fastify.delete('/api/v1/app/slides/:id', {
   schema: {
     tags: ['4. Website Application Services'],
-    summary: 'ลบภาพสไลด์แบนเนอร์',
+    summary: 'ลบภาพสไลด์แบนเนอร์และปรับลำดับสไลด์ที่เหลือ',
     params: {
       type: 'object',
       properties: { id: { type: 'string' } }
@@ -441,8 +790,60 @@ fastify.delete('/api/v1/app/slides/:id', {
 }, async (req, reply) => {
   const { id } = req.params
   try {
+    const [slideRows] = await appPool.query('SELECT id, title, image_path AS imagePath FROM hero_slides WHERE id = ? LIMIT 1', [id])
+    if (slideRows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบสไลด์ภาพที่ต้องการลบ' }
+    }
+    const slide = slideRows[0]
+
     await appPool.query('DELETE FROM hero_slides WHERE id = ?', [id])
-    return { success: true, message: 'ลบสไลด์สำเร็จ' }
+
+    // Re-index remaining slides to 1..N sequentially
+    const [remainingSlides] = await appPool.query(`
+      SELECT id, display_order AS displayOrder
+      FROM hero_slides
+      ORDER BY display_order ASC, created_at DESC
+    `)
+
+    for (let i = 0; i < remainingSlides.length; i++) {
+      if (remainingSlides[i].displayOrder !== i + 1) {
+        await appPool.query('UPDATE hero_slides SET display_order = ? WHERE id = ?', [i + 1, remainingSlides[i].id])
+      }
+    }
+
+    return { success: true, message: 'ลบสไลด์ภาพเรียบร้อยแล้ว', slide }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.patch('/api/v1/app/slides/duration', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ตั้งค่าความเร็วการเปลี่ยนสไลด์ (วินาที)',
+    body: {
+      type: 'object',
+      required: ['slideDuration'],
+      properties: {
+        slideDuration: { type: 'integer', minimum: 2, maximum: 30 }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { slideDuration } = req.body || {}
+  const durationNum = typeof slideDuration === 'number' ? slideDuration : parseInt(String(slideDuration), 10)
+  if (isNaN(durationNum) || durationNum < 2 || durationNum > 30) {
+    reply.code(400); return { success: false, error: 'ความเร็วการเปลี่ยนสไลด์ต้องอยู่ระหว่าง 2 ถึง 30 วินาที' }
+  }
+
+  try {
+    await appPool.query(`
+      INSERT INTO member_system_settings (config_key, config_value, updated_at)
+      VALUES ('hero_slide_duration_seconds', ?, NOW())
+      ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()
+    `, [String(durationNum), String(durationNum)])
+
+    return { success: true, slideDuration: durationNum }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
   }
@@ -472,6 +873,317 @@ fastify.get('/api/v1/app/assets', {
     sql += ' ORDER BY id DESC LIMIT ?'; params.push(parseInt(limit, 10))
     const [rows] = await appPool.query(sql, params)
     return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.6 Hospital Locations
+fastify.get('/api/v1/app/locations', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการสถานที่/ห้อง/อาคารของโรงพยาบาล (รองรับทั้งแบบย่อและแบบละเอียด)',
+    querystring: {
+      type: 'object',
+      properties: {
+        search: { type: 'string' },
+        buildingId: { type: 'string' },
+        status: { type: 'string', enum: ['active', 'inactive', 'all'], default: 'active' },
+        page: { type: 'string', default: '1' },
+        limit: { type: 'string', default: '500' },
+        detailed: { type: 'string', default: 'false' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { search = '', buildingId = '', status = 'active', page = '1', limit = '500', detailed = 'false' } = req.query || {}
+  try {
+    const pageNum = Math.max(1, parseInt(page, 10) || 1)
+    const limitNum = Math.min(1000, Math.max(1, parseInt(limit, 10) || 500))
+    const offset = (pageNum - 1) * limitNum
+
+    const whereClauses = []
+    const queryParams = []
+
+    if (status === 'active') {
+      whereClauses.push('is_active = 1')
+    } else if (status === 'inactive') {
+      whereClauses.push('is_active = 0')
+    }
+
+    if (buildingId) {
+      whereClauses.push('building_id = ?')
+      queryParams.push(buildingId)
+    }
+
+    if (search && search.trim()) {
+      whereClauses.push('(room_name LIKE ? OR building_name LIKE ? OR floor_name LIKE ? OR full_name LIKE ?)')
+      queryParams.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`)
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    if (detailed === 'true') {
+      const [countRows] = await appPool.query(
+        `SELECT COUNT(*) as total FROM hospital_locations ${whereSql}`,
+        queryParams
+      )
+      const total = countRows[0]?.total || 0
+
+      const [items] = await appPool.query(
+        `SELECT id, room_name, floor_id, floor_name, building_id, building_name, full_name, is_active, updated_at 
+         FROM hospital_locations 
+         ${whereSql} 
+         ORDER BY building_name ASC, floor_id ASC, room_name ASC 
+         LIMIT ? OFFSET ?`,
+        [...queryParams, limitNum, offset]
+      )
+
+      const [buildings] = await appPool.query(
+        `SELECT DISTINCT building_id, building_name 
+         FROM hospital_locations 
+         ORDER BY building_name ASC`
+      )
+
+      const [buildingFloors] = await appPool.query(
+        `SELECT DISTINCT building_id, building_name, floor_id, floor_name 
+         FROM hospital_locations 
+         ORDER BY building_name ASC, floor_name ASC`
+      )
+
+      const [statsRows] = await appPool.query(`
+        SELECT 
+          COUNT(*) as totalCount,
+          SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as activeCount,
+          COUNT(DISTINCT building_id) as buildingCount
+        FROM hospital_locations
+      `)
+      const stats = statsRows[0] || { totalCount: 0, activeCount: 0, buildingCount: 0 }
+
+      return {
+        success: true,
+        data: {
+          items,
+          total,
+          page: pageNum,
+          totalPages: Math.ceil(total / limitNum) || 1,
+          buildings,
+          buildingFloors,
+          stats: {
+            totalCount: Number(stats.totalCount) || 0,
+            activeCount: Number(stats.activeCount) || 0,
+            buildingCount: Number(stats.buildingCount) || 0,
+          }
+        }
+      }
+    } else {
+      const [locations] = await appPool.query(
+        `SELECT id, room_name, floor_id, floor_name, building_id, building_name, full_name 
+         FROM hospital_locations 
+         ${whereSql} 
+         ORDER BY building_name ASC, floor_id ASC, room_name ASC 
+         LIMIT ?`,
+        [...queryParams, limitNum]
+      )
+
+      return {
+        success: true,
+        data: locations
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/locations', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'สร้างสถานที่/ห้องใหม่',
+    body: {
+      type: 'object',
+      required: ['room_name', 'building_name', 'floor_name'],
+      properties: {
+        room_name: { type: 'string' },
+        floor_id: { type: 'integer' },
+        floor_name: { type: 'string' },
+        building_id: { type: 'integer' },
+        building_name: { type: 'string' },
+        is_active: { type: 'boolean', default: true }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { room_name, floor_id, floor_name, building_id, building_name, is_active } = req.body || {}
+  try {
+    if (!room_name?.trim()) {
+      reply.code(400); return { success: false, error: 'กรุณาระบุชื่อห้อง / หน่วยงาน' }
+    }
+    if (!building_name?.trim()) {
+      reply.code(400); return { success: false, error: 'กรุณาระบุชื่ออาคาร / ตึก' }
+    }
+    if (!floor_name?.trim()) {
+      reply.code(400); return { success: false, error: 'กรุณาระบุชั้น' }
+    }
+
+    const [maxRows] = await appPool.query('SELECT COALESCE(MAX(id), 0) as maxId FROM hospital_locations')
+    const newId = Number(maxRows[0]?.maxId || 0) + 1
+
+    let finalBuildingId = building_id ? Number(building_id) : 0
+    let finalFloorId = floor_id ? Number(floor_id) : 0
+
+    if (!finalBuildingId) {
+      const [maxBRows] = await appPool.query('SELECT COALESCE(MAX(building_id), 0) as maxB FROM hospital_locations')
+      finalBuildingId = Number(maxBRows[0]?.maxB || 0) + 1
+    }
+    if (!finalFloorId) {
+      const [maxFRows] = await appPool.query('SELECT COALESCE(MAX(floor_id), 0) as maxF FROM hospital_locations')
+      finalFloorId = Number(maxFRows[0]?.maxF || 0) + 1
+    }
+
+    const trimmedRoom = room_name.trim()
+    const trimmedFloor = floor_name.trim()
+    const trimmedBuilding = building_name.trim()
+    const fullName = `${trimmedBuilding} ${trimmedFloor} (${trimmedRoom})`
+    const activeVal = is_active === false || is_active === 0 ? 0 : 1
+
+    await appPool.query(
+      `INSERT INTO hospital_locations (id, room_name, floor_id, floor_name, building_id, building_name, full_name, is_active, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [newId, trimmedRoom, finalFloorId, trimmedFloor, finalBuildingId, trimmedBuilding, fullName, activeVal]
+    )
+
+    return {
+      success: true,
+      message: 'เพิ่มข้อมูลสถานที่สำเร็จ',
+      data: {
+        id: newId,
+        room_name: trimmedRoom,
+        floor_id: finalFloorId,
+        floor_name: trimmedFloor,
+        building_id: finalBuildingId,
+        building_name: trimmedBuilding,
+        full_name: fullName,
+        is_active: activeVal,
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.put('/api/v1/app/locations/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขข้อมูลสถานที่หรือเปลี่ยนสถานะใช้งาน',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        is_active: { type: 'boolean' },
+        room_name: { type: 'string' },
+        floor_id: { type: 'integer' },
+        floor_name: { type: 'string' },
+        building_id: { type: 'integer' },
+        building_name: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const { is_active, room_name, floor_id, floor_name, building_id, building_name } = req.body || {}
+  try {
+    const [existing] = await appPool.query('SELECT * FROM hospital_locations WHERE id = ?', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลสถานที่ที่ต้องการแก้ไข' }
+    }
+    const current = existing[0]
+
+    // Fast toggle active status
+    if (is_active !== undefined && room_name === undefined && building_name === undefined) {
+      await appPool.query(
+        'UPDATE hospital_locations SET is_active = ?, updated_at = NOW() WHERE id = ?',
+        [is_active ? 1 : 0, id]
+      )
+      return { success: true, message: 'อัปเดตสถานะสำเร็จ' }
+    }
+
+    const targetRoom = room_name !== undefined ? room_name.trim() : current.room_name
+    const targetBuildingName = building_name !== undefined ? building_name.trim() : current.building_name
+    const targetFloorName = floor_name !== undefined ? floor_name.trim() : current.floor_name
+    const targetBuildingId = building_id !== undefined ? Number(building_id) : current.building_id
+    const targetFloorId = floor_id !== undefined ? Number(floor_id) : current.floor_id
+    const targetIsActive = is_active !== undefined ? (is_active ? 1 : 0) : current.is_active
+    const targetFullName = `${targetBuildingName} ${targetFloorName} (${targetRoom})`
+
+    await appPool.query(
+      `UPDATE hospital_locations 
+       SET room_name = ?, 
+           floor_id = ?, 
+           floor_name = ?, 
+           building_id = ?, 
+           building_name = ?, 
+           full_name = ?, 
+           is_active = ?, 
+           updated_at = NOW() 
+       WHERE id = ?`,
+      [
+        targetRoom,
+        targetFloorId,
+        targetFloorName,
+        targetBuildingId,
+        targetBuildingName,
+        targetFullName,
+        targetIsActive,
+        id,
+      ]
+    )
+
+    return {
+      success: true,
+      message: 'แก้ไขข้อมูลสถานที่สำเร็จ',
+      data: {
+        id: Number(id),
+        room_name: targetRoom,
+        floor_id: targetFloorId,
+        floor_name: targetFloorName,
+        building_id: targetBuildingId,
+        building_name: targetBuildingName,
+        full_name: targetFullName,
+        is_active: targetIsActive,
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.delete('/api/v1/app/locations/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบข้อมูลสถานที่',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [check] = await appPool.query('SELECT id, full_name FROM hospital_locations WHERE id = ?', [id])
+    if (check.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลสถานที่ที่ต้องการลบ' }
+    }
+
+    await appPool.query('DELETE FROM hospital_locations WHERE id = ?', [id])
+    return {
+      success: true,
+      message: `ลบข้อมูลสถานที่ "${check[0].full_name}" สำเร็จเรียบร้อย`,
+      location: check[0]
+    }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
   }

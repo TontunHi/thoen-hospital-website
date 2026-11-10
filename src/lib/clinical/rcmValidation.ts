@@ -660,6 +660,7 @@ export const cancerFundSortFieldSchema = z
 export const cancerFundAdpQuerySchema = baseFiscalDateSchema
   .extend({
     cardFilter: cancerFundCardFilterSchema,
+    statusFilter: z.string().max(100).optional(),
     ucOnly: z
       .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
       .optional(),

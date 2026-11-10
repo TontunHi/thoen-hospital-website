@@ -8,6 +8,7 @@ import {
   clopidogrelReportQuerySchema,
   dentalImplantDensurQuerySchema,
   walkinFundReportQuerySchema,
+  cancerFundAdpQuerySchema,
   validateSearchParams,
 } from '../rcmValidation'
 
@@ -116,6 +117,27 @@ describe('rcmValidation module', () => {
     if (parsed.success) {
       expect(parsed.data.cardFilter).toBe('COMPENSATED')
       expect(parsed.data.search).toBe('WALKIN')
+      expect(parsed.data.page).toBe(1)
+      expect(parsed.data.pageSize).toBe(50)
+      expect(parsed.data.sortOrder).toBe('desc')
+    }
+  })
+
+  it('validates cancerFundAdpQuerySchema with statusFilter and pagination', () => {
+    const parsed = cancerFundAdpQuerySchema.safeParse({
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+      cardFilter: 'ALL',
+      statusFilter: 'HAS_REP',
+      search: 'สมชาย',
+      page: '1',
+      pageSize: '50',
+    })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.cardFilter).toBe('ALL')
+      expect(parsed.data.statusFilter).toBe('HAS_REP')
+      expect(parsed.data.search).toBe('สมชาย')
       expect(parsed.data.page).toBe(1)
       expect(parsed.data.pageSize).toBe(50)
       expect(parsed.data.sortOrder).toBe('desc')

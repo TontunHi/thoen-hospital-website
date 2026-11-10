@@ -121,30 +121,31 @@ public readonly tasks = {
 ## 4. ขั้นตอนการดำเนินงาน 4 ระยะ (Phase Execution Plan)
 
 ### ระยะที่ 1: จัดการ Salary Execute Deprecation (เร็วและปิดความเสี่ยงทันที)
-- [ ] **1.1 ปรับ `src/lib/salary/salaryBatchService.ts`:**
+- [x] **1.1 ปรับ `src/lib/salary/salaryBatchService.ts`:**
   - เปลี่ยนฟังก์ชัน `ingestBatch` ให้เรียก `apiGateway.salary.uploadBatch(batch.targetTable, batch.rows)`
-- [ ] **1.2 ตรวจสอบ `src/lib/salary/salaryLedgerService.ts`:**
+- [x] **1.2 ตรวจสอบ `src/lib/salary/salaryLedgerService.ts`:**
   - ยืนยันว่าไม่มีจุดใดเรียก `querySalaryEditDb` ซ้ำซ้อน
-- [ ] **1.3 รัน Unit Tests:**
+- [x] **1.3 รัน Unit Tests:**
   - ตรวจสอบชุดทดสอบ `npm test src/lib/salary` ให้ผ่าน 100%
+- [x] **1.4 ปิดตาย `/api/v1/salary/execute` บน Gateway (HTTP 410 Gone)**
 
 ### ระยะที่ 2: สร้าง Named APIs รองรับ Task Inbox & Repairs
-- [ ] **2.1 สร้างโมดูล `routes/tasks.js` บน Gateway (`docs/gateway/routes/tasks.js`):**
+- [x] **2.1 สร้างโมดูล `routes/tasks.js` บน Gateway (`docs/gateway/routes/tasks.js`):**
   - นำ Logic SQL จาก `taskInboxService.ts` ย้ายไปเป็น Atomic Prepared Statements บน Fastify Gateway
   - รองรับ Transaction ปลอดภัย (`SET NAMES utf8mb4`) เพื่อป้องกันภาษาไทยต่างดาว
-- [ ] **2.2 เพิ่ม SDK Methods ใน `src/lib/apiGateway.ts`:**
+- [x] **2.2 เพิ่ม SDK Methods ใน `src/lib/apiGateway.ts`:**
   - สร้าง Interfaces & Methods รองรับทุก Endpoint ของ Tasks
-- [ ] **2.3 Refactor `src/lib/taskInboxService.ts`:**
+- [x] **2.3 Refactor `src/lib/taskInboxService.ts`:**
   - ปรับปรุงให้เรียกใช้ Gateway SDK เป็นหลัก
   - คง Dependency Injection (`QueryExecutor`) ไว้สำหรับการรัน Vitest Mocking ให้ผ่าน 100%
-- [ ] **2.4 ปรับ Route Handlers ให้เป็น Thin Adapters:**
+- [x] **2.4 ปรับ Route Handlers ให้เป็น Thin Adapters:**
   - `src/app/api/member/inbox/route.ts`
   - `src/app/api/member/inbox/[id]/route.ts`
   - `src/app/api/member/inbox/[id]/action/route.ts`
   - `src/app/api/member/inbox/[id]/repair-action/route.ts`
   - `src/app/api/member/repairs/route.ts`
   - `src/app/api/member/media-requests/route.ts`
-- [ ] **2.5 ทดสอบ Unit Tests:**
+- [x] **2.5 ทดสอบ Unit Tests:**
   - รัน `npm test src/lib/__tests__/taskInboxService.action.test.ts` และการทดสอบสิทธิ์ทั้งหมด
 
 ### ระยะที่ 3: สำรวจและย้าย Legacy CMS / Peripheral Services ที่เหลือ

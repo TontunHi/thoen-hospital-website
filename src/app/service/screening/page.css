@@ -3,12 +3,12 @@
    ======================================================================== */
 
 .screeningPage {
-  padding-top: calc(var(--navbar-height, 60px) + 1.5rem);
-  padding-bottom: 4rem;
-  background-color: #f8fafc;
+  padding-top: calc(var(--navbar-height, 60px) + var(--space-6));
+  padding-bottom: var(--space-16);
+  background-color: var(--bg-main);
   min-height: 100vh;
-  font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), sans-serif;
-  color: #1e293b;
+  font-family: var(--font-family);
+  color: var(--gray-900);
 }
 
 .screeningContainer {
@@ -19,16 +19,17 @@
 
 /* Header Card */
 .screeningHeaderCard {
-  background: linear-gradient(135deg, #065f46 0%, #047857 50%, #064e3b 100%);
-  border-radius: 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl, 20px);
   padding: 1.5rem 2rem;
-  color: #ffffff;
+  color: var(--gray-900);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1.25rem;
-  box-shadow: 0 10px 25px -5px rgba(6, 95, 70, 0.25);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 1.5rem;
 }
 
@@ -42,44 +43,43 @@
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  color: #fef08a;
+  background: var(--primary-light);
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border: 1px solid rgba(254, 240, 138, 0.35);
+  border: 1px solid var(--primary-light);
 }
 
 .screeningTitleSection h1 {
   font-size: 1.45rem;
-  font-weight: 800;
-  color: #fef08a;
+  font-weight: 700;
+  color: var(--gray-900);
   margin: 0;
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  letter-spacing: -0.01em;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  letter-spacing: normal;
+  text-shadow: none;
 }
 
 .screeningTag {
   font-size: 0.75rem;
-  font-weight: 700;
-  background: rgba(254, 240, 138, 0.2);
-  border: 1px solid rgba(254, 240, 138, 0.4);
+  font-weight: 600;
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
   padding: 0.2rem 0.65rem;
   border-radius: 9999px;
-  color: #fef9c3;
+  color: var(--primary-dark);
   text-shadow: none;
 }
 
 .screeningSubtitle {
-  color: #f8fafc;
+  color: var(--gray-500);
   font-size: 0.875rem;
   margin: 0.35rem 0 0 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  text-shadow: none;
 }
 
 .screeningNavControls {
@@ -90,42 +90,41 @@
 }
 
 .scanKioskLink {
-  background: #ffffff;
-  color: #065f46;
+  background: var(--primary);
+  color: var(--white, #ffffff);
   border: none;
   padding: 0.65rem 1.25rem;
   border-radius: 12px;
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   text-decoration: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .scanKioskLink:hover {
-  background: #ecfdf5;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  background: var(--primary-hover);
+  box-shadow: var(--shadow-hover);
 }
 
 .backServiceLink {
-  background: rgba(0, 0, 0, 0.2);
-  color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-subtle);
+  color: var(--gray-700);
+  border: 1px solid var(--gray-200);
   padding: 0.65rem 1rem;
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 500;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .backServiceLink:hover {
-  background: rgba(0, 0, 0, 0.35);
-  color: #ffffff;
+  background: var(--gray-200);
+  color: var(--gray-900);
 }
 
 /* Stats Summary Cards */

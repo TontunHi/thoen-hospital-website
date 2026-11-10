@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 
 export const dynamic = 'force-dynamic'
 import ImageGallery from '@/features/news/components/ImageGallery'
@@ -18,41 +18,28 @@ function getYouTubeId(url: string): string | null {
 
 async function getNewsBySlug(slug: string) {
   try {
-    const decodedSlug = decodeURIComponent(slug)
-    const rows = await queryMemberDb(`
-      SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
-      FROM news
-      WHERE slug = ?
-      LIMIT 1
-    `, [decodedSlug])
+    const res = await apiGateway.app.getNewsById(slug)
+    if (!res.success || !res.data) return null
+    const news = res.data
 
-    if (rows.length === 0) return null
-    const news = rows[0]
-
-    const attachments = await queryMemberDb(`
-      SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
-      FROM attachments
-      WHERE news_id = ?
-      ORDER BY id ASC
-    `, [news.id])
-
+    const attachments = news.attachments || []
     const now = new Date()
     const imageAttachments = attachments.filter((att: any) => 
-      att.fileType && att.fileType.startsWith('image/')
+      (att.fileType || att.file_type)?.startsWith('image/')
     )
     const images = imageAttachments.map((att: any) => ({
       id: att.id,
-      imageUrl: att.filePath,
+      imageUrl: att.filePath || att.file_path,
       order: 0
     }))
 
     const pdfAttachment = attachments.find((att: any) => 
-      att.fileType === 'application/pdf'
+      (att.fileType || att.file_type) === 'application/pdf'
     )
 
     let status = 'PUBLISHED'
-    const startD = new Date(news.startDate)
-    const endD = new Date(news.endDate)
+    const startD = new Date(news.startDate || news.start_date)
+    const endD = new Date(news.endDate || news.end_date)
     if (startD > now) {
       status = 'DRAFT'
     } else if (endD < now) {
@@ -65,14 +52,14 @@ async function getNewsBySlug(slug: string) {
       slug: news.slug,
       excerpt: '',
       content: '', // No content field in DB
-      youtubeUrl: news.youtubeLink,
-      pdfUrl: pdfAttachment ? pdfAttachment.filePath : null,
+      youtubeUrl: news.youtubeLink || news.youtube_link,
+      pdfUrl: pdfAttachment ? (pdfAttachment.filePath || pdfAttachment.file_path) : null,
       status,
       category: news.category,
-      views: news.viewCount || 0,
-      publishedAt: news.startDate,
-      createdAt: news.createdAt,
-      updatedAt: news.updatedAt,
+      views: news.viewCount || news.view_count || 0,
+      publishedAt: news.startDate || news.start_date,
+      createdAt: news.createdAt || news.created_at,
+      updatedAt: news.updatedAt || news.updated_at,
       images
     }
   } catch (error) {

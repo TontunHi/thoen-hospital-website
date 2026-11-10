@@ -104,7 +104,7 @@ export class ApiGatewayClient {
    */
   public async request<T = unknown>(
     path: string,
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' = 'GET',
     body?: unknown,
     options?: RequestOptions
   ): Promise<T> {
@@ -198,6 +198,10 @@ export class ApiGatewayClient {
 
   public put<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>(path, 'PUT', body, options)
+  }
+
+  public patch<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(path, 'PATCH', body, options)
   }
 
   public delete<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
@@ -694,6 +698,9 @@ export class ApiGatewayClient {
       return Array.isArray(res) ? res : res.data || []
     },
 
+    /**
+     * @deprecated Disabled on Gateway (HTTP 410 Gone). Use named salary methods instead (uploadBatch, deleteLatestBatch, etc.).
+     */
     execute: (sql: string, params: unknown[] = []) => {
       return this.post<{ affectedRows: number; insertId: number | null }>('/api/v1/salary/execute', { sql, params })
     }
@@ -729,8 +736,12 @@ export class ApiGatewayClient {
     },
 
     // ── Members CRUD & Permissions ──
-    getMembers: () => {
-      return this.get<Array<Record<string, unknown>>>('/api/v1/app/members')
+    getMembers: (params?: { search?: string; limit?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.limit) q.set('limit', String(params.limit))
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<Array<Record<string, unknown>>>(`/api/v1/app/members${qs}`)
     },
 
     getMemberById: (id: string | number) => {
@@ -823,16 +834,37 @@ export class ApiGatewayClient {
     },
 
     // ── News CMS ──
-    getNews: (params?: { category?: string; limit?: number }) => {
+    getNews: (params?: { page?: number; limit?: number; category?: string; all?: boolean; search?: string }) => {
       const q = new URLSearchParams()
-      if (params?.category) q.set('category', params.category)
+      if (params?.page) q.set('page', String(params.page))
       if (params?.limit) q.set('limit', String(params.limit))
+      if (params?.category) q.set('category', params.category)
+      if (params?.all !== undefined) q.set('all', String(params.all))
+      if (params?.search) q.set('search', params.search)
       const qs = q.toString() ? `?${q.toString()}` : ''
-      return this.get<Array<Record<string, unknown>>>(`/api/v1/app/news${qs}`)
+      return this.get<{
+        success: boolean
+        count: number
+        total: number
+        pagination: {
+          page: number
+          limit: number
+          total: number
+          totalPages: number
+        }
+        data: Array<Record<string, any>>
+      }>(`/api/v1/app/news${qs}`)
     },
 
     getNewsById: (id: string | number) => {
-      return this.get<Record<string, unknown>>(`/api/v1/app/news/${id}`)
+      return this.get<{
+        success: boolean
+        data: Record<string, any>
+      }>(`/api/v1/app/news/${encodeURIComponent(String(id))}`)
+    },
+
+    incrementNewsView: (id: string | number) => {
+      return this.post<{ success: boolean; message?: string }>(`/api/v1/app/news/${encodeURIComponent(String(id))}/view`, {})
     },
 
     createNews: (news: {
@@ -842,8 +874,17 @@ export class ApiGatewayClient {
       youtubeLink?: string | null
       startDate: string
       endDate: string
+      attachments?: Array<{
+        filePath: string
+        fileType?: string
+        originalName?: string
+      }>
     }) => {
-      return this.post<{ insertId: number }>('/api/v1/app/news', news)
+      return this.post<{
+        success: boolean
+        insertId: number
+        data?: Record<string, any>
+      }>('/api/v1/app/news', news)
     },
 
     updateNews: (
@@ -854,9 +895,14 @@ export class ApiGatewayClient {
         youtubeLink: string | null
         startDate: string
         endDate: string
+        attachments: Array<{
+          filePath: string
+          fileType?: string
+          originalName?: string
+        }>
       }>
     ) => {
-      return this.put<{ message: string }>(`/api/v1/app/news/${id}`, news)
+      return this.put<{ success: boolean; message: string; data?: Record<string, any> }>(`/api/v1/app/news/${id}`, news)
     },
 
     getPublishedNews: (limit = 20) => {
@@ -868,12 +914,19 @@ export class ApiGatewayClient {
     },
 
     deleteNews: (id: string | number) => {
-      return this.delete<{ message: string }>(`/api/v1/app/news/${id}`)
+      return this.delete<{ success: boolean; message: string }>(`/api/v1/app/news/${id}`)
     },
 
     // ── Hero Slides ──
-    getSlides: () => {
-      return this.get<Array<Record<string, unknown>>>('/api/v1/app/slides')
+    getSlides: (all = false) => {
+      const qs = all ? '?all=true' : ''
+      return this.get<{
+        success: boolean
+        count: number
+        slides: Array<Record<string, any>>
+        data: Array<Record<string, any>>
+        slideDuration: number
+      }>(`/api/v1/app/slides${qs}`)
     },
 
     getActiveSlides: () => {
@@ -881,19 +934,115 @@ export class ApiGatewayClient {
     },
 
     createSlide: (slide: {
-      title?: string
+      title?: string | null
       imagePath: string
-      linkUrl?: string
+      linkUrl?: string | null
       displayOrder?: number
       duration?: number
-      startDate: string
-      endDate: string
+      startDate: string | null
+      endDate: string | null
     }) => {
-      return this.post<{ insertId: number }>('/api/v1/app/slides', slide)
+      return this.post<{
+        success: boolean
+        insertId: number
+        slide: Record<string, any>
+      }>('/api/v1/app/slides', slide)
+    },
+
+    updateSlide: (
+      id: string | number,
+      slide: {
+        title?: string | null
+        imagePath: string
+        linkUrl?: string | null
+        displayOrder?: number
+        duration?: number
+        startDate: string | null
+        endDate: string | null
+      }
+    ) => {
+      return this.put<{
+        success: boolean
+        slide: Record<string, any>
+        previousImagePath?: string
+      }>(`/api/v1/app/slides/${id}`, slide)
     },
 
     deleteSlide: (id: string | number) => {
-      return this.delete<{ message: string }>(`/api/v1/app/slides/${id}`)
+      return this.delete<{
+        success: boolean
+        message: string
+        slide: Record<string, any>
+      }>(`/api/v1/app/slides/${id}`)
+    },
+
+    updateSlideDuration: (slideDuration: number) => {
+      return this.patch<{
+        success: boolean
+        slideDuration: number
+      }>('/api/v1/app/slides/duration', { slideDuration })
+    },
+
+    // ── Hospital Locations ──
+    getLocations: (params?: {
+      search?: string
+      buildingId?: string | number
+      status?: 'active' | 'inactive' | 'all'
+      page?: number
+      limit?: number
+      detailed?: boolean
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.buildingId) q.set('buildingId', String(params.buildingId))
+      if (params?.status) q.set('status', params.status)
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.limit) q.set('limit', String(params.limit))
+      if (params?.detailed !== undefined) q.set('detailed', String(params.detailed))
+      const qs = q.toString() ? `?${q.toString()}` : ''
+
+      return this.get<any>(`/api/v1/app/locations${qs}`)
+    },
+
+    createLocation: (location: {
+      room_name: string
+      floor_id?: number
+      floor_name: string
+      building_id?: number
+      building_name: string
+      is_active?: boolean | number
+    }) => {
+      return this.post<{
+        success: boolean
+        message: string
+        data: Record<string, any>
+      }>('/api/v1/app/locations', location)
+    },
+
+    updateLocation: (
+      id: string | number,
+      location: {
+        is_active?: boolean | number
+        room_name?: string
+        floor_id?: number
+        floor_name?: string
+        building_id?: number
+        building_name?: string
+      }
+    ) => {
+      return this.put<{
+        success: boolean
+        message: string
+        data?: Record<string, any>
+      }>(`/api/v1/app/locations/${id}`, location)
+    },
+
+    deleteLocation: (id: string | number) => {
+      return this.delete<{
+        success: boolean
+        message: string
+        location?: Record<string, any>
+      }>(`/api/v1/app/locations/${id}`)
     },
 
     // ── Assets, Events, Tasks ──
@@ -917,6 +1066,95 @@ export class ApiGatewayClient {
       if (params?.limit) q.set('limit', String(params.limit))
       const qs = q.toString() ? `?${q.toString()}` : ''
       return this.get<Array<Record<string, unknown>>>(`/api/v1/app/tasks${qs}`)
+    },
+
+    getInboxTasks: (params: {
+      tab?: string
+      memberId?: number
+      username?: string
+      type?: string
+      status?: string
+      search?: string
+      limit?: number
+    }) => {
+      const q = new URLSearchParams()
+      if (params.tab) q.set('tab', params.tab)
+      if (params.memberId) q.set('memberId', String(params.memberId))
+      if (params.username) q.set('username', params.username)
+      if (params.type) q.set('type', params.type)
+      if (params.status) q.set('status', params.status)
+      if (params.search) q.set('search', params.search)
+      if (params.limit) q.set('limit', String(params.limit))
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        success: boolean
+        data: {
+          tasks: Array<any>
+          inboxCount: number
+          departmentCount: number
+          canViewAll: boolean
+          userDepartment: string
+          stats: {
+            pendingCount: number
+            departmentCount: number
+            allPendingCount: number
+            approvedCount: number
+            myRequestsCount: number
+          }
+        }
+      }>(`/api/v1/app/tasks/inbox${qs}`)
+    },
+
+    createTask: (data: {
+      task: {
+        id?: string
+        taskNo: string
+        taskType: string
+        title: string
+        description?: string
+        urgency?: string
+        requesterId: number
+        requesterName: string
+        requesterDept?: string | null
+        initialAssignee?: number | null
+        initialRole?: string | null
+        customPayload?: any
+      }
+      steps?: Array<{
+        stepNo?: number
+        stepName: string
+        assigneeType?: string
+        assignedToId?: number | null
+        assignedRole?: string | null
+      }>
+      repairDetail?: {
+        repairType?: string
+        itemCategory?: string
+        equipmentNumber?: string | null
+        equipmentName?: string | null
+        nonEquipmentItem?: string | null
+        locationId?: number | null
+        locationFullName?: string
+        symptomDetail?: string
+        assignedTechnicianId?: number | null
+        assignedTechnicianName?: string | null
+        photos?: string[]
+      } | null
+      auditLog?: {
+        action?: string
+        performedBy?: number
+        performerName?: string
+        details?: any
+      } | null
+    }) => {
+      return this.post<{
+        success: boolean
+        message: string
+        data: {
+          taskId: string
+          taskNo: string
+        }
+      }>('/api/v1/app/tasks/create', data)
     },
 
     generateTaskNo: (ymPrefix: string) => {
@@ -1137,6 +1375,13 @@ export class ApiGatewayClient {
       if (Array.isArray(res)) return res
       return (res as { data?: T[] })?.data || []
     }
+  }
+
+  // ================================================================
+  // Domain Namespace: Tasks & Workflow
+  // ================================================================
+  public get tasks() {
+    return this.app
   }
 }
 

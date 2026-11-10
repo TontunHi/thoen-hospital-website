@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { apiGateway } from '@/lib/apiGateway'
 import { queryMemberDb } from '@/lib/memberDb'
 import { generateTaskNo, notifyAssigneeOnTelegram, REGISTERED_TASK_TYPES, WorkflowStepDefinition } from '@/lib/taskInboxService'
 import crypto from 'crypto'
@@ -17,6 +18,27 @@ export async function GET(request: Request) {
     const type = searchParams.get('type') // filter by taskType
     const status = searchParams.get('status')
     const search = searchParams.get('search')?.trim()
+
+    // 0. Try Named API via Gateway
+    if (typeof apiGateway.tasks?.getInboxTasks === 'function') {
+      try {
+        const gwRes = await apiGateway.tasks.getInboxTasks({
+          tab,
+          username: session.username,
+          type: type || undefined,
+          status: status || undefined,
+          search: search || undefined,
+        })
+        if (gwRes?.success && gwRes.data) {
+          return NextResponse.json({
+            success: true,
+            data: gwRes.data,
+          })
+        }
+      } catch {
+        // Fallback to local queryMemberDb
+      }
+    }
 
     // 1. Get current member info
     const members = await queryMemberDb(
@@ -303,6 +325,59 @@ export async function POST(request: Request) {
     const firstStep = workflowSteps[0]
     const initialAssignee = firstStep.assignedToId || null
     const initialRole = firstStep.assignedRole || null
+
+    // 0. Try Named API via Gateway
+    if (typeof apiGateway.tasks?.createTask === 'function') {
+      try {
+        const gwRes = await apiGateway.tasks.createTask({
+          task: {
+            id: taskId,
+            taskNo,
+            taskType,
+            title: title.trim(),
+            description: description || '',
+            urgency,
+            requesterId: currentMember.id,
+            requesterName: currentMember.name || session.username,
+            requesterDept: currentMember.department || null,
+            initialAssignee,
+            initialRole,
+            customPayload: customPayload ? (typeof customPayload === 'string' ? JSON.parse(customPayload) : customPayload) : null,
+          },
+          steps: workflowSteps,
+          auditLog: {
+            action: 'CREATE_TASK',
+            performedBy: currentMember.id,
+            performerName: currentMember.name || session.username,
+            details: { taskNo, taskType, title, initialAssignee },
+          },
+        })
+
+        if (gwRes?.success) {
+          // Send Telegram Notification to the first assignee if linked
+          if (initialAssignee) {
+            notifyAssigneeOnTelegram({
+              taskId,
+              taskNo,
+              taskType,
+              title,
+              requesterName: currentMember.name || session.username,
+              requesterDept: currentMember.department,
+              assigneeId: initialAssignee,
+              stepName: firstStep.stepName,
+            }).catch((e) => console.error('Telegram dispatch error on task creation:', e))
+          }
+
+          return NextResponse.json({
+            success: true,
+            message: 'สร้างงานและส่งเข้าสู่กระบวนการเรียบร้อยแล้ว',
+            data: { taskId, taskNo },
+          })
+        }
+      } catch {
+        // Fallback to queryMemberDb
+      }
+    }
 
     // 1. Insert into inbox_tasks
     await queryMemberDb(

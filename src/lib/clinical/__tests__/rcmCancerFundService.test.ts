@@ -302,6 +302,43 @@ describe('RcmCancerFundService', () => {
       expect(resAsc.items[0].compensated).toBe(0)
     })
 
+    it('returns statusOptions and filters correctly by statusFilter (HAS_REP, NO_REP, specific status)', async () => {
+      const executor = createMockExecutor()
+
+      // Default: returns statusOptions
+      const resAll = await RcmCancerFundService.getCancerPatientsReport(
+        { refresh: true },
+        executor
+      )
+      expect(resAll.statusFilter).toBe('ALL')
+      expect(resAll.statusOptions).toEqual(['- :: ยังไม่ได้ส่ง', 'NHSO :: ได้รับ Invoice แล้ว'])
+      expect(resAll.items.length).toBe(2)
+
+      // Filter: HAS_REP
+      const resHasRep = await RcmCancerFundService.getCancerPatientsReport(
+        { statusFilter: 'HAS_REP', refresh: true },
+        executor
+      )
+      expect(resHasRep.items.length).toBe(1)
+      expect(resHasRep.items[0].rep).toBe('REP-C01')
+
+      // Filter: NO_REP
+      const resNoRep = await RcmCancerFundService.getCancerPatientsReport(
+        { statusFilter: 'NO_REP', refresh: true },
+        executor
+      )
+      expect(resNoRep.items.length).toBe(1)
+      expect(resNoRep.items[0].rep).toBeNull()
+
+      // Filter: specific status
+      const resSpecific = await RcmCancerFundService.getCancerPatientsReport(
+        { statusFilter: 'NHSO :: ได้รับ Invoice แล้ว', refresh: true },
+        executor
+      )
+      expect(resSpecific.items.length).toBe(1)
+      expect(resSpecific.items[0].status_eclaim).toBe('NHSO :: ได้รับ Invoice แล้ว')
+    })
+
     it('supports exportAll=true to return unpaginated records', async () => {
       const executor = createMockExecutor()
       const res = await RcmCancerFundService.getCancerPatientsReport(

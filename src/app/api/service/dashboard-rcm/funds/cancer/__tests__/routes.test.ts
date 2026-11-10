@@ -70,6 +70,8 @@ describe('Cancer Fund API Routes', () => {
         ds2: '2027-09-30',
         adpMapping: { adpCode: 'CANCER', isMapped: true, mappedCount: 1, items: [] },
         cardFilter: 'ALL',
+        statusFilter: 'HAS_REP',
+        statusOptions: ['- :: ยังไม่ได้ส่ง', 'NHSO :: ได้รับ Invoice แล้ว'],
         ucOnly: false,
         search: '',
         sortBy: 'vstdate',
@@ -83,13 +85,16 @@ describe('Cancer Fund API Routes', () => {
       })
 
       const req = new Request(
-        'http://localhost/api/service/dashboard-rcm/funds/cancer/adp?ds1=2026-10-01&ds2=2027-09-30&cardFilter=ALL'
+        'http://localhost/api/service/dashboard-rcm/funds/cancer/adp?ds1=2026-10-01&ds2=2027-09-30&cardFilter=ALL&statusFilter=HAS_REP'
       )
       const res = await getAdpReport(req)
       expect(res.status).toBe(200)
       const json = await res.json()
       expect(json.success).toBe(true)
       expect(json.data.categoryTitle).toBe('กองทุนมะเร็ง')
+      expect(RcmCancerFundService.getCancerPatientsReport).toHaveBeenCalledWith(
+        expect.objectContaining({ statusFilter: 'HAS_REP' })
+      )
     })
   })
 

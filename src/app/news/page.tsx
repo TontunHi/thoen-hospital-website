@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Newspaper, ChevronRight } from 'lucide-react'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import Breadcrumb from '@/components/ui/Breadcrumb'
 import { siteConfig } from '@/config/site'
 import './page.css'
@@ -19,72 +19,35 @@ export const metadata: Metadata = {
 
 async function getNewsList(page: number, limit: number, category?: string) {
   try {
-    const skip = (page - 1) * limit
+    const res = await apiGateway.app.getNews({
+      page,
+      limit,
+      category,
+      all: false,
+    })
+
+    const rawNews = res.data || []
+    const total = res.total || 0
     const now = new Date()
 
-    const whereClauses = ['start_date <= NOW()', 'end_date >= NOW()']
-    const params: any[] = []
-
-    if (category) {
-      whereClauses.push('category = ?')
-      params.push(category)
-    }
-
-    const whereSql = whereClauses.join(' AND ')
-
-    const [rawNews, countRows] = await Promise.all([
-      queryMemberDb(`
-        SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
-        FROM news
-        WHERE ${whereSql}
-        ORDER BY start_date DESC
-        LIMIT ${Number(limit)} OFFSET ${Number(skip)}
-      `, params),
-      queryMemberDb(`
-        SELECT COUNT(*) AS total
-        FROM news
-        WHERE ${whereSql}
-      `, params),
-    ])
-
-    const total = countRows[0]?.total ? Number(countRows[0].total) : 0
-
-    const attachmentsByNewsId = new Map<number, any[]>()
-    if (rawNews.length > 0) {
-      const newsIds = rawNews.map((n: any) => n.id)
-      const placeholders = newsIds.map(() => '?').join(',')
-      const attachments = await queryMemberDb(`
-        SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
-        FROM attachments
-        WHERE news_id IN (${placeholders})
-        ORDER BY id ASC
-      `, newsIds)
-
-      for (const att of attachments) {
-        const list = attachmentsByNewsId.get(att.newsId) || []
-        list.push(att)
-        attachmentsByNewsId.set(att.newsId, list)
-      }
-    }
-
     const adaptedNews = rawNews.map((item: any) => {
-      const atts = attachmentsByNewsId.get(item.id) || []
+      const atts = item.attachments || []
       const imageAttachments = atts.filter((att: any) =>
-        att.fileType && att.fileType.startsWith('image/')
+        (att.fileType || att.file_type)?.startsWith('image/')
       )
       const images = imageAttachments.map((att: any) => ({
         id: att.id,
-        imageUrl: att.filePath,
+        imageUrl: att.filePath || att.file_path,
         order: 0,
       }))
 
       const pdfAttachment = atts.find((att: any) =>
-        att.fileType === 'application/pdf'
+        (att.fileType || att.file_type) === 'application/pdf'
       )
 
       let status = 'PUBLISHED'
-      const startD = new Date(item.startDate)
-      const endD = new Date(item.endDate)
+      const startD = new Date(item.startDate || item.start_date)
+      const endD = new Date(item.endDate || item.end_date)
       if (startD > now) {
         status = 'DRAFT'
       } else if (endD < now) {
@@ -97,15 +60,15 @@ async function getNewsList(page: number, limit: number, category?: string) {
         slug: item.slug,
         excerpt: '',
         content: '',
-        youtubeUrl: item.youtubeLink,
-        pdfUrl: pdfAttachment ? pdfAttachment.filePath : null,
+        youtubeUrl: item.youtubeLink || item.youtube_link,
+        pdfUrl: pdfAttachment ? (pdfAttachment.filePath || pdfAttachment.file_path) : null,
         status,
         category: item.category,
-        views: item.viewCount || 0,
-        publishedAt: item.startDate,
-        expiredAt: item.endDate,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
+        views: item.viewCount || item.view_count || 0,
+        publishedAt: item.startDate || item.start_date,
+        expiredAt: item.endDate || item.end_date,
+        createdAt: item.createdAt || item.created_at,
+        updatedAt: item.updatedAt || item.updated_at,
         images,
       }
     })

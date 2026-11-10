@@ -11,7 +11,7 @@ export async function querySalaryDb(sql: string, params: any[] = []): Promise<an
 
 /**
  * Execute salary write or edit queries via the Thoen Unified API Gateway.
- * Selects route through query, while mutations route through execute.
+ * @deprecated /api/v1/salary/execute is disabled (HTTP 410 Gone). Use named apiGateway.salary methods directly.
  */
 export async function querySalaryEditDb(sql: string, params: any[] = []): Promise<any> {
   const trimmed = sql.trim().toUpperCase()

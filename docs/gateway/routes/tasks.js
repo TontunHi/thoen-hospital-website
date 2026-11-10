@@ -782,4 +782,429 @@ export default async function tasksRoutes(fastify, options) {
       conn.release()
     }
   })
+
+  // 6. Fetch Inbox Tasks with Filters, Badges, and Stats
+  fastify.get('/api/v1/app/tasks/inbox', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'ดึงรายการใบงานสำหรับ Unified Inbox พร้อมการแบ่งแท็บ สิทธิ์ และตัวนับสถิติ',
+      querystring: {
+        type: 'object',
+        properties: {
+          tab: { type: 'string', enum: ['inbox', 'my-requests', 'department', 'all'] },
+          memberId: { type: 'integer' },
+          username: { type: 'string' },
+          type: { type: 'string' },
+          status: { type: 'string' },
+          search: { type: 'string' },
+          limit: { type: 'integer', default: 100 }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    let currentMember = null
+    if (req.query.memberId) {
+      const [members] = await appPool.query(
+        'SELECT id, username, name, department, position, role FROM members WHERE id = ? LIMIT 1',
+        [req.query.memberId]
+      )
+      if (members.length > 0) currentMember = members[0]
+    } else if (req.query.username) {
+      const [members] = await appPool.query(
+        'SELECT id, username, name, department, position, role FROM members WHERE username = ? LIMIT 1',
+        [req.query.username]
+      )
+      if (members.length > 0) currentMember = members[0]
+    }
+
+    if (!currentMember) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลสมาชิก' }
+    }
+
+    const memberId = currentMember.id
+    const userRole = currentMember.role
+    const userPosition = (currentMember.position || '').trim()
+    const userDept = (currentMember.department || '').trim()
+
+    // Position permissions
+    const [permRows] = await appPool.query(
+      'SELECT permission_key FROM position_permissions WHERE position_name = ?',
+      [userPosition]
+    )
+    const hasPerm = (key) => permRows.some(p => p.permission_key === key)
+
+    const isPrStaff = userPosition.includes('นักประชาสัมพันธ์') || userPosition.includes('ประชาสัมพันธ์')
+    const isItStaff = userPosition.includes('คอมพิวเตอร์') || userPosition.includes('ไอที') || (userDept.includes('ดิจิทัล') || userDept.includes('สารสนเทศ'))
+    const isGeneralTechStaff = userPosition.includes('ช่าง') || userDept.includes('ซ่อมบำรุง')
+    const isMedicalTechStaff = userPosition.includes('เครื่องมือแพทย์')
+    const isDirector = userPosition.includes('ผู้อำนวยการ')
+    const isSupplyHead = userPosition.includes('หัวหน้าเจ้าหน้าที่พัสดุ') || userPosition.includes('หัวหน้าพัสดุ')
+    const isSupplyStaff = userPosition.includes('พัสดุ')
+
+    const canViewAll = userRole === 'admin' || hasPerm('manage_inbox') || hasPerm('manage_repairs') || hasPerm('view_all_work') || hasPerm('manage_media_requests')
+
+    const canViewItRepairs = canViewAll || hasPerm('view_it_repairs') || hasPerm('manage_repairs') || isItStaff
+    const canViewGeneralRepairs = canViewAll || hasPerm('view_general_repairs') || hasPerm('manage_repairs') || isGeneralTechStaff
+    const canViewMedicalRepairs = canViewAll || hasPerm('view_medical_repairs') || hasPerm('manage_repairs') || isMedicalTechStaff
+    const canViewMediaRequests = canViewAll || hasPerm('view_media_requests') || hasPerm('manage_media_requests') || isPrStaff
+
+    // Build role conditions for tasks assigned to roles
+    const roleConditions = ["t.`current_role` = ?", "t.`current_role` = ?"]
+    const roleParams = [userPosition, userRole]
+    if (isDirector) roleConditions.push("t.`current_role` = 'ผู้อำนวยการโรงพยาบาลเถิน'")
+    if (isItStaff) roleConditions.push("t.`current_role` = 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์'")
+    if (isSupplyHead) roleConditions.push("t.`current_role` = 'หัวหน้าเจ้าหน้าที่พัสดุ'")
+    if (isSupplyStaff) roleConditions.push("t.`current_role` = 'เจ้าหน้าที่พัสดุ'")
+    if (isPrStaff) roleConditions.push("t.`current_role` = 'นักประชาสัมพันธ์'")
+
+    const inboxWhereClause = `(t.status IN ('PENDING', 'IN_PROGRESS') AND (
+      t.current_assignee = ? 
+      OR (t.\`current_role\` IS NOT NULL AND (${roleConditions.join(' OR ')}))
+      OR EXISTS (
+        SELECT 1 FROM repair_details rd 
+        WHERE rd.task_id = t.id 
+        AND JSON_CONTAINS(rd.co_workers, JSON_OBJECT('id', ?))
+      )
+    ))`
+    const inboxWhereParams = [memberId, ...roleParams, memberId]
+
+    const tab = req.query.tab || 'inbox'
+    const type = req.query.type
+    const status = req.query.status
+    const search = req.query.search ? req.query.search.trim() : null
+    const limit = Math.min(Number(req.query.limit) || 100, 200)
+
+    let whereClauses = []
+    let queryParams = []
+
+    if (tab === 'my-requests') {
+      whereClauses.push('t.requester_id = ?')
+      queryParams.push(memberId)
+    } else if (tab === 'department') {
+      let deptConditions = []
+      let deptParams = []
+      if (userDept) {
+        deptConditions.push('t.requester_dept = ?')
+        deptParams.push(userDept)
+      }
+      if (canViewItRepairs) deptConditions.push("t.task_type = 'IT_REPAIR'")
+      if (canViewGeneralRepairs) deptConditions.push("t.task_type = 'GENERAL_REPAIR'")
+      if (canViewMedicalRepairs) deptConditions.push("t.task_type = 'MEDICAL_REPAIR'")
+      if (canViewMediaRequests) deptConditions.push("t.task_type = 'MEDIA_REQUEST'")
+
+      if (deptConditions.length > 0) {
+        whereClauses.push(`(${deptConditions.join(' OR ')})`)
+        queryParams.push(...deptParams)
+      } else {
+        whereClauses.push('t.requester_id = ?')
+        queryParams.push(memberId)
+      }
+    } else if (tab === 'all') {
+      if (!canViewAll) {
+        let allowedConditions = ['t.requester_id = ?', 't.current_assignee = ?']
+        let allowedParams = [memberId, memberId]
+        if (canViewMediaRequests) allowedConditions.push("t.task_type = 'MEDIA_REQUEST'")
+        if (canViewItRepairs) allowedConditions.push("t.task_type = 'IT_REPAIR'")
+        if (canViewGeneralRepairs) allowedConditions.push("t.task_type = 'GENERAL_REPAIR'")
+        if (canViewMedicalRepairs) allowedConditions.push("t.task_type = 'MEDICAL_REPAIR'")
+        if (userDept) {
+          allowedConditions.push('t.requester_dept = ?')
+          allowedParams.push(userDept)
+        }
+        whereClauses.push(`(${allowedConditions.join(' OR ')})`)
+        queryParams.push(...allowedParams)
+      }
+    } else {
+      // inbox tab: tasks waiting for this member, role, or co-worker
+      whereClauses.push(inboxWhereClause)
+      queryParams.push(...inboxWhereParams)
+    }
+
+    if (type) {
+      whereClauses.push('t.task_type = ?')
+      queryParams.push(type)
+    }
+    if (status) {
+      whereClauses.push('t.status = ?')
+      queryParams.push(status)
+    }
+    if (search) {
+      whereClauses.push('(t.task_no LIKE ? OR t.title LIKE ? OR t.requester_name LIKE ?)')
+      queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`)
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const [tasks] = await appPool.query(
+      `SELECT 
+        t.id, t.task_no, t.task_type, t.title, t.description, t.urgency,
+        t.requester_id, t.requester_name, t.requester_dept,
+        t.status, t.current_step_no, t.current_assignee, t.\`current_role\`,
+        t.reference_id, t.custom_payload, t.created_at, t.updated_at,
+        s.step_name as current_step_name
+       FROM inbox_tasks t
+       LEFT JOIN inbox_task_steps s ON t.id = s.task_id AND t.current_step_no = s.step_no
+       ${whereSql}
+       ORDER BY t.created_at DESC, t.updated_at DESC
+       LIMIT ?`,
+      [...queryParams, limit]
+    )
+
+    const parsedTasks = tasks.map((t) => {
+      let customPayload = t.custom_payload
+      if (typeof customPayload === 'string') {
+        try { customPayload = JSON.parse(customPayload) } catch {}
+      }
+      return { ...t, custom_payload: customPayload }
+    })
+
+    // Inbox badge count
+    const [inboxBadgeRows] = await appPool.query(
+      `SELECT COUNT(*) as cnt FROM inbox_tasks t WHERE ${inboxWhereClause}`,
+      inboxWhereParams
+    )
+    const inboxCount = inboxBadgeRows[0]?.cnt || 0
+
+    // Department tasks count
+    let deptCountSql = 'SELECT COUNT(*) as cnt FROM inbox_tasks t WHERE 1=0'
+    let deptCountParams = []
+    let deptBadgeConditions = []
+    if (userDept) {
+      deptBadgeConditions.push('t.requester_dept = ?')
+      deptCountParams.push(userDept)
+    }
+    if (canViewItRepairs) deptBadgeConditions.push("t.task_type = 'IT_REPAIR'")
+    if (canViewGeneralRepairs) deptBadgeConditions.push("t.task_type = 'GENERAL_REPAIR'")
+    if (canViewMedicalRepairs) deptBadgeConditions.push("t.task_type = 'MEDICAL_REPAIR'")
+    if (canViewMediaRequests) deptBadgeConditions.push("t.task_type = 'MEDIA_REQUEST'")
+
+    if (deptBadgeConditions.length > 0) {
+      deptCountSql = `SELECT COUNT(*) as cnt FROM inbox_tasks t WHERE (${deptBadgeConditions.join(' OR ')})`
+    }
+    const [deptBadgeRows] = await appPool.query(deptCountSql, deptCountParams)
+    const departmentCount = deptBadgeRows[0]?.cnt || 0
+
+    // Summary stats
+    const [allPendingRows] = await appPool.query(
+      "SELECT COUNT(*) as cnt FROM inbox_tasks WHERE status IN ('PENDING', 'IN_PROGRESS')"
+    )
+    const [approvedRows] = await appPool.query(
+      "SELECT COUNT(*) as cnt FROM inbox_tasks WHERE status = 'APPROVED'"
+    )
+    const [myRequestsRows] = await appPool.query(
+      "SELECT COUNT(*) as cnt FROM inbox_tasks WHERE requester_id = ?",
+      [memberId]
+    )
+
+    return {
+      success: true,
+      data: {
+        tasks: parsedTasks,
+        inboxCount,
+        departmentCount,
+        canViewAll,
+        userDepartment: userDept,
+        stats: {
+          pendingCount: inboxCount,
+          departmentCount,
+          allPendingCount: allPendingRows[0]?.cnt || 0,
+          approvedCount: approvedRows[0]?.cnt || 0,
+          myRequestsCount: myRequestsRows[0]?.cnt || 0
+        }
+      }
+    }
+  })
+
+  // 7. Create New Task with Workflow Steps, Optional Repair Details, and Audit Log in 1 Atomic Transaction
+  fastify.post('/api/v1/app/tasks/create', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'สร้างใบงานใหม่พร้อมกำหนดขั้นตอน (Steps), ข้อมูลงานซ่อม (Repair Details) และบันทึก Audit Log ใน 1 Transaction',
+      body: {
+        type: 'object',
+        required: ['task'],
+        properties: {
+          task: {
+            type: 'object',
+            required: ['taskNo', 'taskType', 'title', 'requesterId', 'requesterName'],
+            properties: {
+              id: { type: 'string' },
+              taskNo: { type: 'string' },
+              taskType: { type: 'string' },
+              title: { type: 'string' },
+              description: { type: 'string' },
+              urgency: { type: 'string' },
+              requesterId: { type: 'integer' },
+              requesterName: { type: 'string' },
+              requesterDept: { type: ['string', 'null'] },
+              initialAssignee: { type: ['integer', 'null'] },
+              initialRole: { type: ['string', 'null'] },
+              customPayload: { type: ['object', 'string', 'null'] }
+            }
+          },
+          steps: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['stepName'],
+              properties: {
+                stepNo: { type: 'integer' },
+                stepName: { type: 'string' },
+                assigneeType: { type: 'string' },
+                assignedToId: { type: ['integer', 'null'] },
+                assignedRole: { type: ['string', 'null'] }
+              }
+            }
+          },
+          repairDetail: {
+            type: ['object', 'null'],
+            properties: {
+              repairType: { type: 'string' },
+              itemCategory: { type: 'string' },
+              equipmentNumber: { type: ['string', 'null'] },
+              equipmentName: { type: ['string', 'null'] },
+              nonEquipmentItem: { type: ['string', 'null'] },
+              locationId: { type: ['integer', 'null'] },
+              locationFullName: { type: 'string' },
+              symptomDetail: { type: 'string' },
+              assignedTechnicianId: { type: ['integer', 'null'] },
+              assignedTechnicianName: { type: ['string', 'null'] },
+              photos: { type: 'array' }
+            }
+          },
+          auditLog: {
+            type: ['object', 'null'],
+            properties: {
+              action: { type: 'string' },
+              performedBy: { type: 'integer' },
+              performerName: { type: 'string' },
+              details: { type: ['object', 'string'] }
+            }
+          }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { task, steps, repairDetail, auditLog } = req.body || {}
+    if (!task || !task.taskNo || !task.taskType || !task.title) {
+      reply.code(400); return { success: false, error: 'ข้อมูล task ไม่ครบถ้วน (taskNo, taskType, title จำเป็น)' }
+    }
+
+    const taskId = task.id || crypto.randomUUID()
+    const conn = await appPool.getConnection()
+    try {
+      await conn.beginTransaction()
+      await conn.query('SET NAMES utf8mb4')
+
+      const customPayloadStr = task.customPayload
+        ? (typeof task.customPayload === 'string' ? task.customPayload : JSON.stringify(task.customPayload))
+        : null
+
+      // 1. Insert into inbox_tasks
+      await conn.query(
+        `INSERT INTO inbox_tasks 
+         (\`id\`, \`task_no\`, \`task_type\`, \`title\`, \`description\`, \`urgency\`, \`requester_id\`, \`requester_name\`, \`requester_dept\`, \`status\`, \`current_step_no\`, \`current_assignee\`, \`current_role\`, \`custom_payload\`, \`created_at\`, \`updated_at\`)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 1, ?, ?, ?, NOW(), NOW())`,
+        [
+          taskId,
+          task.taskNo,
+          task.taskType,
+          task.title.trim(),
+          task.description || '',
+          task.urgency || 'NORMAL',
+          task.requesterId,
+          task.requesterName,
+          task.requesterDept || null,
+          task.initialAssignee || null,
+          task.initialRole || null,
+          customPayloadStr
+        ]
+      )
+
+      // 2. Insert workflow steps into inbox_task_steps
+      if (Array.isArray(steps) && steps.length > 0) {
+        for (let i = 0; i < steps.length; i++) {
+          const s = steps[i]
+          const stepId = crypto.randomUUID()
+          const stepStatus = i === 0 ? 'PENDING' : 'WAITING'
+          await conn.query(
+            `INSERT INTO inbox_task_steps 
+             (id, task_id, step_no, step_name, assignee_type, assigned_to_id, assigned_role, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              stepId,
+              taskId,
+              s.stepNo || (i + 1),
+              s.stepName,
+              s.assigneeType || 'INDIVIDUAL',
+              s.assignedToId || null,
+              s.assignedRole || null,
+              stepStatus
+            ]
+          )
+        }
+      }
+
+      // 3. Insert into repair_details if provided
+      if (repairDetail) {
+        const repairDetailId = crypto.randomUUID()
+        await conn.query(
+          `INSERT INTO repair_details 
+           (id, task_id, repair_type, item_category, equipment_number, equipment_name, non_equipment_item, location_id, location_full_name, symptom_detail, assigned_technician_id, assigned_technician_name, co_workers, repair_nature, repair_status, is_external_repair, cost_type, photos, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', 'NORMAL', 'WAITING', 0, 'NO_COST', ?, NOW(), NOW())`,
+          [
+            repairDetailId,
+            taskId,
+            repairDetail.repairType || task.taskType,
+            repairDetail.itemCategory || 'NON_EQUIPMENT',
+            repairDetail.equipmentNumber || null,
+            repairDetail.equipmentName || null,
+            repairDetail.nonEquipmentItem || null,
+            repairDetail.locationId || null,
+            repairDetail.locationFullName || '',
+            repairDetail.symptomDetail || task.description || '',
+            repairDetail.assignedTechnicianId || null,
+            repairDetail.assignedTechnicianName || null,
+            JSON.stringify(repairDetail.photos || [])
+          ]
+        )
+      }
+
+      // 4. Insert Audit Log
+      const auditAction = auditLog?.action || (repairDetail ? 'CREATE_REPAIR_TICKET' : 'CREATE_TASK')
+      const auditDetails = auditLog?.details
+        ? (typeof auditLog.details === 'string' ? auditLog.details : JSON.stringify(auditLog.details))
+        : JSON.stringify({ taskNo: task.taskNo, taskType: task.taskType, title: task.title })
+
+      const auditId = crypto.randomUUID()
+      await conn.query(
+        `INSERT INTO inbox_task_audit_logs 
+         (id, task_id, action, performed_by, performer_name, details, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          auditId,
+          taskId,
+          auditAction,
+          auditLog?.performedBy || task.requesterId,
+          auditLog?.performerName || task.requesterName,
+          auditDetails
+        ]
+      )
+
+      await conn.commit()
+      return {
+        success: true,
+        message: 'สร้างใบงานเรียบร้อยแล้ว',
+        data: {
+          taskId,
+          taskNo: task.taskNo
+        }
+      }
+    } catch (err) {
+      await conn.rollback()
+      reply.code(500); return { success: false, error: err.message }
+    } finally {
+      conn.release()
+    }
+  })
 }

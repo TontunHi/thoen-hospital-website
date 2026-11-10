@@ -119,6 +119,12 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
   const [cardFilter, setCardFilter] = useState<CancerFundCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
+  const [statusFilter, setStatusFilter] = useState<string>(
+    initialData?.statusFilter ?? 'ALL'
+  )
+  const [statusOptions, setStatusOptions] = useState<string[]>(
+    initialData?.statusOptions ?? []
+  )
   const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
   const [selectedPttypes, setSelectedPttypes] = useState<string[]>(() => {
     if (initialData?.pttypes) {
@@ -220,6 +226,10 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           pageSize: String(pageSize),
         })
 
+        if (statusFilter && statusFilter !== 'ALL') {
+          query.set('statusFilter', statusFilter)
+        }
+
         if (selectedPttypes.length > 0) {
           query.set('pttypes', selectedPttypes.join(','))
         } else if (ucOnly) {
@@ -246,6 +256,9 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           setTotalPages(d.totalPages || 1)
           setSummary(d.summary)
           setAdpMapping(d.adpMapping)
+          if (d.statusOptions) {
+            setStatusOptions(d.statusOptions)
+          }
         }
       } catch (err: any) {
         if (err?.name === 'AbortError') return
@@ -257,7 +270,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, statusFilter, ucOnly, selectedPttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Double-fetch guard on mount
@@ -407,6 +420,10 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         sortOrder,
         exportAll: 'true',
       })
+
+      if (statusFilter && statusFilter !== 'ALL') {
+        query.set('statusFilter', statusFilter)
+      }
 
       if (selectedPttypes.length > 0) {
         query.set('pttypes', selectedPttypes.join(','))
@@ -665,8 +682,33 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
               setCurrentPage(1)
             }}
             items={items}
-          
           />
+
+          <select
+            className="cancer-select"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+            aria-label="เลือกสถานะ e-Claim / REP"
+            title="สถานะ e-Claim / REP"
+          >
+            <option value="ALL">สถานะ e-Claim / REP: ทั้งหมด</option>
+            <optgroup label="สถานะ REP">
+              <option value="HAS_REP">มีเลข REP แล้ว</option>
+              <option value="NO_REP">ไม่มีเลข REP</option>
+            </optgroup>
+            {statusOptions.length > 0 && (
+              <optgroup label="สถานะ e-Claim">
+                {statusOptions.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         </div>
       </div>
 
@@ -868,6 +910,30 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                 }}
                 className="hover:opacity-75"
                 title="ล้างตัวกรองสิทธิ"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
+          {statusFilter !== 'ALL' && (
+            <div className="cancer-active-filter-badge">
+              <span>
+                สถานะ:{' '}
+                {statusFilter === 'HAS_REP'
+                  ? 'มีเลข REP แล้ว'
+                  : statusFilter === 'NO_REP'
+                  ? 'ไม่มีเลข REP'
+                  : statusFilter}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter('ALL')
+                  setCurrentPage(1)
+                }}
+                className="hover:opacity-75"
+                title="ล้างตัวกรองสถานะ e-Claim / REP"
               >
                 <X size={12} />
               </button>

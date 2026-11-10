@@ -367,22 +367,23 @@
   grid-template-columns: auto 1fr;
   gap: var(--space-6);
   box-shadow: var(--shadow-sm);
-  transition: all var(--transition);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   position: relative;
 }
 
 .appointmentCardItem:hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md), 0 8px 24px rgba(13, 116, 70, 0.04);
-  border-color: rgba(13, 116, 70, 0.2);
+  border-color: var(--primary);
 }
 
 .appointmentCardItem.upcoming {
-  border-left: 4px solid var(--primary);
+  border: 2px solid var(--primary);
+  background: var(--primary-subtle);
 }
 
 .appointmentCardItem.past {
-  border-left: 4px solid var(--gray-400);
+  border: 1px solid var(--gray-300);
+  background: var(--bg-surface);
   opacity: 0.85;
 }
 
@@ -397,11 +398,10 @@
 }
 
 .dateBlockHeader {
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 4px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: normal;
 }
 
 .upcoming .dateBlockHeader {
@@ -431,7 +431,7 @@
 
 .dateBlock__day {
   font-size: var(--font-size-2xl);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.1;
   color: var(--gray-900);
 }
@@ -491,9 +491,9 @@
 }
 
 .statusBadge--upcoming {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-  border-color: rgba(46, 125, 50, 0.2);
+  background-color: var(--success-bg);
+  color: var(--success);
+  border-color: var(--success-border);
 }
 
 .statusBadge--past {
@@ -505,15 +505,8 @@
 .pulseDot {
   width: 6px;
   height: 6px;
-  background-color: #2E7D32;
+  background-color: var(--success);
   border-radius: 50%;
-  animation: pulseAnimation 1.6s infinite;
-}
-
-@keyframes pulseAnimation {
-  0% { transform: scale(0.9); opacity: 1; }
-  50% { transform: scale(1.4); opacity: 0.4; }
-  100% { transform: scale(0.9); opacity: 1; }
 }
 
 /* Grid Info Row */

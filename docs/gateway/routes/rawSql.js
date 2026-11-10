@@ -6,7 +6,7 @@
  */
 export default async function rawSqlRoutes(fastify, options) {
   const { pools } = options;
-  const { hosPool, salaryPool, salaryEditPool, appPool } = pools;
+  const { hosPool, salaryPool, appPool } = pools;
 
 // 1.13 Universal Read-Only Query for HOSxP
 fastify.post('/api/v1/clinical/query', {
@@ -61,44 +61,17 @@ fastify.post('/api/v1/salary/query', {
   }
 })
 
-// 2.7 Parameterized Execute for Salary DB (INSERT / UPDATE / DELETE)
+// 2.7 Parameterized Execute for Salary DB (INSERT / UPDATE / DELETE) - PERMANENTLY DISABLED (HTTP 410 Gone)
 fastify.post('/api/v1/salary/execute', {
   schema: {
     tags: ['2. Salary Services'],
-    summary: 'Universal Parameterized Execute สำหรับฐานข้อมูล salary (INSERT / UPDATE / DELETE)',
-    body: {
-      type: 'object',
-      required: ['sql'],
-      properties: {
-        sql: { type: 'string', description: 'คำสั่ง INSERT, UPDATE หรือ DELETE' },
-        params: { type: 'array', description: 'พารามิเตอร์ binding' }
-      }
-    }
+    summary: 'Universal Parameterized Execute สำหรับฐานข้อมูล salary (INSERT / UPDATE / DELETE) [DEPRECATED & DISABLED]'
   }
 }, async (req, reply) => {
-  const { sql, params = [] } = req.body || {}
-  if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
-  if (sql.includes(';')) {
-    reply.code(403); return { success: false, error: 'Forbidden: Multi-statements / semicolons are not allowed' }
-  }
-  const trimmed = sql.trim().toUpperCase()
-  const forbiddenKeywords = ['DROP ', 'TRUNCATE ', 'ALTER ', 'GRANT ', 'REVOKE ', 'CREATE USER']
-  if (forbiddenKeywords.some(kw => trimmed.includes(kw))) {
-    reply.code(403); return { success: false, error: 'Forbidden: DDL operations are not allowed' }
-  }
-  if (!trimmed.startsWith('INSERT') && !trimmed.startsWith('UPDATE') && !trimmed.startsWith('DELETE')) {
-    reply.code(403); return { success: false, error: 'Forbidden: Only INSERT/UPDATE/DELETE queries allowed' }
-  }
-  try {
-    const [res] = await salaryEditPool.query(sql, params)
-    return {
-      success: true,
-      affectedRows: res.affectedRows,
-      insertId: res.insertId || null
-    }
-  } catch (err) {
-    reply.code(500); return { success: false, error: err.message }
-  }
+  reply.code(410).send({
+    success: false,
+    error: 'This raw SQL endpoint has been permanently deprecated and disabled (HTTP 410 Gone). Please migrate to the designated Named API.'
+  })
 })
 
 

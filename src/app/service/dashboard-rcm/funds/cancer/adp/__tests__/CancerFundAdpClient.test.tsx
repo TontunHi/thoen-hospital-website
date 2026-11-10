@@ -96,6 +96,8 @@ const mockInitialData: CancerFundReportResult = {
     ],
   },
   cardFilter: 'ALL',
+  statusFilter: 'ALL',
+  statusOptions: ['- :: ยังไม่ได้ส่ง', 'NHSO :: ได้รับ Invoice แล้ว'],
   ucOnly: false,
   search: '',
   sortBy: 'vstdate',
@@ -211,6 +213,35 @@ describe('CancerFundAdpClient Component', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled()
+    })
+  })
+
+  it('filters data when selecting e-Claim / REP status from dropdown', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          data: {
+            ...mockInitialData,
+            statusFilter: 'HAS_REP',
+          },
+        }),
+    })
+    global.fetch = fetchMock
+
+    render(<CancerFundAdpClient initialData={mockInitialData} />)
+
+    const statusSelect = screen.getByLabelText('เลือกสถานะ e-Claim / REP')
+    expect(statusSelect).toBeInTheDocument()
+
+    fireEvent.change(statusSelect, { target: { value: 'HAS_REP' } })
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('statusFilter=HAS_REP'),
+        expect.anything()
+      )
     })
   })
 })

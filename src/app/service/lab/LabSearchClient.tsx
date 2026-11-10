@@ -253,10 +253,6 @@ export default function LabSearchClient() {
 
         {/* Page Header */}
         <div className="lab-search-header animate-fadeInUp">
-          <div className="lab-search-badge">
-            <FlaskConical size={16} />
-            <span>HOSxP Clinical Informatics</span>
-          </div>
           <h1 className="lab-search-title">ระบบค้นหาข้อมูลผู้ป่วยและผลแลป</h1>
           <p className="lab-search-subtitle">
             สืบค้นประวัติการตรวจรักษาพยาบาล รายการสั่งใช้ยา และผลตรวจทางห้องปฏิบัติการ (LAB) ย้อนหลัง 20 ครั้งล่าสุด

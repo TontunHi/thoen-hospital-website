@@ -103,6 +103,113 @@ export async function POST(request: Request) {
       else if (repairType === 'MEDICAL_REPAIR') targetRole = 'นักวิทยาศาสตร์การแพทย์'
     }
 
+    // 0. Try Named API via Gateway
+    if (typeof apiGateway.tasks?.createTask === 'function') {
+      try {
+        const gwRes = await apiGateway.tasks.createTask({
+          task: {
+            id: taskId,
+            taskNo,
+            taskType: repairType,
+            title: taskTitle,
+            description: symptomDetail.trim(),
+            urgency,
+            requesterId: currentMember.id,
+            requesterName: currentMember.name || session.username,
+            requesterDept: currentMember.department || 'โรงพยาบาลเถิน',
+            initialAssignee: techId,
+            initialRole: targetRole,
+            customPayload: {
+              itemCategory,
+              itemName,
+              locationFullName,
+            },
+          },
+          steps: [
+            {
+              stepNo: 1,
+              stepName: 'ช่างรับงานและดำเนินการซ่อม',
+              assigneeType: techId ? 'INDIVIDUAL' : 'ROLE',
+              assignedToId: techId,
+              assignedRole: targetRole,
+            },
+          ],
+          repairDetail: {
+            repairType,
+            itemCategory,
+            equipmentNumber: itemCategory === 'EQUIPMENT' ? (equipmentNumber?.trim() || null) : null,
+            equipmentName: itemCategory === 'EQUIPMENT' ? (equipmentName?.trim() || null) : null,
+            nonEquipmentItem: itemCategory === 'NON_EQUIPMENT' ? (nonEquipmentItem?.trim() || null) : null,
+            locationId: locationId || null,
+            locationFullName: locationFullName.trim(),
+            symptomDetail: symptomDetail.trim(),
+            assignedTechnicianId: techId,
+            assignedTechnicianName: techName,
+            photos: photos || [],
+          },
+          auditLog: {
+            action: 'CREATE_REPAIR_TICKET',
+            performedBy: currentMember.id,
+            performerName: currentMember.name || session.username,
+            details: {
+              taskNo,
+              repairType,
+              itemName,
+              location: locationFullName,
+            },
+          },
+        })
+
+        if (gwRes?.success) {
+          // Telegram Alert to Assignee (only the designated tech or technicians of that role)
+          notifyAssigneeOnTelegram({
+            taskId,
+            taskNo,
+            taskType: repairType,
+            title: taskTitle,
+            requesterName: currentMember.name || session.username,
+            requesterDept: currentMember.department,
+            assigneeId: techId,
+            targetRole: targetRole,
+            stepName: 'มีงานแจ้งซ่อมใหม่มอบหมายถึงคุณ',
+            equipmentNumber: itemCategory === 'EQUIPMENT' ? (equipmentNumber?.trim() || null) : null,
+            itemName: itemName,
+            location: locationFullName,
+            symptom: symptomDetail.trim(),
+            urgency: urgency,
+          }).catch((e) => console.error('Telegram assignee notification error:', e))
+
+          // Telegram Alert to Requester (confirmation of ticket submission)
+          if (techId !== currentMember.id) {
+            notifyRepairCreatedRequesterOnTelegram({
+              taskId,
+              taskNo,
+              taskType: repairType,
+              title: taskTitle,
+              requesterId: currentMember.id,
+              itemName: itemName,
+              equipmentNumber: itemCategory === 'EQUIPMENT' ? (equipmentNumber?.trim() || null) : null,
+              location: locationFullName,
+              symptom: symptomDetail.trim(),
+              urgency: urgency,
+              assignedTechName: techName,
+            }).catch((e) => console.error('Telegram requester notification error:', e))
+          }
+
+          return NextResponse.json({
+            success: true,
+            message: 'ยื่นใบแจ้งซ่อมสำเร็จเรียบร้อยแล้ว',
+            data: {
+              taskId,
+              taskNo,
+            },
+          })
+        }
+      } catch {
+        // Fallback to queryMemberDb
+      }
+    }
+
     // 5. Insert into inbox_tasks
     await queryMemberDb(
       `INSERT INTO inbox_tasks 
