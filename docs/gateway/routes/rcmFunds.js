@@ -2323,7 +2323,7 @@ export default async function rcmFundsRoutes(fastify, options) {
           PID VARCHAR(13) NULL,
           PtName VARCHAR(100) NULL,
           Maininscl VARCHAR(20) NULL,
-          HospMain VARCHAR(5) NULL,
+          HCode VARCHAR(5) NULL,
           Type VARCHAR(20) NULL,
           Register_Date DATE NULL,
           Visit_Date DATE NULL,
@@ -2362,23 +2362,23 @@ export default async function rcmFundsRoutes(fastify, options) {
       await ensureT1dmTable()
       const [rows] = await hosPool.query(`
         SELECT 
-          t.id AS id,
-          IFNULL(t.year, '') AS year,
-          IFNULL(t.pid, '') AS pid,
-          IFNULL(t.ptname, '') AS ptname,
-          DATE_FORMAT(t.register_date, '%Y-%m-%d') AS regdate,
-          DATE_FORMAT(t.visit_date, '%Y-%m-%d') AS visitdate,
-          IFNULL(t.type, '') AS type,
-          IFNULL(t.maininscl, '') AS maininscl,
-          LPAD(TRIM(IFNULL(t.hospmain, '')), 5, '0') AS hospmain_code,
+          t.ID AS id,
+          IFNULL(t.Year, '') AS year,
+          IFNULL(t.PID, '') AS pid,
+          IFNULL(t.PtName, '') AS ptname,
+          DATE_FORMAT(t.Register_Date, '%Y-%m-%d') AS regdate,
+          DATE_FORMAT(t.Visit_Date, '%Y-%m-%d') AS visitdate,
+          IFNULL(t.Type, '') AS type,
+          IFNULL(t.Maininscl, '') AS maininscl,
+          LPAD(TRIM(IFNULL(t.HCode, '')), 5, '0') AS hospmain_code,
           IFNULL(h.name, '') AS hospmain_name,
-          CONCAT_WS(':', LPAD(TRIM(IFNULL(t.hospmain, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
-          IFNULL(t.filename, '') AS filename,
+          CONCAT_WS(':', LPAD(TRIM(IFNULL(t.HCode, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
+          IFNULL(t.FileName, '') AS filename,
           IFNULL(pt.hn, '') AS hn
         FROM rcmdb.t1dm t
-        LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.hospmain), 5, '0')
-        LEFT JOIN patient pt ON pt.cid = t.pid
-        ORDER BY t.register_date DESC, t.id ASC
+        LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.HCode), 5, '0')
+        LEFT JOIN patient pt ON pt.cid = t.PID
+        ORDER BY t.Register_Date DESC, t.ID ASC
       `)
       return { success: true, data: rows || [] }
     } catch (err) {
@@ -2410,14 +2410,14 @@ export default async function rcmFundsRoutes(fastify, options) {
         if (!r.id) continue
         await hosPool.query(`
           INSERT INTO rcmdb.t1dm (
-            ID, Year, PID, PtName, Maininscl, HospMain, Type, Register_Date, Visit_Date, FileName
+            ID, Year, PID, PtName, Maininscl, HCode, Type, Register_Date, Visit_Date, FileName
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             Year = VALUES(Year),
             PID = VALUES(PID),
             PtName = VALUES(PtName),
             Maininscl = VALUES(Maininscl),
-            HospMain = VALUES(HospMain),
+            HCode = VALUES(HCode),
             Type = VALUES(Type),
             Register_Date = VALUES(Register_Date),
             Visit_Date = VALUES(Visit_Date),
@@ -2462,7 +2462,7 @@ export default async function rcmFundsRoutes(fastify, options) {
       await ensureT1dmTable()
       let res
       if (mode === 'other_hospitals') {
-        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm WHERE LPAD(TRIM(IFNULL(HospMain, "")), 5, "0") <> ?', [myHospCode])
+        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm WHERE LPAD(TRIM(IFNULL(HCode, "")), 5, "0") <> ?', [myHospCode])
       } else if (mode === 'by_file') {
         if (!fileName) {
           reply.code(400); return { success: false, error: 'กรุณาระบุชื่อไฟล์ที่ต้องการลบ' }

@@ -217,13 +217,13 @@ export class RcmT1dmImportService {
         DATE_FORMAT(t.Visit_Date, '%Y-%m-%d') AS visitdate,
         IFNULL(t.Type, '') AS type,
         IFNULL(t.Maininscl, '') AS maininscl,
-        LPAD(TRIM(IFNULL(t.HospMain, '')), 5, '0') AS hospmain_code,
+        LPAD(TRIM(IFNULL(t.HCode, '')), 5, '0') AS hospmain_code,
         IFNULL(h.name, '') AS hospmain_name,
-        CONCAT_WS(':', LPAD(TRIM(IFNULL(t.HospMain, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
+        CONCAT_WS(':', LPAD(TRIM(IFNULL(t.HCode, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
         IFNULL(t.FileName, '') AS filename,
         IFNULL(pt.hn, '') AS hn
       FROM rcmdb.t1dm t
-      LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.HospMain), 5, '0')
+      LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.HCode), 5, '0')
       LEFT JOIN patient pt ON pt.cid = t.PID
       ORDER BY t.Register_Date DESC, t.ID ASC
     `
