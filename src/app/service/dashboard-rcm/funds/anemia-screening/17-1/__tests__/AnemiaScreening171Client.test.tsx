@@ -141,7 +141,7 @@ describe('AnemiaScreening171Client Component', () => {
   it('switches date mode to monthly and fiscal year', async () => {
     render(<AnemiaScreening171Client initialData={mockInitialData} />)
 
-    const monthTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthTab)
     expect(screen.getByText('เลือกเดือน:')).toBeInTheDocument()
 

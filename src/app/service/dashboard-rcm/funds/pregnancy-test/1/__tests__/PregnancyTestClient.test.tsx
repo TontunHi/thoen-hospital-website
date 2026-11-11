@@ -182,7 +182,7 @@ describe('PregnancyTestClient Component (8.1)', () => {
     render(<PregnancyTestClient />)
 
     // Switch to monthly
-    const monthlyTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthlyTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthlyTab)
 
     expect(monthlyTab).toHaveAttribute('aria-selected', 'true')

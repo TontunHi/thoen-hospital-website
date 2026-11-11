@@ -218,7 +218,7 @@ describe('ViralHepatitis231Client', () => {
   it('switches date modes (Custom -> Monthly -> Fiscal)', () => {
     render(<ViralHepatitis231Client initialData={mockInitialData} />)
 
-    const monthlyTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthlyTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthlyTab)
 
     expect(screen.getByLabelText('เลือกเดือน')).toBeInTheDocument()

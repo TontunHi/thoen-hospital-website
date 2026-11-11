@@ -147,7 +147,7 @@ describe('HepatitisC232Client Component', () => {
   it('switches date mode to monthly and fiscal year', async () => {
     render(<HepatitisC232Client initialData={mockInitialData} />)
 
-    const monthModeBtn = screen.getByText('เดือน')
+    const monthModeBtn = screen.getByText('รายเดือน')
     await waitFor(() => {
       fireEvent.click(monthModeBtn)
     })

@@ -200,7 +200,7 @@ describe('ColorectalCancer212Client Component', () => {
 
     render(<ColorectalCancer212Client initialData={mockInitialData} />)
 
-    const monthlyBtn = screen.getByRole('button', { name: 'เดือน' })
+    const monthlyBtn = screen.getByRole('button', { name: 'รายเดือน' })
     const fiscalBtn = screen.getByRole('button', { name: 'ปีงบประมาณ' })
 
     // Verify button names do not have 1. 2. 3.

@@ -201,7 +201,7 @@ describe('CancerFundAdpClient Component', () => {
 
     render(<CancerFundAdpClient initialData={mockInitialData} />)
 
-    const monthlyBtn = screen.getByText('เดือน')
+    const monthlyBtn = screen.getByText('รายเดือน')
     fireEvent.click(monthlyBtn)
 
     await waitFor(() => {

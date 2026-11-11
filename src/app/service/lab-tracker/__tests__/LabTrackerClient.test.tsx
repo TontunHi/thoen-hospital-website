@@ -102,7 +102,8 @@ describe('LabTrackerClient - Modern Hospital Lab Tracker', () => {
     })
 
     // Total count card or button
-    expect(screen.getByText(/10/)).toBeInTheDocument()
+    expect(screen.getByText('ยอดผู้ป่วยสั่งตรวจทั้งหมดวันนี้')).toBeInTheDocument()
+    expect(screen.getAllByText('10').length).toBeGreaterThan(0)
   })
 
   it('selects a doctor and loads their pending and reported lab tests', async () => {

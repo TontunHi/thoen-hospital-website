@@ -160,7 +160,7 @@ describe('DisabilityServicesClient', () => {
   it('changes date mode seamlessly (กำหนดเอง / เดือน / ปีงบประมาณ)', async () => {
     render(<DisabilityServicesClient initialData={mockInitialData} />)
 
-    const monthTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthTab)
     expect(screen.getByText('เลือกเดือน:')).toBeInTheDocument()
 

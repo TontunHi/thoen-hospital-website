@@ -194,7 +194,7 @@ describe('FluorideVarnish201Client Component', () => {
   it('switches date mode to monthly and fiscal year', async () => {
     render(<FluorideVarnish201Client initialData={mockInitialData} />)
 
-    const monthlyTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthlyTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthlyTab)
     expect(screen.getByLabelText('เลือกเดือน')).toBeInTheDocument()
 

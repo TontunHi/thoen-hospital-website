@@ -202,7 +202,7 @@ describe('IronSupplements182Client Component', () => {
   it('switches date mode to monthly and fiscal year', async () => {
     render(<IronSupplements182Client initialData={mockInitialData} />)
 
-    const monthlyTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthlyTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthlyTab)
     expect(screen.getByLabelText('เลือกเดือน')).toBeInTheDocument()
 

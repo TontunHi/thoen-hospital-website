@@ -177,7 +177,7 @@ describe('HepatitisC234Client Component', () => {
   it('switches date mode between custom, monthly, and fiscal year', () => {
     render(<HepatitisC234Client initialData={mockInitialData} />)
 
-    const monthTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthTab)
     expect(monthTab.classList.contains('active')).toBe(true)
 

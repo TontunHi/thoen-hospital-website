@@ -217,7 +217,7 @@ describe('WalkinFundClient', () => {
     render(<WalkinFundClient initialData={mockInitialData} />)
 
     // Switch to monthly mode
-    const monthTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthTab)
 
     expect(screen.getByLabelText('เลือกเดือน')).toBeInTheDocument()

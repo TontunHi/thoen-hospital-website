@@ -275,7 +275,7 @@ describe('InstrumentFundClient', () => {
   it('changes date mode seamlessly without parentheses in date display', async () => {
     render(<InstrumentFundClient initialData={mockInitialData} />)
 
-    const monthTab = screen.getByRole('button', { name: 'เดือน' })
+    const monthTab = screen.getByRole('button', { name: 'รายเดือน' })
     fireEvent.click(monthTab)
     expect(screen.getByLabelText('เลือกเดือน')).toBeInTheDocument()
 

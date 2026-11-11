@@ -171,7 +171,7 @@ describe('DentalImplantDensurClient Component', () => {
     render(<DentalImplantDensurClient initialData={mockInitialData} />)
 
     expect(screen.getByRole('button', { name: 'กำหนดเอง' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'เดือน' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'รายเดือน' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'ปีงบประมาณ' })).toBeInTheDocument()
 
     // Ensure no () in buttons
