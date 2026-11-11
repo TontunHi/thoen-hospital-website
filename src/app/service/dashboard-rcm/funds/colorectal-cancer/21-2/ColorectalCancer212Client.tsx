@@ -576,7 +576,7 @@ export default function ColorectalCancer212Client({
             className={`crc-mode-btn ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -648,9 +648,9 @@ export default function ColorectalCancer212Client({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -1066,12 +1066,12 @@ export default function ColorectalCancer212Client({
               </tr>
             </thead>
             <tbody>
-              {loading && !isRefreshing ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={`skel-${i}`} className="crc-table-skeleton-row">
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={`skel-${i}`} className="crc-table-skeleton-row rcm-skeleton-row">
                     {Array.from({ length: 17 }).map((_, j) => (
-                      <td key={`skel-td-${j}`}>
-                        <div className="crc-skeleton-box" />
+                      <td key={`skel-td-${j}`} className="crc-col-center">
+                        <div className="crc-skeleton-box rcm-skeleton-bar" />
                       </td>
                     ))}
                   </tr>

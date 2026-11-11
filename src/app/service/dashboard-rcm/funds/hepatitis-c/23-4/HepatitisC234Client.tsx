@@ -547,7 +547,7 @@ export default function HepatitisC234Client({
               className={`hs-tab-btn ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => handleModeChange('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -633,9 +633,9 @@ export default function HepatitisC234Client({
                   value={selectedFiscalYear}
                   onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 >
-                  {yearOptions.map((y) => (
+                  {[2569, 2570].map((y) => (
                     <option key={y} value={y}>
-                      ปีงบประมาณ {y}
+                      ปีงบ {y}
                     </option>
                   ))}
                 </select>
@@ -1040,18 +1040,16 @@ export default function HepatitisC234Client({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={15} style={{ padding: '40px 0', textAlign: 'center' }}>
-                    <div className="hs-empty-state">
-                      <RefreshCw size={24} className="animate-spin hs-empty-icon" />
-                      <span className="hs-empty-title">กำลังโหลดข้อมูล...</span>
-                      <span className="hs-empty-desc">
-                        กำลังดึงข้อมูลรายงานตรวจยืนยันไวรัสตับ C HCV RNA (ADP 36333)
-                      </span>
-                    </div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, rowIdx) => (
+                  <tr key={`skeleton-${rowIdx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 15 }).map((__, colIdx) => (
+                      <td key={colIdx} className="text-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={15} style={{ padding: '48px 0', textAlign: 'center' }}>

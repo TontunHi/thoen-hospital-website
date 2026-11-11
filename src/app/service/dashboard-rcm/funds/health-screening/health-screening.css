@@ -741,12 +741,25 @@
 }
 
 /* ── 9. Detail Modal ── */
+.hs-active-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--hs-surface-accent);
+  color: var(--hs-accent);
+  border: 1px solid color-mix(in srgb, var(--hs-accent) 25%, transparent);
+  border-radius: var(--hs-r-full);
+  font-size: var(--hs-text-xs);
+  font-weight: 600;
+}
+
 .hs-modal-backdrop {
   position: fixed;
   inset: 0;
   background-color: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(2px);
-  z-index: 50;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -662,6 +662,13 @@ export const RCM_NAV_CONFIG: NavGroup[] = [
         href: '/service/dashboard-rcm/seamless-import',
         keywords: ['seamless', 'import', 'นำเข้า'],
       },
+      {
+        id: 't1dm-import',
+        code: 'T1DM',
+        label: 'ทะเบียน T1DM/GDM/PDM',
+        href: '/service/dashboard-rcm/t1dm-import',
+        keywords: ['t1dm', 'gdm', 'pdm', 'เบาหวาน', 'ทะเบียน', 'import', 'นำเข้า'],
+      },
     ],
   },
 ]

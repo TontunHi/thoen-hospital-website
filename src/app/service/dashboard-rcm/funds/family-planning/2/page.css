@@ -40,6 +40,9 @@
   --fp-warn: #d97706;            /* Amber for Pending / Caution */
   --fp-warn-soft: #fffbeb;
   --fp-warn-border: #fde68a;
+  --fp-pending: #d97706;
+  --fp-pending-soft: #fffbeb;
+  --fp-pending-border: #fde68a;
 
   --fp-danger: #dc2626;          /* Red for Error / Missing Dx / Missing Op */
   --fp-danger-soft: #fef2f2;
@@ -1041,7 +1044,7 @@
   flex-shrink: 0;
 }
 
-.fp-modal-val {
+.fp-modal-row .fp-modal-val {
   color: var(--fp-text-main);
   text-align: right;
   word-break: break-word;

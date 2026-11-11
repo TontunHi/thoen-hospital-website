@@ -136,7 +136,9 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
 
   // Date selection states: Standard Order: 1. กำหนดเอง -> 2. รายเดือน -> 3. ปีงบประมาณ
   const [dateMode, setDateMode] = useState<'custom' | 'monthly' | 'fiscal'>('custom')
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(
+    defaultFiscalBeYear === 2570 ? 2570 : 2569
+  )
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
   const [ds1, setDs1] = useState<string>(
@@ -145,16 +147,6 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
   const [ds2, setDs2] = useState<string>(
     initialData?.ds2 ?? `${defaultFiscalCeYear}-09-30`
   )
-
-  // Last updated timestamp (initialized on client mount to prevent SSR hydration mismatch)
-  const [lastUpdated, setLastUpdated] = useState<string>('')
-
-  useEffect(() => {
-    const d = new Date()
-    setLastUpdated(
-      `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-    )
-  }, [])
 
   // Card filter multi-group state
   const [activeCards, setActiveCards] = useState<ActiveCardsState>(() => {
@@ -448,11 +440,6 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           setTotalPages(result.totalPages)
           setSummary(result.summary)
           setAdpMapping(result.adpMapping)
-
-          const d = new Date()
-          setLastUpdated(
-            `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-          )
         } else {
           throw new Error(json.error?.message || 'รูปแบบข้อมูลตอบกลับไม่ถูกต้อง')
         }
@@ -1000,9 +987,9 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -1011,11 +998,6 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         </div>
 
         <div className="telemed-toolbar-right">
-          {lastUpdated ? (
-            <span className="telemed-last-updated" suppressHydrationWarning>
-              อัปเดตล่าสุด {lastUpdated}
-            </span>
-          ) : null}
           <button
             type="button"
             className="telemed-btn"
@@ -1775,20 +1757,17 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         )}
 
         {/* ── Table (Sticky headers, left pinned columns, clean chips) ── */}
-        <div
-          className="telemed-table-wrapper"
-          style={{ opacity: loading && items.length > 0 ? 0.6 : 1 }}
-        >
+        <div className="telemed-table-wrapper">
           <table className={`telemed-table density-${density}`}>
             <thead>
               <tr>
                 {visibleColumns.no && (
-                  <th scope="col" className="cell-right" style={{ width: 50 }}>
+                  <th scope="col" className="cell-center" style={{ width: 50 }}>
                     ลำดับ
                   </th>
                 )}
                 {visibleColumns.vstdate && (
-                  <th scope="col" className="col-sticky-1" style={{ width: 140 }}>
+                  <th scope="col" className="col-sticky-1 cell-center" style={{ width: 140 }}>
                     <button
                       type="button"
                       className="telemed-th-btn"
@@ -1801,7 +1780,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                   </th>
                 )}
                 {visibleColumns.ptname && (
-                  <th scope="col" className="col-sticky-2" style={{ minWidth: 200 }}>
+                  <th scope="col" className="col-sticky-2 cell-center" style={{ minWidth: 200 }}>
                     <button
                       type="button"
                       className="telemed-th-btn"
@@ -1814,17 +1793,17 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                   </th>
                 )}
                 {visibleColumns.cid && (
-                  <th scope="col" style={{ width: 160 }}>
+                  <th scope="col" className="cell-center" style={{ width: 160 }}>
                     เลขบัตรประชาชน
                   </th>
                 )}
                 {visibleColumns.pttype && (
-                  <th scope="col" style={{ minWidth: 160 }}>
+                  <th scope="col" className="cell-center" style={{ minWidth: 160 }}>
                     สิทธิการรักษา
                   </th>
                 )}
                 {visibleColumns.ovstist && (
-                  <th scope="col" style={{ width: 130 }}>
+                  <th scope="col" className="cell-center" style={{ width: 130 }}>
                     ประเภทการมา
                   </th>
                 )}
@@ -1842,7 +1821,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                   </th>
                 )}
                 {visibleColumns.fee && (
-                  <th scope="col" className="cell-right" style={{ width: 110 }}>
+                  <th scope="col" className="cell-center" style={{ width: 110 }}>
                     <button
                       type="button"
                       className="telemed-th-btn"
@@ -1868,7 +1847,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                   </th>
                 )}
                 {visibleColumns.compensated && (
-                  <th scope="col" className="cell-right" style={{ width: 110 }}>
+                  <th scope="col" className="cell-center" style={{ width: 110 }}>
                     <button
                       type="button"
                       className="telemed-th-btn"
@@ -1888,15 +1867,16 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
               </tr>
             </thead>
             <tbody>
-              {loading && items.length === 0 ? (
-                Array.from({ length: 6 }).map((_, idx) => (
-                  <tr key={idx}>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '16px', color: 'var(--muted)' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <RefreshCw size={16} className="animate-spin" />
-                        <span>กำลังโหลดข้อมูล...</span>
-                      </div>
-                    </td>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`} className="rcm-skeleton-row" aria-busy="true">
+                    {Object.entries(visibleColumns)
+                      .filter(([, visible]) => visible)
+                      .map(([colKey]) => (
+                        <td key={colKey} className="cell-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
                   </tr>
                 ))
               ) : items.length === 0 ? (
@@ -1941,12 +1921,12 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                       title="คลิกเพื่อดูรายละเอียดใน Drawer ด้านขวา"
                     >
                       {visibleColumns.no && (
-                        <td className="cell-right" style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>
+                        <td className="cell-center" style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>
                           {item.no}
                         </td>
                       )}
                       {visibleColumns.vstdate && (
-                        <td className="col-sticky-1">
+                        <td className="col-sticky-1 cell-center">
                           <div style={{ fontWeight: 500 }}>{formatThaiDate(item.vstdate)}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
                             {item.vsttime ? item.vsttime.slice(0, 5) : '—'}
@@ -1954,9 +1934,9 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                         </td>
                       )}
                       {visibleColumns.ptname && (
-                        <td className="col-sticky-2">
+                        <td className="col-sticky-2 cell-center">
                           <div className="telemed-ptname-bold">{item.ptname}</div>
-                          <div className="telemed-ptmeta-sub">
+                          <div className="telemed-ptmeta-sub" style={{ justifyContent: 'center' }}>
                             <span>HN {item.hn}</span>
                             <span>
                               {item.sex} {item.age} ปี
@@ -1965,7 +1945,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                         </td>
                       )}
                       {visibleColumns.cid && (
-                        <td>
+                        <td className="cell-center">
                           <div className="telemed-cid-wrap">
                             <span>{unmasked ? item.cid : maskCid(item.cid)}</span>
                             {!unmasked && item.cid && (
@@ -1985,8 +1965,8 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                         </td>
                       )}
                       {visibleColumns.pttype && (
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <td className="cell-center">
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                             {pttypeCode && (
                               <span className="telemed-code-badge neutral">{pttypeCode}</span>
                             )}
@@ -2006,7 +1986,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                         </td>
                       )}
                       {visibleColumns.ovstist && (
-                        <td>
+                        <td className="cell-center">
                           <span
                             className={`telemed-code-badge ${
                               item.ovstist_export_code === '5' ? 'info' : 'neutral'
@@ -2025,7 +2005,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                         </td>
                       )}
                       {visibleColumns.fee && (
-                        <td className="cell-right" style={{ fontWeight: item.sum_price > 0 ? 600 : 400 }}>
+                        <td className="cell-center" style={{ fontWeight: item.sum_price > 0 ? 600 : 400 }}>
                           {item.sum_price > 0
                             ? item.sum_price.toLocaleString('th-TH', { minimumFractionDigits: 2 })
                             : '0.00'}
@@ -2041,7 +2021,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                         </td>
                       )}
                       {visibleColumns.compensated && (
-                        <td className="cell-right" style={{ fontWeight: item.compensated > 0 ? 600 : 400 }}>
+                        <td className="cell-center" style={{ fontWeight: item.compensated > 0 ? 600 : 400 }}>
                           {item.compensated > 0 ? formatMoney(item.compensated) : '–'}
                         </td>
                       )}

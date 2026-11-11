@@ -628,9 +628,9 @@ export default function CcsService1B005Client({
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -989,12 +989,14 @@ export default function CcsService1B005Client({
             </thead>
 
             <tbody>
-              {loading ? (
-                Array.from({ length: 10 }).map((_, idx) => (
-                  <tr key={`skel-${idx}`}>
-                    <td colSpan={27}>
-                      <div className="ccs10-skeleton-line" />
-                    </td>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, idx) => (
+                  <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 27 }).map((__, colIdx) => (
+                      <td key={colIdx} className="ccs10-align-center">
+                        <div className="ccs10-skeleton-line rcm-skeleton-bar" />
+                      </td>
+                    ))}
                   </tr>
                 ))
               ) : items.length === 0 ? (

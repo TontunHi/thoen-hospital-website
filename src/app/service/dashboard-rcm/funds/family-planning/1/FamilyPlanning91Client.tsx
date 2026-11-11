@@ -676,7 +676,7 @@ export default function FamilyPlanning91Client({
               role="tab"
               aria-selected={dateMode === 'monthly'}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -748,9 +748,9 @@ export default function FamilyPlanning91Client({
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -1058,16 +1058,16 @@ export default function FamilyPlanning91Client({
                 </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={17}>
-                    <div className="fp91-empty-state">
-                      <RefreshCw size={28} className="fp91-spin-icon fp91-empty-icon" />
-                      <div className="fp91-empty-title">กำลังโหลดข้อมูล...</div>
-                      <div className="fp91-empty-desc">กำลังประมวลผลข้อมูลบริการวางแผนครอบครัว</div>
-                    </div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, rowIdx) => (
+                  <tr key={`skeleton-${rowIdx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 17 }).map((__, colIdx) => (
+                      <td key={colIdx} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={17}>

@@ -483,7 +483,7 @@ export default function PregnancyTestClient({
               className={`preg81-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => setDateMode('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -570,9 +570,9 @@ export default function PregnancyTestClient({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -967,13 +967,16 @@ export default function PregnancyTestClient({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={15} className="preg81-empty-state">
-                    <RefreshCw size={28} className="animate-spin preg81-empty-icon" />
-                    <p className="preg81-empty-title">กำลังโหลดข้อมูลรายงาน...</p>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, rowIdx) => (
+                  <tr key={`skeleton-${rowIdx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 15 }).map((__, colIdx) => (
+                      <td key={colIdx} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={15} className="preg81-empty-state">

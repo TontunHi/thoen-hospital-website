@@ -494,7 +494,7 @@ export default function IronSupplements182Client({
             title="รีเฟรชข้อมูลล่าสุดจากฐานข้อมูล"
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            <span>{isRefreshing ? 'กำลังโหลด...' : 'รีเฟรชข้อมูล'}</span>
+            <span>{isRefreshing ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
           </button>
 
           <button
@@ -543,7 +543,7 @@ export default function IronSupplements182Client({
             className={`iron-mode-tab ${dateMode === 'monthly' ? 'is-active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -621,9 +621,9 @@ export default function IronSupplements182Client({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((fy) => (
+                {[2569, 2570].map((fy) => (
                   <option key={fy} value={fy}>
-                    ปีงบประมาณ {fy}
+                    ปีงบ {fy}
                   </option>
                 ))}
               </select>
@@ -952,24 +952,7 @@ export default function IronSupplements182Client({
           </div>
         )}
 
-        {loading && !error && (
-          <div className="iron-loading-card">
-            <RefreshCw size={24} className="animate-spin text-primary" />
-            <span>กำลังประมวลผลข้อมูลรายงานบริการยาเม็ดเสริมธาตุเหล็ก...</span>
-          </div>
-        )}
-
-        {!loading && !error && items.length === 0 && (
-          <div className="iron-empty-state">
-            <Pill size={36} className="iron-empty-icon" />
-            <div className="iron-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
-            <div className="iron-empty-desc">
-              ไม่พบรายการผู้รับบริการยาเม็ดเสริมธาตุเหล็กในช่วงเวลาหรือฟิลเตอร์ที่กำหนด กรุณาลองปรับช่วงวันที่หรือคำค้นหา
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && items.length > 0 && (
+        {!error && (
           <div className="iron-table-scroll">
             <table className="iron-table">
               <thead>
@@ -1005,7 +988,7 @@ export default function IronSupplements182Client({
                     </button>
                   </th>
                   <th className="col-center">เลขบัตรประชาชน</th>
-                  <th className="col-left">
+                  <th className="col-center">
                     <button
                       type="button"
                       className="iron-sort-btn"
@@ -1062,7 +1045,7 @@ export default function IronSupplements182Client({
                       )}
                     </button>
                   </th>
-                  <th className="col-left">ยาเสริมธาตุเหล็ก (DID) / ADP</th>
+                  <th className="col-center">ยาเสริมธาตุเหล็ก (DID) / ADP</th>
                   <th className="col-center">สถานะชดเชย</th>
                   <th className="col-center">
                     <button
@@ -1081,7 +1064,23 @@ export default function IronSupplements182Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 13 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="col-center" style={{ padding: '48px 16px' }}>
+                      ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((item) => (
                   <tr
                     key={item.vn}
                     className="iron-row-clickable"

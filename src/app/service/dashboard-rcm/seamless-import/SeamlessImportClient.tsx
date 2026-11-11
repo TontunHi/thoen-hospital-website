@@ -24,6 +24,7 @@ import {
   Plus,
   AlertTriangle,
   FolderOpen,
+  Download,
 } from 'lucide-react'
 import {
   SeamlessDatabaseStats,
@@ -33,6 +34,7 @@ import {
   SeamlessParseError,
   SEAMLESS_FUND_MAP,
 } from '@/lib/clinical/rcmSeamlessImportService'
+import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './seamless-import.css'
 
 interface SeamlessImportClientProps {
@@ -527,22 +529,22 @@ export default function SeamlessImportClient({
     }> = [
       {
         key: 'index',
-        header: '#',
-        width: '50px',
-        align: 'left',
+        header: 'ลำดับ',
+        width: '60px',
+        align: 'center',
         render: (_row, idx) => (
-          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }} className="tabular-nums">
+          <span style={{ color: '#64748b', fontSize: '0.8125rem' }} className="tabular-nums">
             {idx + 1}
           </span>
         ),
       },
     ]
 
-    // Trans ID / ID
     if (rows.some((r) => r.id && r.id.trim() !== '')) {
       cols.push({
         key: 'id',
         header: 'Trans ID',
+        align: 'center',
         render: (r) => (
           <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: '#475569' }}>
             {r.id}
@@ -551,29 +553,29 @@ export default function SeamlessImportClient({
       })
     }
 
-    // Rep
     if (rows.some((r) => r.rep && r.rep.trim() !== '')) {
       cols.push({
         key: 'rep',
         header: 'Rep',
+        align: 'center',
         render: (r) => <span style={{ fontWeight: 600, color: '#334155' }}>{r.rep}</span>,
       })
     }
 
-    // กองทุน (Fund)
     if (rows.some((r) => r.fund && r.fund.trim() !== '' && r.fund !== 'ไม่ระบุกองทุน')) {
       cols.push({
         key: 'fund',
         header: 'กองทุน',
+        align: 'center',
         render: (r) => <span className="seamless-fund-tag">{r.fund}</span>,
       })
     }
 
-    // เลขประจำตัวประชาชน (PID)
     if (rows.some((r) => r.pid && r.pid.trim() !== '')) {
       cols.push({
         key: 'pid',
-        header: 'เลขบัตรประชาชน (PID)',
+        header: 'เลขบัตรประชาชน',
+        align: 'center',
         render: (r) => (
           <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
             {r.pid}
@@ -582,151 +584,147 @@ export default function SeamlessImportClient({
       })
     }
 
-    // HN (แสดงเมื่อมีข้อมูล HN อย่างน้อย 1 รายการ)
     if (rows.some((r) => r.hn && r.hn.trim() !== '')) {
       cols.push({
         key: 'hn',
         header: 'HN',
+        align: 'center',
         render: (r) => (
           <span style={{ fontWeight: 600, color: '#047857' }}>
-            {r.hn || ''}
+            {r.hn || '—'}
           </span>
         ),
       })
     }
 
-    // VN (แสดงเมื่อมีข้อมูล VN อย่างน้อย 1 รายการ)
     if (rows.some((r) => r.vn && r.vn.trim() !== '')) {
       cols.push({
         key: 'vn',
         header: 'VN',
+        align: 'center',
         render: (r) => (
           <span style={{ color: '#64748b', fontSize: '0.8125rem' }}>
-            {r.vn || ''}
+            {r.vn || '—'}
           </span>
         ),
       })
     }
 
-    // ชื่อ-สกุล (Ptname)
     if (rows.some((r) => r.ptname && r.ptname.trim() !== '')) {
       cols.push({
         key: 'ptname',
         header: 'ชื่อ-สกุล',
-        render: (r) => <span>{r.ptname || ''}</span>,
+        align: 'center',
+        render: (r) => <span>{r.ptname || '—'}</span>,
       })
     }
 
-    // วันที่บริการ (AdmDate)
     if (rows.some((r) => r.admDate && r.admDate.trim() !== '')) {
       cols.push({
         key: 'admDate',
         header: 'วันที่บริการ',
-        render: (r) => <span style={{ fontSize: '0.8125rem' }}>{r.admDate || ''}</span>,
+        align: 'center',
+        render: (r) => <span style={{ fontSize: '0.8125rem' }}>{r.admDate || '—'}</span>,
       })
     }
 
-    // วันที่ส่งข้อมูล (SendDate)
     if (rows.some((r) => r.sendDate && r.sendDate.trim() !== '')) {
       cols.push({
         key: 'sendDate',
         header: 'วันที่ส่ง',
-        render: (r) => <span style={{ fontSize: '0.8125rem' }}>{r.sendDate || ''}</span>,
+        align: 'center',
+        render: (r) => <span style={{ fontSize: '0.8125rem' }}>{r.sendDate || '—'}</span>,
       })
     }
 
-    // สิทธิ (MainInscl)
     if (rows.some((r) => r.mainInscl && r.mainInscl.trim() !== '')) {
       cols.push({
         key: 'mainInscl',
-        header: 'สิทธิ',
-        render: (r) => <span>{r.mainInscl || ''}</span>,
+        header: 'สิทธิการรักษา',
+        align: 'center',
+        render: (r) => <span>{r.mainInscl || '—'}</span>,
       })
     }
 
-    // ประเภทบริการ (Type)
     if (rows.some((r) => r.type && r.type.trim() !== '')) {
       cols.push({
         key: 'type',
         header: 'ประเภทบริการ',
-        render: (r) => <span>{r.type || ''}</span>,
+        align: 'center',
+        render: (r) => <span>{r.type || '—'}</span>,
       })
     }
 
-    // ครั้งที่ (SerialNo)
     if (rows.some((r) => r.serialNo && r.serialNo.trim() !== '')) {
       cols.push({
         key: 'serialNo',
         header: 'ครั้งที่',
-        render: (r) => <span>{r.serialNo || ''}</span>,
+        align: 'center',
+        render: (r) => <span>{r.serialNo || '—'}</span>,
       })
     }
 
-    // เรียกเก็บ (Collected)
     if (rows.some((r) => (r.collected || 0) > 0)) {
       cols.push({
         key: 'collected',
-        header: 'เรียกเก็บ (฿)',
-        align: 'right',
+        header: 'เรียกเก็บ',
+        align: 'center',
         render: (r) => (
           <span className="tabular-nums" style={{ color: '#475569' }}>
-            {r.collected ? r.collected.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : ''}
+            {r.collected ? r.collected.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '—'}
           </span>
         ),
       })
     }
 
-    // เงินชดเชย (Compensated)
     if (rows.some((r) => (r.compensated || 0) > 0)) {
       cols.push({
         key: 'compensated',
-        header: 'ชดเชย (฿)',
-        align: 'right',
+        header: 'ชดเชย',
+        align: 'center',
         render: (r) => (
           <span style={{ fontWeight: 700, color: '#0f172a' }} className="tabular-nums">
-            {r.compensated ? r.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : ''}
+            {r.compensated ? r.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '—'}
           </span>
         ),
       })
     }
 
-    // ไม่ชดเชย (NoCompensated)
     if (rows.some((r) => (r.noCompensated || 0) > 0)) {
       cols.push({
         key: 'noCompensated',
-        header: 'ไม่ชดเชย (฿)',
-        align: 'right',
+        header: 'ไม่ชดเชย',
+        align: 'center',
         render: (r) => (
           <span style={{ color: '#dc2626', fontWeight: 600 }} className="tabular-nums">
-            {r.noCompensated ? r.noCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : ''}
+            {r.noCompensated ? r.noCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '—'}
           </span>
         ),
       })
     }
 
-    // อุปกรณ์ (Equipment)
     if (rows.some((r) => (r.equipName && r.equipName.trim() !== '') || (r.equipCode && r.equipCode.trim() !== ''))) {
       cols.push({
         key: 'equip',
         header: 'อุปกรณ์',
-        render: (r) => <span>{r.equipName || r.equipCode || ''}</span>,
+        align: 'center',
+        render: (r) => <span>{r.equipName || r.equipCode || '—'}</span>,
       })
     }
 
-    // หมายเหตุ (Note)
     if (rows.some((r) => r.note && r.note.trim() !== '')) {
       cols.push({
         key: 'note',
         header: 'หมายเหตุ',
+        align: 'center',
         render: (r) => (
           <span style={{ fontSize: '0.75rem', color: '#dc2626' }} title={r.note || ''}>
-            {r.note || ''}
+            {r.note || '—'}
           </span>
         ),
       })
     }
 
-    // สถานะ HOSxP (เฉพาะเมื่อมีการจับคู่ HN หรือ VN ได้)
     if (rows.some((r) => Boolean(r.hn || r.vn))) {
       cols.push({
         key: 'hosMatch',
@@ -750,6 +748,48 @@ export default function SeamlessImportClient({
     return cols
   }, [displayedPreviewRows])
 
+  const handleExportExcel = useCallback(async () => {
+    if (displayedPreviewRows.length === 0) return
+    await exportRcmExcel({
+      filename: `seamless_import_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Seamless Import',
+      title: 'รายงานข้อมูลนำเข้า Seamless สปสช.',
+      subtitle: `โรงพยาบาลเถิน • จำนวน ${displayedPreviewRows.length.toLocaleString('th-TH')} รายการ`,
+      headers: [
+        'ลำดับ',
+        'Trans ID',
+        'Rep',
+        'กองทุน',
+        'เลขบัตรประชาชน',
+        'HN',
+        'VN',
+        'ชื่อ-สกุล',
+        'วันที่บริการ',
+        'วันที่ส่ง',
+        'สิทธิการรักษา',
+        'เรียกเก็บ',
+        'ชดเชย',
+        'ไม่ชดเชย',
+      ],
+      rows: displayedPreviewRows.map((r, idx) => [
+        idx + 1,
+        r.id || '',
+        r.rep || '',
+        r.fund || '',
+        r.pid || '',
+        r.hn || '',
+        r.vn || '',
+        r.ptname || '',
+        r.admDate || '',
+        r.sendDate || '',
+        r.mainInscl || '',
+        r.collected || 0,
+        r.compensated || 0,
+        r.noCompensated || 0,
+      ]),
+    })
+  }, [displayedPreviewRows])
+
   return (
     <div className="seamless-import-container">
       {/* Header Section */}
@@ -763,12 +803,11 @@ export default function SeamlessImportClient({
             <span style={{ color: '#0f172a', fontWeight: 600 }}>นำเข้าข้อมูล Seamless</span>
           </div>
           <h1 className="seamless-title">
-            <Upload size={24} style={{ color: '#059669' }} />
+            <Upload size={22} style={{ color: '#059669' }} />
             <span>ระบบนำเข้าข้อมูล Seamless</span>
-            <span className="seamless-badge">Fast Batch Processor</span>
           </h1>
           <p className="seamless-subtitle">
-            แปลงและประมวลผลไฟล์ Excel กองทุน สปสช. (Seamless) รองรับการอัปโหลดพร้อมกันหลายไฟล์ ตรวจสอบสิทธิ์อัตโนมัติ
+            แปลงและประมวลผลไฟล์ Excel กองทุน สปสช. Seamless รองรับการอัปโหลดพร้อมกันหลายไฟล์และตรวจสอบสิทธิ์อัตโนมัติ
           </p>
         </div>
 
@@ -781,64 +820,88 @@ export default function SeamlessImportClient({
             title="รีเฟรชข้อมูลสถิติจากฐานข้อมูล"
           >
             <RefreshCw size={16} className={isRefreshingStats ? 'seamless-spin' : ''} />
-            <span>{isRefreshingStats ? 'กำลังรีเฟรช...' : 'รีเฟรชสถิติ'}</span>
+            <span>รีเฟรช</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={displayedPreviewRows.length === 0}
+            className="seamless-btn primary"
+            title="ส่งออกรายการที่ประมวลผลเป็นไฟล์ Excel"
+          >
+            <Download size={16} />
+            <span>ส่งออก Excel</span>
           </button>
         </div>
       </div>
 
-      {/* Database Overview Stats Cards (Safe & Defense) */}
+      {/* Database Overview Stats Cards */}
       <div className="seamless-stats-grid">
         <div className="seamless-stat-card">
           <div className="seamless-stat-icon-wrap emerald">
-            <Database size={22} />
+            <Database size={20} />
           </div>
           <div className="seamless-stat-info">
             <span className="seamless-stat-label">รายการชดเชยในฐานข้อมูล</span>
-            <span className="seamless-stat-value tabular-nums">
-              {(stats?.totalRows ?? 0).toLocaleString('th-TH')}
-            </span>
-            <span className="seamless-stat-sub">ตาราง rcmdb.seamless</span>
+            {isRefreshingStats ? (
+              <div className="rcm-skeleton-bar" style={{ width: '100px', height: '24px', margin: '4px 0' }} />
+            ) : (
+              <span className="seamless-stat-value tabular-nums">
+                {(stats?.totalRows ?? 0).toLocaleString('th-TH')}
+              </span>
+            )}
+            <span className="seamless-stat-sub">ตารางฐานข้อมูล Seamless</span>
           </div>
         </div>
 
         <div className="seamless-stat-card">
           <div className="seamless-stat-icon-wrap blue">
-            <Receipt size={22} />
+            <Receipt size={20} />
           </div>
           <div className="seamless-stat-info">
             <span className="seamless-stat-label">ยอดเงินชดเชยสะสมรวม</span>
-            <span className="seamless-stat-value tabular-nums">
-              ฿{(stats?.totalCompensated ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-            </span>
-            <span className="seamless-stat-sub">Compensated รวมทุกกองทุน</span>
+            {isRefreshingStats ? (
+              <div className="rcm-skeleton-bar" style={{ width: '130px', height: '24px', margin: '4px 0' }} />
+            ) : (
+              <span className="seamless-stat-value tabular-nums">
+                ฿{(stats?.totalCompensated ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+              </span>
+            )}
+            <span className="seamless-stat-sub">ยอดชดเชยรวมทุกกองทุน</span>
           </div>
         </div>
 
         <div className="seamless-stat-card">
           <div className="seamless-stat-icon-wrap amber">
-            <Layers size={22} />
+            <Layers size={20} />
           </div>
           <div className="seamless-stat-info">
             <span className="seamless-stat-label">จำนวนไฟล์ที่นำเข้าแล้ว</span>
-            <span className="seamless-stat-value tabular-nums">
-              {(stats?.totalFiles ?? 0).toLocaleString('th-TH')} ไฟล์
-            </span>
-            <span className="seamless-stat-sub">
-              {(stats?.totalReps ?? 0).toLocaleString('th-TH')} เลขที่ Rep
-            </span>
+            {isRefreshingStats ? (
+              <div className="rcm-skeleton-bar" style={{ width: '80px', height: '24px', margin: '4px 0' }} />
+            ) : (
+              <span className="seamless-stat-value tabular-nums">
+                {(stats?.totalFiles ?? 0).toLocaleString('th-TH')} ไฟล์
+              </span>
+            )}
+            <span className="seamless-stat-sub">ไฟล์รายงานที่บันทึกสำเร็จ</span>
           </div>
         </div>
 
         <div className="seamless-stat-card">
           <div className="seamless-stat-icon-wrap purple">
-            <Clock size={22} />
+            <FileSpreadsheet size={20} />
           </div>
           <div className="seamless-stat-info">
-            <span className="seamless-stat-label">วันที่รับบริการล่าสุด</span>
-            <span className="seamless-stat-value">
-              {stats?.latestAdmDate ? stats.latestAdmDate : '—'}
-            </span>
-            <span className="seamless-stat-sub">Latest AdmDate</span>
+            <span className="seamless-stat-label">จำนวนเลขที่ Rep สะสม</span>
+            {isRefreshingStats ? (
+              <div className="rcm-skeleton-bar" style={{ width: '80px', height: '24px', margin: '4px 0' }} />
+            ) : (
+              <span className="seamless-stat-value tabular-nums">
+                {(stats?.totalReps ?? 0).toLocaleString('th-TH')} รายการ
+              </span>
+            )}
+            <span className="seamless-stat-sub">งวดการโอนเงินชดเชย</span>
           </div>
         </div>
       </div>
@@ -848,10 +911,10 @@ export default function SeamlessImportClient({
         <div className="seamless-card-header">
           <h2 className="seamless-card-title">
             <FileSpreadsheet size={20} style={{ color: '#059669' }} />
-            <span>เลือกไฟล์ Excel ข้อมูล Seamless (รองรับหลายไฟล์พร้อมกัน)</span>
+            <span>เลือกไฟล์ Excel ข้อมูล Seamless</span>
           </h2>
           <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-            รองรับ .xlsx, .xls ทั้งชีท INDIVIDUAL, SUMMARY, และ DENY CODE
+            รองรับ .xlsx, .xls ทั้งชีท INDIVIDUAL, SUMMARY และ DENY CODE
           </span>
         </div>
 
@@ -879,10 +942,7 @@ export default function SeamlessImportClient({
           </div>
           <div className="seamless-dropzone-text">
             <span className="seamless-dropzone-main">
-              ลากไฟล์มาวางที่นี่ หรือ <span className="seamless-dropzone-highlight">คลิกเพื่อเลือกไฟล์ (เลือกได้หลายไฟล์)</span>
-            </span>
-            <span className="seamless-dropzone-hint">
-              รองรับไฟล์ Microsoft Excel เช่น 11152_DAMD6941.xlsx, 11152_DANC6941.xlsx หรือไฟล์จาก e-Claim สปสช.
+              ลากไฟล์มาวางที่นี่ หรือ <span className="seamless-dropzone-highlight">คลิกเพื่อเลือกไฟล์</span>
             </span>
           </div>
         </div>
@@ -894,12 +954,12 @@ export default function SeamlessImportClient({
               <div className="seamless-batch-info">
                 <FolderOpen size={18} style={{ color: '#059669' }} />
                 <span>
-                  เลือกทั้งหมด <strong>{fileQueue.length} ไฟล์</strong> (
+                  เลือกทั้งหมด <strong>{fileQueue.length} ไฟล์</strong> •{' '}
                   {(
                     fileQueue.reduce((acc, f) => acc + f.size, 0) /
                     (1024 * 1024)
                   ).toFixed(2)}{' '}
-                  MB)
+                  MB
                 </span>
                 {successfulFiles.length > 0 && (
                   <span style={{ color: '#059669', marginLeft: '0.5rem', fontWeight: 600 }}>
@@ -937,7 +997,7 @@ export default function SeamlessImportClient({
             </div>
 
             <div className="seamless-files-list">
-              {fileQueue.map((item, idx) => {
+              {fileQueue.map((item) => {
                 const isItemProcessing = item.status === 'processing'
                 const isItemSuccess = item.status === 'success'
                 const isItemError = item.status === 'error'
@@ -1013,7 +1073,7 @@ export default function SeamlessImportClient({
                           title="คลิกเพื่อดูข้อผิดพลาดอย่างละเอียด"
                         >
                           <AlertCircle size={12} />
-                          ผิดพลาด (ดูสาเหตุ)
+                          ผิดพลาด • ดูสาเหตุ
                         </button>
                       )}
                       {item.status === 'pending' && (
@@ -1040,7 +1100,7 @@ export default function SeamlessImportClient({
           </div>
         )}
 
-        {/* Options */}
+        {/* Options & Action Footer */}
         <div className="seamless-options-grid">
           <label className="seamless-checkbox-label">
             <input
@@ -1050,7 +1110,7 @@ export default function SeamlessImportClient({
               disabled={isProcessingBatch}
             />
             <div>
-              <span className="seamless-checkbox-title">โหมดตรวจสอบอย่างเดียว (Dry Run)</span>
+              <span className="seamless-checkbox-title">โหมดตรวจสอบอย่างเดียว</span>
               <span className="seamless-checkbox-desc">
                 อ่านและตรวจโครงสร้างไฟล์ แมปสิทธิ์ แต่ยังไม่บันทึกทับลงฐานข้อมูล
               </span>
@@ -1067,7 +1127,7 @@ export default function SeamlessImportClient({
             <div>
               <span className="seamless-checkbox-title">ค้นหา HN และ VN อัตโนมัติจาก HOSxP</span>
               <span className="seamless-checkbox-desc">
-                สำหรับโรงพยาบาลเถิน (รหัส 11152) ใช้ CID 13 หลัก ดึง HN และจับคู่วันที่รับบริการเพื่อหา VN
+                สำหรับโรงพยาบาลเถิน รหัส 11152 ใช้ CID 13 หลัก ดึง HN และจับคู่วันที่รับบริการเพื่อหา VN
               </span>
             </div>
           </label>
@@ -1082,7 +1142,7 @@ export default function SeamlessImportClient({
             <div>
               <span className="seamless-checkbox-title">คำนวณและปรับยอดเงินชดเชย</span>
               <span className="seamless-checkbox-desc">
-                คำนวณ total_amount และแยกยอดเงินชดเชยที่ได้รับจริงจาก สปสช.
+                คำนวณยอดรวมและแยกยอดเงินชดเชยที่ได้รับจริงจาก สปสช.
               </span>
             </div>
           </label>
@@ -1090,22 +1150,13 @@ export default function SeamlessImportClient({
 
         {/* Process Button & Action Bar */}
         <div className="seamless-action-bar">
-          <div className={`seamless-action-hint ${isDryRun ? 'dryrun' : 'live'}`}>
-            {isDryRun ? (
-              <>
-                <ShieldCheck size={18} />
-                <span>
-                  <strong>โหมดตรวจสอบ (Dry Run):</strong> จำลองการอ่านและแมปข้อมูลเพื่อตรวจความถูกต้อง <u>โดยไม่บันทึกลงฐานข้อมูล</u>
-                </span>
-              </>
-            ) : (
-              <>
-                <Database size={18} />
-                <span>
-                  <strong>โหมดนำเข้าจริง (Live Import):</strong> ตรวจสอบและบันทึกข้อมูลจัดเก็บลงในตารางฐานข้อมูล <u>rcmdb.seamless</u>
-                </span>
-              </>
-            )}
+          <div className="seamless-action-hint">
+            <span className={`seamless-mode-dot ${isDryRun ? 'dryrun' : 'live'}`} />
+            <span>
+              {isDryRun
+                ? 'โหมดตรวจสอบ: จำลองการอ่านและแมปข้อมูลโดยไม่บันทึกลงฐานข้อมูล'
+                : 'โหมดนำเข้าจริง: ตรวจสอบและบันทึกข้อมูลลงในตาราง rcmdb.seamless'}
+            </span>
           </div>
 
           <button
@@ -1116,21 +1167,17 @@ export default function SeamlessImportClient({
           >
             {isProcessingBatch ? (
               <>
-                <RefreshCw size={18} className="seamless-spin" />
+                <RefreshCw size={15} className="seamless-spin" />
                 <span>
-                  กำลังประมวลผล ({currentFileIndex}/{fileQueue.length})...
+                  กำลังประมวลผล {currentFileIndex}/{fileQueue.length}
                 </span>
               </>
             ) : (
               <>
-                {isDryRun ? <ShieldCheck size={18} /> : <Upload size={18} />}
+                {isDryRun ? <ShieldCheck size={15} /> : <Upload size={15} />}
                 <span>
-                  {isDryRun
-                    ? `เริ่มตรวจสอบ (${fileQueue.length} ไฟล์)`
-                    : `เริ่มนำเข้าข้อมูล (${fileQueue.length} ไฟล์)`}
-                </span>
-                <span className="seamless-cta-pill">
-                  {isDryRun ? 'DRY RUN' : 'บันทึกจริง'}
+                  {isDryRun ? 'เริ่มตรวจสอบ' : 'เริ่มนำเข้าข้อมูล'}
+                  {fileQueue.length > 0 ? ` • ${fileQueue.length} ไฟล์` : ''}
                 </span>
               </>
             )}
@@ -1186,7 +1233,7 @@ export default function SeamlessImportClient({
       </div>
 
       {/* Processed Results & Preview Section */}
-      {successfulFiles.length > 0 && (
+      {(isProcessingBatch || successfulFiles.length > 0) && (
         <div className="seamless-card">
           <div className="seamless-card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1196,7 +1243,11 @@ export default function SeamlessImportClient({
                   ผลการประมวลผลข้อมูล Seamless
                 </h2>
                 <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                  {activeResultFile ? `กำลังแสดงผลของไฟล์: ${activeResultFile.name}` : `แสดงผลรวมทั้งหมด ${successfulFiles.length} ไฟล์`}
+                  {isProcessingBatch
+                    ? 'กำลังดึงและประมวลผลข้อมูลจากไฟล์...'
+                    : activeResultFile
+                    ? `กำลังแสดงผลของไฟล์: ${activeResultFile.name}`
+                    : `แสดงผลรวมทั้งหมด ${successfulFiles.length} ไฟล์`}
                 </span>
               </div>
             </div>
@@ -1210,7 +1261,7 @@ export default function SeamlessImportClient({
                 onClick={() => setSelectedFileTabId('all')}
                 className={`seamless-file-tab-btn ${selectedFileTabId === 'all' ? 'is-active' : ''}`}
               >
-                <span>รวมทั้งหมด ({successfulFiles.length} ไฟล์)</span>
+                <span>รวมทั้งหมด {successfulFiles.length} ไฟล์</span>
               </button>
               {successfulFiles.map((f) => (
                 <button
@@ -1230,32 +1281,48 @@ export default function SeamlessImportClient({
           <div className="seamless-summary-grid">
             <div className="seamless-sum-card">
               <span className="seamless-sum-label">จำนวนแถวทั้งหมด</span>
-              <span className="seamless-sum-val tabular-nums">
-                {combinedMetrics.totalRows.toLocaleString('th-TH')}
-              </span>
+              {isProcessingBatch ? (
+                <div className="rcm-skeleton-bar" style={{ width: '90px', height: '24px', margin: '4px 0' }} />
+              ) : (
+                <span className="seamless-sum-val tabular-nums">
+                  {combinedMetrics.totalRows.toLocaleString('th-TH')}
+                </span>
+              )}
               <span className="seamless-sum-sub">รวมทุกชีทที่ประมวลผล</span>
             </div>
             <div className="seamless-sum-card">
               <span className="seamless-sum-label">รายการที่ถูกต้อง</span>
-              <span className="seamless-sum-val green tabular-nums">
-                {combinedMetrics.validRows.toLocaleString('th-TH')}
-              </span>
+              {isProcessingBatch ? (
+                <div className="rcm-skeleton-bar" style={{ width: '90px', height: '24px', margin: '4px 0' }} />
+              ) : (
+                <span className="seamless-sum-val green tabular-nums">
+                  {combinedMetrics.validRows.toLocaleString('th-TH')}
+                </span>
+              )}
               <span className="seamless-sum-sub">พร้อมใช้งาน / บันทึก</span>
             </div>
             <div className="seamless-sum-card">
               <span className="seamless-sum-label">ยอดเงินชดเชยรวม</span>
-              <span className="seamless-sum-val emerald tabular-nums">
-                ฿{combinedMetrics.totalCompensation.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-              </span>
+              {isProcessingBatch ? (
+                <div className="rcm-skeleton-bar" style={{ width: '120px', height: '24px', margin: '4px 0' }} />
+              ) : (
+                <span className="seamless-sum-val emerald tabular-nums">
+                  ฿{combinedMetrics.totalCompensation.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                </span>
+              )}
               <span className="seamless-sum-sub">ยอดชดเชยตามประกาศ สปสช.</span>
             </div>
             <div className="seamless-sum-card">
               <span className="seamless-sum-label">จับคู่ HOSxP สำเร็จ</span>
-              <span className="seamless-sum-val blue tabular-nums">
-                {combinedMetrics.matchedHn.toLocaleString('th-TH')} HN
-              </span>
+              {isProcessingBatch ? (
+                <div className="rcm-skeleton-bar" style={{ width: '100px', height: '24px', margin: '4px 0' }} />
+              ) : (
+                <span className="seamless-sum-val blue tabular-nums">
+                  {combinedMetrics.matchedHn.toLocaleString('th-TH')} HN
+                </span>
+              )}
               <span className="seamless-sum-sub">
-                {combinedMetrics.matchedVn.toLocaleString('th-TH')} Visit (VN)
+                {combinedMetrics.matchedVn.toLocaleString('th-TH')} ครั้งรับบริการ
               </span>
             </div>
             {combinedMetrics.errorRows > 0 && (
@@ -1269,15 +1336,15 @@ export default function SeamlessImportClient({
             )}
           </div>
 
-          {/* Sub Tabs Navigation - Only show tabs for data that exists in the import */}
+          {/* Sub Tabs Navigation */}
           <div className="seamless-tabs-bar">
-            {combinedMetrics.validRows > 0 && (
+            {(isProcessingBatch || combinedMetrics.validRows > 0) && (
               <button
                 type="button"
                 onClick={() => setActiveTab('individual')}
                 className={`seamless-tab-btn ${activeTab === 'individual' ? 'active' : ''}`}
               >
-                <span>รายการผู้รับบริการ (INDIVIDUAL)</span>
+                <span>รายการผู้รับบริการ</span>
                 <span className="seamless-tab-count tabular-nums">
                   {combinedMetrics.validRows.toLocaleString('th-TH')}
                 </span>
@@ -1290,7 +1357,7 @@ export default function SeamlessImportClient({
                 onClick={() => setActiveTab('summary')}
                 className={`seamless-tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
               >
-                <span>สรุปกองทุน (SUMMARY)</span>
+                <span>สรุปกองทุน</span>
                 {displayedFunds.length > 0 && (
                   <span className="seamless-tab-count tabular-nums">{displayedFunds.length}</span>
                 )}
@@ -1303,7 +1370,7 @@ export default function SeamlessImportClient({
                 onClick={() => setActiveTab('denyCodes')}
                 className={`seamless-tab-btn ${activeTab === 'denyCodes' ? 'active' : ''}`}
               >
-                <span>รหัสปฏิเสธ (DENY CODE)</span>
+                <span>รหัสปฏิเสธ</span>
                 <span className="seamless-tab-count tabular-nums">{displayedDenyCodes.length}</span>
               </button>
             )}
@@ -1314,7 +1381,7 @@ export default function SeamlessImportClient({
                 onClick={() => setActiveTab('errors')}
                 className={`seamless-tab-btn ${activeTab === 'errors' ? 'active' : ''}`}
               >
-                <span>ข้อผิดพลาด (Errors)</span>
+                <span>รายการผิดพลาด</span>
                 <span className="seamless-tab-count alert tabular-nums">
                   {displayedErrors.length}
                 </span>
@@ -1322,7 +1389,7 @@ export default function SeamlessImportClient({
             )}
           </div>
 
-          {/* Tab 1: INDIVIDUAL Rows Preview (Dynamic Columns Based on Imported Data) */}
+          {/* Tab 1: INDIVIDUAL Rows Preview */}
           {activeTab === 'individual' && (
             <div className="seamless-table-wrapper">
               <div className="seamless-table-toolbar">
@@ -1346,7 +1413,7 @@ export default function SeamlessImportClient({
                   )}
                 </div>
                 <div style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                  แสดงตัวอย่าง {displayedPreviewRows.length} รายการ (จากทั้งหมด {combinedMetrics.validRows.toLocaleString('th-TH')} รายการ)
+                  แสดงตัวอย่าง {displayedPreviewRows.length} รายการ จากทั้งหมด {combinedMetrics.validRows.toLocaleString('th-TH')} รายการ
                 </div>
               </div>
 
@@ -1354,12 +1421,26 @@ export default function SeamlessImportClient({
                 <table className="seamless-table">
                   <thead>
                     <tr>
-                      {dynamicColumns.map((col) => (
+                      {(dynamicColumns.length > 0
+                        ? dynamicColumns
+                        : [
+                            { key: 'index', header: 'ลำดับ', width: '60px' },
+                            { key: 'id', header: 'Trans ID' },
+                            { key: 'rep', header: 'Rep' },
+                            { key: 'fund', header: 'กองทุน' },
+                            { key: 'pid', header: 'เลขบัตรประชาชน' },
+                            { key: 'hn', header: 'HN' },
+                            { key: 'ptname', header: 'ชื่อ-สกุล' },
+                            { key: 'admDate', header: 'วันที่บริการ' },
+                            { key: 'compensated', header: 'ชดเชย' },
+                            { key: 'hosMatch', header: 'สถานะ HOSxP' },
+                          ]
+                      ).map((col) => (
                         <th
                           key={col.key}
                           style={{
                             width: col.width,
-                            textAlign: col.align || 'left',
+                            textAlign: 'center',
                           }}
                         >
                           {col.header}
@@ -1368,11 +1449,23 @@ export default function SeamlessImportClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedPreviewRows.length === 0 ? (
+                    {isProcessingBatch ? (
+                      Array.from({ length: 8 }).map((_, idx) => (
+                        <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                          {Array.from({
+                            length: Math.max(dynamicColumns.length, 10),
+                          }).map((__, colIdx) => (
+                            <td key={colIdx} style={{ textAlign: 'center' }}>
+                              <div className="rcm-skeleton-bar" />
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : displayedPreviewRows.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={Math.max(dynamicColumns.length, 1)}
-                          style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}
+                          colSpan={Math.max(dynamicColumns.length, 10)}
+                          style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#64748b' }}
                         >
                           ไม่พบข้อมูลที่ตรงกับคำค้นหา
                         </td>
@@ -1383,7 +1476,7 @@ export default function SeamlessImportClient({
                           {dynamicColumns.map((col) => (
                             <td
                               key={col.key}
-                              style={{ textAlign: col.align || 'left' }}
+                              style={{ textAlign: 'center' }}
                             >
                               {col.render(row, idx)}
                             </td>
@@ -1413,7 +1506,7 @@ export default function SeamlessImportClient({
                         Rep: {info.rep}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        {info.payNo && <div>เลขที่โอน (PayNo): <strong>{info.payNo}</strong></div>}
+                        {info.payNo && <div>เลขที่โอน: <strong>{info.payNo}</strong></div>}
                         {info.repDate && <div>วันที่ Rep: <strong>{info.repDate}</strong></div>}
                         {info.payDate && <div>วันที่โอน: <strong>{info.payDate}</strong></div>}
                         {info.codeAccount && <div>รหัสบัญชี: <strong>{info.codeAccount}</strong></div>}
@@ -1428,19 +1521,19 @@ export default function SeamlessImportClient({
                   <table className="seamless-table">
                     <thead>
                       <tr>
-                        <th style={{ width: '60px' }}>ลำดับ</th>
-                        <th>รหัสกองทุน</th>
-                        <th>ชื่อกองทุน สปสช.</th>
-                        <th style={{ textAlign: 'right' }}>จำนวนรายการ (เคส)</th>
+                        <th style={{ width: '60px', textAlign: 'center' }}>ลำดับ</th>
+                        <th style={{ textAlign: 'center' }}>รหัสกองทุน</th>
+                        <th style={{ textAlign: 'center' }}>ชื่อกองทุน สปสช.</th>
+                        <th style={{ textAlign: 'center' }}>จำนวนรายการ</th>
                       </tr>
                     </thead>
                     <tbody>
                       {displayedFunds.map((fund, idx) => (
                         <tr key={`${fund.fundCode}-${idx}`}>
-                          <td className="tabular-nums">{idx + 1}</td>
-                          <td style={{ fontWeight: 600 }}>{fund.fundCode}</td>
-                          <td>{fund.fundName}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: '#047857' }} className="tabular-nums">
+                          <td className="tabular-nums" style={{ textAlign: 'center' }}>{idx + 1}</td>
+                          <td style={{ fontWeight: 600, textAlign: 'center' }}>{fund.fundCode}</td>
+                          <td style={{ textAlign: 'center' }}>{fund.fundName}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: '#047857' }} className="tabular-nums">
                             {fund.count.toLocaleString('th-TH')}
                           </td>
                         </tr>
@@ -1458,17 +1551,17 @@ export default function SeamlessImportClient({
               <table className="seamless-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '100px' }}>รหัสโค้ด</th>
-                    <th>คำอธิบายข้อผิดพลาด</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>รหัสปฏิเสธ</th>
+                    <th style={{ textAlign: 'center' }}>คำอธิบายข้อผิดพลาด</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayedDenyCodes.map((d, idx) => (
                     <tr key={`${d.code}-${idx}`}>
-                      <td>
+                      <td style={{ textAlign: 'center' }}>
                         <span className="seamless-fund-tag alert">{d.code}</span>
                       </td>
-                      <td style={{ fontWeight: 600 }}>{d.name}</td>
+                      <td style={{ fontWeight: 600, textAlign: 'center' }}>{d.name}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1482,17 +1575,17 @@ export default function SeamlessImportClient({
               <table className="seamless-table">
                 <thead>
                   <tr>
-                    <th>ไฟล์</th>
-                    <th>แถวที่ (Row)</th>
-                    <th>สาเหตุข้อผิดพลาด</th>
+                    <th style={{ textAlign: 'center' }}>ไฟล์</th>
+                    <th style={{ textAlign: 'center' }}>แถวที่</th>
+                    <th style={{ textAlign: 'center' }}>สาเหตุข้อผิดพลาด</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayedErrors.map((err, idx) => (
                     <tr key={`${err.fileName}-${err.row}-${idx}`}>
-                      <td style={{ fontWeight: 600, color: '#334155' }}>{err.fileName}</td>
-                      <td className="tabular-nums">{err.row > 0 ? err.row : 'ทั้งไฟล์'}</td>
-                      <td style={{ color: '#b91c1c' }}>{err.error}</td>
+                      <td style={{ fontWeight: 600, color: '#334155', textAlign: 'center' }}>{err.fileName}</td>
+                      <td className="tabular-nums" style={{ textAlign: 'center' }}>{err.row > 0 ? err.row : 'ทั้งไฟล์'}</td>
+                      <td style={{ color: '#b91c1c', textAlign: 'center' }}>{err.error}</td>
                     </tr>
                   ))}
                 </tbody>

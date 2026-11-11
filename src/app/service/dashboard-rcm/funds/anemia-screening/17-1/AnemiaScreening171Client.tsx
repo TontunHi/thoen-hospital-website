@@ -530,7 +530,7 @@ export default function AnemiaScreening171Client({
             className={`as-segmented-btn ${dateMode === 'monthly' ? 'is-active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -637,9 +637,9 @@ export default function AnemiaScreening171Client({
                   setCurrentPage(1)
                 }}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -914,16 +914,6 @@ export default function AnemiaScreening171Client({
               ลองใหม่อีกครั้ง
             </button>
           </div>
-        ) : loading ? (
-          <div className="as-state-box">
-            <div className="as-spinner" />
-            <p>กำลังโหลดข้อมูลเวชระเบียนคัดกรองโลหิตจาง...</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="as-state-box">
-            <Droplets size={36} color="#94a3b8" />
-            <p>ไม่พบรายการข้อมูลตามเงื่อนไขหรือช่วงเวลาที่เลือก</p>
-          </div>
         ) : (
           <div className="as-table-wrapper">
             <table className="as-table">
@@ -960,7 +950,7 @@ export default function AnemiaScreening171Client({
                     </button>
                   </th>
                   <th className="col-center">เลขบัตรประชาชน</th>
-                  <th className="col-left">
+                  <th className="col-center">
                     <button
                       type="button"
                       className="as-table-sort-btn"
@@ -1050,7 +1040,24 @@ export default function AnemiaScreening171Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="as-state-box">
+                      <Droplets size={36} color="#94a3b8" />
+                      <p>ไม่พบรายการข้อมูลตามเงื่อนไขหรือช่วงเวลาที่เลือก</p>
+                    </td>
+                  </tr>
+                ) : items.map((item) => (
                   <tr
                     key={item.vn}
                     className="as-row-clickable"

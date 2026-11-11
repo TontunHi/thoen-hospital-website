@@ -507,7 +507,7 @@ export default function WalkinFundClient({
               className={`walkin-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => handleDateModeChange('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -530,9 +530,9 @@ export default function WalkinFundClient({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((year) => (
+                {[2569, 2570].map((year) => (
                   <option key={year} value={year}>
-                    ปีงบประมาณ {year}
+                    ปีงบ {year}
                   </option>
                 ))}
               </select>
@@ -560,7 +560,7 @@ export default function WalkinFundClient({
                 >
                   {yearOptions.map((year) => (
                     <option key={year} value={year}>
-                      {year}
+                      พ.ศ. {year}
                     </option>
                   ))}
                 </select>
@@ -804,12 +804,7 @@ export default function WalkinFundClient({
 
       {/* 7. Table Card */}
       <div className="walkin-table-card">
-        {loading ? (
-          <div className="walkin-loading-box">
-            <div className="walkin-loading-spinner" />
-            <div>กำลังโหลดข้อมูลกองทุน Walkin...</div>
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="walkin-error-box">
             <AlertCircle size={32} className="text-red-500" />
             <div className="text-red-700 font-semibold">{error}</div>
@@ -820,14 +815,6 @@ export default function WalkinFundClient({
             >
               ลองใหม่อีกครั้ง
             </button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="walkin-empty-box">
-            <FileText size={36} className="text-gray-400" />
-            <div className="font-medium text-gray-700">ไม่พบรายการผู้รับบริการตามเงื่อนไขที่เลือก</div>
-            <div className="text-sm text-gray-500">
-              ลองเปลี่ยนช่วงเวลาการค้นหา หรือกดล้างตัวกรองด้านบน
-            </div>
           </div>
         ) : (
           <div className="walkin-table-container">
@@ -905,7 +892,7 @@ export default function WalkinFundClient({
                   <th className="col-center" style={{ width: '150px' }}>
                     สิทธิการรักษา
                   </th>
-                  <th className="col-left" style={{ minWidth: '220px' }}>
+                  <th className="col-center" style={{ minWidth: '220px' }}>
                     รายการยา/บริการ ADP (WALKIN)
                   </th>
                   <th className="col-center" style={{ width: '90px' }}>
@@ -915,7 +902,7 @@ export default function WalkinFundClient({
                     เลข Rep / Inv
                   </th>
                   <th
-                    className="col-right sortable"
+                    className="col-center sortable"
                     onClick={() => handleSort('compensated')}
                     style={{ width: '110px' }}
                   >
@@ -934,84 +921,108 @@ export default function WalkinFundClient({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
-                  <tr
-                    key={item.vn}
-                    className="walkin-table-row"
-                    onClick={() => setSelectedItem(item)}
-                    title="คลิกเพื่อดูรายละเอียดเชิงลึก"
-                  >
-                    <td className="col-center walkin-tabular">{item.no}</td>
-                    <td className="col-center walkin-tabular">
-                      {formatThaiDate(item.vstdate)}
-                    </td>
-                    <td className="col-center walkin-tabular">
-                      {item.vsttime ? item.vsttime.slice(0, 5) : '—'}
-                    </td>
-                    <td className="col-center walkin-tabular font-medium">
-                      {item.hn}
-                    </td>
-                    <td className="col-center walkin-tabular font-medium text-gray-700">
-                      {item.cid || '—'}
-                    </td>
-                    <td className="col-center">
-                      <span className="walkin-ptname">{item.ptname}</span>
-                    </td>
-                    <td className="col-center walkin-tabular whitespace-nowrap">
-                      {item.age}&nbsp;ปี
-                    </td>
-                    <td className="col-center">
-                      {item.authencode ? (
-                        <span className="walkin-authen-badge">{item.authencode}</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="col-center">
-                      <div className="flex items-center justify-center flex-wrap gap-1">
-                        <span>{item.pttypename || '—'}</span>
-                        {item.isUc && <span className="walkin-tag-uc">UC</span>}
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="col-center" style={{ padding: '48px 16px' }}>
+                      <div className="walkin-empty-box">
+                        <FileText size={36} className="text-gray-400" />
+                        <div className="font-medium text-gray-700">ไม่พบรายการผู้รับบริการตามเงื่อนไขที่เลือก</div>
+                        <div className="text-sm text-gray-500">
+                          ลองเปลี่ยนช่วงเวลาการค้นหา หรือกดล้างตัวกรองด้านบน
+                        </div>
                       </div>
-                    </td>
-                    <td className="col-left">
-                      <div className="font-medium text-gray-800 line-clamp-2">
-                        {item.listname || '—'}
-                      </div>
-                    </td>
-                    <td className="col-center walkin-tabular font-semibold text-emerald-800">
-                      {item.pdx || '—'}
-                    </td>
-                    <td className="col-center walkin-tabular">
-                      {item.rep ? (
-                        <span className="font-medium text-teal-700">{item.rep}</span>
-                      ) : item.invoice ? (
-                        <span className="text-emerald-700">{item.invoice}</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="col-right walkin-tabular font-semibold">
-                      {item.compensated > 0 ? (
-                        <span className="text-emerald-700">{formatMoney(item.compensated)}</span>
-                      ) : item.invoice_compensated > 0 ? (
-                        <span className="text-teal-700">{formatMoney(item.invoice_compensated)}</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="col-center">
-                      {item.isCompensated ? (
-                        <span className="walkin-badge walkin-badge-rep">ชดเชยแล้ว</span>
-                      ) : item.invoice ? (
-                        <span className="walkin-badge walkin-badge-invoice">มี Invoice</span>
-                      ) : item.status ? (
-                        <span className="walkin-badge walkin-badge-neutral">{item.status}</span>
-                      ) : (
-                        <span className="walkin-badge walkin-badge-unsent">รอส่ง</span>
-                      )}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  items.map((item) => (
+                    <tr
+                      key={item.vn}
+                      className="walkin-table-row"
+                      onClick={() => setSelectedItem(item)}
+                      title="คลิกเพื่อดูรายละเอียดเชิงลึก"
+                    >
+                      <td className="col-center walkin-tabular">{item.no}</td>
+                      <td className="col-center walkin-tabular">
+                        {formatThaiDate(item.vstdate)}
+                      </td>
+                      <td className="col-center walkin-tabular">
+                        {item.vsttime ? item.vsttime.slice(0, 5) : '—'}
+                      </td>
+                      <td className="col-center walkin-tabular font-medium">
+                        {item.hn}
+                      </td>
+                      <td className="col-center walkin-tabular font-medium text-gray-700">
+                        {item.cid || '—'}
+                      </td>
+                      <td className="col-center">
+                        <span className="walkin-ptname">{item.ptname}</span>
+                      </td>
+                      <td className="col-center walkin-tabular whitespace-nowrap">
+                        {item.age}&nbsp;ปี
+                      </td>
+                      <td className="col-center">
+                        {item.authencode ? (
+                          <span className="walkin-authen-badge">{item.authencode}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="col-center">
+                        <div className="flex items-center justify-center flex-wrap gap-1">
+                          <span>{item.pttypename || '—'}</span>
+                          {item.isUc && <span className="walkin-tag-uc">UC</span>}
+                        </div>
+                      </td>
+                      <td className="col-left">
+                        <div className="font-medium text-gray-800 line-clamp-2">
+                          {item.listname || '—'}
+                        </div>
+                      </td>
+                      <td className="col-center walkin-tabular font-semibold text-emerald-800">
+                        {item.pdx || '—'}
+                      </td>
+                      <td className="col-center walkin-tabular">
+                        {item.rep ? (
+                          <span className="font-medium text-teal-700">{item.rep}</span>
+                        ) : item.invoice ? (
+                          <span className="text-emerald-700">{item.invoice}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="col-right walkin-tabular font-semibold">
+                        {item.compensated > 0 ? (
+                          <span className="text-emerald-700">{formatMoney(item.compensated)}</span>
+                        ) : item.invoice_compensated > 0 ? (
+                          <span className="text-teal-700">{formatMoney(item.invoice_compensated)}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="col-center">
+                        {item.isCompensated ? (
+                          <span className="walkin-badge walkin-badge-rep">ชดเชยแล้ว</span>
+                        ) : item.invoice ? (
+                          <span className="walkin-badge walkin-badge-invoice">มี Invoice</span>
+                        ) : item.status ? (
+                          <span className="walkin-badge walkin-badge-neutral">{item.status}</span>
+                        ) : (
+                          <span className="walkin-badge walkin-badge-unsent">รอส่ง</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

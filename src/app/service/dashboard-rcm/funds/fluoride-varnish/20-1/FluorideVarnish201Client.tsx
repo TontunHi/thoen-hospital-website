@@ -565,7 +565,7 @@ export default function FluorideVarnish201Client({
             className={`fluoride-mode-tab ${dateMode === 'monthly' ? 'is-active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -642,9 +642,9 @@ export default function FluorideVarnish201Client({
               value={selectedFiscalYear}
               onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
             >
-              {yearOptions.map((fy) => (
+              {[2569, 2570].map((fy) => (
                 <option key={fy} value={fy}>
-                  ปีงบประมาณ {fy}
+                  ปีงบ {fy}
                 </option>
               ))}
             </select>
@@ -958,20 +958,7 @@ export default function FluorideVarnish201Client({
           </div>
         </div>
 
-        {loading ? (
-          <div className="fluoride-loading-overlay">
-            <RefreshCw size={20} className="spin" />
-            <span>กำลังโหลดข้อมูลรายงาน...</span>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="fluoride-empty-state">
-            <Sparkles size={40} className="fluoride-empty-icon" />
-            <strong style={{ fontSize: '1rem', color: '#334155' }}>ไม่พบข้อมูลตามเงื่อนไขที่เลือก</strong>
-            <span style={{ fontSize: '0.875rem' }}>
-              ลองเปลี่ยนช่วงเวลาการค้นหา หรือปรับตัวกรองที่เลือกใหม่อีกครั้ง
-            </span>
-          </div>
-        ) : (
+        {!error && (
           <div className="fluoride-table-scroll">
             <table className="fluoride-table">
               <thead>
@@ -1013,7 +1000,7 @@ export default function FluorideVarnish201Client({
                   <th className="col-center" style={{ width: '140px' }}>
                     เลขบัตรประชาชน
                   </th>
-                  <th className="col-left" style={{ minWidth: '160px' }}>
+                  <th className="col-center" style={{ minWidth: '160px' }}>
                     <button
                       type="button"
                       className="fluoride-sort-btn"
@@ -1044,7 +1031,7 @@ export default function FluorideVarnish201Client({
                   <th className="col-center" style={{ width: '110px' }}>
                     ClaimCode
                   </th>
-                  <th className="col-left" style={{ minWidth: '150px' }}>
+                  <th className="col-center" style={{ minWidth: '150px' }}>
                     สิทธิการรักษา
                   </th>
                   <th className="col-center" style={{ width: '80px' }}>
@@ -1061,7 +1048,7 @@ export default function FluorideVarnish201Client({
                       )}
                     </button>
                   </th>
-                  <th className="col-left" style={{ minWidth: '180px' }}>
+                  <th className="col-center" style={{ minWidth: '180px' }}>
                     รายการ ADP (15001)
                   </th>
                   <th className="col-center" style={{ width: '130px' }}>
@@ -1087,7 +1074,23 @@ export default function FluorideVarnish201Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="col-center" style={{ padding: '48px 16px' }}>
+                      ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((item) => (
                   <tr
                     key={item.vn}
                     className="fluoride-table-row"

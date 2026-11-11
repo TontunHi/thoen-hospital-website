@@ -678,6 +678,12 @@
   gap: 12px;
 }
 
+.vh-pagination-info {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
 .vh-pagination-controls {
   display: flex;
   align-items: center;

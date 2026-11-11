@@ -541,12 +541,13 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
             </button>
             <button
               type="button"
-              className="cancer-btn cancer-btn-icon-only"
+              className="cancer-btn"
               onClick={() => fetchData(true)}
               disabled={loading || isRefreshing}
               title="รีเฟรชข้อมูล"
             >
               <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              <span>รีเฟรช</span>
             </button>
           </div>
         </div>
@@ -579,7 +580,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                 className={`cancer-date-mode-btn ${dateMode === 'monthly' ? 'active' : ''}`}
                 onClick={() => handleDateModeChange('monthly')}
               >
-                เดือน
+                รายเดือน
               </button>
               <button
                 type="button"
@@ -644,9 +645,9 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                   value={selectedFiscalYear}
                   onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 >
-                  {yearOptions.map((y) => (
+                  {[2569, 2570].map((y) => (
                     <option key={y} value={y}>
-                      ปีงบประมาณ {y}
+                      ปีงบ {y}
                     </option>
                   ))}
                 </select>
@@ -1052,15 +1053,16 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
               </tr>
             </thead>
             <tbody>
-              {loading && items.length === 0 ? (
-                <tr>
-                  <td colSpan={13}>
-                    <div className="cancer-state-container">
-                      <RefreshCw size={24} className="animate-spin text-emerald-700" />
-                      <p className="cancer-state-title">กำลังโหลดข้อมูลรายงาน...</p>
-                    </div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, rowIdx) => (
+                  <tr key={`skeleton-${rowIdx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 13 }).map((__, colIdx) => (
+                      <td key={colIdx} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : error ? (
                 <tr>
                   <td colSpan={13}>

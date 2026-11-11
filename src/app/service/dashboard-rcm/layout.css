@@ -1292,3 +1292,275 @@
     padding: 1rem;
   }
 }
+
+/* ==========================================================================
+   13. SHARED RCM FUNDS SKELETON, UTILITY & MODAL SAFETY CLASSES
+   ========================================================================== */
+
+/* Skeleton loading rows used across all 41 RCM Fund tables */
+@keyframes rcmSkeletonPulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+
+.rcm-skeleton-row td {
+  padding: 12px 14px;
+}
+
+.rcm-skeleton-bar {
+  height: 14px;
+  width: 75%;
+  margin: 0 auto;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  animation: rcmSkeletonPulse 1.4s ease-in-out infinite;
+}
+
+/* Spin animations */
+@keyframes rcmSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.rcm-layout-shell .animate-spin,
+.rcm-layout-shell .spin {
+  animation: rcmSpin 0.9s linear infinite;
+}
+
+/* Screen reader only */
+.rcm-layout-shell .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Display & Flex utilities */
+.rcm-layout-shell .block { display: block; }
+.rcm-layout-shell .inline { display: inline; }
+.rcm-layout-shell .inline-block { display: inline-block; }
+.rcm-layout-shell .flex { display: flex; }
+.rcm-layout-shell .inline-flex { display: inline-flex; }
+.rcm-layout-shell .flex-col { flex-direction: column; }
+.rcm-layout-shell .flex-wrap { flex-wrap: wrap; }
+.rcm-layout-shell .items-center { align-items: center; }
+.rcm-layout-shell .justify-center { justify-content: center; }
+.rcm-layout-shell .justify-between { justify-content: space-between; }
+.rcm-layout-shell .justify-end { justify-content: flex-end; }
+.rcm-layout-shell .self-end { align-self: flex-end; }
+.rcm-layout-shell .shrink-0,
+.rcm-layout-shell .flex-shrink-0 { flex-shrink: 0; }
+
+/* Grid & Gap utilities */
+.rcm-layout-shell .col-span-2 { grid-column: span 2 / span 2; }
+@media (max-width: 640px) {
+  .rcm-layout-shell .col-span-2 { grid-column: span 1 / span 1; }
+}
+.rcm-layout-shell .gap-0\.5 { gap: 0.125rem; }
+.rcm-layout-shell .gap-1 { gap: 0.25rem; }
+.rcm-layout-shell .gap-1\.5 { gap: 0.375rem; }
+.rcm-layout-shell .gap-2 { gap: 0.5rem; }
+.rcm-layout-shell .gap-3 { gap: 0.75rem; }
+.rcm-layout-shell .gap-4 { gap: 1rem; }
+.rcm-layout-shell .space-y-1 > * + * { margin-top: 0.25rem; }
+
+/* Sizing utilities */
+.rcm-layout-shell .w-full { width: 100%; }
+.rcm-layout-shell .w-8 { width: 2rem; }
+.rcm-layout-shell .h-8 { height: 2rem; }
+.rcm-layout-shell .min-h-0 { min-height: 0; }
+.rcm-layout-shell .max-w-xs { max-width: 20rem; }
+.rcm-layout-shell .max-w-\[90px\] { max-width: 90px; }
+.rcm-layout-shell .max-w-\[100px\] { max-width: 100px; }
+.rcm-layout-shell .max-w-\[120px\] { max-width: 120px; }
+.rcm-layout-shell .max-w-\[130px\] { max-width: 130px; }
+.rcm-layout-shell .max-w-\[140px\] { max-width: 140px; }
+.rcm-layout-shell .max-w-\[160px\] { max-width: 160px; }
+.rcm-layout-shell .max-w-\[180px\] { max-width: 180px; }
+.rcm-layout-shell .max-w-\[200px\] { max-width: 200px; }
+.rcm-layout-shell .max-w-\[500px\] { max-width: 500px; }
+
+/* Spacing (Padding & Margin) utilities */
+.rcm-layout-shell .p-2 { padding: 0.5rem; }
+.rcm-layout-shell .p-3 { padding: 0.75rem; }
+.rcm-layout-shell .p-4 { padding: 1rem; }
+.rcm-layout-shell .p-8 { padding: 2rem; }
+.rcm-layout-shell .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.rcm-layout-shell .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.rcm-layout-shell .py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+.rcm-layout-shell .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.rcm-layout-shell .py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.rcm-layout-shell .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+.rcm-layout-shell .py-10 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+.rcm-layout-shell .py-12 { padding-top: 3rem; padding-bottom: 3rem; }
+.rcm-layout-shell .m-4 { margin: 1rem; }
+.rcm-layout-shell .mx-auto { margin-left: auto; margin-right: auto; }
+.rcm-layout-shell .mt-0\.5 { margin-top: 0.125rem; }
+.rcm-layout-shell .mt-1 { margin-top: 0.25rem; }
+.rcm-layout-shell .mt-2 { margin-top: 0.5rem; }
+.rcm-layout-shell .mt-4 { margin-top: 1rem; }
+.rcm-layout-shell .mb-1 { margin-bottom: 0.25rem; }
+.rcm-layout-shell .mb-2 { margin-bottom: 0.5rem; }
+.rcm-layout-shell .ml-1 { margin-left: 0.25rem; }
+.rcm-layout-shell .mr-1 { margin-right: 0.25rem; }
+.rcm-layout-shell .mr-2 { margin-right: 0.5rem; }
+.rcm-layout-shell .mr-3 { margin-right: 0.75rem; }
+
+/* Typography & Text alignment utilities */
+.rcm-layout-shell .font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+.rcm-layout-shell .tabular-nums,
+.rcm-layout-shell .font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+.rcm-layout-shell .text-\[11px\] { font-size: 11px; }
+.rcm-layout-shell .text-xs { font-size: 0.75rem; line-height: 1rem; }
+.rcm-layout-shell .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.rcm-layout-shell .text-base { font-size: 1rem; line-height: 1.5rem; }
+.rcm-layout-shell .font-medium { font-weight: 500; }
+.rcm-layout-shell .font-semibold { font-weight: 600; }
+.rcm-layout-shell .font-bold { font-weight: 700; }
+.rcm-layout-shell .italic { font-style: italic; }
+.rcm-layout-shell .leading-relaxed { line-height: 1.625; }
+.rcm-layout-shell .tracking-tight { letter-spacing: -0.025em; }
+.rcm-layout-shell .text-left { text-align: left; }
+.rcm-layout-shell .text-center { text-align: center; }
+.rcm-layout-shell .text-right { text-align: right; }
+.rcm-layout-shell .whitespace-nowrap { white-space: nowrap; }
+.rcm-layout-shell .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rcm-layout-shell .line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+.rcm-layout-shell .line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Borders, Radius, Dividers & Overflow */
+.rcm-layout-shell .overflow-hidden { overflow: hidden; }
+.rcm-layout-shell .rounded { border-radius: 0.25rem; }
+.rcm-layout-shell .rounded-lg { border-radius: 0.5rem; }
+.rcm-layout-shell .border { border: 1px solid #e2e8f0; }
+.rcm-layout-shell .border-b { border-bottom: 1px solid #e2e8f0; }
+.rcm-layout-shell .border-dashed { border-style: dashed; }
+.rcm-layout-shell .border-gray-200 { border-color: #e5e7eb; }
+.rcm-layout-shell .border-slate-200 { border-color: #e2e8f0; }
+.rcm-layout-shell .border-emerald-200 { border-color: #a7f3d0; }
+.rcm-layout-shell .border-red-200 { border-color: #fecaca; }
+.rcm-layout-shell .divide-y > * + * { border-top: 1px solid #f1f5f9; }
+.rcm-layout-shell .divide-slate-100 > * + * { border-top-color: #f1f5f9; }
+.rcm-layout-shell table.w-full { border-collapse: collapse; }
+
+/* Backgrounds & Hover states */
+.rcm-layout-shell .bg-slate-50 { background-color: #f8fafc; }
+.rcm-layout-shell .bg-slate-100 { background-color: #f1f5f9; }
+.rcm-layout-shell .bg-emerald-50 { background-color: #ecfdf5; }
+.rcm-layout-shell .bg-red-50 { background-color: #fef2f2; }
+.rcm-layout-shell .hover\:bg-slate-50:hover { background-color: #f8fafc; }
+.rcm-layout-shell .hover\:bg-slate-200:hover { background-color: #e2e8f0; }
+.rcm-layout-shell .hover\:underline:hover { text-decoration: underline; }
+.rcm-layout-shell .hover\:opacity-75:hover { opacity: 0.75; }
+.rcm-layout-shell .opacity-40 { opacity: 0.4; }
+.rcm-layout-shell .opacity-80 { opacity: 0.8; }
+.rcm-layout-shell .cursor-pointer { cursor: pointer; }
+.rcm-layout-shell .transition-colors {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Text Colors */
+.rcm-layout-shell .text-primary,
+.rcm-layout-shell .text-accent { color: var(--primary, #0d7446); }
+.rcm-layout-shell .text-muted { color: #64748b; }
+.rcm-layout-shell .text-danger { color: #dc2626; }
+.rcm-layout-shell .text-slate-300 { color: #cbd5e1; }
+.rcm-layout-shell .text-slate-400 { color: #94a3b8; }
+.rcm-layout-shell .text-slate-500 { color: #64748b; }
+.rcm-layout-shell .text-slate-600 { color: #475569; }
+.rcm-layout-shell .text-slate-700 { color: #334155; }
+.rcm-layout-shell .text-slate-800 { color: #1e293b; }
+.rcm-layout-shell .text-slate-900,
+.rcm-layout-shell .hover\:text-slate-900:hover { color: #0f172a; }
+.rcm-layout-shell .text-gray-400 { color: #9ca3af; }
+.rcm-layout-shell .text-gray-500 { color: #6b7280; }
+.rcm-layout-shell .text-gray-600,
+.rcm-layout-shell .hover\:text-gray-600:hover { color: #4b5563; }
+.rcm-layout-shell .text-gray-700 { color: #374151; }
+.rcm-layout-shell .text-gray-800 { color: #1f2937; }
+.rcm-layout-shell .text-gray-900 { color: #111827; }
+.rcm-layout-shell .text-emerald-600 { color: #059669; }
+.rcm-layout-shell .text-emerald-700,
+.rcm-layout-shell .hover\:text-emerald-700:hover { color: #047857; }
+.rcm-layout-shell .text-emerald-800 { color: #065f46; }
+.rcm-layout-shell .text-emerald-900 { color: #064e3b; }
+.rcm-layout-shell .text-emerald-950 { color: #022c22; }
+.rcm-layout-shell .text-green-600 { color: #16a34a; }
+.rcm-layout-shell .text-teal-600 { color: #0d9488; }
+.rcm-layout-shell .text-teal-700 { color: #0f766e; }
+.rcm-layout-shell .text-amber-500 { color: #f59e0b; }
+.rcm-layout-shell .text-amber-600 { color: #d97706; }
+.rcm-layout-shell .text-amber-700 { color: #b45309; }
+.rcm-layout-shell .text-amber-800 { color: #92400e; }
+.rcm-layout-shell .text-rose-600,
+.rcm-layout-shell .hover\:text-rose-600:hover { color: #e11d48; }
+.rcm-layout-shell .text-rose-700 { color: #be123c; }
+.rcm-layout-shell .text-rose-800 { color: #9f1239; }
+.rcm-layout-shell .text-red-500 { color: #ef4444; }
+.rcm-layout-shell .text-red-600 { color: #dc2626; }
+.rcm-layout-shell .text-red-700 { color: #b91c1c; }
+.rcm-layout-shell .text-red-800 { color: #991b1b; }
+.rcm-layout-shell .text-sky-600 { color: #0284c7; }
+.rcm-layout-shell .text-sky-700 { color: #0369a1; }
+.rcm-layout-shell .text-sky-800 { color: #075985; }
+.rcm-layout-shell .text-blue-600 { color: #2563eb; }
+.rcm-layout-shell .text-blue-700 { color: #1d4ed8; }
+.rcm-layout-shell .text-purple-600 { color: #9333ea; }
+.rcm-layout-shell .text-purple-700 { color: #7e22ce; }
+
+/* Clean inline icon/copy buttons in modals and filter strips */
+.rcm-layout-shell button.text-gray-400,
+.rcm-layout-shell button.hover\:opacity-75,
+.rcm-layout-shell button.hover\:text-rose-600,
+.rcm-layout-shell .fp-badge button {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+/* Modal z-index & flex scroll safety across all RCM funds modals */
+.rcm-layout-shell [class*="-modal-backdrop"],
+.rcm-layout-shell [class*="-modal-overlay"] {
+  z-index: 1000 !important;
+}
+
+.rcm-layout-shell [class*="-modal-header"],
+.rcm-layout-shell [class*="-modal-tabs"],
+.rcm-layout-shell [class*="-modal-footer"] {
+  flex-shrink: 0;
+}
+
+.rcm-layout-shell [class*="-modal-body"] {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+

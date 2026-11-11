@@ -333,17 +333,20 @@
 }
 
 .anc3-clear-btn {
-  position: absolute;
-  right: 10px;
   background: transparent;
   border: none;
   color: var(--anc-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--anc-r-xs);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.anc3-search-box .anc3-clear-btn {
+  position: absolute;
+  right: 10px;
 }
 
 .anc3-clear-btn:hover {
@@ -514,6 +517,10 @@
 
 .anc3-table tbody tr {
   transition: background 0.1s ease;
+}
+
+.anc3-row-clickable {
+  cursor: pointer;
 }
 
 .anc3-table tbody tr:hover {
@@ -717,7 +724,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1000;
   padding: var(--anc-s4);
   backdrop-filter: blur(2px);
 }

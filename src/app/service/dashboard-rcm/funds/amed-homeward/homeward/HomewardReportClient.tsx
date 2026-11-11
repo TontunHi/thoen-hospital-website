@@ -516,7 +516,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
               handleMonthYearChange(selectedMonth, selectedBeYear)
             }}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -596,9 +596,9 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
                 value={selectedFiscalYear}
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -867,20 +867,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
       {/* ── 7. Table Section ── */}
       <div className="hw-table-card">
         <div className="hw-table-container">
-          {loading && items.length === 0 ? (
-            <div className="hw-empty-state">
-              <RefreshCw size={28} className="hw-empty-icon hw-spin" />
-              <p className="hw-empty-title">กำลังโหลดข้อมูลรายงาน HOMEWARD...</p>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="hw-empty-state">
-              <Home size={36} className="hw-empty-icon" />
-              <p className="hw-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>
-              <p className="hw-empty-desc">
-                ลองปรับเปลี่ยนช่วงวันที่ ค้นหาคำอื่น หรือคลิกการ์ด &quot;ผู้ป่วยทั้งหมด&quot;
-              </p>
-            </div>
-          ) : (
+          {!error && (
             <table className="hw-table">
               <thead>
                 <tr>
@@ -953,7 +940,27 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 16 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={16} className="hw-empty-state">
+                      <Home size={36} className="hw-empty-icon" />
+                      <p className="hw-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>
+                      <p className="hw-empty-desc">
+                        ลองปรับเปลี่ยนช่วงวันที่ ค้นหาคำอื่น หรือคลิกการ์ด &quot;ผู้ป่วยทั้งหมด&quot;
+                      </p>
+                    </td>
+                  </tr>
+                ) : items.map((item) => {
                   const nameParts = splitPatientName(item.ptname)
                   return (
                     <tr

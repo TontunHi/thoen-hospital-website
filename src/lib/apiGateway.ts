@@ -618,6 +618,61 @@ export class ApiGatewayClient {
       return { success: true, data }
     },
 
+    // ── T1DM/GDM/PDM Registry Import & Management ──
+    getT1dmRegistries: (params?: {
+      search?: string
+      typeFilter?: string
+      hospFilter?: string
+      fileName?: string
+      sortBy?: string
+      sortOrder?: 'asc' | 'desc'
+      page?: number
+      pageSize?: number
+      exportAll?: boolean
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.typeFilter) q.set('typeFilter', params.typeFilter)
+      if (params?.hospFilter) q.set('hospFilter', params.hospFilter)
+      if (params?.fileName) q.set('fileName', params.fileName)
+      if (params?.sortBy) q.set('sortBy', params.sortBy)
+      if (params?.sortOrder) q.set('sortOrder', params.sortOrder)
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.pageSize) q.set('pageSize', String(params.pageSize))
+      if (params?.exportAll) q.set('exportAll', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        success: boolean
+        items: Array<any>
+        totalCount: number
+        totalPages: number
+        page: number
+        pageSize: number
+        summary: any
+        importedFiles: Array<any>
+      }>(`/api/v1/clinical/rcm/t1dm/registries${qs}`)
+    },
+
+    importT1dmRegistries: (rows: Array<Record<string, unknown>>) => {
+      return this.post<{
+        success: boolean
+        insertedCount: number
+        updatedCount: number
+      }>('/api/v1/clinical/rcm/t1dm/import', { rows })
+    },
+
+    deleteT1dmRegistries: (payload: {
+      mode: 'other_hospitals' | 'by_file' | 'all'
+      fileName?: string
+      myHospCode?: string
+    }) => {
+      return this.delete<{
+        success: boolean
+        deletedCount: number
+        message?: string
+      }>('/api/v1/clinical/rcm/t1dm/registries', payload)
+    },
+
     lookupPatientClaims: async (params: {
       hn?: string
       ptName?: string

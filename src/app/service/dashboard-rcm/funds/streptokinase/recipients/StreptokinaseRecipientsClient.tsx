@@ -745,7 +745,7 @@ export default function StreptokinaseRecipientsClient({
             className={`stk-segmented-btn ${dateMode === 'monthly' ? 'is-active' : ''}`}
             onClick={() => handleDateModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -814,9 +814,9 @@ export default function StreptokinaseRecipientsClient({
                 value={selectedFiscalYear}
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -1099,10 +1099,10 @@ export default function StreptokinaseRecipientsClient({
                 <th className="col-center" style={{ width: '110px' }}>
                   <span>ผลตรวจ Op 9910</span>
                 </th>
-                <th className="col-right" style={{ width: '120px' }}>
+                <th className="col-center" style={{ width: '120px' }}>
                   <button
                     type="button"
-                    className="stk-th-sort justify-end"
+                    className="stk-th-sort justify-center"
                     onClick={() => handleSort('money_hosxp')}
                   >
                     <span className="th-sort-inner">
@@ -1123,14 +1123,16 @@ export default function StreptokinaseRecipientsClient({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={16} className="stk-empty-state">
-                    <RefreshCw size={24} className="stk-empty-icon stk-spin text-emerald-600" />
-                    <div className="stk-empty-title">กำลังโหลดข้อมูล...</div>
-                    <div className="stk-empty-desc">กรุณารอสักครู่ ระบบกำลังค้นหาข้อมูลจากฐานข้อมูล</div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, idx) => (
+                  <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 16 }).map((__, colIdx) => (
+                      <td key={colIdx} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={16} className="stk-empty-state">

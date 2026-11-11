@@ -534,7 +534,7 @@ export default function DisabilityServicesClient({
             className={`rehab-segmented-btn ${dateMode === 'monthly' ? 'is-active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -631,9 +631,9 @@ export default function DisabilityServicesClient({
                   setCurrentPage(1)
                 }}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -1046,19 +1046,12 @@ export default function DisabilityServicesClient({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`skel-${i}`} className="rcm-skeleton-row">
                     {Array.from({ length: 12 }).map((_, j) => (
                       <td key={j} className="col-center">
-                        <div
-                          className="rehab-skeleton"
-                          style={{
-                            height: '20px',
-                            width: j === 5 ? '120px' : '60px',
-                            margin: '0 auto',
-                          }}
-                        />
+                        <div className="rcm-skeleton-bar" />
                       </td>
                     ))}
                   </tr>

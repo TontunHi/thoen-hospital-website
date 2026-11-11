@@ -21,6 +21,9 @@ import {
   ReceiptText,
   UserCheck,
   Sparkles,
+  Activity,
+  Stethoscope,
+  Pill,
 } from 'lucide-react'
 import type {
   PostpartumService72Item,
@@ -489,7 +492,6 @@ export default function PostpartumService72Client({
             className={`pnc72-date-tab ${dateMode === 'custom' ? 'active' : ''}`}
             onClick={() => setDateMode('custom')}
           >
-            <Calendar size={16} aria-hidden="true" />
             <span>กำหนดเอง</span>
           </button>
 
@@ -500,8 +502,7 @@ export default function PostpartumService72Client({
             className={`pnc72-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => setDateMode('monthly')}
           >
-            <Calendar size={16} aria-hidden="true" />
-            <span>เดือน</span>
+            <span>รายเดือน</span>
           </button>
 
           <button
@@ -511,7 +512,6 @@ export default function PostpartumService72Client({
             className={`pnc72-date-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
             onClick={() => setDateMode('fiscal')}
           >
-            <Calendar size={16} aria-hidden="true" />
             <span>ปีงบประมาณ</span>
           </button>
         </div>
@@ -600,9 +600,9 @@ export default function PostpartumService72Client({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -863,15 +863,16 @@ export default function PostpartumService72Client({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={14}>
-                    <div className="pnc72-loading-state">
-                      <div className="pnc72-spinner" aria-hidden="true" />
-                      <span>กำลังโหลดข้อมูลการตรวจหลังคลอด กรุณารอสักครู่...</span>
-                    </div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`} className="rcm-skeleton-row" aria-busy="true">
+                    {Array.from({ length: 14 }).map((__, j) => (
+                      <td key={`skeleton-cell-${j}`} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={14}>
@@ -1016,13 +1017,13 @@ export default function PostpartumService72Client({
           <div className="pnc72-modal-dialog" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="pnc72-modal-header">
-              <div className="flex items-center gap-3">
-                <HeartPulse size={20} className="text-emerald-700" aria-hidden="true" />
+              <div className="pnc72-modal-header-patient">
+                <HeartPulse size={22} className="pnc72-modal-header-icon" aria-hidden="true" />
                 <div>
                   <h2 id="pnc-modal-title" className="pnc72-modal-title">
                     {selectedItem.ptname}
                   </h2>
-                  <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5 font-mono">
+                  <div className="pnc72-modal-header-sub font-mono">
                     <span>HN: {selectedItem.hn}</span>
                     <span>•</span>
                     <span>VN: {selectedItem.vn}</span>
@@ -1100,11 +1101,11 @@ export default function PostpartumService72Client({
                         <span>{selectedItem.cid}</span>
                         <button
                           type="button"
-                          className="text-gray-400 hover:text-gray-700"
+                          className="pnc72-copy-btn"
                           onClick={() => handleCopy(selectedItem.cid, 'cid')}
                           title="คัดลอก CID"
                         >
-                          {copiedField === 'cid' ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                          {copiedField === 'cid' ? <Check size={14} className="pnc72-copy-check" /> : <Copy size={14} />}
                         </button>
                       </div>
                     </div>
@@ -1137,11 +1138,11 @@ export default function PostpartumService72Client({
                             <span className="pnc72-tag success">{selectedItem.authencode}</span>
                             <button
                               type="button"
-                              className="text-gray-400 hover:text-gray-700"
+                              className="pnc72-copy-btn"
                               onClick={() => handleCopy(selectedItem.authencode!, 'authen')}
                               title="คัดลอก ClaimCode"
                             >
-                              {copiedField === 'authen' ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                              {copiedField === 'authen' ? <Check size={14} className="pnc72-copy-check" /> : <Copy size={14} />}
                             </button>
                           </>
                         ) : (
@@ -1195,7 +1196,7 @@ export default function PostpartumService72Client({
 
                     <div className="pnc72-detail-item">
                       <span className="pnc72-detail-label">ยอดชดเชยที่ได้รับ</span>
-                      <span className="pnc72-detail-val text-emerald-800 text-lg">
+                      <span className="pnc72-detail-val pnc72-val-highlight">
                         {formatMoney(selectedItem.compensated)} บาท
                       </span>
                     </div>
@@ -1214,17 +1215,17 @@ export default function PostpartumService72Client({
                     </div>
                   </div>
 
-                  <div className="pnc72-detail-item mt-4">
+                  <div className="pnc72-detail-item">
                     <span className="pnc72-detail-label">รายการ ADP Code 30015 ในการรับบริการครั้งนี้</span>
-                    <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm mt-1">
+                    <div className="pnc72-detail-box">
                       {selectedItem.listname || 'ตรวจหลังคลอด (Z390-391-392) 30015 Project code'}
                     </div>
                   </div>
 
                   {selectedItem.listname1 && (
-                    <div className="pnc72-detail-item mt-2">
+                    <div className="pnc72-detail-item">
                       <span className="pnc72-detail-label">รายการค่าบริการและยาอื่นที่สั่งใน VN นี้</span>
-                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-700 mt-1 max-h-36 overflow-y-auto leading-relaxed">
+                      <div className="pnc72-detail-box pnc72-detail-box-scroll">
                         {selectedItem.listname1}
                       </div>
                     </div>
@@ -1232,7 +1233,7 @@ export default function PostpartumService72Client({
                 </>
               ) : (
                 /* Tab 2: Clinical Details */
-                <div>
+                <div className="pnc72-clinical-container">
                   {clinicalLoading ? (
                     <div className="pnc72-loading-state">
                       <div className="pnc72-spinner" aria-hidden="true" />
@@ -1243,89 +1244,135 @@ export default function PostpartumService72Client({
                       <span>{clinicalError}</span>
                     </div>
                   ) : clinicalData ? (
-                    <div className="space-y-4">
-                      {/* Vitals */}
-                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                          สัญญาณชีพและการคัดกรอง
-                        </h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                          <div>
-                            <span className="text-xs text-gray-500 block">ความดันโลหิต</span>
-                            <span className="font-semibold pnc72-num">
-                              {clinicalData.screen?.bps || '—'}/{clinicalData.screen?.bpd || '—'} mmHg
+                    <div className="pnc72-clinical-content">
+                      {/* Vitals & Screening */}
+                      <div className="pnc72-clinical-card">
+                        <div className="pnc72-clinical-card-head">
+                          <Activity size={16} aria-hidden="true" />
+                          <h3 className="pnc72-clinical-card-title">สัญญาณชีพและการคัดกรอง</h3>
+                        </div>
+                        <div className="pnc72-vitals-grid">
+                          <div className="pnc72-vital-cell">
+                            <span className="pnc72-vital-label">ความดันโลหิต</span>
+                            <span className="pnc72-vital-val pnc72-num">
+                              {clinicalData.screen?.bps || '—'}/{clinicalData.screen?.bpd || '—'}{' '}
+                              <span className="pnc72-vital-unit">mmHg</span>
                             </span>
                           </div>
-                          <div>
-                            <span className="text-xs text-gray-500 block">ชีพจร</span>
-                            <span className="font-semibold pnc72-num">
-                              {clinicalData.screen?.pulse || '—'} ครั้ง/นาที
+                          <div className="pnc72-vital-cell">
+                            <span className="pnc72-vital-label">ชีพจร</span>
+                            <span className="pnc72-vital-val pnc72-num">
+                              {clinicalData.screen?.pulse || '—'} <span className="pnc72-vital-unit">ครั้ง/นาที</span>
                             </span>
                           </div>
-                          <div>
-                            <span className="text-xs text-gray-500 block">น้ำหนัก/ส่วนสูง</span>
-                            <span className="font-semibold pnc72-num">
-                              {clinicalData.screen?.bw || '—'} กก. / {clinicalData.screen?.height || '—'} ซม.
+                          <div className="pnc72-vital-cell">
+                            <span className="pnc72-vital-label">น้ำหนัก / ส่วนสูง</span>
+                            <span className="pnc72-vital-val pnc72-num">
+                              {clinicalData.screen?.bw || '—'} <span className="pnc72-vital-unit">กก.</span> /{' '}
+                              {clinicalData.screen?.height || '—'} <span className="pnc72-vital-unit">ซม.</span>
                             </span>
                           </div>
-                          <div>
-                            <span className="text-xs text-gray-500 block">BMI</span>
-                            <span className="font-semibold pnc72-num">
+                          <div className="pnc72-vital-cell">
+                            <span className="pnc72-vital-label">BMI</span>
+                            <span className="pnc72-vital-val pnc72-num">
                               {clinicalData.screen?.bmi || '—'}
                             </span>
                           </div>
+                          {clinicalData.screen?.temperature && (
+                            <div className="pnc72-vital-cell">
+                              <span className="pnc72-vital-label">อุณหภูมิ</span>
+                              <span className="pnc72-vital-val pnc72-num">
+                                {clinicalData.screen.temperature} <span className="pnc72-vital-unit">°C</span>
+                              </span>
+                            </div>
+                          )}
+                          {clinicalData.screen?.spo2 && (
+                            <div className="pnc72-vital-cell">
+                              <span className="pnc72-vital-label">SpO2</span>
+                              <span className="pnc72-vital-val pnc72-num">
+                                {clinicalData.screen.spo2} <span className="pnc72-vital-unit">%</span>
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {clinicalData.screen?.cc && (
-                          <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-700">
-                            <strong>อาการสำคัญ (CC):</strong> {clinicalData.screen.cc}
+                          <div className="pnc72-clinical-section">
+                            <span className="pnc72-clinical-section-label">อาการสำคัญ (Chief Complaint):</span>
+                            <p className="pnc72-clinical-section-text">{clinicalData.screen.cc}</p>
+                          </div>
+                        )}
+
+                        {clinicalData.screen?.pe && (
+                          <div className="pnc72-clinical-section">
+                            <span className="pnc72-clinical-section-label">การตรวจร่างกาย (Physical Exam):</span>
+                            <p className="pnc72-clinical-section-text">{clinicalData.screen.pe}</p>
                           </div>
                         )}
                       </div>
 
                       {/* Diagnoses */}
-                      <div>
-                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                          รายการวินิจฉัยโรค (ICD-10)
-                        </h3>
+                      <div className="pnc72-clinical-card">
+                        <div className="pnc72-clinical-card-head">
+                          <Stethoscope size={16} aria-hidden="true" />
+                          <h3 className="pnc72-clinical-card-title">รายการวินิจฉัยโรค (ICD-10)</h3>
+                          {clinicalData.diagnoses && clinicalData.diagnoses.length > 0 && (
+                            <span className="pnc72-card-badge success">
+                              {clinicalData.diagnoses.length} รายการ
+                            </span>
+                          )}
+                        </div>
                         {clinicalData.diagnoses && clinicalData.diagnoses.length > 0 ? (
-                          <div className="space-y-1.5">
+                          <div className="pnc72-diag-list">
                             {clinicalData.diagnoses.map((d, i) => (
-                              <div
-                                key={i}
-                                className="p-2.5 bg-white border border-gray-200 rounded-md text-xs flex items-center justify-between"
-                              >
-                                <div>
-                                  <span className="font-mono font-bold mr-2 text-emerald-800">
-                                    {d.icd10}
-                                  </span>
-                                  <span>{d.icd_name}</span>
+                              <div key={i} className="pnc72-diag-item">
+                                <div className="pnc72-diag-code-name">
+                                  <span className="pnc72-diag-code">{d.icd10}</span>
+                                  <span className="pnc72-diag-name">{d.icd_name}</span>
                                 </div>
                                 <span className="pnc72-tag neutral">{d.diagtype_name || d.diagtype}</span>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-xs text-gray-500">ไม่พบรายการวินิจฉัย</p>
+                          <p className="pnc72-empty-text">ไม่พบรายการวินิจฉัย</p>
                         )}
                       </div>
 
                       {/* Orders */}
-                      <div>
-                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                          รายการสั่งยา / ค่าบริการ / ตรวจทางห้องปฏิบัติการ
-                        </h3>
+                      <div className="pnc72-clinical-card">
+                        <div className="pnc72-clinical-card-head">
+                          <Pill size={16} aria-hidden="true" />
+                          <h3 className="pnc72-clinical-card-title">
+                            รายการสั่งยา / ค่าบริการ / ตรวจทางห้องปฏิบัติการ
+                          </h3>
+                          {clinicalData.orders?.items && clinicalData.orders.items.length > 0 && (
+                            <span className="pnc72-card-badge info">
+                              {clinicalData.orders.items.length} รายการ
+                            </span>
+                          )}
+                        </div>
                         {clinicalData.orders?.items && clinicalData.orders.items.length > 0 ? (
-                          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100 text-xs">
-                            {clinicalData.orders.items.map((it, i) => (
-                              <div key={i} className="p-2 flex items-center justify-between">
-                                <span className="text-gray-800">{it.item_name}</span>
-                                <span className="font-semibold pnc72-num">{formatMoney(it.sum_price)} ฿</span>
-                              </div>
-                            ))}
+                          <div className="pnc72-orders-scroll">
+                            <table className="pnc72-orders-table">
+                              <thead>
+                                <tr>
+                                  <th>ชื่อรายการ</th>
+                                  <th style={{ textAlign: 'right' }}>จำนวนเงิน</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {clinicalData.orders.items.map((it, i) => (
+                                  <tr key={i}>
+                                    <td className="pnc72-order-name">{it.item_name}</td>
+                                    <td className="pnc72-order-price pnc72-num">{formatMoney(it.sum_price)} ฿</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         ) : (
-                          <p className="text-xs text-gray-500">ไม่มีรายการสั่งการรักษา</p>
+                          <p className="pnc72-empty-text">ไม่มีรายการสั่งการรักษา</p>
                         )}
                       </div>
                     </div>

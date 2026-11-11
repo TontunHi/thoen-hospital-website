@@ -529,7 +529,7 @@ export default function HepatitisC232Client({
             className={`hepc-mode-btn ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -602,21 +602,14 @@ export default function HepatitisC232Client({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
             </div>
           )}
-        </div>
-
-        <div className="hepc-date-summary-text">
-          <Calendar size={14} />
-          <span>
-            ช่วงวันที่: {formatThaiDate(ds1)} – {formatThaiDate(ds2)}
-          </span>
         </div>
       </div>
 
@@ -952,24 +945,7 @@ export default function HepatitisC232Client({
           </div>
         )}
 
-        {loading && !error && (
-          <div className="hepc-loading-card">
-            <RefreshCw size={24} className="animate-spin text-primary" />
-            <span>กำลังประมวลผลข้อมูลรายงานบริการตรวจคัดกรองไวรัสตับอักเสบ C...</span>
-          </div>
-        )}
-
-        {!loading && !error && items.length === 0 && (
-          <div className="hepc-empty-state">
-            <TestTube2 size={36} className="hepc-empty-icon" />
-            <div className="hepc-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
-            <div className="hepc-empty-desc">
-              ไม่พบรายการผู้รับบริการตรวจคัดกรองไวรัสตับอักเสบ C ในช่วงเวลาหรือฟิลเตอร์ที่กำหนด กรุณาลองปรับช่วงวันที่หรือคำค้นหา
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && items.length > 0 && (
+        {!error && (
           <div className="hepc-table-scroll">
             <table className="hepc-table">
               <thead>
@@ -1018,7 +994,7 @@ export default function HepatitisC232Client({
                       )}
                     </button>
                   </th>
-                  <th className="col-left">
+                  <th className="col-center">
                     <button
                       type="button"
                       className="hepc-sort-btn"
@@ -1107,7 +1083,23 @@ export default function HepatitisC232Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 13 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="col-center" style={{ padding: '48px 16px' }}>
+                      ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((item) => {
                   const isPositive =
                     item.labresult &&
                     (item.labresult.toLowerCase().includes('pos') ||

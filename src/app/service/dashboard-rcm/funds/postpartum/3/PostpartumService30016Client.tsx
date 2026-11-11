@@ -488,7 +488,7 @@ export default function PostpartumService30016Client({
             className={`pp3-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => setDateMode('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -579,9 +579,9 @@ export default function PostpartumService30016Client({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -952,13 +952,16 @@ export default function PostpartumService30016Client({
             </thead>
 
             <tbody>
-              {loading && items.length === 0 ? (
-                <tr>
-                  <td colSpan={25} className="text-center py-12 text-slate-500">
-                    <RefreshCw size={24} className="pp3-spin-icon inline-block mb-2 text-emerald-600" />
-                    <div>กำลังโหลดข้อมูลบริการ 30016...</div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, rowIdx) => (
+                  <tr key={`skeleton-${rowIdx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 29 }).map((__, colIdx) => (
+                      <td key={colIdx} className="pp3-col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={25} className="pp3-empty-state">

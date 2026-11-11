@@ -516,7 +516,7 @@ export default function ClopidogrelUsageClient({
               className={`clop-tab-btn ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => handleDateModeChange('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -594,9 +594,9 @@ export default function ClopidogrelUsageClient({
                 onChange={(e) => handleFiscalYearChange(parseInt(e.target.value, 10))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -845,21 +845,7 @@ export default function ClopidogrelUsageClient({
 
       {/* ── 7. Table Card (Centered Columns, Row-Clickable) ── */}
       <div className="clop-table-card">
-        {loading ? (
-          <div className="clop-loading-state">
-            <RefreshCw size={28} className="clop-spinner" />
-            <span>กำลังโหลดข้อมูลการใช้ยา Clopidogrel...</span>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="clop-empty-state">
-            <Pill size={40} className="clop-empty-icon" />
-            <h3 className="clop-empty-title">ไม่พบรายการการใช้ยา Clopidogrel</h3>
-            <p className="clop-empty-desc">
-              ไม่พบประวัติการสั่งใช้ยาที่ตรงตามเงื่อนไขในช่วงเวลาหรือตัวกรองที่เลือก
-              ลองปรับเปลี่ยนช่วงเวลาหรือล้างคำค้นหา
-            </p>
-          </div>
-        ) : (
+        {!error && (
           <div className="clop-table-responsive">
             <table className="clop-table">
               <thead>
@@ -934,7 +920,23 @@ export default function ClopidogrelUsageClient({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 13 }).map((__, colIdx) => (
+                        <td key={colIdx} className="clop-col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="clop-col-center" style={{ padding: '48px 16px' }}>
+                      ไม่พบรายการการใช้ยา Clopidogrel ที่ตรงตามเงื่อนไขในช่วงเวลาหรือตัวกรองที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((item) => (
                   <tr
                     key={item.vn}
                     onClick={() => {

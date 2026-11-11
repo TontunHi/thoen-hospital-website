@@ -582,9 +582,9 @@ export default function AncService23Client({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -820,17 +820,7 @@ export default function AncService23Client({
         </div>
 
         <div className="anc3-table-scroll">
-          {loading && !isRefreshing ? (
-            <div className="anc3-loading-state">
-              <RefreshCw size={36} className="anc3-spinner" />
-              <span>กำลังดึงข้อมูลบริการ 2.3 ฝากครรภ์...</span>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="anc3-empty-state">
-              <Baby size={40} />
-              <span>ไม่พบข้อมูลผู้รับบริการตามช่วงเวลาและเงื่อนไขที่กำหนด</span>
-            </div>
-          ) : (
+          {!error && (
             <table className="anc3-table">
               <thead>
                 <tr>
@@ -982,7 +972,24 @@ export default function AncService23Client({
               </thead>
 
               <tbody>
-                {items.map((row, idx) => {
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 24 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={24} className="anc3-empty-state">
+                      <Baby size={40} />
+                      <span>ไม่พบข้อมูลผู้รับบริการตามช่วงเวลาและเงื่อนไขที่กำหนด</span>
+                    </td>
+                  </tr>
+                ) : items.map((row, idx) => {
                   const hasWarning = Boolean(row.mean)
                   const isOk = row.ok === 'Y'
 

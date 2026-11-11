@@ -566,7 +566,7 @@ export default function OralCancerScreeningClient({
         </div>
       )}
 
-      {/* ── 3. Date Selection Panel ("เรียง กำหนดเอง เดือน ปีงบประมาณ") ── */}
+      {/* ── 3. Date Selection Panel ("เรียง กำหนดเอง รายเดือน ปีงบประมาณ") ── */}
       <section className="oral-date-panel" aria-label="ตัวเลือกช่วงเวลา">
         <div className="oral-date-tabs" role="tablist">
           <button
@@ -576,7 +576,6 @@ export default function OralCancerScreeningClient({
             className={`oral-date-tab ${dateMode === 'custom' ? 'active' : ''}`}
             onClick={() => setDateMode('custom')}
           >
-            <Calendar size={16} aria-hidden="true" />
             <span>กำหนดเอง</span>
           </button>
 
@@ -587,8 +586,7 @@ export default function OralCancerScreeningClient({
             className={`oral-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => setDateMode('monthly')}
           >
-            <Calendar size={16} aria-hidden="true" />
-            <span>เดือน</span>
+            <span>รายเดือน</span>
           </button>
 
           <button
@@ -598,7 +596,6 @@ export default function OralCancerScreeningClient({
             className={`oral-date-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
             onClick={() => setDateMode('fiscal')}
           >
-            <Calendar size={16} aria-hidden="true" />
             <span>ปีงบประมาณ</span>
           </button>
         </div>
@@ -687,9 +684,9 @@ export default function OralCancerScreeningClient({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -939,7 +936,7 @@ export default function OralCancerScreeningClient({
                     {renderSortIndicator('cid')}
                   </button>
                 </th>
-                <th className="col-left">
+                <th className="col-center">
                   <button
                     type="button"
                     className="oral-table-sort-btn"
@@ -959,7 +956,7 @@ export default function OralCancerScreeningClient({
                     {renderSortIndicator('age')}
                   </button>
                 </th>
-                <th className="col-left">สิทธิการรักษา</th>
+                <th className="col-center">สิทธิการรักษา</th>
                 <th className="col-center">ClaimCode</th>
                 <th className="col-center">
                   <button
@@ -972,10 +969,10 @@ export default function OralCancerScreeningClient({
                   </button>
                 </th>
                 <th className="col-center">หัตถการ</th>
-                <th className="col-left">รายการบริการ (ADP 90004)</th>
+                <th className="col-center">รายการบริการ (ADP 90004)</th>
                 <th className="col-center">สถานะชดเชย</th>
                 <th className="col-center">เลขที่ Rep</th>
-                <th className="col-right">
+                <th className="col-center">
                   <button
                     type="button"
                     className="oral-table-sort-btn"
@@ -988,15 +985,16 @@ export default function OralCancerScreeningClient({
               </tr>
             </thead>
             <tbody>
-              {loading && items.length === 0 ? (
-                <tr>
-                  <td colSpan={15}>
-                    <div className="oral-loading-state">
-                      <RefreshCw size={24} className="animate-spin text-emerald-700" aria-hidden="true" />
-                      <span>กำลังโหลดข้อมูลบริการคัดกรองมะเร็งช่องปาก...</span>
-                    </div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`} className="rcm-skeleton-row" aria-busy="true">
+                    {Array.from({ length: 15 }).map((__, j) => (
+                      <td key={`skeleton-cell-${j}`} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={15}>

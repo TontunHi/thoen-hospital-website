@@ -2308,5 +2308,175 @@ export default async function rcmFundsRoutes(fastify, options) {
       reply.code(500); return { success: false, error: err.message }
     }
   })
+
+  // ------------------------------------------------------------------
+  // 33. T1DM / GDM / PDM Registry Import & Management (rcmdb.t1dm)
+  // ------------------------------------------------------------------
+  let t1dmTableEnsured = false
+  async function ensureT1dmTable() {
+    if (t1dmTableEnsured) return
+    try {
+      await hosPool.query(`
+        CREATE TABLE IF NOT EXISTS rcmdb.t1dm (
+          ID VARCHAR(20) NOT NULL,
+          Year VARCHAR(4) NULL,
+          PID VARCHAR(13) NULL,
+          PtName VARCHAR(100) NULL,
+          Maininscl VARCHAR(20) NULL,
+          HospMain VARCHAR(5) NULL,
+          Type VARCHAR(20) NULL,
+          Register_Date DATE NULL,
+          Visit_Date DATE NULL,
+          FileName VARCHAR(200) NULL,
+          PRIMARY KEY (ID),
+          KEY pid (PID)
+        ) ENGINE=MyISAM DEFAULT CHARSET=tis620
+      `)
+      t1dmTableEnsured = true
+    } catch (_) {
+      // ignore if rcmdb DDL restricted
+    }
+  }
+
+  fastify.get('/api/v1/clinical/rcm/t1dm/registries', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'ดึงข้อมูลทะเบียนผู้ป่วย T1DM/GDM/PDM จากตาราง rcmdb.t1dm',
+      querystring: {
+        type: 'object',
+        properties: {
+          search: { type: 'string' },
+          typeFilter: { type: 'string' },
+          hospFilter: { type: 'string' },
+          fileName: { type: 'string' },
+          sortBy: { type: 'string' },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+          page: { type: 'integer', default: 1 },
+          pageSize: { type: 'integer', default: 50 },
+          exportAll: { type: 'boolean', default: false }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    try {
+      await ensureT1dmTable()
+      const [rows] = await hosPool.query(`
+        SELECT 
+          t.id AS id,
+          IFNULL(t.year, '') AS year,
+          IFNULL(t.pid, '') AS pid,
+          IFNULL(t.ptname, '') AS ptname,
+          DATE_FORMAT(t.register_date, '%Y-%m-%d') AS regdate,
+          DATE_FORMAT(t.visit_date, '%Y-%m-%d') AS visitdate,
+          IFNULL(t.type, '') AS type,
+          IFNULL(t.maininscl, '') AS maininscl,
+          LPAD(TRIM(IFNULL(t.hospmain, '')), 5, '0') AS hospmain_code,
+          IFNULL(h.name, '') AS hospmain_name,
+          CONCAT_WS(':', LPAD(TRIM(IFNULL(t.hospmain, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
+          IFNULL(t.filename, '') AS filename,
+          IFNULL(pt.hn, '') AS hn
+        FROM rcmdb.t1dm t
+        LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.hospmain), 5, '0')
+        LEFT JOIN patient pt ON pt.cid = t.pid
+        ORDER BY t.register_date DESC, t.id ASC
+      `)
+      return { success: true, data: rows || [] }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.post('/api/v1/clinical/rcm/t1dm/import', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'นำเข้าข้อมูลทะเบียนผู้ป่วย T1DM/GDM/PDM ลงตาราง rcmdb.t1dm',
+      body: {
+        type: 'object',
+        required: ['rows'],
+        properties: {
+          rows: { type: 'array' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { rows = [] } = req.body || {}
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { success: true, insertedCount: 0, updatedCount: 0 }
+    }
+    try {
+      await ensureT1dmTable()
+      let insertedCount = 0
+      for (const r of rows) {
+        if (!r.id) continue
+        await hosPool.query(`
+          INSERT INTO rcmdb.t1dm (
+            ID, Year, PID, PtName, Maininscl, HospMain, Type, Register_Date, Visit_Date, FileName
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            Year = VALUES(Year),
+            PID = VALUES(PID),
+            PtName = VALUES(PtName),
+            Maininscl = VALUES(Maininscl),
+            HospMain = VALUES(HospMain),
+            Type = VALUES(Type),
+            Register_Date = VALUES(Register_Date),
+            Visit_Date = VALUES(Visit_Date),
+            FileName = VALUES(FileName)
+        `, [
+          String(r.id).trim(),
+          r.year ? String(r.year).trim() : null,
+          r.pid ? String(r.pid).trim() : null,
+          r.ptname ? String(r.ptname).trim() : null,
+          r.maininscl ? String(r.maininscl).trim() : null,
+          r.hospmainCode ? String(r.hospmainCode).trim().padStart(5, '0') : null,
+          r.type ? String(r.type).trim() : null,
+          r.regdate || null,
+          r.visitdate || null,
+          r.fileName || null
+        ])
+        insertedCount++
+      }
+      return { success: true, insertedCount, updatedCount: 0 }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.delete('/api/v1/clinical/rcm/t1dm/registries', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'ลบข้อมูลทะเบียน T1DM/GDM/PDM (ต่าง รพ., ตามชื่อไฟล์, หรือทั้งหมด)',
+      body: {
+        type: 'object',
+        required: ['mode'],
+        properties: {
+          mode: { type: 'string', enum: ['other_hospitals', 'by_file', 'all'] },
+          fileName: { type: 'string' },
+          myHospCode: { type: 'string', default: '11152' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { mode, fileName, myHospCode = '11152' } = req.body || {}
+    try {
+      await ensureT1dmTable()
+      let res
+      if (mode === 'other_hospitals') {
+        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm WHERE LPAD(TRIM(IFNULL(HospMain, "")), 5, "0") <> ?', [myHospCode])
+      } else if (mode === 'by_file') {
+        if (!fileName) {
+          reply.code(400); return { success: false, error: 'กรุณาระบุชื่อไฟล์ที่ต้องการลบ' }
+        }
+        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm WHERE FileName = ?', [fileName])
+      } else if (mode === 'all') {
+        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm')
+      } else {
+        reply.code(400); return { success: false, error: 'โหมดการลบข้อมูลไม่ถูกต้อง' }
+      }
+      return { success: true, deletedCount: res?.affectedRows || 0 }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
 }
 

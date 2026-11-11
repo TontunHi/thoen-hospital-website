@@ -685,12 +685,20 @@
 }
 
 /* ── 6. Patient Detail Modal ── */
+.icon-primary { color: var(--primary, #0d7446); }
+.icon-success { color: #059669; }
+.icon-warn { color: #d97706; }
+.icon-info { color: #2563eb; }
+.icon-danger { color: #dc2626; }
+.icon-accent { color: #7c3aed; }
+.icon-neutral { color: #64748b; }
+
 .ttm11-modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(3px);
-  z-index: 50;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;

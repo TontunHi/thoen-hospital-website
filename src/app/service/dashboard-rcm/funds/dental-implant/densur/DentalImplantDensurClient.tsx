@@ -558,7 +558,7 @@ export default function DentalImplantDensurClient({
               className={`densur-tab-btn ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => handleDateModeChange('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -636,9 +636,9 @@ export default function DentalImplantDensurClient({
                 onChange={(e) => handleFiscalYearChange(parseInt(e.target.value, 10))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -859,21 +859,7 @@ export default function DentalImplantDensurClient({
 
       {/* ── 7. Table Card (100% Alignment Horizontal & Vertical, Row Clickable, No View Button) ── */}
       <div className="densur-table-card">
-        {loading ? (
-          <div className="densur-loading-state">
-            <RefreshCw size={28} className="densur-spinner" />
-            <span>กำลังโหลดข้อมูลบริการผ่าตัดใส่รากฟันเทียม DENSUR...</span>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="densur-empty-state">
-            <Sparkles size={36} className="densur-empty-icon" />
-            <h3 className="densur-empty-title">ไม่พบรายการบริการผ่าตัดใส่รากฟันเทียม DENSUR</h3>
-            <p className="densur-empty-desc">
-              ไม่พบประวัติการให้บริการที่ตรงตามเงื่อนไขในช่วงเวลาหรือตัวกรองที่เลือก
-              ลองปรับเปลี่ยนช่วงเวลาหรือล้างคำค้นหา
-            </p>
-          </div>
-        ) : (
+        {!error && (
           <div className="densur-table-responsive">
             <table className="densur-table">
               <thead>
@@ -994,7 +980,23 @@ export default function DentalImplantDensurClient({
                 </tr>
               </thead>
               <tbody>
-                {items.map((it) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 26 }).map((__, colIdx) => (
+                        <td key={colIdx} className="densur-col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={26} className="densur-col-center" style={{ padding: '48px 16px' }}>
+                      ไม่พบรายการบริการผ่าตัดใส่รากฟันเทียม DENSUR ที่ตรงตามเงื่อนไขในช่วงเวลาหรือตัวกรองที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((it) => (
                   <tr
                     key={it.vn}
                     onClick={() => handleRowClick(it)}

@@ -603,7 +603,7 @@ export default function ImcEligiblePatientsClient({
             className={`imc-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -693,9 +693,9 @@ export default function ImcEligiblePatientsClient({
                 setCurrentPage(1)
               }}
             >
-              {yearOptions.map((y) => (
+              {[2569, 2570].map((y) => (
                 <option key={y} value={y}>
-                  ปีงบประมาณ {y}
+                  ปีงบ {y}
                 </option>
               ))}
             </select>
@@ -1037,30 +1037,30 @@ export default function ImcEligiblePatientsClient({
                 <th>{patientType === 'IPD' ? 'หอผู้ป่วย' : 'แผนก / คลินิก'}</th>
                 <th>โรคเรื้อรัง Stroke</th>
                 <th>Web IMC</th>
-                <th className="col-left">การวินิจฉัย (Dx)</th>
+                <th className="col-center">การวินิจฉัย (Dx)</th>
                 <th
-                  className="col-right imc-th-sortable"
+                  className="col-center imc-th-sortable"
                   onClick={() => handleSort('income')}
                 >
-                  <span className="imc-th-sort-inner" style={{ justifyContent: 'flex-end' }}>
+                  <span className="imc-th-sort-inner" style={{ justifyContent: 'center' }}>
                     <span>ค่าบริการ รพ.</span>
                     {renderSortIcon('income')}
                   </span>
                 </th>
                 <th
-                  className="col-right imc-th-sortable"
+                  className="col-center imc-th-sortable"
                   onClick={() => handleSort('getprice')}
                 >
-                  <span className="imc-th-sort-inner" style={{ justifyContent: 'flex-end' }}>
+                  <span className="imc-th-sort-inner" style={{ justifyContent: 'center' }}>
                     <span>พึงได้จาก Web</span>
                     {renderSortIcon('getprice')}
                   </span>
                 </th>
                 <th
-                  className="col-right imc-th-sortable"
+                  className="col-center imc-th-sortable"
                   onClick={() => handleSort('compensated')}
                 >
-                  <span className="imc-th-sort-inner" style={{ justifyContent: 'flex-end' }}>
+                  <span className="imc-th-sort-inner" style={{ justifyContent: 'center' }}>
                     <span>ชดเชยแล้ว</span>
                     {renderSortIcon('compensated')}
                   </span>
@@ -1069,20 +1069,12 @@ export default function ImcEligiblePatientsClient({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`skel-${i}`} className="rcm-skeleton-row">
                     {Array.from({ length: 17 }).map((__, j) => (
                       <td key={j} className="col-center">
-                        <div
-                          style={{
-                            height: '16px',
-                            backgroundColor: '#f1f5f9',
-                            borderRadius: '4px',
-                            width: j === 6 ? '140px' : '60px',
-                            margin: '0 auto',
-                          }}
-                        />
+                        <div className="rcm-skeleton-bar" />
                       </td>
                     ))}
                   </tr>

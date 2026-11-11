@@ -1556,11 +1556,11 @@ fastify.post('/api/v1/app/members/auth-context', {
   }
 })
 
-// 4.11 Check Position Permission
+// 4.11 Check Position / Member Permission
 fastify.post('/api/v1/app/members/check-position-permission', {
   schema: {
     tags: ['3. Members Management'],
-    summary: 'ตรวจสอบสิทธิ์ของตำแหน่งงาน',
+    summary: 'ตรวจสอบสิทธิ์ของตำแหน่งงานหรือสิทธิ์เฉพาะบุคคล (Position & Direct Member Permission)',
     body: {
       type: 'object',
       required: ['username', 'permissionKeys'],
@@ -1573,20 +1573,37 @@ fastify.post('/api/v1/app/members/check-position-permission', {
 }, async (req, reply) => {
   const { username, permissionKeys } = req.body || {}
   try {
-    const [users] = await appPool.query('SELECT position, role FROM members WHERE username = ? LIMIT 1', [username])
+    const [users] = await appPool.query('SELECT id, position, role FROM members WHERE username = ? LIMIT 1', [username])
     if (users.length === 0) return { success: true, allowed: false }
     const user = users[0]
     if (user.role === 'admin') return { success: true, allowed: true }
 
-    const userPosition = (user.position || '').trim()
-    if (!userPosition || !permissionKeys || permissionKeys.length === 0) return { success: true, allowed: false }
+    if (!permissionKeys || permissionKeys.length === 0) return { success: true, allowed: false }
 
     const placeholders = permissionKeys.map(() => '?').join(', ')
-    const [rows] = await appPool.query(
-      `SELECT COUNT(*) as count FROM position_permissions WHERE permission_key IN (${placeholders}) AND TRIM(position_name) = TRIM(?)`,
-      [...permissionKeys, userPosition]
+
+    // 1. Check direct member permissions (when assigned by name in /member/settings)
+    const [memRows] = await appPool.query(
+      `SELECT COUNT(*) as count FROM member_permissions WHERE permission_key IN (${placeholders}) AND member_id = ?`,
+      [...permissionKeys, user.id]
     )
-    return { success: true, allowed: (rows[0]?.count || 0) > 0 }
+    if ((memRows[0]?.count || 0) > 0) {
+      return { success: true, allowed: true }
+    }
+
+    // 2. Check position permissions (when assigned by position in /member/settings)
+    const userPosition = (user.position || '').trim()
+    if (userPosition) {
+      const [rows] = await appPool.query(
+        `SELECT COUNT(*) as count FROM position_permissions WHERE permission_key IN (${placeholders}) AND TRIM(position_name) = TRIM(?)`,
+        [...permissionKeys, userPosition]
+      )
+      if ((rows[0]?.count || 0) > 0) {
+        return { success: true, allowed: true }
+      }
+    }
+
+    return { success: true, allowed: false }
   } catch (err) {
     reply.code(500); return { success: false, error: err.message }
   }

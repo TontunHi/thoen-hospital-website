@@ -20,12 +20,14 @@ vi.mock('../audit', () => ({
 
 const mockGetMemberAuthContext = vi.fn()
 const mockCheckPositionPermission = vi.fn()
+const mockAppQuery = vi.fn()
 
 vi.mock('../apiGateway', () => ({
   apiGateway: {
     app: {
       getMemberAuthContext: (...args: any[]) => mockGetMemberAuthContext(...args),
       checkPositionPermission: (...args: any[]) => mockCheckPositionPermission(...args),
+      query: (...args: any[]) => mockAppQuery(...args),
     },
   },
 }))
@@ -377,6 +379,7 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
 describe('checkPositionPermission', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAppQuery.mockResolvedValue([])
   })
 
   it('returns true for admin role', async () => {
@@ -402,6 +405,19 @@ describe('checkPositionPermission', () => {
 
     const result = await checkPositionPermission('pr_staff', 'manage_news')
     expect(result).toBe(true)
+  })
+
+  it('returns true when direct member permission exists in member_permissions table', async () => {
+    const { checkPositionPermission } = await import('../memberAuth')
+    mockCheckPositionPermission.mockResolvedValueOnce({ allowed: false })
+    mockAppQuery.mockResolvedValueOnce([{ count: 1 }])
+
+    const result = await checkPositionPermission('specific_nurse', 'view_rcm_import')
+    expect(result).toBe(true)
+    expect(mockAppQuery).toHaveBeenCalledWith(
+      expect.stringContaining('FROM member_permissions'),
+      expect.arrayContaining(['specific_nurse', 'view_rcm_import'])
+    )
   })
 })
 

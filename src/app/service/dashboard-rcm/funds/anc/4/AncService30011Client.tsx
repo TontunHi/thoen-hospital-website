@@ -624,9 +624,9 @@ export default function AncService30011Client({
                   onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
                   aria-label="เลือกปีงบประมาณ"
                 >
-                  {yearOptions.map((y) => (
+                  {[2569, 2570].map((y) => (
                     <option key={y} value={y}>
-                      พ.ศ. {y}
+                      ปีงบ {y}
                     </option>
                   ))}
                 </select>
@@ -787,21 +787,6 @@ export default function AncService30011Client({
           <div className="anc4-banner anc4-banner-warn" style={{ margin: '20px' }}>
             <p><strong>เกิดข้อผิดพลาด:</strong> {error}</p>
           </div>
-        ) : loading ? (
-          <div className="anc4-loading-state">
-            <RefreshCw size={28} className="anc4-spin-icon" style={{ color: 'var(--anc-accent)' }} />
-            <p className="anc4-empty-title">กำลังดึงข้อมูลบริการฝากครรภ์ 30011...</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="anc4-empty-state">
-            <div className="anc4-empty-icon">
-              <Baby size={28} aria-hidden="true" />
-            </div>
-            <p className="anc4-empty-title">ไม่พบข้อมูลผู้รับบริการฝากครรภ์ ANC (30011)</p>
-            <p className="anc4-empty-desc">
-              ไม่พบประวัติการรับบริการในช่วงเวลาที่เลือก หรือไม่มีรายการที่ตรงกับคำค้นหาและตัวกรองที่ระบุ
-            </p>
-          </div>
         ) : (
           <div className="anc4-table-scroll">
             <table className="anc4-table">
@@ -892,7 +877,29 @@ export default function AncService30011Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((row, idx) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 30 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={30} className="anc4-empty-state">
+                      <div className="anc4-empty-icon">
+                        <Baby size={28} aria-hidden="true" />
+                      </div>
+                      <p className="anc4-empty-title">ไม่พบข้อมูลผู้รับบริการฝากครรภ์ ANC (30011)</p>
+                      <p className="anc4-empty-desc">
+                        ไม่พบประวัติการรับบริการในช่วงเวลาที่เลือก หรือไม่มีรายการที่ตรงกับคำค้นหาและตัวกรองที่ระบุ
+                      </p>
+                    </td>
+                  </tr>
+                ) : items.map((row, idx) => (
                   <tr
                     key={row.vn || `${row.hn}-${idx}`}
                     onClick={() => {

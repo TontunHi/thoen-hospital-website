@@ -183,6 +183,66 @@ describe('PostpartumService72Client (Postpartum 7.2 ADP 30015)', () => {
     expect(screen.getByRole('heading', { name: 'นาง สมพร สุขเกษม' })).toBeInTheDocument()
   })
 
+  it('loads and renders clinical details (HOSxP) when switching to clinical tab', async () => {
+    const mockClinicalData = {
+      header: {
+        vn: '691026082902',
+        hn: '0003172',
+        ptname: 'น.ส.พิมพ์พิไล ชานก',
+      },
+      screen: {
+        bps: 118,
+        bpd: 76,
+        pulse: 78,
+        bw: 54.5,
+        height: 158,
+        bmi: 21.8,
+        cc: 'มาตรวจหลังคลอดตามนัด ไม่มีไข้ ไม่มีน้ำคาวปลาผิดปกติ',
+        pe: 'Normal general appearance, uterus well contracted',
+      },
+      diagnoses: [
+        {
+          icd10: 'Z390',
+          icd_name: 'Postpartum care and examination immediately after delivery',
+          diagtype_name: 'Principal Diagnosis',
+        },
+      ],
+      orders: {
+        items: [{ item_name: 'Triferdine tab', sum_price: 45 }],
+      },
+    }
+
+    render(<PostpartumService72Client />)
+
+    await waitFor(() => {
+      expect(screen.getByText('น.ส.พิมพ์พิไล ชานก')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('น.ส.พิมพ์พิไล ชานก'))
+
+    // Mock fetch for clinical details
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: mockClinicalData,
+      }),
+    })
+
+    const clinicalTabBtn = screen.getByRole('button', { name: 'เวชระเบียนคลินิก (HOSxP)' })
+    fireEvent.click(clinicalTabBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('สัญญาณชีพและการคัดกรอง')).toBeInTheDocument()
+      expect(screen.getByText(/118\/76/)).toBeInTheDocument()
+      expect(screen.getByText(/มาตรวจหลังคลอดตามนัด/)).toBeInTheDocument()
+      expect(
+        screen.getByText('Postpartum care and examination immediately after delivery')
+      ).toBeInTheDocument()
+      expect(screen.getByText('Triferdine tab')).toBeInTheDocument()
+    })
+  })
+
   it('displays warning banner when ADP code 30015 is not mapped in HOSxP', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,

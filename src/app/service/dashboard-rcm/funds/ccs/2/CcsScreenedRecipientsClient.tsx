@@ -601,9 +601,9 @@ export default function CcsScreenedRecipientsClient({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -962,12 +962,12 @@ export default function CcsScreenedRecipientsClient({
             </thead>
 
             <tbody>
-              {loading && items.length === 0 ? (
-                Array.from({ length: 10 }).map((_, i) => (
-                  <tr key={i}>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="rcm-skeleton-row">
                     {Array.from({ length: 28 }).map((__, j) => (
-                      <td key={j}>
-                        <div className="ccs2-skeleton-line" style={{ width: j === 5 ? '120px' : '60px' }} />
+                      <td key={j} className="ccs2-align-center">
+                        <div className="ccs2-skeleton-line rcm-skeleton-bar" />
                       </td>
                     ))}
                   </tr>

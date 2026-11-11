@@ -601,9 +601,9 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                   setCurrentPage(1)
                 }}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -974,14 +974,16 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={16} className="dm-empty-state">
-                    <RefreshCw size={24} className="dm-spin dm-empty-icon" />
-                    <div className="dm-empty-title">กำลังดึงข้อมูลรายงาน...</div>
-                    <div className="dm-empty-desc">กรุณารอสักครู่ ระบบกำลังประมวลผลข้อมูลกองทุน</div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, idx) => (
+                  <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 16 }).map((__, colIdx) => (
+                      <td key={colIdx} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : error ? (
                 <tr>
                   <td colSpan={16} className="dm-empty-state">

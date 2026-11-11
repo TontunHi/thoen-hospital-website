@@ -506,8 +506,34 @@ export async function checkPositionPermission(
   try {
     const { apiGateway } = await import('./apiGateway')
     const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey]
-    const res = await apiGateway.app.checkPositionPermission(username, keys)
-    return Boolean(res?.allowed)
+
+    // 1. Try checking via Gateway checkPositionPermission (checks admin role and position_permissions)
+    if (typeof apiGateway.app.checkPositionPermission === 'function') {
+      const res = await apiGateway.app.checkPositionPermission(username, keys).catch(() => null)
+      if (res?.allowed) {
+        return true
+      }
+    }
+
+    // 2. Direct Member Permission Check:
+    // If the user was granted permission directly by member name in /member/settings,
+    // the permission is stored in `member_permissions` table (linked to members.id).
+    if (typeof apiGateway.app.query === 'function') {
+      const placeholders = keys.map(() => '?').join(', ')
+      const memRows = await apiGateway.app.query<{ count: number }>(
+        `SELECT COUNT(*) as count 
+         FROM member_permissions mp 
+         JOIN members m ON m.id = mp.member_id 
+         WHERE (m.username = ? OR m.username = TRIM(?)) AND mp.permission_key IN (${placeholders})`,
+        [username, username, ...keys]
+      ).catch(() => [])
+
+      if (Number(memRows?.[0]?.count || 0) > 0) {
+        return true
+      }
+    }
+
+    return false
   } catch (error) {
     logger.error({ error }, 'Check position permission error')
     return false

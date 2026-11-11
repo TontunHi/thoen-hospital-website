@@ -554,7 +554,7 @@ export default function InstrumentFundClient({
               className={`inst-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => handleDateModeChange('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -573,9 +573,9 @@ export default function InstrumentFundClient({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -989,7 +989,7 @@ export default function InstrumentFundClient({
                     )}
                   </span>
                 </th>
-                <th className="col-right">
+                <th className="col-center">
                   ชดเชย (บาท)
                 </th>
                 <th className="col-center" style={{ minWidth: '160px' }}>
@@ -1001,12 +1001,14 @@ export default function InstrumentFundClient({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, idx) => (
-                  <tr key={idx} className="inst-skeleton-row">
-                    <td colSpan={patientType === 'OPD' ? 14 : 13} style={{ textAlign: 'center', color: '#94a3b8' }}>
-                      กำลังโหลดข้อมูล...
-                    </td>
+                  <tr key={idx} className="inst-skeleton-row rcm-skeleton-row">
+                    {Array.from({ length: patientType === 'OPD' ? 14 : 13 }).map((__, colIdx) => (
+                      <td key={colIdx} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
                   </tr>
                 ))
               ) : items.length === 0 ? (

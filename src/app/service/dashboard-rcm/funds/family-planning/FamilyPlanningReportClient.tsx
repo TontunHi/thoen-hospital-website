@@ -453,7 +453,7 @@ export default function FamilyPlanningReportClient({
               className={`fp-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => setDateMode('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -531,9 +531,9 @@ export default function FamilyPlanningReportClient({
                   setCurrentPage(1)
                 }}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -836,15 +836,7 @@ export default function FamilyPlanningReportClient({
 
       {/* 6. Data Table */}
       <div className="fp-table-container">
-        {loading ? (
-          <div className="fp-empty-box">
-            <RefreshCw size={28} className="animate-spin text-gray-400" />
-            <p className="fp-empty-title">กำลังประมวลผลข้อมูล...</p>
-            <p className="fp-empty-desc">
-              ระบบกำลังเชื่อมโยงข้อมูล HOSxP, E-Claim, และ Statement Rep กองทุน
-            </p>
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="fp-empty-box text-red-600">
             <AlertTriangle size={32} />
             <p className="fp-empty-title">เกิดข้อผิดพลาด</p>
@@ -856,14 +848,6 @@ export default function FamilyPlanningReportClient({
             >
               ลองใหม่อีกครั้ง
             </button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="fp-empty-box">
-            <Activity size={32} className="text-gray-300" />
-            <p className="fp-empty-title">ไม่พบรายการข้อมูลตามเงื่อนไขที่เลือก</p>
-            <p className="fp-empty-desc">
-              กรุณาตรวจสอบการเลือกช่วงเวลา หรือลองเปลี่ยนตัวกรองและคำค้นหา
-            </p>
           </div>
         ) : (
           <div className="fp-table-scroll">
@@ -921,11 +905,10 @@ export default function FamilyPlanningReportClient({
                   <th>รหัสวินิจฉัย (Dx)</th>
                   <th>รายการยา / ค่าบริการ</th>
                   <th
-                    className="sortable text-right"
+                    className="sortable"
                     onClick={() => handleSort('income')}
-                    style={{ textAlign: 'right' }}
                   >
-                    <span className="fp-th-content justify-end">
+                    <span className="fp-th-content">
                       ค่ารักษา
                       {sortBy === 'income' ? (
                         sortOrder === 'asc' ? (
@@ -939,11 +922,10 @@ export default function FamilyPlanningReportClient({
                     </span>
                   </th>
                   <th
-                    className="sortable text-right"
+                    className="sortable"
                     onClick={() => handleSort('compensated')}
-                    style={{ textAlign: 'right' }}
                   >
-                    <span className="fp-th-content justify-end">
+                    <span className="fp-th-content">
                       ชดเชย
                       {sortBy === 'compensated' ? (
                         sortOrder === 'asc' ? (
@@ -961,7 +943,23 @@ export default function FamilyPlanningReportClient({
                 </tr>
               </thead>
               <tbody>
-                {items.map((row) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 15 }).map((__, colIdx) => (
+                        <td key={colIdx} style={{ textAlign: 'center' }}>
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={15} style={{ textAlign: 'center', padding: '48px 16px' }}>
+                      ไม่พบรายการข้อมูลตามเงื่อนไขที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((row) => (
                   <tr
                     key={row.vn}
                     className={row.hasError ? 'has-error' : ''}

@@ -316,7 +316,8 @@
   color: var(--gray-500, #64748b);
 }
 
-.postal-kpi-subtext {
+.postal-kpi-subtext,
+.telemed-kpi-subtext {
   font-size: 0.8125rem;
   color: var(--gray-500, #64748b);
   display: flex;

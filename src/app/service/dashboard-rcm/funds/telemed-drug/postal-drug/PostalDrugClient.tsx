@@ -542,7 +542,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
             className={`postal-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -618,9 +618,9 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
               onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
               aria-label="เลือกปีงบประมาณ"
             >
-              {yearOptions.map((y) => (
+              {[2569, 2570].map((y) => (
                 <option key={y} value={y}>
-                  ปีงบประมาณ {y}
+                  ปีงบ {y}
                 </option>
               ))}
             </select>
@@ -1004,13 +1004,16 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={13} className="postal-empty-state">
-                  <RefreshCw size={24} className="animate-spin" />
-                  <span>กำลังโหลดข้อมูลรายงาน...</span>
-                </td>
-              </tr>
+            {loading || isRefreshing ? (
+              Array.from({ length: 8 }).map((_, idx) => (
+                <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                  {Array.from({ length: 13 }).map((__, colIdx) => (
+                    <td key={colIdx} className="col-center">
+                      <div className="rcm-skeleton-bar" />
+                    </td>
+                  ))}
+                </tr>
+              ))
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={13} className="postal-empty-state">

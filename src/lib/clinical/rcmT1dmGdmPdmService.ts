@@ -289,21 +289,61 @@ export class RcmT1dmGdmPdmService {
           ds1, ds2, // ovst
         ]
 
+        let rows: any[] = []
         try {
-          const rows = (await executor(sql, sqlParams, { timeoutMs: 90000 })) as any[]
-          return rows || []
+          rows = ((await executor(sql, sqlParams, { timeoutMs: 90000 })) as any[]) || []
         } catch (dbErr: any) {
-          // If rcmdb.t1dm doesn't exist yet, retry without dd join
+          // If rcmdb.t1dm doesn't exist yet, retry without dd join and enrich from Website DB mirror if available
           if (dbErr?.message && /rcmdb\.t1dm/i.test(dbErr.message)) {
             const fallbackSql = sql.replace(
               'LEFT JOIN rcmdb.t1dm dd ON dd.pid = pt.cid',
               'LEFT JOIN (SELECT NULL AS pid, NULL AS type, NULL AS register_date) dd ON 1=0'
             )
-            const fallbackRows = (await executor(fallbackSql, sqlParams, { timeoutMs: 90000 })) as any[]
-            return fallbackRows || []
+            rows = ((await executor(fallbackSql, sqlParams, { timeoutMs: 90000 })) as any[]) || []
+          } else {
+            throw dbErr
           }
-          throw dbErr
         }
+
+        // Enrich with any T1DM records stored in t1dm_registries mirror table if not yet in rcmdb.t1dm
+        if (executor === queryClinicalDb && rows.length > 0) {
+          try {
+            const { apiGateway } = await import('@/lib/apiGateway')
+            const mirrorRows = await apiGateway.app.query<{
+              pid: string
+              type: string
+              regdate: string
+            }>(`
+              SELECT pid, type, DATE_FORMAT(register_date, '%Y-%m-%d') AS regdate
+              FROM t1dm_registries
+              WHERE pid IS NOT NULL AND pid <> ''
+            `)
+            if (Array.isArray(mirrorRows) && mirrorRows.length > 0) {
+              const mirrorMap = new Map<string, { type: string; regdate: string }>()
+              for (const mr of mirrorRows) {
+                if (mr.pid) {
+                  mirrorMap.set(String(mr.pid).trim(), {
+                    type: mr.type || 'T1DM',
+                    regdate: mr.regdate || '',
+                  })
+                }
+              }
+              for (const r of rows) {
+                const cid = String(r.cid || '').trim()
+                if (!r.ok && cid && mirrorMap.has(cid)) {
+                  const matched = mirrorMap.get(cid)!
+                  r.ok = 'Y'
+                  r.type = matched.type
+                  r.regdate = matched.regdate || null
+                }
+              }
+            }
+          } catch {
+            // non-blocking if mirror table doesn't exist
+          }
+        }
+
+        return rows
       },
       600000 // Cache TTL 10 minutes
     )

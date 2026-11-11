@@ -516,7 +516,7 @@ export default function FamilyPlanning932Client({
             className={`fp-tab-btn ${dateMode === 'custom' ? 'fp-tab-btn--active' : ''}`}
             onClick={() => handleDateModeChange('custom')}
           >
-            กำหนดวันเอง
+            กำหนดเอง
           </button>
           <button
             type="button"
@@ -589,18 +589,14 @@ export default function FamilyPlanning932Client({
                 value={selectedFiscalYear}
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
             </div>
           )}
-
-          <div className="text-xs text-slate-500 ml-auto font-medium">
-            ช่วงวันที่ค้นหา: {formatThaiDate(ds1)} — {formatThaiDate(ds2)}
-          </div>
         </div>
       </div>
 
@@ -847,20 +843,6 @@ export default function FamilyPlanning932Client({
               ลองใหม่อีกครั้ง
             </button>
           </div>
-        ) : loading && items.length === 0 ? (
-          <div className="fp-empty-box">
-            <RefreshCw size={32} className="fp-empty-icon animate-spin mx-auto text-emerald-600" />
-            <div className="fp-empty-title">กำลังดึงข้อมูลรายงาน 9.3.2...</div>
-            <div className="fp-empty-text">กรุณารอสักครู่ ระบบกำลังประมวลผลข้อมูลจากระบบ HOSxP และ E-Claim</div>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="fp-empty-box">
-            <Activity size={32} className="fp-empty-icon mx-auto text-slate-400" />
-            <div className="fp-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
-            <div className="fp-empty-text">
-              ไม่พบผู้รับบริการคุมกำเนิดกึ่งถาวรในหญิงอายุ 20 ปีขึ้นไป ในช่วงวันที่ระบุ
-            </div>
-          </div>
         ) : (
           <div className="fp-table-wrap">
             <table className="fp-table">
@@ -947,7 +929,23 @@ export default function FamilyPlanning932Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((row) => (
+                {loading ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 23 }).map((__, colIdx) => (
+                        <td key={colIdx} style={{ textAlign: 'center' }}>
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={23} style={{ textAlign: 'center', padding: '48px 16px' }}>
+                      ไม่พบผู้รับบริการคุมกำเนิดกึ่งถาวรในหญิงอายุ 20 ปีขึ้นไป ในช่วงวันที่ระบุ
+                    </td>
+                  </tr>
+                ) : items.map((row) => (
                   <tr
                     key={row.vn || row.no}
                     onClick={() => openClinicalModal(row)}

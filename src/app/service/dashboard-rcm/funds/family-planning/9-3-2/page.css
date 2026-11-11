@@ -1,6 +1,7 @@
 /* ── 9.3.2 บริการคุมกำเนิดกึ่งถาวร ในหญิงอายุ 20 ปีขึ้นไป Styles (ui-style-brief) ── */
 
-:root {
+/* Page Container & Scoped Tokens */
+.fp932-page {
   --fp-bg: #f8fafc;
   --fp-surface: #ffffff;
   --fp-surface-2: #f1f5f9;
@@ -42,10 +43,7 @@
   --fp-r-sm: 6px;
   --fp-r-md: 10px;
   --fp-r-lg: 14px;
-}
 
-/* Page Container */
-.fp932-page {
   padding: 28px 32px 64px;
   max-width: 1760px;
   margin: 0 auto;
@@ -830,7 +828,8 @@
   color: var(--fp-text-sub);
 }
 
-.fp-modal-val {
+.fp932-page .fp-modal-val,
+.fp-modal-row .fp-modal-val {
   color: var(--fp-text-main);
   font-weight: 500;
   text-align: right;

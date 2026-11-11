@@ -526,7 +526,7 @@ export default function FastingPlasmaGlucoseClient({
         </div>
       )}
 
-      {/* ── 3. Date Selection Panel (เรียง: 1. กำหนดเอง -> 2. เดือน -> 3. ปีงบประมาณ) ── */}
+      {/* ── 3. Date Selection Panel (เรียง: 1. กำหนดเอง -> 2. รายเดือน -> 3. ปีงบประมาณ) ── */}
       <section className="hs-date-panel" aria-label="ตัวเลือกช่วงเวลา">
         <div className="hs-date-tabs" role="tablist">
           <button
@@ -536,7 +536,6 @@ export default function FastingPlasmaGlucoseClient({
             className={`hs-date-tab ${dateMode === 'custom' ? 'active' : ''}`}
             onClick={() => setDateMode('custom')}
           >
-            <Calendar size={16} aria-hidden="true" />
             <span>กำหนดเอง</span>
           </button>
 
@@ -547,8 +546,7 @@ export default function FastingPlasmaGlucoseClient({
             className={`hs-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => setDateMode('monthly')}
           >
-            <Calendar size={16} aria-hidden="true" />
-            <span>เดือน</span>
+            <span>รายเดือน</span>
           </button>
 
           <button
@@ -558,7 +556,6 @@ export default function FastingPlasmaGlucoseClient({
             className={`hs-date-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
             onClick={() => setDateMode('fiscal')}
           >
-            <Calendar size={16} aria-hidden="true" />
             <span>ปีงบประมาณ</span>
           </button>
         </div>
@@ -647,9 +644,9 @@ export default function FastingPlasmaGlucoseClient({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -896,7 +893,7 @@ export default function FastingPlasmaGlucoseClient({
                   </button>
                 </th>
                 <th className="col-center">เลขบัตรประชาชน</th>
-                <th className="col-left">
+                <th className="col-center">
                   <button type="button" className="hs-table-sort-btn" onClick={() => handleSort('ptname')}>
                     <span>ชื่อ-สกุลผู้รับบริการ</span>
                     {renderSortIcon('ptname')}
@@ -927,10 +924,10 @@ export default function FastingPlasmaGlucoseClient({
                     {renderSortIcon('camedate')}
                   </button>
                 </th>
-                <th className="col-left">รายการตรวจ (ADP 12003)</th>
+                <th className="col-center">รายการตรวจ (ADP 12003)</th>
                 <th className="col-center">สถานะการชดเชย</th>
                 <th className="col-center">เลขที่ REP</th>
-                <th className="col-right">
+                <th className="col-center">
                   <button type="button" className="hs-table-sort-btn" onClick={() => handleSort('compensated')}>
                     <span>ชดเชย (บาท)</span>
                     {renderSortIcon('compensated')}
@@ -939,15 +936,16 @@ export default function FastingPlasmaGlucoseClient({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={15}>
-                    <div className="hs-loading-state">
-                      <RefreshCw size={24} className="animate-spin text-emerald-700" aria-hidden="true" />
-                      <span>กำลังโหลดข้อมูล กรุณารอสักครู่...</span>
-                    </div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`} className="rcm-skeleton-row" aria-busy="true">
+                    {Array.from({ length: 15 }).map((__, j) => (
+                      <td key={`skeleton-cell-${j}`} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={15}>

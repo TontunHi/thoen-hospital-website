@@ -651,7 +651,7 @@ export default function AdpSearchClient({
               className={`as-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => handleModeChange('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -723,15 +723,14 @@ export default function AdpSearchClient({
           {dateMode === 'fiscal' && (
             <div className="as-date-inputs">
               <span className="as-date-label">เลือกปี</span>
-              {/* Only 'ปีงบประมาณ [พ.ศ.]', no distracting date range in parentheses */}
               <select
                 className="as-select"
                 value={selectedFiscalYear}
                 onChange={(e) => handleFiscalYearChange(parseInt(e.target.value, 10))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -1084,24 +1083,6 @@ export default function AdpSearchClient({
               ลองใหม่อีกครั้ง
             </button>
           </div>
-        ) : loading && items.length === 0 ? (
-          <div className="adp-empty-state">
-            <div className="adp-empty-icon">
-              <RefreshCw size={24} className="spin" />
-            </div>
-            <h3 className="adp-empty-title">กำลังค้นหาข้อมูลจากระบบ</h3>
-            <p className="adp-empty-text">กรุณารอสักครู่ ระบบกำลังดึงข้อมูลรายงานตามรหัส ADP</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="adp-empty-state">
-            <div className="adp-empty-icon">
-              <Search size={24} />
-            </div>
-            <h3 className="adp-empty-title">ไม่พบรายการข้อมูล</h3>
-            <p className="adp-empty-text">
-              ไม่พบข้อมูลผู้รับบริการที่ตรงกับเงื่อนไขรหัส ADP หรือตัวกรองที่ระบุในช่วงเวลานี้
-            </p>
-          </div>
         ) : (
           <div className="adp-table-scroll">
             <table className="adp-table">
@@ -1200,13 +1181,13 @@ export default function AdpSearchClient({
                       )}
                     </button>
                   </th>
-                  <th className="col-left" style={{ minWidth: '140px' }}>
+                  <th className="col-center" style={{ minWidth: '140px' }}>
                     สิทธิการรักษา
                   </th>
                   <th className="col-center" style={{ width: '100px' }}>
                     รหัส ADP
                   </th>
-                  <th className="col-left" style={{ minWidth: '200px' }}>
+                  <th className="col-center" style={{ minWidth: '200px' }}>
                     รายการที่เลือก
                   </th>
                   <th className="col-center" style={{ width: '110px' }}>
@@ -1251,7 +1232,23 @@ export default function AdpSearchClient({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 12 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="col-center" style={{ padding: '48px 16px' }}>
+                      ไม่พบข้อมูลผู้รับบริการที่ตรงกับเงื่อนไขรหัส ADP หรือตัวกรองที่ระบุในช่วงเวลานี้
+                    </td>
+                  </tr>
+                ) : items.map((item) => {
                   // Format patient name intact wrap
                   const nameParts = item.ptname.split(' ')
                   const firstName = nameParts[0] || ''

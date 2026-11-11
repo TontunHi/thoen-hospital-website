@@ -591,9 +591,9 @@ export default function ThalassemiaService31Client({
                   onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
                   aria-label="เลือกปีงบประมาณ"
                 >
-                  {yearOptions.map((y) => (
+                  {[2569, 2570].map((y) => (
                     <option key={y} value={y}>
-                      พ.ศ. {y}
+                      ปีงบ {y}
                     </option>
                   ))}
                 </select>
@@ -752,12 +752,7 @@ export default function ThalassemiaService31Client({
         </div>
 
         <div className="thal31-table-wrap">
-          {loading ? (
-            <div className="thal31-loading-state">
-              <RefreshCw size={28} className="thal31-spin-icon" style={{ color: 'var(--thal-accent)' }} />
-              <p>กำลังโหลดข้อมูลการคัดกรองธาลัสซีเมีย...</p>
-            </div>
-          ) : error ? (
+          {error ? (
             <div className="thal31-empty-state" style={{ color: 'var(--thal-danger)' }}>
               <AlertTriangle size={32} />
               <p>เกิดข้อผิดพลาด: {error}</p>
@@ -769,11 +764,6 @@ export default function ThalassemiaService31Client({
               >
                 ลองใหม่อีกครั้ง
               </button>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="thal31-empty-state">
-              <Activity size={32} />
-              <p>ไม่พบข้อมูลตามเงื่อนไขช่วงเวลาหรือตัวกรองที่เลือก</p>
             </div>
           ) : (
             <table className="thal31-table">
@@ -848,7 +838,23 @@ export default function ThalassemiaService31Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, index) => {
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 13 }).map((__, colIdx) => (
+                        <td key={colIdx} style={{ textAlign: 'center' }}>
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} style={{ textAlign: 'center', padding: '48px 16px' }}>
+                      ไม่พบข้อมูลตามเงื่อนไขช่วงเวลาหรือตัวกรองที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((item, index) => {
                   return (
                     <tr
                       key={`${item.ancno}-${index}`}

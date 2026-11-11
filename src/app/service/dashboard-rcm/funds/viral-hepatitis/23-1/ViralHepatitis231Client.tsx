@@ -546,7 +546,7 @@ export default function ViralHepatitis231Client({
             className={`vh-mode-tab ${dateMode === 'monthly' ? 'is-active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -624,9 +624,9 @@ export default function ViralHepatitis231Client({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {yearOptions.map((fy) => (
+                {[2569, 2570].map((fy) => (
                   <option key={fy} value={fy}>
-                    ปีงบประมาณ {fy}
+                    ปีงบ {fy}
                   </option>
                 ))}
               </select>
@@ -933,24 +933,7 @@ export default function ViralHepatitis231Client({
           </div>
         )}
 
-        {loading && !error && (
-          <div className="vh-loading-card">
-            <RefreshCw size={24} className="animate-spin text-primary" />
-            <span>กำลังประมวลผลข้อมูลบริการตรวจคัดกรองไวรัสตับอักเสบ B...</span>
-          </div>
-        )}
-
-        {!loading && !error && items.length === 0 && (
-          <div className="vh-empty-state">
-            <TestTube2 size={36} className="vh-empty-icon" />
-            <div className="vh-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
-            <div className="vh-empty-desc">
-              ไม่พบรายการผู้รับบริการตรวจคัดกรองไวรัสตับอักเสบ B ในช่วงเวลาหรือฟิลเตอร์ที่กำหนด กรุณาลองปรับช่วงวันที่หรือคำค้นหา
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && items.length > 0 && (
+        {!error && (
           <div className="vh-table-scroll">
             <table className="vh-table">
               <thead>
@@ -986,7 +969,7 @@ export default function ViralHepatitis231Client({
                     </button>
                   </th>
                   <th className="col-center">เลขบัตรประชาชน</th>
-                  <th className="col-left">
+                  <th className="col-center">
                     <button
                       type="button"
                       className="vh-sort-btn"
@@ -1043,7 +1026,7 @@ export default function ViralHepatitis231Client({
                       )}
                     </button>
                   </th>
-                  <th className="col-left">รายการตรวจ (ADP 36318, 36319)</th>
+                  <th className="col-center">รายการตรวจ (ADP 36318, 36319)</th>
                   <th className="col-center">
                     <button
                       type="button"
@@ -1076,78 +1059,102 @@ export default function ViralHepatitis231Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
-                  <tr
-                    key={item.vn}
-                    className="vh-row-clickable"
-                    onClick={() => handleRowClick(item)}
-                    title="คลิกเพื่อเปิดดูรายละเอียดเวชระเบียนและข้อมูลการชดเชย"
-                  >
-                    <td className="col-center vh-num">{item.no}</td>
-                    <td className="col-center vh-num">{formatThaiDate(item.vstdate)}</td>
-                    <td className="col-center vh-num">{item.vsttime || '—'}</td>
-                    <td className="col-center vh-num font-mono">{item.hn}</td>
-                    <td className="col-center vh-num font-mono">{item.cid}</td>
-                    <td className="col-left">{item.ptname}</td>
-                    <td className="col-center vh-num">{item.age} ปี</td>
-                    <td className="col-center">
-                      <span className={`vh-badge ${item.isUc ? 'vh-badge-ok' : 'vh-badge-neutral'}`}>
-                        {item.pttypename || item.maininscl || '—'}
-                      </span>
-                    </td>
-                    <td className="col-center font-mono">
-                      {item.authencode ? (
-                        <span className="vh-badge vh-badge-ok">{item.authencode}</span>
-                      ) : (
-                        <span className="vh-badge vh-badge-warn">ไม่มี</span>
-                      )}
-                    </td>
-                    <td className="col-center font-mono font-bold">{item.pdx || '—'}</td>
-                    <td className="col-left" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span title={item.listname || ''}>{item.listname || '—'}</span>
-                    </td>
-                    <td className="col-center">
-                      {item.labresult ? (
-                        <span
-                          className={`vh-badge ${
-                            item.labresult.toLowerCase().includes('pos') ||
-                            item.labresult.toLowerCase().includes('reactive')
-                              ? 'vh-badge-danger'
-                              : item.labresult.toLowerCase().includes('neg') ||
-                                item.labresult.toLowerCase().includes('non')
-                              ? 'vh-badge-ok'
-                              : 'vh-badge-info'
-                          }`}
-                          title={item.labresult}
-                        >
-                          {item.labresult}
-                        </span>
-                      ) : (
-                        <span className="vh-badge vh-badge-neutral">รอผล</span>
-                      )}
-                    </td>
-                    <td className="col-center">
-                      <span
-                        className={`vh-badge ${
-                          item.isCompensated
-                            ? 'vh-badge-ok'
-                            : item.status && !item.status.includes('ยังไม่ได้ส่ง')
-                            ? 'vh-badge-info'
-                            : 'vh-badge-warn'
-                        }`}
-                      >
-                        {item.status || 'ยังไม่ได้ส่ง'}
-                      </span>
-                    </td>
-                    <td className="col-center vh-num font-semibold">
-                      {item.isCompensated ? (
-                        <span className="text-success">{formatMoney(item.compensated)}</span>
-                      ) : (
-                        <span className="text-muted">—</span>
-                      )}
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="col-center" style={{ padding: '48px 16px' }}>
+                      <div className="vh-empty-state">
+                        <TestTube2 size={36} className="vh-empty-icon" />
+                        <div className="vh-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
+                        <div className="vh-empty-desc">
+                          ไม่พบรายการผู้รับบริการตรวจคัดกรองไวรัสตับอักเสบ B ในช่วงเวลาหรือฟิลเตอร์ที่กำหนด กรุณาลองปรับช่วงวันที่หรือคำค้นหา
+                        </div>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  items.map((item) => (
+                    <tr
+                      key={item.vn}
+                      className="vh-row-clickable"
+                      onClick={() => handleRowClick(item)}
+                      title="คลิกเพื่อเปิดดูรายละเอียดเวชระเบียนและข้อมูลการชดเชย"
+                    >
+                      <td className="col-center vh-num">{item.no}</td>
+                      <td className="col-center vh-num">{formatThaiDate(item.vstdate)}</td>
+                      <td className="col-center vh-num">{item.vsttime || '—'}</td>
+                      <td className="col-center vh-num font-mono">{item.hn}</td>
+                      <td className="col-center vh-num font-mono">{item.cid}</td>
+                      <td className="col-left">{item.ptname}</td>
+                      <td className="col-center vh-num">{item.age} ปี</td>
+                      <td className="col-center">
+                        <span className={`vh-badge ${item.isUc ? 'vh-badge-ok' : 'vh-badge-neutral'}`}>
+                          {item.pttypename || item.maininscl || '—'}
+                        </span>
+                      </td>
+                      <td className="col-center font-mono">
+                        {item.authencode ? (
+                          <span className="vh-badge vh-badge-ok">{item.authencode}</span>
+                        ) : (
+                          <span className="vh-badge vh-badge-warn">ไม่มี</span>
+                        )}
+                      </td>
+                      <td className="col-center font-mono font-bold">{item.pdx || '—'}</td>
+                      <td className="col-left" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span title={item.listname || ''}>{item.listname || '—'}</span>
+                      </td>
+                      <td className="col-center">
+                        {item.labresult ? (
+                          <span
+                            className={`vh-badge ${
+                              item.labresult.toLowerCase().includes('pos') ||
+                              item.labresult.toLowerCase().includes('reactive')
+                                ? 'vh-badge-danger'
+                                : item.labresult.toLowerCase().includes('neg') ||
+                                  item.labresult.toLowerCase().includes('non')
+                                ? 'vh-badge-ok'
+                                : 'vh-badge-info'
+                            }`}
+                            title={item.labresult}
+                          >
+                            {item.labresult}
+                          </span>
+                        ) : (
+                          <span className="vh-badge vh-badge-neutral">รอผล</span>
+                        )}
+                      </td>
+                      <td className="col-center">
+                        <span
+                          className={`vh-badge ${
+                            item.isCompensated
+                              ? 'vh-badge-ok'
+                              : item.status && !item.status.includes('ยังไม่ได้ส่ง')
+                              ? 'vh-badge-info'
+                              : 'vh-badge-warn'
+                          }`}
+                        >
+                          {item.status || 'ยังไม่ได้ส่ง'}
+                        </span>
+                      </td>
+                      <td className="col-center vh-num font-semibold">
+                        {item.isCompensated ? (
+                          <span className="text-success">{formatMoney(item.compensated)}</span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

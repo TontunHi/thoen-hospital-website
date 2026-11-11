@@ -559,7 +559,7 @@ export default function FamilyPlanning92Client({
               className={`fp-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => setDateMode('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -639,9 +639,9 @@ export default function FamilyPlanning92Client({
                   }}
                   className="fp-select"
                 >
-                  {yearOptions.map((y) => (
+                  {[2569, 2570].map((y) => (
                     <option key={y} value={y}>
-                      ปีงบประมาณ {y}
+                      ปีงบ {y}
                     </option>
                   ))}
                 </select>
@@ -1116,14 +1116,15 @@ export default function FamilyPlanning92Client({
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={20} className="text-center py-12 text-slate-500">
-                    <div className="inline-flex items-center gap-2">
-                      <RefreshCw size={18} className="animate-spin text-emerald-700" />
-                      <span>กำลังโหลดข้อมูลรายงาน 9.2...</span>
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`} className="rcm-skeleton-row" aria-busy="true">
+                    {Array.from({ length: 20 }).map((__, j) => (
+                      <td key={`skeleton-cell-${j}`} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : displayedItems.length === 0 ? (
                 <tr>
                   <td colSpan={20} className="text-center py-12 text-slate-500">

@@ -468,7 +468,7 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
             className={`th-segmented-btn ${dateMode === 'monthly' ? 'is-active' : ''}`}
             onClick={() => handleModeChange('monthly')}
           >
-            เดือน
+            รายเดือน
           </button>
           <button
             type="button"
@@ -566,9 +566,9 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
                   setCurrentPage(1)
                 }}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -890,14 +890,16 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={19} className="th-empty-state">
-                    <RefreshCw size={24} className="th-spin th-empty-icon" />
-                    <div className="th-empty-title">กำลังดึงข้อมูลรายงานผู้ป่วยใน...</div>
-                    <div className="th-empty-desc">กรุณารอสักครู่ ระบบกำลังประมวลผล</div>
-                  </td>
-                </tr>
+              {loading || isRefreshing ? (
+                Array.from({ length: 8 }).map((_, idx) => (
+                  <tr key={`skel-${idx}`} className="rcm-skeleton-row">
+                    {Array.from({ length: 19 }).map((__, colIdx) => (
+                      <td key={colIdx} className="col-center">
+                        <div className="rcm-skeleton-bar" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : error ? (
                 <tr>
                   <td colSpan={19} className="th-empty-state">

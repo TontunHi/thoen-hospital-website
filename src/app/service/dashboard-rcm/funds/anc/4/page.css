@@ -11,6 +11,7 @@
   --anc-ink: var(--gray-900);
   --anc-ink-2: var(--gray-700);
   --anc-muted: var(--gray-500);
+  --anc-text-muted: var(--gray-500);
   --anc-hairline: var(--gray-200);
   --anc-hairline-soft: var(--gray-100);
   --anc-hairline-strong: var(--gray-400);
@@ -689,6 +690,22 @@ button.anc4-summary-card[aria-pressed='true'] {
   background-color: var(--anc-surface);
   flex-wrap: wrap;
   gap: var(--anc-s3);
+}
+
+.anc4-page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  font-size: var(--anc-text-sm);
+  color: var(--anc-ink-2);
+}
+
+.anc4-page-info {
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  color: var(--anc-ink-2);
+  font-variant-numeric: tabular-nums;
+  padding: 0 var(--anc-s2);
 }
 
 .anc4-page-nav {

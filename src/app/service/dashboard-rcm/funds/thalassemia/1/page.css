@@ -444,17 +444,20 @@
 }
 
 .thal31-clear-btn {
-  position: absolute;
-  right: 10px;
   background: transparent;
   border: none;
   color: var(--thal-text-muted);
   cursor: pointer;
   padding: 4px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+}
+
+.thal31-search-box .thal31-clear-btn {
+  position: absolute;
+  right: 10px;
 }
 
 .thal31-clear-btn:hover {

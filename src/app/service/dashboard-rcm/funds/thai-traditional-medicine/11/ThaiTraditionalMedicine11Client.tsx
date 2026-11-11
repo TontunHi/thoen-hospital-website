@@ -523,7 +523,7 @@ export default function ThaiTraditionalMedicine11Client({
               className={`ttm11-date-tab ${dateMode === 'monthly' ? 'is-active' : ''}`}
               onClick={() => handleModeChange('monthly')}
             >
-              เดือน
+              รายเดือน
             </button>
             <button
               type="button"
@@ -596,9 +596,9 @@ export default function ThaiTraditionalMedicine11Client({
                 value={selectedFiscalYear}
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
               >
-                {yearOptions.map((y) => (
+                {[2569, 2570].map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y}
+                    ปีงบ {y}
                   </option>
                 ))}
               </select>
@@ -867,24 +867,7 @@ export default function ThaiTraditionalMedicine11Client({
           </div>
         )}
 
-        {loading && !error && (
-          <div className="ttm11-loading-card">
-            <RefreshCw size={24} className="animate-spin text-primary" />
-            <span>กำลังประมวลผลข้อมูลผู้รับบริการรับยาสมุนไพร 32 รายการ...</span>
-          </div>
-        )}
-
-        {!loading && !error && items.length === 0 && (
-          <div className="ttm11-empty-state">
-            <Leaf size={36} className="ttm11-empty-icon" />
-            <div className="ttm11-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
-            <div className="ttm11-empty-desc">
-              ไม่พบรายการผู้รับบริการรับยาสมุนไพร 32 รายการในช่วงเวลาหรือฟิลเตอร์ที่กำหนด กรุณาลองปรับช่วงวันที่หรือคำค้นหา
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && items.length > 0 && (
+        {!error && (
           <div className="ttm11-table-scroll">
             <table className="ttm11-table">
               <thead>
@@ -977,7 +960,7 @@ export default function ThaiTraditionalMedicine11Client({
                       )}
                     </button>
                   </th>
-                  <th className="col-left">รายการยาสมุนไพร 32 รายการ</th>
+                  <th className="col-center">รายการยาสมุนไพร 32 รายการ</th>
                   <th className="col-center">
                     <button
                       type="button"
@@ -1010,7 +993,23 @@ export default function ThaiTraditionalMedicine11Client({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {loading || isRefreshing ? (
+                  Array.from({ length: 8 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
+                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                        <td key={colIdx} className="col-center">
+                          <div className="rcm-skeleton-bar" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="col-center" style={{ padding: '48px 16px' }}>
+                      ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+                    </td>
+                  </tr>
+                ) : items.map((item) => (
                   <tr
                     key={item.vn}
                     className="ttm11-row-clickable"
