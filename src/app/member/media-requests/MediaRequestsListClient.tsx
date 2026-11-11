@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   Palette,
@@ -12,10 +12,14 @@ import {
   FileText,
   Printer,
   ChevronRight,
-  Layers,
   RotateCcw,
   ArrowLeft,
+  X,
+  User,
+  AlertCircle,
+  FileCheck,
 } from 'lucide-react'
+import { formatThaiDate } from '@/lib/formatters'
 import './mediaRequests.css'
 
 interface MediaTaskItem {
@@ -75,7 +79,7 @@ export default function MediaRequestsListClient({
     }
   }
 
-  const isFirstRender = React.useRef(true)
+  const isFirstRender = useRef(true)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
@@ -100,62 +104,30 @@ export default function MediaRequestsListClient({
   const pendingCount = tasks.filter((t) => t.status === 'PENDING' || t.status === 'IN_PROGRESS').length
   const approvedCount = tasks.filter((t) => t.status === 'APPROVED').length
 
-  const formatThaiDate = (dateStr: string | null) => {
-    if (!dateStr) return '-'
-    try {
-      const parts = dateStr.includes('T') ? dateStr.split('T')[0].split('-') : dateStr.split('-')
-      if (parts.length === 3) {
-        let y = parseInt(parts[0], 10)
-        if (y > 2400) y -= 543
-        const m = parseInt(parts[1], 10) - 1
-        const d = parseInt(parts[2], 10)
-        return new Intl.DateTimeFormat('th-TH', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        }).format(new Date(y, m, d))
-      }
-      const d = new Date(dateStr)
-      if (d.getFullYear() > 2400) {
-        d.setFullYear(d.getFullYear() - 543)
-      }
-      return new Intl.DateTimeFormat('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }).format(d)
-    } catch {
-      return dateStr
-    }
+  const handleResetFilters = () => {
+    setSearch('')
+    setStatusFilter('ALL')
+    setUrgencyFilter('ALL')
   }
 
   return (
     <div className="mediaRequestsWrapper">
-      {/* Top Navigation Bar */}
-      <nav aria-label="นำทาง" className="mediaNav">
+      {/* Top Breadcrumb & Navigation */}
+      <nav aria-label="แถบนำทาง" className="mediaNav">
         <Link href="/member" className="mediaNavBackLink">
-          <ArrowLeft aria-hidden="true" className="w-4 h-4" />
+          <ArrowLeft aria-hidden="true" className="w-4 h-4 shrink-0" />
           <span>กลับสู่พอร์ทัลสมาชิก</span>
-        </Link>
-        <Link href="/member/inbox" className="mediaNavInboxLink">
-          <Layers aria-hidden="true" className="w-4 h-4" />
-          <span>กล่องงาน (Task Inbox)</span>
         </Link>
       </nav>
 
-      {/* Top Header Card */}
+      {/* Main Clinical Header */}
       <header className="mediaHeaderCard">
         <div className="mediaHeaderLeft">
           <div className="mediaBadgeIcon" aria-hidden="true">
             <Palette className="w-6 h-6" />
           </div>
-          <div>
-            <span className="mediaEyebrow">
-              Hospital PR & Digital Media Requisition
-            </span>
-            <h1 className="mediaHeaderTitle">
-              ระบบขอสื่อประชาสัมพันธ์
-            </h1>
+          <div className="mediaHeaderTitles">
+            <h1 className="mediaHeaderTitle">ระบบขอสื่อประชาสัมพันธ์</h1>
             <p className="mediaHeaderSubtitle">
               ยื่นคำขอจัดทำสื่อ แผ่นพับ โปสเตอร์ AW เว็บไซต์ บัตรพนักงาน ติดตามสถานะ และพิมพ์ใบขอรับบริการ
             </p>
@@ -164,14 +136,14 @@ export default function MediaRequestsListClient({
 
         <div className="mediaHeaderActions">
           <Link href="/member/media-requests/new" className="btnCreateNew">
-            <Plus aria-hidden="true" className="w-4 h-4" />
+            <Plus aria-hidden="true" className="w-4 h-4 shrink-0" />
             <span>ยื่นขอสื่อประชาสัมพันธ์ใหม่</span>
           </Link>
         </div>
       </header>
 
-      {/* Stats Cards Grid */}
-      <div className="mediaStatsGrid" role="region" aria-label="สรุปภาพรวมคำขอสื่อ">
+      {/* Tiered Summary KPI Cards Grid */}
+      <section className="mediaStatsGrid" role="region" aria-label="สรุปภาพรวมคำขอสื่อ">
         <div
           role="button"
           tabIndex={0}
@@ -188,7 +160,7 @@ export default function MediaRequestsListClient({
           <div className="mediaStatIcon total" aria-hidden="true">
             <FileText className="w-5 h-5" />
           </div>
-          <div>
+          <div className="mediaStatContent">
             <span className="mediaStatLabel">คำขอทั้งหมด</span>
             <span className="mediaStatValue tabularNums">{totalCount}</span>
           </div>
@@ -210,7 +182,7 @@ export default function MediaRequestsListClient({
           <div className="mediaStatIcon pending" aria-hidden="true">
             <Clock className="w-5 h-5" />
           </div>
-          <div>
+          <div className="mediaStatContent">
             <span className="mediaStatLabel">รอดำเนินการ / ลงนาม</span>
             <span className="mediaStatValue pending tabularNums">{pendingCount}</span>
           </div>
@@ -232,16 +204,16 @@ export default function MediaRequestsListClient({
           <div className="mediaStatIcon approved" aria-hidden="true">
             <CheckCircle2 className="w-5 h-5" />
           </div>
-          <div>
+          <div className="mediaStatContent">
             <span className="mediaStatLabel">อนุมัติเสร็จสิ้น</span>
             <span className="mediaStatValue approved tabularNums">{approvedCount}</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Table & Filter Card */}
-      <div className="mediaTableCard">
-        {/* Filter Bar */}
+      {/* Main Content & Filter Table Card */}
+      <main className="mediaTableCard">
+        {/* Single-Row Filter Ribbon & Unified Search */}
         <div className="mediaFilterBar">
           {/* Status Tabs */}
           <div className="mediaFilterTabs" role="tablist" aria-label="กรองสถานะคำขอ">
@@ -283,7 +255,7 @@ export default function MediaRequestsListClient({
             </button>
           </div>
 
-          {/* Search Form */}
+          {/* Search & Urgency Filter Controls */}
           <form onSubmit={handleSearchSubmit} className="mediaSearchForm" role="search">
             <div className="mediaSearchWrap">
               <Search aria-hidden="true" className="w-4 h-4 mediaSearchIcon" />
@@ -295,19 +267,41 @@ export default function MediaRequestsListClient({
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="ค้นหาคำขอสื่อประชาสัมพันธ์"
               />
+              {search && (
+                <button
+                  type="button"
+                  className="mediaSearchClearBtn"
+                  onClick={() => setSearch('')}
+                  aria-label="ล้างคำค้นหา"
+                >
+                  <X aria-hidden="true" className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
+
+            <div className="mediaUrgencySelectWrap">
+              <select
+                className="mediaUrgencySelect"
+                value={urgencyFilter}
+                onChange={(e) => setUrgencyFilter(e.target.value as any)}
+                aria-label="กรองความเร่งด่วน"
+              >
+                <option value="ALL">ความเร่งด่วนทั้งหมด</option>
+                <option value="NORMAL">ไม่ด่วน</option>
+                <option value="URGENT">ด่วน</option>
+                <option value="VERY_URGENT">ด่วนที่สุด</option>
+              </select>
+            </div>
+
             <button type="submit" className="mediaSearchBtn">
               ค้นหา
             </button>
+
             {(search || statusFilter !== 'ALL' || urgencyFilter !== 'ALL') && (
               <button
                 type="button"
                 className="mediaResetBtn"
-                onClick={() => {
-                  setSearch('')
-                  setStatusFilter('ALL')
-                  setUrgencyFilter('ALL')
-                }}
+                onClick={handleResetFilters}
                 title="ล้างตัวกรองทั้งหมด"
                 aria-label="ล้างตัวกรองทั้งหมด"
               >
@@ -319,7 +313,7 @@ export default function MediaRequestsListClient({
         </div>
 
         {/* Requests List */}
-        <div>
+        <div className="mediaListContainer">
           {loading ? (
             <div className="mediaLoadingState">
               <Clock aria-hidden="true" className="w-8 h-8 mediaLoadingSpinner" />
@@ -332,27 +326,27 @@ export default function MediaRequestsListClient({
               </div>
               <h3 className="mediaEmptyTitle">ไม่พบรายการคำขอสื่อประชาสัมพันธ์</h3>
               <p className="mediaEmptyDesc">
-                {search || statusFilter !== 'ALL'
+                {search || statusFilter !== 'ALL' || urgencyFilter !== 'ALL'
                   ? 'ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา ลองเปลี่ยนคำค้นหาหรือตัวกรอง'
                   : 'คุณยังไม่เคยยื่นคำขอสื่อประชาสัมพันธ์ สามารถกดปุ่มด้านล่างเพื่อเริ่มยื่นคำขอแรก'}
               </p>
-              <Link href="/member/media-requests/new" className="btnActionDetail btnEmptyCreate">
-                <Plus aria-hidden="true" className="w-4 h-4" />
-                <span>ยื่นคำขอสื่อประชาสัมพันธ์ใหม่</span>
+              <Link href="/member/media-requests/new" className="btnCreateNew btnEmptyCreate">
+                <Plus aria-hidden="true" className="w-4 h-4 shrink-0" />
+                <span>ยื่นขอสื่อประชาสัมพันธ์ใหม่</span>
               </Link>
             </div>
           ) : (
-            <div>
+            <div className="mediaRequestRowsWrap">
               {displayedTasks.map((t) => {
                 const payload = t.custom_payload || {}
                 const workTypes = payload.workTypes || []
-                const channels = payload.channels || []
                 const hasCost = payload.costType === 'HAS_COST'
 
                 return (
-                  <div key={t.id} className="mediaRequestRow">
-                    {/* Left Details */}
+                  <article key={t.id} className="mediaRequestRow" aria-labelledby={`task-title-${t.id}`}>
+                    {/* Left Requisition Details */}
                     <div className="mediaRequestLeft">
+                      {/* Top Badges Bar */}
                       <div className="mediaRequestTopMeta">
                         <span className="mediaTaskNo">
                           {t.task_no}
@@ -370,52 +364,56 @@ export default function MediaRequestsListClient({
                               : 'pending'
                           }`}
                         >
-                          {t.status === 'APPROVED'
-                            ? '✓ อนุมัติเสร็จสิ้น'
-                            : t.status === 'SENT_BACK'
-                            ? '⚠️ ส่งกลับแก้ไข'
-                            : t.status === 'REJECTED'
-                            ? '✕ ไม่อนุมัติ'
-                            : '⏳ รอดำเนินการ'}
+                          <span className="badgeDot" aria-hidden="true" />
+                          <span>
+                            {t.status === 'APPROVED'
+                              ? 'อนุมัติเสร็จสิ้น'
+                              : t.status === 'SENT_BACK'
+                              ? 'ส่งกลับแก้ไข'
+                              : t.status === 'REJECTED'
+                              ? 'ไม่อนุมัติ'
+                              : 'รอดำเนินการ'}
+                          </span>
                         </span>
 
                         {/* Cost Tag */}
-                        <span
-                          className={`badgeCost ${
-                            hasCost ? 'hasCost' : 'noCost'
-                          }`}
-                        >
+                        <span className={`badgeCost ${hasCost ? 'hasCost' : 'noCost'}`}>
                           {hasCost ? 'มีค่าใช้จ่าย' : 'ไม่มีค่าใช้จ่าย'}
                         </span>
 
-                        {/* Urgency */}
+                        {/* Urgency Badge */}
                         {t.urgency === 'VERY_URGENT' && (
                           <span className="badgeUrgent veryUrgent">
-                            🔴 ด่วนที่สุด
+                            <span className="badgeDot veryUrgent" aria-hidden="true" />
+                            <span>ด่วนที่สุด</span>
                           </span>
                         )}
                         {t.urgency === 'URGENT' && (
                           <span className="badgeUrgent urgent">
-                            🟡 ด่วน
+                            <span className="badgeDot urgent" aria-hidden="true" />
+                            <span>ด่วน</span>
                           </span>
                         )}
                         {t.urgency === 'NORMAL' && (
                           <span className="badgeUrgent normal">
-                            🟢 ไม่ด่วน
+                            <span className="badgeDot normal" aria-hidden="true" />
+                            <span>ไม่ด่วน</span>
                           </span>
                         )}
                       </div>
 
-                      {/* Title */}
-                      <Link href={`/member/inbox/${t.id}`} className="mediaTitleLink">
-                        {t.title}
-                      </Link>
+                      {/* Title Link */}
+                      <h2 className="mediaTitleHeading" id={`task-title-${t.id}`}>
+                        <Link href={`/member/inbox/${t.id}`} className="mediaTitleLink">
+                          {t.title}
+                        </Link>
+                      </h2>
 
-                      {/* Work Types & Channels Tags */}
+                      {/* Work Types & Requester Info */}
                       <div className="mediaRequestTags">
                         {workTypes.slice(0, 3).map((w: any, idx: number) => (
                           <span key={idx} className="mediaTag">
-                            🎨 {w.label} {w.customDetail ? `(${w.customDetail})` : ''}
+                            {w.label} {w.customDetail ? `(${w.customDetail})` : ''}
                           </span>
                         ))}
                         {workTypes.length > 3 && (
@@ -431,40 +429,36 @@ export default function MediaRequestsListClient({
                         </span>
                       </div>
 
-                      {/* Progress Step & Dates */}
+                      {/* Workflow Step Indicator & Dates */}
                       <div className="mediaBottomMeta">
                         <span className="mediaStepIndicator">
                           <span className="mediaStepDot" aria-hidden="true" />
-                          ขั้นตอน: {t.current_step_name || 'พิจารณาอนุมัติ'}
+                          <span>ขั้นตอน: {t.current_step_name || 'พิจารณาอนุมัติ'}</span>
                         </span>
 
                         {payload.deliveryDate && (
                           <span className="mediaDeliveryDate">
-                            <Calendar aria-hidden="true" className="w-3.5 h-3.5 mediaDateIcon" />
-                            <span>กำหนดรับงาน: <strong>{(() => {
-                              const parts = String(payload.deliveryDate).split('-')
-                              if (parts.length === 3) {
-                                let y = parseInt(parts[0], 10)
-                                if (y > 2400) y -= 543
-                                return `${y}-${parts[1]}-${parts[2]}`
-                              }
-                              return payload.deliveryDate
-                            })()}</strong></span>
+                            <Calendar aria-hidden="true" className="mediaDateIcon shrink-0" />
+                            <span>
+                              กำหนดรับงาน: <strong>{formatThaiDate(payload.deliveryDate)}</strong>
+                            </span>
                           </span>
                         )}
 
-                        <span>ยื่นเมื่อ: {formatThaiDate(t.created_at)}</span>
+                        <span className="mediaCreatedDate">
+                          ยื่นเมื่อ: {formatThaiDate(t.created_at)}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Right Actions */}
+                    {/* Right Action Buttons */}
                     <div className="mediaRequestRight">
                       <Link
                         href={`/member/inbox/${t.id}`}
                         className="btnActionDetail"
                       >
                         <span>เปิดดู / อนุมัติ</span>
-                        <ChevronRight aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
+                        <ChevronRight aria-hidden="true" className="w-3.5 h-3.5 btnActionChevron shrink-0" />
                       </Link>
 
                       <Link
@@ -474,16 +468,16 @@ export default function MediaRequestsListClient({
                         title="พิมพ์ใบขอรับบริการ (A4)"
                         aria-label={`พิมพ์ใบขอรับบริการเลขที่ ${t.task_no}`}
                       >
-                        <Printer aria-hidden="true" className="w-4 h-4 shrink-0" />
+                        <Printer aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
                       </Link>
                     </div>
-                  </div>
+                  </article>
                 )
               })}
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   )
 }

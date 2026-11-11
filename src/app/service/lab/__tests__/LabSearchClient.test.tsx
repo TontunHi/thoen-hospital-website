@@ -259,4 +259,54 @@ describe('LabSearchClient - B&W PDF & Document Print System', () => {
     expect(tfoot).toBeInTheDocument();
     expect(tfoot).toHaveTextContent('พ.ร.บ. สุขภาพแห่งชาติ');
   });
+
+  it('allows clearing search input using the clear button', () => {
+    render(<LabSearchClient />);
+
+    const searchInput = screen.getByPlaceholderText(/กรอกเลขประจำตัวประชาชน 13 หลัก/i) as HTMLInputElement;
+    fireEvent.change(searchInput, { target: { value: '0012345' } });
+    expect(searchInput.value).toBe('0012345');
+
+    const clearBtn = screen.getByRole('button', { name: /ล้างคำค้นหา/i });
+    fireEvent.click(clearBtn);
+    expect(searchInput.value).toBe('');
+  });
+
+  it('supports modal tab switching between screening, drugs, and labs', async () => {
+    render(<LabSearchClient />);
+
+    // Search and open modal
+    fireEvent.change(screen.getByPlaceholderText(/กรอกเลขประจำตัวประชาชน 13 หลัก/i), {
+      target: { value: '0012345' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /ค้นหาข้อมูล/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('670101083001')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('670101083001'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    // Check screening content is initially displayed
+    expect(screen.getByText('สัญญาณชีพ (Vital Signs)')).toBeInTheDocument();
+
+    // Click Drugs tab
+    const drugsTab = screen.getByRole('tab', { name: /ยาที่ได้รับ \(2\)/i });
+    fireEvent.click(drugsTab);
+    expect(screen.getByText('Paracetamol 500 mg')).toBeInTheDocument();
+
+    // Click Labs tab
+    const labsTab = screen.getByRole('tab', { name: /ผลตรวจ LAB \(1\)/i });
+    fireEvent.click(labsTab);
+    expect(screen.getAllByText('WBC Count').length).toBeGreaterThanOrEqual(1);
+
+    // Close modal via close button
+    const closeBtns = screen.getAllByRole('button', { name: /ปิดหน้าต่าง/i });
+    fireEvent.click(closeBtns[0]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

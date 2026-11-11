@@ -68,13 +68,13 @@ describe('MediaRequestsListClient Component (Hallmark Anti-AI-Slop Redesign)', (
     // Header & Navigation
     expect(screen.getByText('ระบบขอสื่อประชาสัมพันธ์')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /กลับสู่พอร์ทัลสมาชิก/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /กล่องงาน \(Task Inbox\)/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /กล่องงาน \(Task Inbox\)/i })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /ยื่นขอสื่อประชาสัมพันธ์ใหม่/i })).toBeInTheDocument()
 
     // Stats
     expect(screen.getByText('คำขอทั้งหมด')).toBeInTheDocument()
     expect(screen.getByText('รอดำเนินการ / ลงนาม')).toBeInTheDocument()
-    expect(screen.getByText('อนุมัติเสร็จสิ้น')).toBeInTheDocument()
+    expect(screen.getAllByText('อนุมัติเสร็จสิ้น')[0]).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument() // Total count
   })
 
@@ -84,18 +84,18 @@ describe('MediaRequestsListClient Component (Hallmark Anti-AI-Slop Redesign)', (
     // Task 1
     expect(screen.getByText('PR-2569-0001')).toBeInTheDocument()
     expect(screen.getByText('จัดทำป้ายไวนิลสัปดาห์เภสัชกรรม 2569')).toBeInTheDocument()
-    expect(screen.getByText('🔴 ด่วนที่สุด')).toBeInTheDocument()
+    expect(screen.getAllByText('ด่วนที่สุด')[1]).toBeInTheDocument()
     expect(screen.getByText('มีค่าใช้จ่าย')).toBeInTheDocument()
-    expect(screen.getByText('⏳ รอดำเนินการ')).toBeInTheDocument()
+    expect(screen.getByText('รอดำเนินการ')).toBeInTheDocument()
     expect(screen.getByText(/ภก\. สมชาย ใจดี/i)).toBeInTheDocument()
-    expect(screen.getByText(/2026-10-25/)).toBeInTheDocument()
+    expect(screen.getByText(/25 ต\.ค\. 2569/)).toBeInTheDocument()
 
     // Task 2
     expect(screen.getByText('PR-2569-0002')).toBeInTheDocument()
     expect(screen.getByText('แผ่นพับแนะนำการปฏิบัติตัวหลังผ่าตัด')).toBeInTheDocument()
-    expect(screen.getByText('🟢 ไม่ด่วน')).toBeInTheDocument()
+    expect(screen.getAllByText('ไม่ด่วน')[1]).toBeInTheDocument()
     expect(screen.getByText('ไม่มีค่าใช้จ่าย')).toBeInTheDocument()
-    expect(screen.getByText('✓ อนุมัติเสร็จสิ้น')).toBeInTheDocument()
+    expect(screen.getAllByText('อนุมัติเสร็จสิ้น')[1]).toBeInTheDocument()
 
     // Action links
     const detailLinks = screen.getAllByRole('link', { name: /เปิดดู \/ อนุมัติ/i })

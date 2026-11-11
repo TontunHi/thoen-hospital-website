@@ -224,6 +224,7 @@ export default function LabSearchClient() {
   // Prevent scroll & handle ESC key when modal is open
   useEffect(() => {
     if (selectedVisitId) {
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
@@ -232,10 +233,12 @@ export default function LabSearchClient() {
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => {
+        document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
         window.removeEventListener('keydown', handleKeyDown);
       };
     } else {
+      document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
     }
   }, [selectedVisitId]);
@@ -275,12 +278,28 @@ export default function LabSearchClient() {
                 disabled={loading}
                 autoFocus
               />
+              {query && !loading && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setQuery('')}
+                  aria-label="ล้างคำค้นหา"
+                  title="ล้างคำค้นหา"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
             <button type="submit" className="btn btn-primary search-btn touch-target" disabled={loading}>
               <Search size={18} />
               <span>{loading ? 'กำลังค้นหา...' : 'ค้นหาข้อมูล'}</span>
             </button>
           </form>
+          <div className="search-hint">
+            <span className="search-hint-text">
+              พิมพ์เลขประจำตัวประชาชน 13 หลัก หรือหมายเลข HN (เช่น 0012345) เพื่อดูประวัติการรักษา
+            </span>
+          </div>
         </div>
 
         {/* Results Section */}
@@ -328,30 +347,30 @@ export default function LabSearchClient() {
                     <table className="visits-table">
                       <thead>
                         <tr>
-                          <th>วันที่มาตรวจ</th>
-                          <th>แผนก/หน่วยบริการ</th>
-                          <th>ข้อมูลซักประวัติ (CC)</th>
-                          <th>ผู้ป่วยนอก (VN)</th>
-                          <th>ยา OPD</th>
-                          <th>LAB OPD</th>
-                          <th>สถานะการบริการ</th>
-                          <th>ผู้ป่วยใน (AN)</th>
-                          <th>ยา IPD</th>
-                          <th>LAB IPD</th>
+                          <th className="col-center">วันที่มาตรวจ</th>
+                          <th className="col-left">แผนก/หน่วยบริการ</th>
+                          <th className="col-left">ข้อมูลซักประวัติ (CC)</th>
+                          <th className="col-center">ผู้ป่วยนอก (VN)</th>
+                          <th className="col-center">ยา OPD</th>
+                          <th className="col-center">LAB OPD</th>
+                          <th className="col-center">สถานะการบริการ</th>
+                          <th className="col-center">ผู้ป่วยใน (AN)</th>
+                          <th className="col-center">ยา IPD</th>
+                          <th className="col-center">LAB IPD</th>
                         </tr>
                       </thead>
                       <tbody>
                         {visits.map((visit, index) => (
-                          <tr key={index}>
-                            <td className="visit-date">
+                          <tr key={index} className="visit-row">
+                            <td className="visit-date col-center">
                               <span className="date-badge">
-                                <Calendar size={13} />
+                                <Calendar size={13} className="shrink-0" />
                                 <span>{visit.dateText}</span>
                               </span>
                             </td>
-                            <td className="visit-dept">{visit.department}</td>
-                            <td className="visit-cc" title={visit.cc}>{visit.cc || '-'}</td>
-                            <td>
+                            <td className="visit-dept col-left">{visit.department}</td>
+                            <td className="visit-cc col-left" title={visit.cc}>{visit.cc || '-'}</td>
+                            <td className="col-center">
                               <button
                                 type="button"
                                 onClick={() => handleOpenDetail({ vn: visit.vn })}
@@ -361,12 +380,12 @@ export default function LabSearchClient() {
                                 <span>{visit.vn}</span>
                               </button>
                             </td>
-                            <td>{visit.opdDrugsCount ? <span className="drug-indicator">{visit.opdDrugsCount}</span> : '-'}</td>
-                            <td>{visit.opdLabsCount ? <span className="lab-indicator">{visit.opdLabsCount}</span> : '-'}</td>
-                            <td>
+                            <td className="col-center">{visit.opdDrugsCount ? <span className="drug-indicator">{visit.opdDrugsCount}</span> : '-'}</td>
+                            <td className="col-center">{visit.opdLabsCount ? <span className="lab-indicator">{visit.opdLabsCount}</span> : '-'}</td>
+                            <td className="col-center">
                               <span className="status-badge">{visit.statusName || '-'}</span>
                             </td>
-                            <td>
+                            <td className="col-center">
                               {visit.an ? (
                                 <button
                                   type="button"
@@ -380,8 +399,8 @@ export default function LabSearchClient() {
                                 '-'
                               )}
                             </td>
-                            <td>{visit.ipdDrugsCount ? <span className="drug-indicator gold">{visit.ipdDrugsCount}</span> : '-'}</td>
-                            <td>{visit.ipdLabsCount ? <span className="lab-indicator gold">{visit.ipdLabsCount}</span> : '-'}</td>
+                            <td className="col-center">{visit.ipdDrugsCount ? <span className="drug-indicator gold">{visit.ipdDrugsCount}</span> : '-'}</td>
+                            <td className="col-center">{visit.ipdLabsCount ? <span className="lab-indicator gold">{visit.ipdLabsCount}</span> : '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -415,7 +434,7 @@ export default function LabSearchClient() {
               <div className="modal-header">
                 <div className="modal-header-text">
                   <div className="modal-title-wrap">
-                    <FileText size={22} className="modal-title-icon" />
+                    <FileText size={20} className="modal-title-icon" />
                     <h2 id="modal-title">ประวัติการรักษาพยาบาล</h2>
                   </div>
                   {detail && (
@@ -436,10 +455,49 @@ export default function LabSearchClient() {
                   className="modal-close touch-target" 
                   onClick={handleCloseDetail}
                   aria-label="ปิดหน้าต่าง"
+                  title="ปิด (Esc)"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
+
+              {/* Navigation Tabs (Pinned 48px Header-level) */}
+              {detail && (
+                <div className="modal-tabs" role="tablist" aria-label="แท็บประวัติการรักษา">
+                  {detail.type === 'OPD' && (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === 'screening'}
+                      className={`tab-btn touch-target ${activeTab === 'screening' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('screening')}
+                    >
+                      <Activity size={16} />
+                      <span>ซักประวัติ & สัญญาณชีพ</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'drugs'}
+                    className={`tab-btn touch-target ${activeTab === 'drugs' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('drugs')}
+                  >
+                    <Pill size={16} />
+                    <span>ยาที่ได้รับ ({detail.drugs.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'labs'}
+                    className={`tab-btn touch-target ${activeTab === 'labs' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('labs')}
+                  >
+                    <FlaskConical size={16} />
+                    <span>ผลตรวจ LAB ({detail.labs.length})</span>
+                  </button>
+                </div>
+              )}
 
               {/* Modal Body Scroll Area */}
               <div className="modal-body">
@@ -494,36 +552,6 @@ export default function LabSearchClient() {
                         </div>
                       </div>
                     )}
-
-                    {/* Navigation Tabs inside Modal */}
-                    <div className="modal-tabs">
-                      {detail.type === 'OPD' && (
-                        <button
-                          type="button"
-                          className={`tab-btn touch-target ${activeTab === 'screening' ? 'active' : ''}`}
-                          onClick={() => setActiveTab('screening')}
-                        >
-                          <Activity size={16} />
-                          <span>ซักประวัติ & สัญญาณชีพ</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className={`tab-btn touch-target ${activeTab === 'drugs' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('drugs')}
-                      >
-                        <Pill size={16} />
-                        <span>ยาที่ได้รับ ({detail.drugs.length})</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`tab-btn touch-target ${activeTab === 'labs' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('labs')}
-                      >
-                        <FlaskConical size={16} />
-                        <span>ผลตรวจ LAB ({detail.labs.length})</span>
-                      </button>
-                    </div>
 
                     {/* Tab Contents Area */}
                     <div className="tab-content">
