@@ -146,11 +146,15 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     initialData?.ds2 ?? `${defaultFiscalCeYear}-09-30`
   )
 
-  // Last updated timestamp
-  const [lastUpdated, setLastUpdated] = useState<string>(() => {
+  // Last updated timestamp (initialized on client mount to prevent SSR hydration mismatch)
+  const [lastUpdated, setLastUpdated] = useState<string>('')
+
+  useEffect(() => {
     const d = new Date()
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  })
+    setLastUpdated(
+      `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    )
+  }, [])
 
   // Card filter multi-group state
   const [activeCards, setActiveCards] = useState<ActiveCardsState>(() => {
@@ -1007,7 +1011,11 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         </div>
 
         <div className="telemed-toolbar-right">
-          <span className="telemed-last-updated">อัปเดตล่าสุด {lastUpdated}</span>
+          {lastUpdated ? (
+            <span className="telemed-last-updated" suppressHydrationWarning>
+              อัปเดตล่าสุด {lastUpdated}
+            </span>
+          ) : null}
           <button
             type="button"
             className="telemed-btn"
