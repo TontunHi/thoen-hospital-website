@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import Link from 'next/link'
 import {
   Search,
   ArrowUpDown,
@@ -13,22 +12,15 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  Calendar,
-  PhoneCall,
-  ReceiptText,
-  UserCheck,
-  ShieldCheck,
-  Clock,
-  Sparkles,
+  Filter,
+  Columns,
   Copy,
   Check,
-  Building,
+  Eye,
 } from 'lucide-react'
 import type {
   TelemedItem,
   TelemedSummary,
-  TelemedCardFilter,
-  TelemedSearchField,
   TelemedSortField,
   AdpMappingCheck,
   TelemedReportResult,
@@ -60,6 +52,68 @@ function formatMoney(val?: number | null): string {
   return val.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function maskCid(cid?: string | null): string {
+  if (!cid) return '—'
+  const clean = cid.replace(/\D/g, '')
+  if (clean.length === 13) {
+    return `${clean[0]}-${clean.slice(1, 5)}-xxxxx-${clean.slice(10, 12)}-${clean[12]}`
+  }
+  return cid
+}
+
+function cleanStatusName(status?: string | null, isCompensated?: boolean): string {
+  if (!status) return isCompensated ? 'ชดเชยแล้ว' : 'รอชดเชย / ยังไม่ส่ง'
+  let clean = status.replace(/^[-\s:]+/, '').trim()
+  if (clean.toLowerCase().includes('rep') || isCompensated) return 'ชดเชยแล้ว'
+  if (clean.includes('ยังไม่ได้ส่ง') || clean.includes('ยังไม่ส่ง')) return 'รอชดเชย / ยังไม่ส่ง'
+  return clean || (isCompensated ? 'ชดเชยแล้ว' : 'รอชดเชย / ยังไม่ส่ง')
+}
+
+// Consolidation helper for duplicate clinical drug lines
+interface ConsolidatedDrug {
+  item_code: string
+  item_name: string
+  units: string
+  qty: number
+  sum_price: number
+}
+
+function consolidateDrugs(items?: any[]): ConsolidatedDrug[] {
+  if (!items || !Array.isArray(items)) return []
+  const map = new Map<string, ConsolidatedDrug>()
+  for (const item of items) {
+    const key = (item.item_code || item.item_name || '').trim()
+    const qty = Number(item.qty) || 0
+    const price = Number(item.sum_price) || 0
+    const existing = map.get(key)
+    if (existing) {
+      existing.qty += qty
+      existing.sum_price += price
+    } else {
+      map.set(key, {
+        item_code: item.item_code || '',
+        item_name: item.item_name || '',
+        units: item.units || 'หน่วย',
+        qty,
+        sum_price: price,
+      })
+    }
+  }
+  return Array.from(map.values())
+}
+
+// Card Groups for multi-group filtering (Section 6.3)
+export type CompensationCard = 'COMPENSATED' | 'UNCOMPENSATED'
+export type ClaimCard = 'WITH_AUTHEN' | 'NO_AUTHEN'
+
+export interface ActiveCardsState {
+  compensation?: CompensationCard
+  claim?: ClaimCard
+  hasFee?: boolean
+  ucOnly?: boolean
+  exportCode5?: boolean
+}
+
 export interface TelemedClientProps {
   initialData?: TelemedReportResult | null
 }
@@ -80,7 +134,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     return list
   }, [defaultFiscalBeYear])
 
-  // Date selection states: Standard Order: 1. กำหนดเอง -> 2. เดือน -> 3. ปีงบประมาณ
+  // Date selection states: Standard Order: 1. กำหนดเอง -> 2. รายเดือน -> 3. ปีงบประมาณ
   const [dateMode, setDateMode] = useState<'custom' | 'monthly' | 'fiscal'>('custom')
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
@@ -92,14 +146,74 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     initialData?.ds2 ?? `${defaultFiscalCeYear}-09-30`
   )
 
-  // Filter & Search states
-  const [pttypes, setPttypes] = useState<string[]>([])
-  const [cardFilter, setCardFilter] = useState<TelemedCardFilter>(
-    initialData?.cardFilter ?? 'ALL'
-  )
-  const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
+  // Last updated timestamp
+  const [lastUpdated, setLastUpdated] = useState<string>(() => {
+    const d = new Date()
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  })
+
+  // Card filter multi-group state
+  const [activeCards, setActiveCards] = useState<ActiveCardsState>(() => {
+    const rawFilter = initialData?.cardFilter
+    const state: ActiveCardsState = {}
+    if (rawFilter === 'COMPENSATED') state.compensation = 'COMPENSATED'
+    if (rawFilter === 'UNCOMPENSATED') state.compensation = 'UNCOMPENSATED'
+    if (rawFilter === 'WITH_AUTHEN') state.claim = 'WITH_AUTHEN'
+    if (rawFilter === 'NO_AUTHEN') state.claim = 'NO_AUTHEN'
+    if (rawFilter === 'WITH_PRICE') state.hasFee = true
+    if (rawFilter === 'UC_ONLY' || initialData?.ucOnly) state.ucOnly = true
+    if (rawFilter === 'EXPORT_CODE_5') state.exportCode5 = true
+    return state
+  })
+
+  // Search & Additional Filters Popover states
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
+  const [pttypes, setPttypes] = useState<string[]>([])
+  const [filterSex, setFilterSex] = useState<string>('ALL')
+  const [filterOvstist5, setFilterOvstist5] = useState<boolean>(false)
+  const [filterAgeMin, setFilterAgeMin] = useState<string>('')
+  const [filterAgeMax, setFilterAgeMax] = useState<string>('')
+  const [filterPdx, setFilterPdx] = useState<string>('')
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState<boolean>(false)
+  const filterPopoverRef = useRef<HTMLDivElement | null>(null)
+
+  // Table options (Density & Column Visibility)
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
+  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState<boolean>(false)
+  const columnDropdownRef = useRef<HTMLDivElement | null>(null)
+
+  // Visible columns state
+  const [visibleColumns, setVisibleColumns] = useState<{
+    vstdate: boolean
+    ptname: boolean
+    pttype: boolean
+    pdx: boolean
+    fee: boolean
+    claimCode: boolean
+    compensated: boolean
+    status: boolean
+    cid: boolean
+    ovstist: boolean
+    no: boolean
+  }>({
+    vstdate: true,
+    ptname: true,
+    pttype: true,
+    pdx: true,
+    fee: true,
+    claimCode: true,
+    compensated: true,
+    status: true,
+    cid: false, // Optional by default per plan section 8.1
+    ovstist: false,
+    no: false,
+  })
+
+  // Unmasked CIDs state for PDPA compliance
+  const [unmaskedCids, setUnmaskedCids] = useState<Record<string, boolean>>({})
+
+  // Sorting & Pagination
   const [sortBy, setSortBy] = useState<TelemedSortField>(
     initialData?.sortBy ?? 'vstdate'
   )
@@ -108,11 +222,13 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
   )
   const [currentPage, setCurrentPage] = useState<number>(initialData?.page ?? 1)
   const [pageSize, setPageSize] = useState<number>(initialData?.pageSize ?? 50)
+  const [jumpPageInput, setJumpPageInput] = useState<string>('')
 
   // Data fetching states
   const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
+  const [exportMessage, setExportMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<TelemedItem[]>(initialData?.items ?? [])
   const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount ?? 0)
@@ -148,16 +264,96 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     }
   )
 
-  // Modal Detail states (opened by clicking row directly!)
-  const [selectedItem, setSelectedItem] = useState<TelemedItem | null>(null)
-  const [modalTab, setModalTab] = useState<'summary' | 'clinical'>('summary')
+  // Drawer Detail states (replaces modal, Section 9)
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null)
+  const [drawerTab, setDrawerTab] = useState<'summary' | 'clinical'>('summary')
   const [vnDetails, setVnDetails] = useState<VnClinicalDetails | null>(null)
   const [loadingVnDetails, setLoadingVnDetails] = useState<boolean>(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
-  // AbortController ref for race condition safety
+  const selectedItem = useMemo(() => {
+    if (selectedItemIndex == null || selectedItemIndex < 0 || selectedItemIndex >= items.length) {
+      return null
+    }
+    return items[selectedItemIndex]
+  }, [selectedItemIndex, items])
+
+  // AbortController ref for race defense
   const abortRef = useRef<AbortController | null>(null)
   const isFirstMount = useRef<boolean>(true)
+
+  // Load density and column visibility from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedDensity = localStorage.getItem('rcm_telemed_density') as 'comfortable' | 'compact'
+      if (savedDensity) setDensity(savedDensity)
+      const savedCols = localStorage.getItem('rcm_telemed_columns')
+      if (savedCols) setVisibleColumns(JSON.parse(savedCols))
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  // Persist density
+  const handleDensityChange = (d: 'comfortable' | 'compact') => {
+    setDensity(d)
+    try {
+      localStorage.setItem('rcm_telemed_density', d)
+    } catch {
+      // ignore
+    }
+  }
+
+  // Persist columns
+  const handleToggleColumn = (colKey: keyof typeof visibleColumns) => {
+    setVisibleColumns((prev) => {
+      const updated = { ...prev, [colKey]: !prev[colKey] }
+      try {
+        localStorage.setItem('rcm_telemed_columns', JSON.stringify(updated))
+      } catch {
+        // ignore
+      }
+      return updated
+    })
+  }
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node
+      if (
+        filterPopoverRef.current &&
+        !filterPopoverRef.current.contains(target)
+      ) {
+        setIsFilterPopoverOpen(false)
+      }
+      if (
+        columnDropdownRef.current &&
+        !columnDropdownRef.current.contains(target)
+      ) {
+        setIsColumnDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Keyboard navigation for table and drawer (Esc to close, Up/Down to move rows)
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (selectedItemIndex != null) {
+        if (e.key === 'Escape') {
+          setSelectedItemIndex(null)
+        } else if (e.key === 'ArrowLeft' && selectedItemIndex > 0) {
+          setSelectedItemIndex(selectedItemIndex - 1)
+        } else if (e.key === 'ArrowRight' && selectedItemIndex < items.length - 1) {
+          setSelectedItemIndex(selectedItemIndex + 1)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedItemIndex, items.length])
 
   // Debounce search input
   useEffect(() => {
@@ -167,6 +363,17 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     }, 300)
     return () => clearTimeout(timer)
   }, [search])
+
+  // Convert active cards state to comma-separated cards query param
+  const cardsQueryParam = useMemo(() => {
+    const list: string[] = []
+    if (activeCards.compensation) list.push(activeCards.compensation)
+    if (activeCards.claim) list.push(activeCards.claim)
+    if (activeCards.hasFee) list.push('WITH_PRICE')
+    if (activeCards.ucOnly) list.push('UC_ONLY')
+    if (activeCards.exportCode5) list.push('EXPORT_CODE_5')
+    return list.join(',')
+  }, [activeCards])
 
   // Fetch report data
   const fetchData = useCallback(
@@ -186,8 +393,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         const queryParams = new URLSearchParams({
           ds1,
           ds2,
-          cardFilter,
-          ucOnly: String(ucOnly),
+          cardFilter: cardsQueryParam || 'ALL',
           searchField: 'ALL',
           search: debouncedSearch,
           sortBy,
@@ -196,8 +402,29 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           pageSize: String(pageSize),
         })
 
+        if (cardsQueryParam) queryParams.set('cards', cardsQueryParam)
+        if (activeCards.ucOnly) queryParams.set('ucOnly', 'true')
         if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+        if (filterSex !== 'ALL') queryParams.set('sex', filterSex)
+        if (filterOvstist5) queryParams.set('ovstistExportCode', '5')
+        if (filterAgeMin) queryParams.set('ageMin', filterAgeMin)
+        if (filterAgeMax) queryParams.set('ageMax', filterAgeMax)
+        if (filterPdx) queryParams.set('pdx', filterPdx)
         if (refresh) queryParams.set('refresh', 'true')
+
+        // Update URL query parameters for sharing/bookmarking
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href)
+          url.searchParams.set('mode', dateMode)
+          url.searchParams.set('from', ds1)
+          url.searchParams.set('to', ds2)
+          if (cardsQueryParam) url.searchParams.set('cards', cardsQueryParam)
+          else url.searchParams.delete('cards')
+          if (debouncedSearch) url.searchParams.set('q', debouncedSearch)
+          else url.searchParams.delete('q')
+          url.searchParams.set('page', String(currentPage))
+          window.history.replaceState({}, '', url.toString())
+        }
 
         const res = await fetch(
           `/api/service/dashboard-rcm/funds/telemed-drug/telemed?${queryParams.toString()}`,
@@ -217,6 +444,11 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           setTotalPages(result.totalPages)
           setSummary(result.summary)
           setAdpMapping(result.adpMapping)
+
+          const d = new Date()
+          setLastUpdated(
+            `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+          )
         } else {
           throw new Error(json.error?.message || 'รูปแบบข้อมูลตอบกลับไม่ถูกต้อง')
         }
@@ -233,14 +465,20 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     [
       ds1,
       ds2,
-      cardFilter,
-      ucOnly,
+      cardsQueryParam,
+      activeCards.ucOnly,
       debouncedSearch,
       sortBy,
       sortOrder,
       currentPage,
       pageSize,
       pttypes,
+      filterSex,
+      filterOvstist5,
+      filterAgeMin,
+      filterAgeMax,
+      filterPdx,
+      dateMode,
     ]
   )
 
@@ -258,7 +496,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     return () => abortRef.current?.abort()
   }, [])
 
-  // Fetch clinical VN details when modal opens and switches to clinical tab
+  // Fetch clinical VN details when drawer switches to clinical tab
   const fetchVnDetails = useCallback(async (vn: string) => {
     setLoadingVnDetails(true)
     try {
@@ -276,14 +514,14 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     }
   }, [])
 
-  const handleRowClick = (item: TelemedItem) => {
-    setSelectedItem(item)
-    setModalTab('summary')
+  const handleRowClick = (index: number) => {
+    setSelectedItemIndex(index)
+    setDrawerTab('summary')
     setVnDetails(null)
   }
 
-  const handleModalTabChange = (tab: 'summary' | 'clinical') => {
-    setModalTab(tab)
+  const handleDrawerTabChange = (tab: 'summary' | 'clinical') => {
+    setDrawerTab(tab)
     if (tab === 'clinical' && selectedItem && !vnDetails && !loadingVnDetails) {
       fetchVnDetails(selectedItem.vn)
     }
@@ -294,6 +532,24 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
       navigator.clipboard.writeText(text)
       setCopiedField(fieldId)
       setTimeout(() => setCopiedField(null), 1500)
+    }
+  }
+
+  // Unmask CID and record audit log
+  const handleUnmaskCid = async (vn: string, hn: string, cid: string) => {
+    setUnmaskedCids((prev) => ({ ...prev, [vn]: true }))
+    try {
+      await fetch('/api/log-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'READ',
+          targetTable: 'rcm_telemed_cid_unmask',
+          actionDetails: `Unmask CID for HN ${hn} VN ${vn}`,
+        }),
+      })
+    } catch {
+      // audit log error ignored defensively
     }
   }
 
@@ -345,6 +601,40 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     setCurrentPage(1)
   }
 
+  const handlePrevMonth = () => {
+    let nextMonth = selectedMonth - 1
+    let nextBeYear = selectedBeYear
+    if (nextMonth < 1) {
+      nextMonth = 12
+      nextBeYear -= 1
+    }
+    setSelectedMonth(nextMonth)
+    setSelectedBeYear(nextBeYear)
+    const ceYear = nextBeYear - 543
+    const mm = String(nextMonth).padStart(2, '0')
+    const lastDay = new Date(ceYear, nextMonth, 0).getDate()
+    setDs1(`${ceYear}-${mm}-01`)
+    setDs2(`${ceYear}-${mm}-${String(lastDay).padStart(2, '0')}`)
+    setCurrentPage(1)
+  }
+
+  const handleNextMonth = () => {
+    let nextMonth = selectedMonth + 1
+    let nextBeYear = selectedBeYear
+    if (nextMonth > 12) {
+      nextMonth = 1
+      nextBeYear += 1
+    }
+    setSelectedMonth(nextMonth)
+    setSelectedBeYear(nextBeYear)
+    const ceYear = nextBeYear - 543
+    const mm = String(nextMonth).padStart(2, '0')
+    const lastDay = new Date(ceYear, nextMonth, 0).getDate()
+    setDs1(`${ceYear}-${mm}-01`)
+    setDs2(`${ceYear}-${mm}-${String(lastDay).padStart(2, '0')}`)
+    setCurrentPage(1)
+  }
+
   // Sorting
   const handleSort = (field: TelemedSortField) => {
     if (sortBy === field) {
@@ -358,37 +648,117 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
 
   const renderSortIcon = (field: TelemedSortField) => {
     if (sortBy !== field) {
-      return <ArrowUpDown size={13} style={{ opacity: 0.4, flexShrink: 0 }} />
+      return <ArrowUpDown size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
     }
     return sortOrder === 'asc' ? (
-      <ArrowUp size={13} style={{ color: 'var(--primary, #0D7446)', flexShrink: 0 }} />
+      <ArrowUp size={13} style={{ color: 'var(--brand)', flexShrink: 0 }} />
     ) : (
-      <ArrowDown size={13} style={{ color: 'var(--primary, #0D7446)', flexShrink: 0 }} />
+      <ArrowDown size={13} style={{ color: 'var(--brand)', flexShrink: 0 }} />
     )
   }
 
-  // Card filter selection
-  const handleCardFilterClick = (filter: TelemedCardFilter) => {
-    setCardFilter((prev) => (prev === filter ? 'ALL' : filter))
+  // Card filter selection (Section 6.3)
+  const toggleCompensationCard = (type?: CompensationCard) => {
+    setActiveCards((prev) => ({
+      ...prev,
+      compensation: prev.compensation === type ? undefined : type,
+    }))
     setCurrentPage(1)
   }
+
+  const toggleClaimCard = (type: ClaimCard) => {
+    setActiveCards((prev) => ({
+      ...prev,
+      claim: prev.claim === type ? undefined : type,
+    }))
+    setCurrentPage(1)
+  }
+
+  const toggleFeeCard = () => {
+    setActiveCards((prev) => ({
+      ...prev,
+      hasFee: !prev.hasFee,
+    }))
+    setCurrentPage(1)
+  }
+
+  const toggleUcCard = () => {
+    setActiveCards((prev) => ({
+      ...prev,
+      ucOnly: !prev.ucOnly,
+    }))
+    setCurrentPage(1)
+  }
+
+  const toggleType5Card = () => {
+    setActiveCards((prev) => ({
+      ...prev,
+      exportCode5: !prev.exportCode5,
+    }))
+    setCurrentPage(1)
+  }
+
+  // Clear all filters except date range
+  const handleClearAllFilters = () => {
+    setActiveCards({})
+    setSearch('')
+    setDebouncedSearch('')
+    setPttypes([])
+    setFilterSex('ALL')
+    setFilterOvstist5(false)
+    setFilterAgeMin('')
+    setFilterAgeMax('')
+    setFilterPdx('')
+    setCurrentPage(1)
+  }
+
+  // Popover active filter count
+  const activePopoverFilterCount = useMemo(() => {
+    let count = 0
+    if (pttypes.length > 0) count++
+    if (filterSex !== 'ALL') count++
+    if (filterOvstist5) count++
+    if (filterAgeMin || filterAgeMax) count++
+    if (filterPdx) count++
+    return count
+  }, [pttypes, filterSex, filterOvstist5, filterAgeMin, filterAgeMax, filterPdx])
+
+  // Check if any filter is active
+  const hasActiveFilters = useMemo(() => {
+    return (
+      Boolean(activeCards.compensation) ||
+      Boolean(activeCards.claim) ||
+      Boolean(activeCards.hasFee) ||
+      Boolean(activeCards.ucOnly) ||
+      Boolean(activeCards.exportCode5) ||
+      search.trim().length > 0 ||
+      activePopoverFilterCount > 0
+    )
+  }, [activeCards, search, activePopoverFilterCount])
 
   // Export Excel (.xlsx)
   const handleExportExcel = async () => {
     setIsExporting(true)
+    setExportMessage('กำลังเตรียมไฟล์ Excel...')
     try {
       const queryParams = new URLSearchParams({
         ds1,
         ds2,
-        cardFilter,
-        ucOnly: String(ucOnly),
+        cardFilter: cardsQueryParam || 'ALL',
         searchField: 'ALL',
         search: debouncedSearch,
         sortBy,
         sortOrder,
         exportAll: 'true',
       })
+      if (cardsQueryParam) queryParams.set('cards', cardsQueryParam)
+      if (activeCards.ucOnly) queryParams.set('ucOnly', 'true')
       if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (filterSex !== 'ALL') queryParams.set('sex', filterSex)
+      if (filterOvstist5) queryParams.set('ovstistExportCode', '5')
+      if (filterAgeMin) queryParams.set('ageMin', filterAgeMin)
+      if (filterAgeMax) queryParams.set('ageMax', filterAgeMax)
+      if (filterPdx) queryParams.set('pdx', filterPdx)
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/telemed-drug/telemed?${queryParams.toString()}`
@@ -448,7 +818,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         r.pdx || '',
         r.income,
         r.sum_price,
-        r.status,
+        cleanStatusName(r.status, r.isCompensated),
         r.rep || '',
         r.compensated,
         r.fund || '',
@@ -462,43 +832,191 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         headers,
         rows,
       })
+
+      setExportMessage(`ส่งออกแล้ว ${exportRows.length.toLocaleString('th-TH')} รายการ`)
+      setTimeout(() => setExportMessage(null), 3000)
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์ Excel')
+      setExportMessage(null)
     } finally {
       setIsExporting(false)
     }
   }
 
+  // Jump to page handler
+  const handleJumpPage = (e: React.FormEvent) => {
+    e.preventDefault()
+    const p = parseInt(jumpPageInput, 10)
+    if (!isNaN(p) && p >= 1 && p <= totalPages) {
+      setCurrentPage(p)
+      setJumpPageInput('')
+    }
+  }
+
+  // ClaimCode alert condition (≥ 10% unauthen)
+  const showClaimAlert =
+    summary.totalVisits > 0 &&
+    summary.withoutAuthenCount / summary.totalVisits >= 0.1
+
   return (
     <div className="telemed-container">
-      {/* ── 1. Header & Navigation ── */}
+      {/* ── 1. Header (Single Layer Breadcrumb is handled by Shell) ── */}
       <div className="telemed-header">
-        <div>
-          <nav className="telemed-breadcrumb" aria-label="Breadcrumb">
-            <Link href="/service">บริการ</Link>
-            <span className="telemed-breadcrumb-sep">/</span>
-            <Link href="/service/dashboard-rcm">Dashboard RCM</Link>
-            <span className="telemed-breadcrumb-sep">/</span>
-            <Link href="/service/dashboard-rcm/funds">กองทุน</Link>
-            <span className="telemed-breadcrumb-sep">/</span>
-            <span className="telemed-breadcrumb-cur">ระบบ Telemedicine & Drug</span>
-          </nav>
+        <div className="telemed-title-area">
           <h1 className="telemed-title">11.53 รายชื่อผู้ได้รับบริการ TelMed</h1>
           <p className="telemed-subtitle">
             บริการการแพทย์ทางไกล รหัส ADP TELMED หรือประเภทการมาบริการสาธารณสุขทางไกล (รหัสส่งออก 5)
           </p>
         </div>
+      </div>
 
-        <div className="telemed-header-actions">
+      {/* ── 2. Warnings (ADP Map Check) ── */}
+      {!adpMapping.isMapped && (
+        <div className="telemed-alert-banner" role="alert">
+          <div className="telemed-alert-message">
+            <AlertTriangle size={18} />
+            <span>
+              <strong>ยังไม่ได้ Map รหัส ADP Code &apos;TELMED&apos; ในระบบ:</strong>{' '}
+              ไม่พบการผูกรหัสค่าบริการทางการแพทย์กับ ADP Code &apos;TELMED&apos; ในตาราง s_drugitems
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. Toolbar (Locked button names: กำหนดเอง, รายเดือน, ปีงบประมาณ, รีเฟรช, ส่งออก Excel) ── */}
+      <div className="telemed-toolbar">
+        {isRefreshing && <div className="telemed-loading-line" />}
+        <div className="telemed-toolbar-left">
+          <div className="telemed-segmented-group" role="tablist" aria-label="โหมดช่วงเวลา">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dateMode === 'custom'}
+              className={`telemed-segment-btn ${dateMode === 'custom' ? 'active' : ''}`}
+              onClick={() => handleModeChange('custom')}
+            >
+              กำหนดเอง
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dateMode === 'monthly'}
+              className={`telemed-segment-btn ${dateMode === 'monthly' ? 'active' : ''}`}
+              onClick={() => handleModeChange('monthly')}
+            >
+              รายเดือน
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dateMode === 'fiscal'}
+              className={`telemed-segment-btn ${dateMode === 'fiscal' ? 'active' : ''}`}
+              onClick={() => handleModeChange('fiscal')}
+            >
+              ปีงบประมาณ
+            </button>
+          </div>
+
+          <div className="telemed-date-inputs">
+            {dateMode === 'custom' && (
+              <>
+                <ThaiDatePicker
+                  value={ds1}
+                  onChange={(val) => {
+                    setDs1(val)
+                    setCurrentPage(1)
+                  }}
+                  placeholder="ตั้งแต่วันที่"
+                  aria-label="ตั้งแต่วันที่"
+                />
+                <span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>ถึง</span>
+                <ThaiDatePicker
+                  value={ds2}
+                  onChange={(val) => {
+                    setDs2(val)
+                    setCurrentPage(1)
+                  }}
+                  placeholder="ถึงวันที่"
+                  aria-label="ถึงวันที่"
+                />
+              </>
+            )}
+
+            {dateMode === 'monthly' && (
+              <div className="telemed-month-stepper">
+                <button
+                  type="button"
+                  className="telemed-stepper-btn"
+                  onClick={handlePrevMonth}
+                  title="เดือนก่อนหน้า"
+                  aria-label="เดือนก่อนหน้า"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <select
+                  className="telemed-select"
+                  value={selectedMonth}
+                  onChange={(e) => handleMonthChange(Number(e.target.value))}
+                  aria-label="เลือกเดือน"
+                >
+                  {THAI_MONTHS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="telemed-select"
+                  value={selectedBeYear}
+                  onChange={(e) => handleBeYearChange(Number(e.target.value))}
+                  aria-label="เลือกปี พ.ศ."
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      พ.ศ. {y}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="telemed-stepper-btn"
+                  onClick={handleNextMonth}
+                  title="เดือนถัดไป"
+                  aria-label="เดือนถัดไป"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {dateMode === 'fiscal' && (
+              <select
+                className="telemed-select"
+                value={selectedFiscalYear}
+                onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
+                aria-label="เลือกปีงบประมาณ"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    ปีงบประมาณ {y}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+
+        <div className="telemed-toolbar-right">
+          <span className="telemed-last-updated">อัปเดตล่าสุด {lastUpdated}</span>
           <button
             type="button"
             className="telemed-btn"
             onClick={() => fetchData(true)}
             disabled={loading || isRefreshing}
-            title="รีเฟรชข้อมูลล่าสุด"
+            title="รีเฟรชข้อมูลล่าสุดด้วยตัวกรองเดิม"
           >
-            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            <span>{isRefreshing ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
+            <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            <span>รีเฟรช</span>
           </button>
 
           <button
@@ -508,943 +1026,1508 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
             disabled={isExporting || items.length === 0}
             title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
           >
-            <Download size={16} />
+            <Download size={15} />
             <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
           </button>
         </div>
       </div>
 
-      {/* ── 2. Warnings (ADP Map Check) ── */}
-      {!adpMapping.isMapped && (
-        <div className="telemed-warning-banner" role="alert">
-          <AlertTriangle size={20} className="telemed-warning-icon" />
-          <div className="telemed-warning-content">
-            <strong>ยังไม่ได้ Map รหัส ADP Code &apos;TELMED&apos; ในระบบ</strong>
-            <span>
-              ไม่พบการผูกรหัสค่าบริการทางการแพทย์กับ ADP Code &apos;TELMED&apos; ในตาราง s_drugitems
-              กรุณาตรวจสอบการตั้งค่ารายการค่าบริการเพื่อให้การดึงข้อมูลสมบูรณ์
-            </span>
-          </div>
+      {/* Export status toast if any */}
+      {exportMessage && (
+        <div className="telemed-alert-banner" style={{ backgroundColor: 'var(--brand-tint)', color: 'var(--brand)', borderColor: '#CDE5D8' }}>
+          <span>{exportMessage}</span>
         </div>
       )}
 
-      {/* ── 3. Unified Single-Row Date Selector ── */}
-      <div className="telemed-date-toolbar">
-        <div className="telemed-mode-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={dateMode === 'custom'}
-            className={`telemed-mode-tab ${dateMode === 'custom' ? 'active' : ''}`}
-            onClick={() => handleModeChange('custom')}
-          >
-            กำหนดเอง
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={dateMode === 'monthly'}
-            className={`telemed-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
-            onClick={() => handleModeChange('monthly')}
-          >
-            เดือน
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={dateMode === 'fiscal'}
-            className={`telemed-mode-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
-            onClick={() => handleModeChange('fiscal')}
-          >
-            ปีงบประมาณ
-          </button>
-        </div>
-
-        <div className="telemed-date-divider" />
-
-        <div className="telemed-date-controls">
-          {dateMode === 'custom' && (
-            <>
-              <ThaiDatePicker
-                value={ds1}
-                onChange={(val) => {
-                  setDs1(val)
-                  setCurrentPage(1)
-                }}
-                placeholder="ตั้งแต่วันที่"
-                aria-label="ตั้งแต่วันที่"
-              />
-              <span style={{ color: 'var(--gray-400, #94a3b8)' }}>ถึง</span>
-              <ThaiDatePicker
-                value={ds2}
-                onChange={(val) => {
-                  setDs2(val)
-                  setCurrentPage(1)
-                }}
-                placeholder="ถึงวันที่"
-                aria-label="ถึงวันที่"
-              />
-            </>
-          )}
-
-          {dateMode === 'monthly' && (
-            <>
-              <select
-                className="telemed-select"
-                value={selectedMonth}
-                onChange={(e) => handleMonthChange(Number(e.target.value))}
-                aria-label="เลือกเดือน"
-              >
-                {THAI_MONTHS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="telemed-select"
-                value={selectedBeYear}
-                onChange={(e) => handleBeYearChange(Number(e.target.value))}
-                aria-label="เลือกปี พ.ศ."
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    พ.ศ. {y}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {dateMode === 'fiscal' && (
-            <select
-              className="telemed-select"
-              value={selectedFiscalYear}
-              onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
-              aria-label="เลือกปีงบประมาณ"
-            >
-              {yearOptions.map((y) => (
-                <option key={y} value={y}>
-                  ปีงบประมาณ {y}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
-
-      {/* ── 4. Balanced 4x2 KPI Summary Cards ── */}
-      <div className="telemed-kpi-grid">
-        {/* Card 1: ผู้รับบริการทั้งหมด */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'ALL' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('ALL')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">ผู้รับบริการทั้งหมด</span>
-            <div className="telemed-kpi-icon-wrap">
-              <PhoneCall size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val">
-              {summary.totalVisits.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
-            <span>{summary.uniquePatients.toLocaleString('th-TH')} คน</span>
-            <span>•</span>
-            <span>รายได้ {formatMoney(summary.totalIncome)} บ.</span>
-          </div>
-        </div>
-
-        {/* Card 2: ชดเชยแล้ว */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'COMPENSATED' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('COMPENSATED')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">ชดเชยแล้ว</span>
-            <div className="telemed-kpi-icon-wrap" style={{ color: '#047857', backgroundColor: '#ecfdf5' }}>
-              <ShieldCheck size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val" style={{ color: '#047857' }}>
-              {summary.compensatedVisits.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
-            <span className="telemed-kpi-badge" style={{ backgroundColor: '#ecfdf5', color: '#047857' }}>
-              {summary.compensationRate.toFixed(1)}%
-            </span>
-            <span>ชดเชย {formatMoney(summary.totalCompensated)} บ.</span>
-          </div>
-        </div>
-
-        {/* Card 3: รอชดเชย / ยังไม่ได้ส่ง */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'UNCOMPENSATED' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('UNCOMPENSATED')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">รอชดเชย / ยังไม่ส่ง</span>
-            <div className="telemed-kpi-icon-wrap" style={{ color: '#b45309', backgroundColor: '#fffbeb' }}>
-              <Clock size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val" style={{ color: '#b45309' }}>
-              {summary.uncompensatedVisits.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
+      {/* ── 4. ClaimCode Warning Banner (Section 6.4) ── */}
+      {showClaimAlert && (
+        <div className="telemed-alert-banner" role="alert">
+          <div className="telemed-alert-message">
+            <AlertTriangle size={18} />
             <span>
-              {summary.totalVisits > 0
-                ? ((summary.uncompensatedVisits / summary.totalVisits) * 100).toFixed(1)
-                : 0}
-              %
+              {summary.withoutAuthenCount.toLocaleString('th-TH')} รายการ (
+              {(100 - (summary.authenRate || 0)).toFixed(1)}%) ยังไม่มี ClaimCode และอาจเบิกชดเชยไม่ได้
             </span>
-            <span>ของทั้งหมด</span>
           </div>
-        </div>
-
-        {/* Card 4: สิทธิบัตรทอง UC */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'UC_ONLY' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('UC_ONLY')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">สิทธิบัตรทอง (UC)</span>
-            <div className="telemed-kpi-icon-wrap" style={{ color: '#0369a1', backgroundColor: '#f0f9ff' }}>
-              <UserCheck size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val">
-              {summary.ucCount.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
-            <span className="telemed-kpi-badge" style={{ backgroundColor: '#f0f9ff', color: '#0369a1' }}>
-              {summary.ucRate.toFixed(1)}%
-            </span>
-            <span>ของทั้งหมด</span>
-          </div>
-        </div>
-
-        {/* Card 5: มี ClaimCode */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'WITH_AUTHEN' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('WITH_AUTHEN')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">มี ClaimCode</span>
-            <div className="telemed-kpi-icon-wrap" style={{ color: '#059669', backgroundColor: '#f0fdf4' }}>
-              <ReceiptText size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val">
-              {summary.withAuthenCount.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
-            <span className="telemed-kpi-badge" style={{ backgroundColor: '#f0fdf4', color: '#059669' }}>
-              {summary.authenRate.toFixed(1)}%
-            </span>
-            <span>ยืนยันตัวตนแล้ว</span>
-          </div>
-        </div>
-
-        {/* Card 6: ไม่มี ClaimCode */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'NO_AUTHEN' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('NO_AUTHEN')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">ไม่มี ClaimCode</span>
-            <div className="telemed-kpi-icon-wrap" style={{ color: '#dc2626', backgroundColor: '#fef2f2' }}>
-              <AlertTriangle size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val" style={{ color: summary.withoutAuthenCount > 0 ? '#dc2626' : undefined }}>
-              {summary.withoutAuthenCount.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
-            <span>
-              {summary.totalVisits > 0
-                ? ((summary.withoutAuthenCount / summary.totalVisits) * 100).toFixed(1)
-                : 0}
-              %
-            </span>
-            <span>เสี่ยงเบิกชดเชยไม่ได้</span>
-          </div>
-        </div>
-
-        {/* Card 7: มีค่าบริการ TelMed */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'WITH_PRICE' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('WITH_PRICE')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">มีค่าบริการ TelMed</span>
-            <div className="telemed-kpi-icon-wrap" style={{ color: '#0D7446', backgroundColor: '#f7fbf9' }}>
-              <Sparkles size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val">
-              {summary.withPriceCount.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
-            <span>ค่า TelMed {formatMoney(summary.totalSumPrice)} บ.</span>
-          </div>
-        </div>
-
-        {/* Card 8: ประเภทมา รพ. ทางไกล (รหัส 5) */}
-        <div
-          className={`telemed-kpi-card ${cardFilter === 'EXPORT_CODE_5' ? 'active' : ''}`}
-          onClick={() => handleCardFilterClick('EXPORT_CODE_5')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="telemed-kpi-header">
-            <span className="telemed-kpi-title">ประเภทมา รพ. ทางไกล (รหัส 5)</span>
-            <div className="telemed-kpi-icon-wrap" style={{ color: '#4f46e5', backgroundColor: '#eef2ff' }}>
-              <Building size={18} />
-            </div>
-          </div>
-          <div className="telemed-kpi-value-row">
-            <span className="telemed-kpi-main-val">
-              {summary.exportCode5Count.toLocaleString('th-TH')}
-            </span>
-            <span className="telemed-kpi-unit">ครั้ง</span>
-          </div>
-          <div className="telemed-kpi-subtext">
-            <span className="telemed-kpi-badge" style={{ backgroundColor: '#eef2ff', color: '#4f46e5' }}>
-              {summary.exportCode5Rate.toFixed(1)}%
-            </span>
-            <span>ovstist export code = 5</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 5. Toolbar & Unified Global Search ── */}
-      <div className="telemed-toolbar">
-        <div className="telemed-search-wrap">
-          <Search size={18} className="telemed-search-icon" />
-          <input
-            type="text"
-            className="telemed-search-input"
-            placeholder="ค้นหา HN, CID, ชื่อผู้ป่วย, VN, PDX, สิทธิ, แผนก..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <button
-              type="button"
-              className="telemed-search-clear"
-              onClick={() => setSearch('')}
-              title="ล้างข้อความค้นหา"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-
-        <PttypeMultiSelect
-          selectedCodes={pttypes}
-          onChange={(codes) => {
-            setPttypes(codes)
-            setCurrentPage(1)
-            }}
-            items={items}
-        
-          />
-
-        <div className="telemed-toolbar-actions">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.875rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={ucOnly}
-              onChange={(e) => {
-                setUcOnly(e.target.checked)
-                setCurrentPage(1)
-              }}
-            />
-            <span>เฉพาะสิทธิบัตรทอง (UC)</span>
-          </label>
-          <div className="telemed-count-info">
-            พบ {totalCount.toLocaleString('th-TH')} รายการ
-          </div>
-        </div>
-      </div>
-
-      {/* ── 6. Error & Loading Messages ── */}
-      {error && (
-        <div className="telemed-warning-banner" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }}>
-          <AlertTriangle size={20} className="telemed-warning-icon" style={{ color: '#dc2626' }} />
-          <div className="telemed-warning-content">
-            <strong>เกิดข้อผิดพลาดในการโหลดข้อมูล</strong>
-            <span>{error}</span>
-          </div>
-        </div>
-      )}
-
-      {/* ── 7. Records Table (Row-Clickable) ── */}
-      <div className="telemed-table-wrapper">
-        <table className="telemed-table">
-          <thead>
-            <tr>
-              <th className="col-center" style={{ width: 60 }}>ลำดับ</th>
-              <th className="col-center" style={{ width: 140 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('vstdate')}
-                >
-                  <span>วันที่รับบริการ</span>
-                  {renderSortIcon('vstdate')}
-                </button>
-              </th>
-              <th className="col-center" style={{ width: 100 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('hn')}
-                >
-                  <span>HN</span>
-                  {renderSortIcon('hn')}
-                </button>
-              </th>
-              <th className="col-center" style={{ width: 140 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('cid')}
-                >
-                  <span>เลขบัตรประชาชน</span>
-                  {renderSortIcon('cid')}
-                </button>
-              </th>
-              <th className="col-center" style={{ minWidth: 180 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('ptname')}
-                >
-                  <span>ชื่อ-สกุลผู้ป่วย</span>
-                  {renderSortIcon('ptname')}
-                </button>
-              </th>
-              <th className="col-center" style={{ width: 100 }}>เพศ / อายุ</th>
-              <th className="col-center" style={{ minWidth: 140 }}>สิทธิการรักษา</th>
-              <th className="col-center" style={{ minWidth: 160 }}>ประเภทการมา</th>
-              <th className="col-center" style={{ width: 90 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('pdx')}
-                >
-                  <span>PDX</span>
-                  {renderSortIcon('pdx')}
-                </button>
-              </th>
-              <th className="col-center" style={{ width: 110 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('sum_price')}
-                >
-                  <span>ค่า TelMed</span>
-                  {renderSortIcon('sum_price')}
-                </button>
-              </th>
-              <th className="col-center" style={{ width: 130 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('authencode')}
-                >
-                  <span>ClaimCode</span>
-                  {renderSortIcon('authencode')}
-                </button>
-              </th>
-              <th className="col-center" style={{ minWidth: 140 }}>สถานะ / ใบตอบรับ</th>
-              <th className="col-center" style={{ width: 120 }}>
-                <button
-                  type="button"
-                  className="telemed-th-sort"
-                  onClick={() => handleSort('compensated')}
-                >
-                  <span>ชดเชย (บาท)</span>
-                  {renderSortIcon('compensated')}
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={13} className="telemed-empty-state">
-                  <RefreshCw size={24} className="animate-spin" />
-                  <span>กำลังโหลดข้อมูลรายงาน...</span>
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={13} className="telemed-empty-state">
-                  <PhoneCall size={32} style={{ opacity: 0.3 }} />
-                  <span>ไม่พบข้อมูลผู้รับบริการ TelMed ในช่วงเวลาและเงื่อนไขที่เลือก</span>
-                </td>
-              </tr>
-            ) : (
-              items.map((item) => {
-                const nameParts = item.ptname.split(' ')
-                const firstName = nameParts[0] || ''
-                const lastName = nameParts.slice(1).join(' ')
-
-                return (
-                  <tr
-                    key={item.vn}
-                    onClick={() => handleRowClick(item)}
-                    title="คลิกเพื่อดูรายละเอียดการรับบริการ"
-                  >
-                    <td className="col-center telemed-num-cell">{item.no}</td>
-                    <td className="col-center telemed-num-cell">
-                      <div style={{ fontWeight: 500 }}>
-                        {formatThaiDate(item.vstdate)}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-500, #64748b)' }}>
-                        {item.vsttime || '—'}
-                      </div>
-                    </td>
-                    <td className="col-center telemed-num-cell" style={{ fontWeight: 600 }}>
-                      {item.hn}
-                    </td>
-                    <td className="col-center telemed-num-cell">
-                      {item.cid || '—'}
-                    </td>
-                    <td className="telemed-ptname-cell">
-                      <span className="telemed-name-part" style={{ fontWeight: 600 }}>
-                        {firstName}
-                      </span>
-                      {lastName ? (
-                        <>
-                          {' '}
-                          <span className="telemed-name-part">{lastName}</span>
-                        </>
-                      ) : null}
-                    </td>
-                    <td className="col-center telemed-num-cell" style={{ whiteSpace: 'nowrap' }}>
-                      {item.sex} • {item.age}&nbsp;ปี
-                    </td>
-                    <td className="col-center" style={{ fontSize: '0.8125rem' }}>
-                      <span title={item.pttypename}>
-                        {item.pttypename.length > 25
-                          ? item.pttypename.substring(0, 25) + '...'
-                          : item.pttypename}
-                      </span>
-                    </td>
-                    <td className="col-center" style={{ fontSize: '0.8125rem' }}>
-                      <span
-                        className={`telemed-badge ${
-                          item.ovstist_export_code === '5'
-                            ? 'telemed-badge-info'
-                            : 'telemed-badge-gray'
-                        }`}
-                        title={item.ovstist}
-                      >
-                        {item.ovstist.length > 24
-                          ? item.ovstist.substring(0, 24) + '...'
-                          : item.ovstist}
-                      </span>
-                    </td>
-                    <td className="col-center telemed-num-cell" style={{ fontWeight: 600 }}>
-                      {item.pdx || '—'}
-                    </td>
-                    <td className="col-center telemed-num-cell">
-                      {item.sum_price > 0 ? (
-                        <span style={{ fontWeight: 600, color: 'var(--primary, #0D7446)' }}>
-                          {item.sum_price.toLocaleString('th-TH')}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--gray-400, #94a3b8)' }}>0</span>
-                      )}
-                    </td>
-                    <td className="col-center telemed-num-cell">
-                      {item.authencode ? (
-                        <span className="telemed-badge telemed-badge-blue">
-                          {item.authencode}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--gray-400, #94a3b8)' }}>—</span>
-                      )}
-                    </td>
-                    <td className="col-center" style={{ fontSize: '0.8125rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
-                        <span
-                          className={`telemed-badge ${
-                            item.isCompensated
-                              ? 'telemed-badge-success'
-                              : 'telemed-badge-warning'
-                          }`}
-                        >
-                          {item.status}
-                        </span>
-                        {item.rep && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--gray-500, #64748b)' }}>
-                            REP: {item.rep}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="col-center telemed-num-cell" style={{ fontWeight: 600 }}>
-                      {item.compensated > 0 ? (
-                        <span style={{ color: '#047857' }}>
-                          {formatMoney(item.compensated)}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--gray-400, #94a3b8)' }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── 8. Pagination ── */}
-      <div className="telemed-pagination">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: '0.875rem', color: 'var(--gray-600, #475569)' }}>
-            หน้าที่ {currentPage} จาก {totalPages} หน้า (รวม {totalCount.toLocaleString('th-TH')} รายการ)
-          </span>
-          <select
-            className="telemed-select"
-            style={{ height: 34, padding: '0 8px' }}
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value))
+          <button
+            type="button"
+            className="telemed-alert-action-btn"
+            onClick={() => {
+              setActiveCards((prev) => ({ ...prev, claim: 'NO_AUTHEN' }))
               setCurrentPage(1)
             }}
           >
-            <option value={20}>20 แถว/หน้า</option>
-            <option value={50}>50 แถว/หน้า</option>
-            <option value={100}>100 แถว/หน้า</option>
-            <option value={200}>200 แถว/หน้า</option>
-          </select>
-        </div>
-
-        <div className="telemed-page-nav">
-          <button
-            type="button"
-            className="telemed-page-btn"
-            disabled={currentPage <= 1 || loading}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            title="หน้าก่อนหน้า"
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let p = i + 1
-            if (totalPages > 5) {
-              if (currentPage > 3) p = currentPage - 2 + i
-              if (p > totalPages) p = totalPages - 4 + i
-            }
-            if (p < 1 || p > totalPages) return null
-
-            return (
-              <button
-                key={p}
-                type="button"
-                className={`telemed-page-btn ${currentPage === p ? 'active' : ''}`}
-                onClick={() => setCurrentPage(p)}
-              >
-                {p}
-              </button>
-            )
-          })}
-
-          <button
-            type="button"
-            className="telemed-page-btn"
-            disabled={currentPage >= totalPages || loading}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            title="หน้าถัดไป"
-          >
-            <ChevronRight size={16} />
+            ดูเฉพาะรายการนี้
           </button>
         </div>
+      )}
+
+      {/* ── 5. KPI Summary Cards (Section 6: 3 Main + 5 Sub, Filterable, No decorative icons) ── */}
+      <div className="telemed-kpi-main-grid">
+        {/* Card 1: ผู้รับบริการทั้งหมด (Neutral) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card ${!activeCards.compensation ? 'active' : ''}`}
+          onClick={() => toggleCompensationCard(undefined)}
+          aria-pressed={!activeCards.compensation}
+          title="คลิกเพื่อล้างตัวกรองสถานะชดเชย"
+        >
+          <span className="telemed-kpi-label">ผู้รับบริการทั้งหมด</span>
+          <div className="telemed-kpi-main-val">
+            {summary.totalVisits.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            {summary.uniquePatients.toLocaleString('th-TH')} คน • รายได้ {formatMoney(summary.totalIncome)} บ.
+          </div>
+        </button>
+
+        {/* Card 2: ชดเชยแล้ว (Success) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card telemed-kpi-card-success ${
+            activeCards.compensation === 'COMPENSATED' ? 'active' : ''
+          }`}
+          onClick={() => toggleCompensationCard('COMPENSATED')}
+          aria-pressed={activeCards.compensation === 'COMPENSATED'}
+          disabled={summary.compensatedVisits === 0}
+          title={summary.compensatedVisits === 0 ? 'ไม่มีรายการ' : 'คลิกเพื่อกรองเฉพาะรายการที่ชดเชยแล้ว'}
+        >
+          <span className="telemed-kpi-label">ชดเชยแล้ว</span>
+          <div className="telemed-kpi-main-val">
+            {summary.compensatedVisits.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            {summary.compensationRate.toFixed(1)}% • ชดเชย {formatMoney(summary.totalCompensated)} บ.
+          </div>
+          <div className="telemed-prop-track">
+            <div
+              className="telemed-prop-fill telemed-prop-success"
+              style={{ width: `${Math.min(100, Math.max(0, summary.compensationRate))}%` }}
+            />
+          </div>
+        </button>
+
+        {/* Card 3: รอชดเชย / ยังไม่ส่ง (Warning) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card telemed-kpi-card-warning ${
+            activeCards.compensation === 'UNCOMPENSATED' ? 'active' : ''
+          }`}
+          onClick={() => toggleCompensationCard('UNCOMPENSATED')}
+          aria-pressed={activeCards.compensation === 'UNCOMPENSATED'}
+          disabled={summary.uncompensatedVisits === 0}
+          title={summary.uncompensatedVisits === 0 ? 'ไม่มีรายการ' : 'คลิกเพื่อกรองเฉพาะรายการที่รอชดเชย / ยังไม่ส่ง'}
+        >
+          <span className="telemed-kpi-label">รอชดเชย / ยังไม่ส่ง</span>
+          <div className="telemed-kpi-main-val">
+            {summary.uncompensatedVisits.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            {summary.totalVisits > 0
+              ? ((summary.uncompensatedVisits / summary.totalVisits) * 100).toFixed(1)
+              : '0.0'}
+            % ของทั้งหมด
+          </div>
+          <div className="telemed-prop-track">
+            <div
+              className="telemed-prop-fill telemed-prop-warning"
+              style={{
+                width: `${
+                  summary.totalVisits > 0
+                    ? Math.min(100, (summary.uncompensatedVisits / summary.totalVisits) * 100)
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+        </button>
       </div>
 
-      {/* ── 9. Detail Modal (Triggered by Row Click) ── */}
-      {selectedItem && (
-        <div className="telemed-modal-overlay" onClick={() => setSelectedItem(null)}>
-          <div className="telemed-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="telemed-modal-header">
-              <div>
-                <h3 className="telemed-modal-title">
-                  รายละเอียดการรับบริการ TelMed
-                </h3>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500, #64748b)', marginTop: 2 }}>
-                  VN: {selectedItem.vn} • HN: {selectedItem.hn} • วันที่ {formatThaiDate(selectedItem.vstdate)}
-                </div>
-              </div>
+      <div className="telemed-kpi-sub-grid">
+        {/* Card 4: มี ClaimCode (Success) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card telemed-kpi-card-success ${
+            activeCards.claim === 'WITH_AUTHEN' ? 'active' : ''
+          }`}
+          onClick={() => toggleClaimCard('WITH_AUTHEN')}
+          aria-pressed={activeCards.claim === 'WITH_AUTHEN'}
+          disabled={summary.withAuthenCount === 0}
+          title={summary.withAuthenCount === 0 ? 'ไม่มีรายการ' : 'คลิกเพื่อกรองเฉพาะที่มี ClaimCode'}
+        >
+          <span className="telemed-kpi-label">มี ClaimCode</span>
+          <div className="telemed-kpi-sub-val">
+            {summary.withAuthenCount.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            {summary.authenRate.toFixed(1)}% ยืนยันตัวตนแล้ว
+          </div>
+          <div className="telemed-prop-track">
+            <div
+              className="telemed-prop-fill telemed-prop-success"
+              style={{ width: `${Math.min(100, Math.max(0, summary.authenRate))}%` }}
+            />
+          </div>
+        </button>
+
+        {/* Card 5: ไม่มี ClaimCode (Danger) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card telemed-kpi-card-danger ${
+            activeCards.claim === 'NO_AUTHEN' ? 'active' : ''
+          }`}
+          onClick={() => toggleClaimCard('NO_AUTHEN')}
+          aria-pressed={activeCards.claim === 'NO_AUTHEN'}
+          disabled={summary.withoutAuthenCount === 0}
+          title={summary.withoutAuthenCount === 0 ? 'ไม่มีรายการ' : 'คลิกเพื่อกรองเฉพาะที่ไม่มี ClaimCode'}
+        >
+          <span className="telemed-kpi-label">ไม่มี ClaimCode</span>
+          <div className="telemed-kpi-sub-val">
+            {summary.withoutAuthenCount.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            {summary.totalVisits > 0
+              ? ((summary.withoutAuthenCount / summary.totalVisits) * 100).toFixed(1)
+              : '0.0'}
+            % เสี่ยงเบิกชดเชยไม่ได้
+          </div>
+          <div className="telemed-prop-track">
+            <div
+              className="telemed-prop-fill telemed-prop-danger"
+              style={{
+                width: `${
+                  summary.totalVisits > 0
+                    ? Math.min(100, (summary.withoutAuthenCount / summary.totalVisits) * 100)
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+        </button>
+
+        {/* Card 6: มีค่าบริการ TelMed (Info) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card telemed-kpi-card-info ${
+            activeCards.hasFee ? 'active' : ''
+          }`}
+          onClick={toggleFeeCard}
+          aria-pressed={activeCards.hasFee}
+          disabled={summary.withPriceCount === 0}
+          title={summary.withPriceCount === 0 ? 'ไม่มีรายการ' : 'คลิกเพื่อกรองเฉพาะที่มีค่าบริการ TelMed'}
+        >
+          <span className="telemed-kpi-label">มีค่าบริการ TelMed</span>
+          <div className="telemed-kpi-sub-val">
+            {summary.withPriceCount.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            ค่า TelMed {formatMoney(summary.totalSumPrice)} บ.
+          </div>
+          <div className="telemed-prop-track">
+            <div
+              className="telemed-prop-fill telemed-prop-info"
+              style={{ width: `${Math.min(100, Math.max(0, summary.withPriceRate))}%` }}
+            />
+          </div>
+        </button>
+
+        {/* Card 7: สิทธิบัตรทอง (UC) (Info) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card telemed-kpi-card-info ${
+            activeCards.ucOnly ? 'active' : ''
+          }`}
+          onClick={toggleUcCard}
+          aria-pressed={activeCards.ucOnly}
+          disabled={summary.ucCount === 0}
+          title={summary.ucCount === 0 ? 'ไม่มีรายการ' : 'คลิกเพื่อกรองเฉพาะสิทธิบัตรทอง (UC)'}
+        >
+          <span className="telemed-kpi-label">สิทธิบัตรทอง (UC)</span>
+          <div className="telemed-kpi-sub-val">
+            {summary.ucCount.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            {summary.ucRate.toFixed(1)}% ของทั้งหมด
+          </div>
+          <div className="telemed-prop-track">
+            <div
+              className="telemed-prop-fill telemed-prop-info"
+              style={{ width: `${Math.min(100, Math.max(0, summary.ucRate))}%` }}
+            />
+          </div>
+        </button>
+
+        {/* Card 8: ประเภทมา รพ. ทางไกล (รหัส 5) (Info) */}
+        <button
+          type="button"
+          className={`telemed-kpi-card telemed-kpi-card-info ${
+            activeCards.exportCode5 ? 'active' : ''
+          }`}
+          onClick={toggleType5Card}
+          aria-pressed={activeCards.exportCode5}
+          disabled={summary.exportCode5Count === 0}
+          title={summary.exportCode5Count === 0 ? 'ไม่มีรายการ' : 'คลิกเพื่อกรองเฉพาะประเภทมารหัส 5'}
+        >
+          <span className="telemed-kpi-label">ประเภทมา รพ. ทางไกล (รหัส 5)</span>
+          <div className="telemed-kpi-sub-val">
+            {summary.exportCode5Count.toLocaleString('th-TH')}
+            <span className="telemed-kpi-unit">ครั้ง</span>
+          </div>
+          <div className="telemed-kpi-subline">
+            {summary.exportCode5Rate.toFixed(1)}% ของทั้งหมด
+          </div>
+          <div className="telemed-prop-track">
+            <div
+              className="telemed-prop-fill telemed-prop-info"
+              style={{ width: `${Math.min(100, Math.max(0, summary.exportCode5Rate))}%` }}
+            />
+          </div>
+        </button>
+      </div>
+
+      {/* ── 6. Data Section (Section 7 & 8) ── */}
+      <div className="telemed-data-section">
+        {/* Section Header */}
+        <div className="telemed-section-header">
+          <div className="telemed-section-title-wrap">
+            <h2 className="telemed-section-title">รายการผู้ได้รับบริการ</h2>
+            <span className="telemed-item-count-badge" aria-live="polite">
+              พบ {totalCount.toLocaleString('th-TH')} รายการ
+            </span>
+          </div>
+
+          <div className="telemed-table-controls">
+            {/* Density toggle */}
+            <div className="telemed-density-toggle" role="group" aria-label="ความหนาแน่นตาราง">
               <button
                 type="button"
-                className="telemed-modal-close"
-                onClick={() => setSelectedItem(null)}
-                title="ปิดหน้าต่าง"
+                className={`telemed-density-btn ${density === 'comfortable' ? 'active' : ''}`}
+                onClick={() => handleDensityChange('comfortable')}
+                title="ความหนาแน่นแถวแบบสบายตา (56px)"
               >
-                <X size={20} />
+                สบายตา
+              </button>
+              <button
+                type="button"
+                className={`telemed-density-btn ${density === 'compact' ? 'active' : ''}`}
+                onClick={() => handleDensityChange('compact')}
+                title="ความหนาแน่นแถวแบบกระชับ (40px)"
+              >
+                กระชับ
               </button>
             </div>
 
-            <div className="telemed-modal-tabs">
+            {/* Column Selector */}
+            <div className="telemed-popover-container" ref={columnDropdownRef}>
               <button
                 type="button"
-                className={`telemed-modal-tab-btn ${modalTab === 'summary' ? 'active' : ''}`}
-                onClick={() => handleModalTabChange('summary')}
+                className="telemed-btn"
+                style={{ height: 32, padding: '0 10px', fontSize: '0.8125rem' }}
+                onClick={() => setIsColumnDropdownOpen((prev) => !prev)}
+                aria-expanded={isColumnDropdownOpen}
+                aria-label="เลือกคอลัมน์ที่จะแสดง"
+              >
+                <Columns size={14} />
+                <span>คอลัมน์</span>
+              </button>
+
+              {isColumnDropdownOpen && (
+                <div className="telemed-column-dropdown">
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--ink)', paddingBottom: 4 }}>
+                    คอลัมน์ที่แสดง
+                  </div>
+                  <label className="telemed-column-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.cid}
+                      onChange={() => handleToggleColumn('cid')}
+                    />
+                    <span>เลขบัตรประชาชน</span>
+                  </label>
+                  <label className="telemed-column-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.ovstist}
+                      onChange={() => handleToggleColumn('ovstist')}
+                    />
+                    <span>ประเภทการมา</span>
+                  </label>
+                  <label className="telemed-column-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.no}
+                      onChange={() => handleToggleColumn('no')}
+                    />
+                    <span>ลำดับ</span>
+                  </label>
+                  <label className="telemed-column-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.pttype}
+                      onChange={() => handleToggleColumn('pttype')}
+                    />
+                    <span>สิทธิการรักษา</span>
+                  </label>
+                  <label className="telemed-column-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.pdx}
+                      onChange={() => handleToggleColumn('pdx')}
+                    />
+                    <span>PDX</span>
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Search & Popover Filters Row */}
+        <div className="telemed-search-row">
+          <div className="telemed-search-box">
+            <Search size={16} className="telemed-search-icon" aria-hidden="true" />
+            <input
+              type="text"
+              className="telemed-search-input"
+              placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล, VN, PDX, สิทธิ"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="ค้นหารายการผู้รับบริการ"
+            />
+            {search && (
+              <button
+                type="button"
+                className="telemed-search-clear"
+                onClick={() => setSearch('')}
+                title="ล้างคำค้นหา"
+                aria-label="ล้างคำค้นหา"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Additional filters popover */}
+          <div className="telemed-popover-container" ref={filterPopoverRef}>
+            <button
+              type="button"
+              className={`telemed-filter-btn ${activePopoverFilterCount > 0 ? 'active' : ''}`}
+              onClick={() => setIsFilterPopoverOpen((prev) => !prev)}
+              aria-expanded={isFilterPopoverOpen}
+              aria-label="เปิดตัวกรองเพิ่มเติม"
+            >
+              <Filter size={15} />
+              <span>ตัวกรองเพิ่มเติม</span>
+              {activePopoverFilterCount > 0 && (
+                <span className="telemed-filter-badge">{activePopoverFilterCount}</span>
+              )}
+            </button>
+
+            {isFilterPopoverOpen && (
+              <div className="telemed-popover-panel">
+                <h3 className="telemed-popover-title">ตัวกรองเฉพาะหน้า</h3>
+
+                {/* Filter 1: Pttype */}
+                <div className="telemed-popover-field">
+                  <label className="telemed-popover-label">สิทธิการรักษา</label>
+                  <PttypeMultiSelect
+                    selectedCodes={pttypes}
+                    onChange={(codes) => {
+                      setPttypes(codes)
+                      setCurrentPage(1)
+                    }}
+                    items={items}
+                  />
+                </div>
+
+                {/* Filter 2: Sex */}
+                <div className="telemed-popover-field">
+                  <label className="telemed-popover-label">เพศ</label>
+                  <div className="telemed-segmented-group" style={{ width: '100%' }}>
+                    <button
+                      type="button"
+                      className={`telemed-segment-btn ${filterSex === 'ALL' ? 'active' : ''}`}
+                      style={{ flex: 1 }}
+                      onClick={() => {
+                        setFilterSex('ALL')
+                        setCurrentPage(1)
+                      }}
+                    >
+                      ทั้งหมด
+                    </button>
+                    <button
+                      type="button"
+                      className={`telemed-segment-btn ${filterSex === 'M' ? 'active' : ''}`}
+                      style={{ flex: 1 }}
+                      onClick={() => {
+                        setFilterSex('M')
+                        setCurrentPage(1)
+                      }}
+                    >
+                      ชาย
+                    </button>
+                    <button
+                      type="button"
+                      className={`telemed-segment-btn ${filterSex === 'F' ? 'active' : ''}`}
+                      style={{ flex: 1 }}
+                      onClick={() => {
+                        setFilterSex('F')
+                        setCurrentPage(1)
+                      }}
+                    >
+                      หญิง
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter 3: Visit type code 5 */}
+                <div className="telemed-popover-field">
+                  <label className="telemed-column-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={filterOvstist5}
+                      onChange={(e) => {
+                        setFilterOvstist5(e.target.checked)
+                        setCurrentPage(1)
+                      }}
+                    />
+                    <span>เฉพาะประเภทมารหัส 5 (สาธารณสุขทางไกล)</span>
+                  </label>
+                </div>
+
+                {/* Filter 4: Age Range */}
+                <div className="telemed-popover-field">
+                  <label className="telemed-popover-label">ช่วงอายุ (ปี)</label>
+                  <div className="telemed-popover-row">
+                    <input
+                      type="number"
+                      placeholder="จาก"
+                      className="telemed-select"
+                      style={{ flex: 1, height: 34 }}
+                      value={filterAgeMin}
+                      onChange={(e) => {
+                        setFilterAgeMin(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                    />
+                    <span style={{ color: 'var(--muted)' }}>–</span>
+                    <input
+                      type="number"
+                      placeholder="ถึง"
+                      className="telemed-select"
+                      style={{ flex: 1, height: 34 }}
+                      value={filterAgeMax}
+                      onChange={(e) => {
+                        setFilterAgeMax(e.target.value)
+                        setCurrentPage(1)
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Filter 5: PDX */}
+                <div className="telemed-popover-field">
+                  <label className="telemed-popover-label">วินิจฉัยโรคหลัก (PDX / ICD-10)</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น I10, E119"
+                    className="telemed-select"
+                    style={{ height: 34 }}
+                    value={filterPdx}
+                    onChange={(e) => {
+                      setFilterPdx(e.target.value)
+                      setCurrentPage(1)
+                    }}
+                  />
+                </div>
+
+                <div className="telemed-popover-actions">
+                  <button
+                    type="button"
+                    className="telemed-btn"
+                    style={{ height: 32, fontSize: '0.8125rem' }}
+                    onClick={() => {
+                      setPttypes([])
+                      setFilterSex('ALL')
+                      setFilterOvstist5(false)
+                      setFilterAgeMin('')
+                      setFilterAgeMax('')
+                      setFilterPdx('')
+                      setCurrentPage(1)
+                    }}
+                  >
+                    ล้างตัวกรองเฉพาะ
+                  </button>
+                  <button
+                    type="button"
+                    className="telemed-btn telemed-btn-primary"
+                    style={{ height: 32, fontSize: '0.8125rem' }}
+                    onClick={() => setIsFilterPopoverOpen(false)}
+                  >
+                    เสร็จสิ้น
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Active Chips Row ── */}
+        {hasActiveFilters && (
+          <div className="telemed-chips-row">
+            {debouncedSearch && (
+              <span className="telemed-chip">
+                <span>ค้นหา: &ldquo;{debouncedSearch}&rdquo;</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => setSearch('')}
+                  aria-label="ล้างคำค้น"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeCards.compensation && (
+              <span className="telemed-chip">
+                <span>สถานะ: {activeCards.compensation === 'COMPENSATED' ? 'ชดเชยแล้ว' : 'รอชดเชย / ยังไม่ส่ง'}</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => toggleCompensationCard(undefined)}
+                  aria-label="ลบตัวกรองสถานะ"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeCards.claim && (
+              <span className="telemed-chip">
+                <span>ClaimCode: {activeCards.claim === 'WITH_AUTHEN' ? 'มี ClaimCode' : 'ไม่มี ClaimCode'}</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => toggleClaimCard(activeCards.claim!)}
+                  aria-label="ลบตัวกรอง ClaimCode"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeCards.hasFee && (
+              <span className="telemed-chip">
+                <span>มีค่าบริการ TelMed</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={toggleFeeCard}
+                  aria-label="ลบตัวกรองค่าบริการ"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeCards.ucOnly && (
+              <span className="telemed-chip">
+                <span>สิทธิบัตรทอง (UC)</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={toggleUcCard}
+                  aria-label="ลบตัวกรอง UC"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {activeCards.exportCode5 && (
+              <span className="telemed-chip">
+                <span>ประเภทมารหัส 5</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={toggleType5Card}
+                  aria-label="ลบตัวกรองประเภทมารหัส 5"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {filterSex !== 'ALL' && (
+              <span className="telemed-chip">
+                <span>เพศ: {filterSex === 'M' ? 'ชาย' : 'หญิง'}</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => setFilterSex('ALL')}
+                  aria-label="ลบตัวกรองเพศ"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {filterOvstist5 && (
+              <span className="telemed-chip">
+                <span>ประเภทมาสาธารณสุขทางไกล (รหัส 5)</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => setFilterOvstist5(false)}
+                  aria-label="ลบตัวกรองรหัส 5"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {(filterAgeMin || filterAgeMax) && (
+              <span className="telemed-chip">
+                <span>อายุ: {filterAgeMin || '0'} – {filterAgeMax || '∞'} ปี</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => {
+                    setFilterAgeMin('')
+                    setFilterAgeMax('')
+                  }}
+                  aria-label="ลบตัวกรองอายุ"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {filterPdx && (
+              <span className="telemed-chip">
+                <span>PDX: {filterPdx}</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => setFilterPdx('')}
+                  aria-label="ลบตัวกรอง PDX"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {pttypes.length > 0 && (
+              <span className="telemed-chip">
+                <span>สิทธิ: {pttypes.join(', ')}</span>
+                <button
+                  type="button"
+                  className="telemed-chip-remove"
+                  onClick={() => setPttypes([])}
+                  aria-label="ลบตัวกรองสิทธิ"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            <button
+              type="button"
+              className="telemed-clear-all-link"
+              onClick={handleClearAllFilters}
+            >
+              ล้างตัวกรอง
+            </button>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="telemed-alert-banner" role="alert">
+            <div className="telemed-alert-message">
+              <AlertTriangle size={18} />
+              <span>โหลดข้อมูลไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่ ({error})</span>
+            </div>
+            <button
+              type="button"
+              className="telemed-alert-action-btn"
+              onClick={() => fetchData(true)}
+            >
+              ลองใหม่
+            </button>
+          </div>
+        )}
+
+        {/* ── Table (Sticky headers, left pinned columns, clean chips) ── */}
+        <div
+          className="telemed-table-wrapper"
+          style={{ opacity: loading && items.length > 0 ? 0.6 : 1 }}
+        >
+          <table className={`telemed-table density-${density}`}>
+            <thead>
+              <tr>
+                {visibleColumns.no && (
+                  <th scope="col" className="cell-right" style={{ width: 50 }}>
+                    ลำดับ
+                  </th>
+                )}
+                {visibleColumns.vstdate && (
+                  <th scope="col" className="col-sticky-1" style={{ width: 140 }}>
+                    <button
+                      type="button"
+                      className="telemed-th-btn"
+                      onClick={() => handleSort('vstdate')}
+                      aria-sort={sortBy === 'vstdate' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <span>วันที่รับบริการ</span>
+                      {renderSortIcon('vstdate')}
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.ptname && (
+                  <th scope="col" className="col-sticky-2" style={{ minWidth: 200 }}>
+                    <button
+                      type="button"
+                      className="telemed-th-btn"
+                      onClick={() => handleSort('ptname')}
+                      aria-sort={sortBy === 'ptname' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <span>ผู้ป่วย</span>
+                      {renderSortIcon('ptname')}
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.cid && (
+                  <th scope="col" style={{ width: 160 }}>
+                    เลขบัตรประชาชน
+                  </th>
+                )}
+                {visibleColumns.pttype && (
+                  <th scope="col" style={{ minWidth: 160 }}>
+                    สิทธิการรักษา
+                  </th>
+                )}
+                {visibleColumns.ovstist && (
+                  <th scope="col" style={{ width: 130 }}>
+                    ประเภทการมา
+                  </th>
+                )}
+                {visibleColumns.pdx && (
+                  <th scope="col" className="cell-center" style={{ width: 85 }}>
+                    <button
+                      type="button"
+                      className="telemed-th-btn"
+                      onClick={() => handleSort('pdx')}
+                      aria-sort={sortBy === 'pdx' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <span>PDX</span>
+                      {renderSortIcon('pdx')}
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.fee && (
+                  <th scope="col" className="cell-right" style={{ width: 110 }}>
+                    <button
+                      type="button"
+                      className="telemed-th-btn"
+                      onClick={() => handleSort('sum_price')}
+                      aria-sort={sortBy === 'sum_price' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <span>ค่า TelMed</span>
+                      {renderSortIcon('sum_price')}
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.claimCode && (
+                  <th scope="col" className="cell-center" style={{ width: 120 }}>
+                    <button
+                      type="button"
+                      className="telemed-th-btn"
+                      onClick={() => handleSort('authencode')}
+                      aria-sort={sortBy === 'authencode' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <span>ClaimCode</span>
+                      {renderSortIcon('authencode')}
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.compensated && (
+                  <th scope="col" className="cell-right" style={{ width: 110 }}>
+                    <button
+                      type="button"
+                      className="telemed-th-btn"
+                      onClick={() => handleSort('compensated')}
+                      aria-sort={sortBy === 'compensated' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <span>ชดเชย (บ.)</span>
+                      {renderSortIcon('compensated')}
+                    </button>
+                  </th>
+                )}
+                {visibleColumns.status && (
+                  <th scope="col" className="col-sticky-right cell-center" style={{ width: 140 }}>
+                    สถานะ / ใบตอบรับ
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {loading && items.length === 0 ? (
+                Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={idx}>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '16px', color: 'var(--muted)' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>กำลังโหลดข้อมูล...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={11} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--muted)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <p style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 500 }}>
+                        ไม่พบรายการตามตัวกรองนี้
+                      </p>
+                      {hasActiveFilters && (
+                        <button
+                          type="button"
+                          className="telemed-btn"
+                          style={{ height: 32, fontSize: '0.8125rem', marginTop: 4 }}
+                          onClick={handleClearAllFilters}
+                        >
+                          ล้างตัวกรอง
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                items.map((item, idx) => {
+                  const isSelected = selectedItemIndex === idx
+                  const unmasked = unmaskedCids[item.vn]
+                  const statusLabel = cleanStatusName(item.status, item.isCompensated)
+
+                  // Truncate pttype code & short name
+                  const pttypeCode = item.pttypename.split(':')[0] || ''
+                  const pttypeTitle = item.pttypename.split(':').slice(1).join(':').trim() || item.pttypename
+
+                  return (
+                    <tr
+                      key={item.vn}
+                      className={isSelected ? 'row-selected' : ''}
+                      onClick={() => handleRowClick(idx)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRowClick(idx)
+                      }}
+                      title="คลิกเพื่อดูรายละเอียดใน Drawer ด้านขวา"
+                    >
+                      {visibleColumns.no && (
+                        <td className="cell-right" style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>
+                          {item.no}
+                        </td>
+                      )}
+                      {visibleColumns.vstdate && (
+                        <td className="col-sticky-1">
+                          <div style={{ fontWeight: 500 }}>{formatThaiDate(item.vstdate)}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                            {item.vsttime ? item.vsttime.slice(0, 5) : '—'}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.ptname && (
+                        <td className="col-sticky-2">
+                          <div className="telemed-ptname-bold">{item.ptname}</div>
+                          <div className="telemed-ptmeta-sub">
+                            <span>HN {item.hn}</span>
+                            <span>
+                              {item.sex} {item.age} ปี
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.cid && (
+                        <td>
+                          <div className="telemed-cid-wrap">
+                            <span>{unmasked ? item.cid : maskCid(item.cid)}</span>
+                            {!unmasked && item.cid && (
+                              <button
+                                type="button"
+                                className="telemed-cid-reveal-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleUnmaskCid(item.vn, item.hn, item.cid)
+                                }}
+                                title="ดูเลขบัตรประชาชนเต็ม (บันทึกลง Audit Logs)"
+                              >
+                                ดูเต็ม
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.pttype && (
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {pttypeCode && (
+                              <span className="telemed-code-badge neutral">{pttypeCode}</span>
+                            )}
+                            <span
+                              title={item.pttypename}
+                              style={{
+                                maxWidth: 160,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'inline-block',
+                              }}
+                            >
+                              {pttypeTitle}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.ovstist && (
+                        <td>
+                          <span
+                            className={`telemed-code-badge ${
+                              item.ovstist_export_code === '5' ? 'info' : 'neutral'
+                            }`}
+                            title={item.ovstist}
+                          >
+                            รหัส {item.ovstist_export_code || '—'}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.pdx && (
+                        <td className="cell-center">
+                          <span className="telemed-code-badge brand" title={`PDX: ${item.pdx || '—'}`}>
+                            {item.pdx || '—'}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.fee && (
+                        <td className="cell-right" style={{ fontWeight: item.sum_price > 0 ? 600 : 400 }}>
+                          {item.sum_price > 0
+                            ? item.sum_price.toLocaleString('th-TH', { minimumFractionDigits: 2 })
+                            : '0.00'}
+                        </td>
+                      )}
+                      {visibleColumns.claimCode && (
+                        <td className="cell-center">
+                          {item.authencode ? (
+                            <span className="telemed-code-badge info">{item.authencode}</span>
+                          ) : (
+                            <span className="telemed-code-badge danger">ไม่มี</span>
+                          )}
+                        </td>
+                      )}
+                      {visibleColumns.compensated && (
+                        <td className="cell-right" style={{ fontWeight: item.compensated > 0 ? 600 : 400 }}>
+                          {item.compensated > 0 ? formatMoney(item.compensated) : '–'}
+                        </td>
+                      )}
+                      {visibleColumns.status && (
+                        <td className="col-sticky-right cell-center">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', justifyContent: 'center' }}>
+                            <span
+                              className={`telemed-code-badge ${
+                                item.isCompensated ? 'success' : 'warning'
+                              }`}
+                            >
+                              {statusLabel}
+                            </span>
+                            {item.rep && (
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--muted)', textAlign: 'center' }}>
+                                REP: {item.rep}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Table Footer: Range count, Sum of Fee, Page size & Navigation ── */}
+        <div className="telemed-footer">
+          <div className="telemed-footer-stats">
+            <span>
+              แสดง {totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0}–
+              {Math.min(currentPage * pageSize, totalCount)} จาก {totalCount.toLocaleString('th-TH')} รายการ
+            </span>
+            <span>•</span>
+            <span className="telemed-footer-sum">
+              ผลรวมค่า TelMed: {formatMoney(summary.totalSumPrice)} บ.
+            </span>
+            <select
+              className="telemed-select"
+              style={{ height: 32, padding: '0 8px', fontSize: '0.8125rem' }}
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value))
+                setCurrentPage(1)
+              }}
+              aria-label="จำนวนแถวต่อหน้า"
+            >
+              <option value={25}>25 แถว/หน้า</option>
+              <option value={50}>50 แถว/หน้า</option>
+              <option value={100}>100 แถว/หน้า</option>
+            </select>
+          </div>
+
+          <div className="telemed-pagination-controls">
+            <div className="telemed-page-nav-btns">
+              <button
+                type="button"
+                className="telemed-page-num-btn"
+                disabled={currentPage <= 1 || loading}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                title="หน้าก่อนหน้า"
+                aria-label="หน้าก่อนหน้า"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let p = i + 1
+                if (totalPages > 5) {
+                  if (currentPage > 3) p = currentPage - 2 + i
+                  if (p > totalPages) p = totalPages - 4 + i
+                }
+                if (p < 1 || p > totalPages) return null
+
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`telemed-page-num-btn ${currentPage === p ? 'active' : ''}`}
+                    onClick={() => setCurrentPage(p)}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+
+              <button
+                type="button"
+                className="telemed-page-num-btn"
+                disabled={currentPage >= totalPages || loading}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                title="หน้าถัดไป"
+                aria-label="หน้าถัดไป"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Jump to page */}
+            <form onSubmit={handleJumpPage} className="telemed-jump-page-wrap">
+              <span>ไปหน้า</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={jumpPageInput}
+                onChange={(e) => setJumpPageInput(e.target.value)}
+                placeholder={String(currentPage)}
+                className="telemed-jump-input"
+                aria-label="กรอกหน้าที่ต้องการข้ามไป"
+              />
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 7. Service Details Right Drawer (Section 9: replaces modal) ── */}
+      {selectedItem && (
+        <div
+          className="telemed-drawer-backdrop"
+          onClick={() => setSelectedItemIndex(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="telemed-drawer-title-id"
+        >
+          <div
+            className="telemed-drawer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div className="telemed-drawer-header">
+              <div className="telemed-drawer-header-left">
+                <h3 id="telemed-drawer-title-id" className="telemed-drawer-title">
+                  รายละเอียดการรับบริการ TelMed
+                </h3>
+                <p className="telemed-drawer-subtitle">
+                  VN {selectedItem.vn} • HN {selectedItem.hn} • {formatThaiDate(selectedItem.vstdate)}
+                </p>
+              </div>
+
+              <div className="telemed-drawer-header-actions">
+                <button
+                  type="button"
+                  className="telemed-drawer-nav-btn"
+                  disabled={selectedItemIndex == null || selectedItemIndex <= 0}
+                  onClick={() => {
+                    if (selectedItemIndex != null && selectedItemIndex > 0) {
+                      setSelectedItemIndex(selectedItemIndex - 1)
+                      setVnDetails(null)
+                    }
+                  }}
+                  title="รายการก่อนหน้า (ลูกศรซ้าย)"
+                >
+                  <ChevronLeft size={14} />
+                  <span>ก่อนหน้า</span>
+                </button>
+                <button
+                  type="button"
+                  className="telemed-drawer-nav-btn"
+                  disabled={selectedItemIndex == null || selectedItemIndex >= items.length - 1}
+                  onClick={() => {
+                    if (selectedItemIndex != null && selectedItemIndex < items.length - 1) {
+                      setSelectedItemIndex(selectedItemIndex + 1)
+                      setVnDetails(null)
+                    }
+                  }}
+                  title="รายการถัดไป (ลูกศรขวา)"
+                >
+                  <span>ถัดไป</span>
+                  <ChevronRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="telemed-drawer-close-btn"
+                  onClick={() => setSelectedItemIndex(null)}
+                  title="ปิดหน้าต่าง (Esc)"
+                  aria-label="ปิดหน้าต่าง"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Tabs */}
+            <div className="telemed-drawer-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={drawerTab === 'summary'}
+                className={`telemed-drawer-tab-btn ${drawerTab === 'summary' ? 'active' : ''}`}
+                onClick={() => handleDrawerTabChange('summary')}
               >
                 สรุปข้อมูลการรับบริการ
               </button>
               <button
                 type="button"
-                className={`telemed-modal-tab-btn ${modalTab === 'clinical' ? 'active' : ''}`}
-                onClick={() => handleModalTabChange('clinical')}
+                role="tab"
+                aria-selected={drawerTab === 'clinical'}
+                className={`telemed-drawer-tab-btn ${drawerTab === 'clinical' ? 'active' : ''}`}
+                onClick={() => handleDrawerTabChange('clinical')}
               >
                 ข้อมูลทางคลินิก (เวชระเบียน)
               </button>
             </div>
 
-            <div className="telemed-modal-body">
-              {modalTab === 'summary' ? (
+            {/* Drawer Body */}
+            <div className="telemed-drawer-body">
+              {drawerTab === 'summary' ? (
                 <>
-                  <div className="telemed-detail-grid">
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">ชื่อ-สกุลผู้ป่วย</span>
-                      <span className="telemed-detail-val">
-                        <span>{selectedItem.ptname}</span>
+                  <div className="telemed-drawer-grid">
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">ชื่อ-สกุลผู้ป่วย</span>
+                      <div className="telemed-drawer-card-val">
+                        <strong>{selectedItem.ptname}</strong>
                         <button
                           type="button"
                           className="telemed-copy-btn"
                           onClick={() => handleCopyText(selectedItem.ptname, 'ptname')}
                           title="คัดลอกชื่อ"
                         >
-                          {copiedField === 'ptname' ? <Check size={14} style={{ color: '#047857' }} /> : <Copy size={14} />}
+                          {copiedField === 'ptname' ? <Check size={14} color="var(--brand)" /> : <Copy size={14} />}
                         </button>
-                      </span>
+                      </div>
                     </div>
 
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">เลขประจำตัวประชาชน (CID)</span>
-                      <span className="telemed-detail-val">
-                        <span>{selectedItem.cid || '—'}</span>
-                        {selectedItem.cid && (
-                          <button
-                            type="button"
-                            className="telemed-copy-btn"
-                            onClick={() => handleCopyText(selectedItem.cid, 'cid')}
-                            title="คัดลอกเลขบัตร"
-                          >
-                            {copiedField === 'cid' ? <Check size={14} style={{ color: '#047857' }} /> : <Copy size={14} />}
-                          </button>
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">เพศ / อายุ</span>
-                      <span className="telemed-detail-val">
-                        {selectedItem.sex} • {selectedItem.age} ปี
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">วันที่และเวลารับบริการ</span>
-                      <span className="telemed-detail-val">
-                        {formatThaiDate(selectedItem.vstdate)} {selectedItem.vsttime}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">ประเภทการมา (ovstist)</span>
-                      <span className="telemed-detail-val">
-                        {selectedItem.ovstist || '—'}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">ClaimCode (การยืนยันตัวตน)</span>
-                      <span className="telemed-detail-val">
-                        {selectedItem.authencode ? (
-                          <span className="telemed-badge telemed-badge-blue">
-                            {selectedItem.authencode}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#dc2626' }}>ไม่มี ClaimCode</span>
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">สิทธิการรักษา</span>
-                      <span className="telemed-detail-val">
-                        {selectedItem.pttypename}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">แผนก / คลินิก</span>
-                      <span className="telemed-detail-val">
-                        {selectedItem.department || '—'} / {selectedItem.clinic || '—'}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">รพ.หลัก / รพ.รอง</span>
-                      <span className="telemed-detail-val">
-                        {selectedItem.hospmain || '—'} / {selectedItem.hospsub || '—'}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">การวินิจฉัยหลัก (PDX)</span>
-                      <span className="telemed-detail-val" style={{ color: '#0D7446' }}>
-                        {selectedItem.pdx || '—'}
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">ค่าบริการ TelMed (บาท)</span>
-                      <span className="telemed-detail-val" style={{ color: 'var(--primary, #0D7446)' }}>
-                        {selectedItem.sum_price.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">ค่าบริการรวมทั้ง Visit (บาท)</span>
-                      <span className="telemed-detail-val">
-                        {selectedItem.income.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
-                      </span>
-                    </div>
-
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">สถานะการชดเชย / REP</span>
-                      <span className="telemed-detail-val">
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span>{selectedItem.status}</span>
-                          {selectedItem.rep && (
-                            <span style={{ fontSize: '0.8125rem', color: 'var(--gray-500, #64748b)' }}>
-                              REP: {selectedItem.rep}
-                            </span>
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">เลขประจำตัวประชาชน (CID)</span>
+                      <div className="telemed-drawer-card-val">
+                        <span>
+                          {unmaskedCids[selectedItem.vn]
+                            ? selectedItem.cid
+                            : maskCid(selectedItem.cid)}
+                        </span>
+                        <div style={{ display: 'inline-flex', gap: 4 }}>
+                          {!unmaskedCids[selectedItem.vn] && selectedItem.cid && (
+                            <button
+                              type="button"
+                              className="telemed-cid-reveal-btn"
+                              onClick={() =>
+                                handleUnmaskCid(selectedItem.vn, selectedItem.hn, selectedItem.cid)
+                              }
+                              title="ดูเลขบัตรประชาชนเต็ม (บันทึกลง Audit Logs)"
+                            >
+                              <Eye size={12} style={{ display: 'inline', marginRight: 2 }} />
+                              ดูเต็ม
+                            </button>
+                          )}
+                          {selectedItem.cid && (
+                            <button
+                              type="button"
+                              className="telemed-copy-btn"
+                              onClick={() => handleCopyText(selectedItem.cid, 'cid')}
+                              title="คัดลอกเลขบัตร"
+                            >
+                              {copiedField === 'cid' ? <Check size={14} color="var(--brand)" /> : <Copy size={14} />}
+                            </button>
                           )}
                         </div>
-                      </span>
+                      </div>
                     </div>
 
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">ยอดชดเชยที่ได้รับ (บาท)</span>
-                      <span className="telemed-detail-val" style={{ color: '#047857' }}>
-                        {selectedItem.compensated > 0
-                          ? `${formatMoney(selectedItem.compensated)} บาท`
-                          : 'ยังไม่ได้รับชดเชย'}
-                      </span>
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">เพศ / อายุ</span>
+                      <div className="telemed-drawer-card-val">
+                        {selectedItem.sex} • {selectedItem.age} ปี
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">วันที่และเวลา</span>
+                      <div className="telemed-drawer-card-val">
+                        {formatThaiDate(selectedItem.vstdate)} {selectedItem.vsttime ? selectedItem.vsttime.slice(0, 5) : ''}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">ประเภทการมา (ovstist)</span>
+                      <div className="telemed-drawer-card-val">
+                        {selectedItem.ovstist || '—'}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">ClaimCode</span>
+                      <div className="telemed-drawer-card-val">
+                        {selectedItem.authencode ? (
+                          <span className="telemed-code-badge info">{selectedItem.authencode}</span>
+                        ) : (
+                          <span className="telemed-code-badge danger">ไม่มี ClaimCode</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card full-width">
+                      <span className="telemed-drawer-card-label">สิทธิการรักษา</span>
+                      <div className="telemed-drawer-card-val">
+                        {selectedItem.pttypename}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">แผนก / คลินิก</span>
+                      <div className="telemed-drawer-card-val">
+                        {selectedItem.department || '—'} / {selectedItem.clinic || '—'}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">รพ.หลัก / รพ.รอง</span>
+                      <div className="telemed-drawer-card-val">
+                        {selectedItem.hospmain || '—'} / {selectedItem.hospsub || '—'}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">การวินิจฉัยหลัก (PDX)</span>
+                      <div className="telemed-drawer-card-val" style={{ color: 'var(--brand)', fontWeight: 600 }}>
+                        {selectedItem.pdx || '—'}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">ค่าบริการ TelMed</span>
+                      <div className="telemed-drawer-card-val" style={{ color: 'var(--brand)', fontWeight: 600 }}>
+                        {selectedItem.sum_price.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">สถานะการชดเชย / REP</span>
+                      <div className="telemed-drawer-card-val">
+                        <span
+                          className={`telemed-code-badge ${
+                            selectedItem.isCompensated ? 'success' : 'warning'
+                          }`}
+                        >
+                          {cleanStatusName(selectedItem.status, selectedItem.isCompensated)}
+                        </span>
+                        {selectedItem.rep && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                            REP: {selectedItem.rep}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="telemed-drawer-card">
+                      <span className="telemed-drawer-card-label">ยอดชดเชยที่ได้รับ</span>
+                      <div className="telemed-drawer-card-val" style={{ color: 'var(--success)', fontWeight: 600 }}>
+                        {selectedItem.compensated > 0 ? `${formatMoney(selectedItem.compensated)} บ.` : '–'}
+                      </div>
                     </div>
                   </div>
 
                   {selectedItem.listname && (
-                    <div className="telemed-detail-item">
-                      <span className="telemed-detail-label">รายการค่าบริการ Telemedicine ที่ผูก ADP</span>
-                      <span className="telemed-detail-val" style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                    <div className="telemed-drawer-card full-width" style={{ marginTop: 4 }}>
+                      <span className="telemed-drawer-card-label">รายการค่าบริการ Telemedicine ที่ผูก ADP</span>
+                      <div className="telemed-drawer-card-val">
                         {selectedItem.listname}
-                      </span>
+                      </div>
                     </div>
                   )}
                 </>
               ) : (
+                /* Tab 2: Clinical Data */
                 <div>
                   {loadingVnDetails ? (
-                    <div className="telemed-empty-state">
-                      <RefreshCw size={24} className="animate-spin" />
-                      <span>กำลังโหลดข้อมูลเวชระเบียน...</span>
+                    <div style={{ textAlign: 'center', padding: '36px', color: 'var(--muted)' }}>
+                      <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+                      <p>กำลังโหลดข้อมูลเวชระเบียน...</p>
                     </div>
                   ) : vnDetails ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      <div className="telemed-detail-grid">
-                        <div className="telemed-detail-item">
-                          <span className="telemed-detail-label">สัญญาณชีพ (Vital Signs)</span>
-                          <span className="telemed-detail-val" style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                            BP: {vnDetails.screen?.bps || '—'}/{vnDetails.screen?.bpd || '—'} mmHg • ชีพจร: {vnDetails.screen?.pulse || '—'} • น้ำหนัก: {vnDetails.screen?.bw || '—'} กก.
-                          </span>
+                      {/* Vital signs: 3 boxes */}
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>
+                          สัญญาณชีพ (Vital Signs)
                         </div>
-                        <div className="telemed-detail-item">
-                          <span className="telemed-detail-label">อาการสำคัญ (Chief Complaint)</span>
-                          <span className="telemed-detail-val" style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                            {vnDetails.screen?.cc || '—'}
-                          </span>
+                        <div className="telemed-vitals-row">
+                          <div className="telemed-vital-box">
+                            <span className="telemed-vital-label">ความดันโลหิต</span>
+                            <span className="telemed-vital-val">
+                              {vnDetails.screen?.bps || '—'}/{vnDetails.screen?.bpd || '—'}
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 400, marginLeft: 2 }}>mmHg</span>
+                            </span>
+                          </div>
+                          <div className="telemed-vital-box">
+                            <span className="telemed-vital-label">ชีพจร</span>
+                            <span className="telemed-vital-val">
+                              {vnDetails.screen?.pulse || '—'}
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 400, marginLeft: 2 }}>/min</span>
+                            </span>
+                          </div>
+                          <div className="telemed-vital-box">
+                            <span className="telemed-vital-label">น้ำหนัก</span>
+                            <span className="telemed-vital-val">
+                              {vnDetails.screen?.bw || '—'}
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 400, marginLeft: 2 }}>กก.</span>
+                            </span>
+                          </div>
                         </div>
                       </div>
 
+                      {/* Chief Complaint */}
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>
+                          อาการสำคัญ (Chief Complaint)
+                        </div>
+                        <div className="telemed-clinical-box">
+                          {vnDetails.screen?.cc || '—'}
+                        </div>
+                      </div>
+
+                      {/* Diagnoses */}
                       {vnDetails.diagnoses && vnDetails.diagnoses.length > 0 && (
-                        <div className="telemed-detail-item">
-                          <span className="telemed-detail-label">รายการการวินิจฉัยโรค (Diagnoses)</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                        <div>
+                          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>
+                            การวินิจฉัยโรค (Diagnoses)
+                          </div>
+                          <div style={{ border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
                             {vnDetails.diagnoses.map((d, i) => (
-                              <div key={i} style={{ fontSize: '0.875rem' }}>
-                                <strong style={{ color: '#0D7446' }}>{d.icd10}</strong> : {d.icd_name} ({d.diagtype_name})
+                              <div key={i} className="telemed-diag-item">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span className="telemed-code-badge brand">{d.icd10}</span>
+                                  <span>{d.icd_name}</span>
+                                </div>
+                                <span className="telemed-code-badge neutral">
+                                  {d.diagtype_name?.toLowerCase().includes('principal') || i === 0
+                                    ? 'โรคหลัก'
+                                    : 'อื่น ๆ'}
+                                </span>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
+                      {/* Drug Items: Consolidated duplicate lines (Section 9) */}
                       {vnDetails.orders?.items && vnDetails.orders.items.length > 0 && (
-                        <div className="telemed-detail-item">
-                          <span className="telemed-detail-label">รายการยาและเวชภัณฑ์</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                            {vnDetails.orders.items.map((m, i) => (
-                              <div key={i} style={{ fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>{m.item_name} ({m.qty} {m.units || 'หน่วย'})</span>
-                                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatMoney(m.sum_price)} บ.</span>
-                              </div>
-                            ))}
+                        <div>
+                          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>
+                            รายการยาและเวชภัณฑ์ (รวมรายการซ้ำ)
+                          </div>
+                          <div style={{ border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
+                            <table className="telemed-sub-table">
+                              <thead>
+                                <tr>
+                                  <th>รายการ</th>
+                                  <th style={{ textAlign: 'center', width: 90 }}>จำนวน</th>
+                                  <th style={{ textAlign: 'right', width: 90 }}>ราคา (บ.)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {consolidateDrugs(vnDetails.orders.items).map((m, i) => (
+                                  <tr key={i}>
+                                    <td>{m.item_name}</td>
+                                    <td style={{ textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                                      {m.qty} {m.units}
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                      {formatMoney(m.sum_price)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       )}
+
+                      {/* Summary total */}
+                      <div className="telemed-drawer-summary-card">
+                        <div className="telemed-summary-row">
+                          <span>ยาและเวชภัณฑ์</span>
+                          <span>{formatMoney(vnDetails.orders?.total_price || 0)} บ.</span>
+                        </div>
+                        <div className="telemed-summary-row">
+                          <span>ค่าบริการ TelMed</span>
+                          <span>{formatMoney(selectedItem.sum_price)} บ.</span>
+                        </div>
+                        <div className="telemed-summary-row total">
+                          <span>รวมทั้งสิ้น</span>
+                          <span>
+                            {formatMoney((vnDetails.orders?.total_price || 0) + selectedItem.sum_price)} บ.
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="telemed-empty-state">
-                      <span>ไม่พบข้อมูลคลินิกเพิ่มเติมสำหรับ VN นี้</span>
+                    <div style={{ textAlign: 'center', padding: '36px', color: 'var(--muted)' }}>
+                      ไม่พบข้อมูลคลินิกเพิ่มเติมสำหรับ VN นี้
                     </div>
                   )}
                 </div>

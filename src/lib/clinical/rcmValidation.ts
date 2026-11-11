@@ -184,21 +184,17 @@ export const ttmTopic11QuerySchema = baseFiscalDateSchema
  */
 export const telemedReportQuerySchema = baseFiscalDateSchema
   .extend({
-    cardFilter: z
-      .enum([
-        'ALL',
-        'COMPENSATED',
-        'UNCOMPENSATED',
-        'WITH_AUTHEN',
-        'NO_AUTHEN',
-        'UC_ONLY',
-        'WITH_PRICE',
-        'EXPORT_CODE_5',
-      ])
-      .default('ALL'),
+    cardFilter: z.string().default('ALL'),
+    cards: z.string().optional(),
     ucOnly: z
       .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
       .optional(),
+    pttypes: z.string().optional(),
+    sex: z.string().optional(),
+    ageMin: z.coerce.number().optional(),
+    ageMax: z.coerce.number().optional(),
+    pdx: z.string().optional(),
+    ovstistExportCode: z.string().optional(),
     searchField: z
       .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'DIAG', 'PTTYPE', 'DEPARTMENT', 'CLINIC'])
       .default('ALL'),

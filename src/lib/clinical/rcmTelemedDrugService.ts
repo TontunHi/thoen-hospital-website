@@ -61,9 +61,15 @@ export type TelemedSortField =
   | 'authencode'
 
 export interface TelemedReportParams extends FiscalDateRangeParams {
-  cardFilter?: TelemedCardFilter
+  cardFilter?: TelemedCardFilter | string
+  cards?: string
   ucOnly?: boolean
   pttypes?: string
+  sex?: string
+  ageMin?: number
+  ageMax?: number
+  pdx?: string
+  ovstistExportCode?: string
   searchField?: TelemedSearchField
   search?: string
   sortBy?: TelemedSortField
@@ -136,7 +142,7 @@ export interface TelemedReportResult {
   ds1: string
   ds2: string
   adpMapping: AdpMappingCheck
-  cardFilter: TelemedCardFilter
+  cardFilter: TelemedCardFilter | string
   ucOnly: boolean
   searchField: TelemedSearchField
   search: string
@@ -391,7 +397,7 @@ export class RcmTelemedDrugService {
 
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
 
-    const cardFilter: TelemedCardFilter = params.cardFilter || 'ALL'
+    const cardFilter: TelemedCardFilter | string = params.cardFilter || 'ALL'
     const ucOnly = Boolean(params.ucOnly)
     const searchField: TelemedSearchField = params.searchField || 'ALL'
     const search = (params.search || '').trim().toLowerCase()
@@ -668,35 +674,35 @@ export class RcmTelemedDrugService {
       totalIncome,
     }
 
+    // Multi-card filter support (comma-separated or single)
+    const rawCardFilter = (params.cards || cardFilter || 'ALL').trim()
+    const activeCards = rawCardFilter
+      .split(',')
+      .map((c) => c.trim().toUpperCase())
+      .filter((c) => c && c !== 'ALL')
+
     // Filter records
     let filtered = summaryCohort.filter((rec) => {
-      // 2. Card filter
-      switch (cardFilter) {
-        case 'COMPENSATED':
-          if (!rec.isCompensated) return false
-          break
-        case 'UNCOMPENSATED':
-          if (rec.isCompensated) return false
-          break
-        case 'WITH_AUTHEN':
-          if (!rec.authencode) return false
-          break
-        case 'NO_AUTHEN':
-          if (rec.authencode) return false
-          break
-        case 'UC_ONLY':
-          if (!rec.isUc) return false
-          break
-        case 'WITH_PRICE':
-          if (rec.sum_price <= 0) return false
-          break
-        case 'EXPORT_CODE_5':
-          if (rec.ovstist_export_code !== '5') return false
-          break
-        case 'ALL':
-        default:
-          break
+      // 2. Card filters (AND condition across different cards)
+      for (const card of activeCards) {
+        if (card === 'COMPENSATED' && !rec.isCompensated) return false
+        if (card === 'UNCOMPENSATED' && rec.isCompensated) return false
+        if (card === 'WITH_AUTHEN' && !rec.authencode) return false
+        if (card === 'NO_AUTHEN' && rec.authencode) return false
+        if (card === 'UC_ONLY' && !rec.isUc) return false
+        if (card === 'WITH_PRICE' && rec.sum_price <= 0) return false
+        if (card === 'EXPORT_CODE_5' && rec.ovstist_export_code !== '5') return false
       }
+
+      // Extra popover filters
+      if (params.sex && params.sex !== 'ALL') {
+        const expectedSex = params.sex === 'M' || params.sex === 'ชาย' ? 'ชาย' : params.sex === 'F' || params.sex === 'หญิง' ? 'หญิง' : params.sex
+        if (rec.sex !== expectedSex) return false
+      }
+      if (params.ageMin != null && rec.age < params.ageMin) return false
+      if (params.ageMax != null && rec.age > params.ageMax) return false
+      if (params.pdx && !(rec.pdx || '').toLowerCase().includes(params.pdx.toLowerCase())) return false
+      if (params.ovstistExportCode && rec.ovstist_export_code !== params.ovstistExportCode) return false
 
       // 3. Search filter
       if (search) {

@@ -57,7 +57,7 @@ describe('DashboardRcmShell Component', () => {
     expect(localStorage.getItem('rcm_sidebar_expanded_groups')).toContain('"funds":true')
 
     // Inside 'กองทุน', submenus are also default-collapsed
-    const ccsParentToggle = screen.getByRole('button', { name: /คัดกรองมะเร็งปากมดลูก \(CCS\)/ })
+    const ccsParentToggle = screen.getByRole('button', { name: /คัดกรองมะเร็งปากมดลูก/ })
     expect(ccsParentToggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('link', { name: /บริการ 1B005/ })).not.toBeInTheDocument()
 
@@ -75,11 +75,11 @@ describe('DashboardRcmShell Component', () => {
     expect(localStorage.getItem('rcm_sidebar_expanded_menus')).toContain('"/service/dashboard-rcm/funds/ccs":false')
 
     // Assert other submenus are also accessible under กองทุน
-    expect(screen.getByRole('button', { name: /บริการฝากครรภ์ \(ANC\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /บริการฝากครรภ์/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /ธาลัสซีเมียในหญิงตั้งครรภ์/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /การตรวจหลังคลอด/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /การทดสอบการตั้งครรภ์/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /วางแผนครอบครัว & คุมกำเนิด \(FP\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /วางแผนครอบครัว & คุมกำเนิด/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /คัดกรองมะเร็งช่องปาก/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /คัดกรองสุขภาพกาย\/จิต/ })).toBeInTheDocument()
 
@@ -176,7 +176,7 @@ describe('DashboardRcmShell Component', () => {
     expect(
       screen.getAllByText(/รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก/).length
     ).toBeGreaterThan(0)
-    expect(screen.getByText(/คัดกรองรอยโรคมะเร็งช่องปาก/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /คัดกรองรอยโรคมะเร็งช่องปาก/ })).toBeInTheDocument()
 
     // 3. Search for unmatched term -> empty state
     fireEvent.change(searchInput, { target: { value: 'xyzไม่มีในระบบ999' } })
@@ -229,7 +229,7 @@ describe('DashboardRcmShell Component', () => {
     expect(resizeHandle).toBeInTheDocument()
 
     const sidebar = screen.getByRole('complementary', { name: 'Dashboard RCM Navigation' })
-    expect(sidebar).toHaveStyle({ width: '260px' })
+    expect(sidebar).toHaveStyle({ width: '280px' })
 
     // Simulate drag resize to 350px
     fireEvent.mouseDown(resizeHandle)
@@ -239,9 +239,9 @@ describe('DashboardRcmShell Component', () => {
     expect(sidebar).toHaveStyle({ width: '350px' })
     expect(localStorage.getItem('rcm_sidebar_width')).toBe('350')
 
-    // Double-click to reset back to default 260px
+    // Double-click to reset back to default 280px
     fireEvent.doubleClick(resizeHandle)
-    expect(sidebar).toHaveStyle({ width: '260px' })
-    expect(localStorage.getItem('rcm_sidebar_width')).toBe('260')
+    expect(sidebar).toHaveStyle({ width: '280px' })
+    expect(localStorage.getItem('rcm_sidebar_width')).toBe('280')
   })
 })

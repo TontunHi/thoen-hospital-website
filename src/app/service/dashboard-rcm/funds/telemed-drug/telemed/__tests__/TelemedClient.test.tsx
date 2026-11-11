@@ -120,15 +120,14 @@ describe('TelemedClient Component', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('11.53 รายชื่อผู้ได้รับบริการ TelMed')
     expect(screen.getByText('ผู้รับบริการทั้งหมด')).toBeInTheDocument()
-    expect(screen.getByText('นายสมชาย')).toBeInTheDocument()
-    expect(screen.getByText('3520800111111')).toBeInTheDocument()
+    expect(screen.getByText(/นายสมชาย/)).toBeInTheDocument()
     expect(screen.getByText('AUTH_TEL_01')).toBeInTheDocument()
   })
 
   it('switches date selector modes between custom, monthly, and fiscal year cleanly', () => {
     render(<TelemedClient initialData={mockInitialData} />)
 
-    const monthlyTab = screen.getByRole('tab', { name: 'เดือน' })
+    const monthlyTab = screen.getByRole('tab', { name: 'รายเดือน' })
     fireEvent.click(monthlyTab)
     expect(monthlyTab).toHaveClass('active')
 
@@ -140,7 +139,7 @@ describe('TelemedClient Component', () => {
   it('filters data when clicking on a summary KPI card', async () => {
     render(<TelemedClient initialData={mockInitialData} />)
 
-    const compensatedCard = screen.getByText('ชดเชยแล้ว').closest('.telemed-kpi-card')
+    const compensatedCard = screen.getAllByText('ชดเชยแล้ว')[0].closest('.telemed-kpi-card')
     expect(compensatedCard).toBeInTheDocument()
     fireEvent.click(compensatedCard!)
 
@@ -149,10 +148,10 @@ describe('TelemedClient Component', () => {
     })
   })
 
-  it('opens record details modal on row click without extra action button clutter', async () => {
+  it('opens record details drawer on row click without extra action button clutter', async () => {
     render(<TelemedClient initialData={mockInitialData} />)
 
-    const row = screen.getByText('นายสมชาย').closest('tr')
+    const row = screen.getByText(/นายสมชาย/).closest('tr')
     expect(row).toBeInTheDocument()
     fireEvent.click(row!)
 
@@ -162,12 +161,55 @@ describe('TelemedClient Component', () => {
 
     expect(screen.getByText('สรุปข้อมูลการรับบริการ')).toBeInTheDocument()
 
-    // Switch to clinical tab
+    // Switch to clinical tab in drawer
     const clinicalTab = screen.getByText('ข้อมูลทางคลินิก (เวชระเบียน)')
     fireEvent.click(clinicalTab)
 
     await waitFor(() => {
       expect(screen.getByText('ติดตามอาการความดันโลหิตสูงผ่านระบบ Telemed')).toBeInTheDocument()
+    })
+  })
+
+  it('toggles density between comfortable and compact smoothly', () => {
+    render(<TelemedClient initialData={mockInitialData} />)
+
+    const compactBtn = screen.getByRole('button', { name: 'กระชับ' })
+    fireEvent.click(compactBtn)
+    expect(compactBtn).toHaveClass('active')
+
+    const table = document.querySelector('.telemed-table')
+    expect(table).toHaveClass('density-compact')
+  })
+
+  it('renders claim warning banner and filters to unauthenticated on action click', async () => {
+    render(<TelemedClient initialData={mockInitialData} />)
+
+    const alertBtn = screen.getByRole('button', { name: 'ดูเฉพาะรายการนี้' })
+    expect(alertBtn).toBeInTheDocument()
+    fireEvent.click(alertBtn)
+
+    await waitFor(() => {
+      const dangerCard = screen.getByText('ไม่มี ClaimCode').closest('.telemed-kpi-card')
+      expect(dangerCard).toHaveClass('active')
+    })
+  })
+
+  it('unmasks CID in drawer when clicking ดูเต็ม', async () => {
+    render(<TelemedClient initialData={mockInitialData} />)
+
+    const row = screen.getByText(/นายสมชาย/).closest('tr')
+    fireEvent.click(row!)
+
+    await waitFor(() => {
+      expect(screen.getByText('รายละเอียดการรับบริการ TelMed')).toBeInTheDocument()
+    })
+
+    const unmaskBtn = screen.getByRole('button', { name: 'ดูเต็ม' })
+    expect(unmaskBtn).toBeInTheDocument()
+    fireEvent.click(unmaskBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('3520800111111')).toBeInTheDocument()
     })
   })
 })
