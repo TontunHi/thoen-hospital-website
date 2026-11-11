@@ -577,12 +577,12 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             aria-label="กรองตามประเภทงาน"
           >
             <option value="">ทุกประเภทงาน</option>
-            <option value="IT_REPAIR">💻 ซ่อมคอมฯ / ไอที</option>
-            <option value="GENERAL_REPAIR">🔧 ซ่อมช่างทั่วไป</option>
-            <option value="MEDICAL_REPAIR">🩺 ซ่อมเครื่องมือแพทย์</option>
-            <option value="MEDIA_REQUEST">🎨 ขอสื่อประชาสัมพันธ์</option>
-            <option value="ROOM_BOOKING">🏢 จองห้องประชุม</option>
-            <option value="DOC_APPROVAL">📄 ขออนุมัติเอกสาร</option>
+            <option value="IT_REPAIR">ซ่อมคอมฯ / ไอที</option>
+            <option value="GENERAL_REPAIR">ซ่อมช่างทั่วไป</option>
+            <option value="MEDICAL_REPAIR">ซ่อมเครื่องมือแพทย์</option>
+            <option value="MEDIA_REQUEST">ขอสื่อประชาสัมพันธ์</option>
+            <option value="ROOM_BOOKING">จองห้องประชุม</option>
+            <option value="DOC_APPROVAL">ขออนุมัติเอกสาร</option>
           </select>
 
           <select
@@ -592,11 +592,11 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             aria-label="กรองตามสถานะ"
           >
             <option value="">ทุกสถานะ</option>
-            <option value="PENDING">⏳ รอดำเนินการ / รอรับงาน</option>
-            <option value="IN_PROGRESS">🛠️ กำลังดำเนินการ (รับงานแล้ว)</option>
-            <option value="APPROVED">✅ เสร็จสิ้น / อนุมัติแล้ว</option>
-            <option value="REJECTED">❌ ไม่อนุมัติ / ยกเลิก</option>
-            <option value="SENT_BACK">🔄 ส่งกลับแก้ไข</option>
+            <option value="PENDING">รอดำเนินการ / รอรับงาน</option>
+            <option value="IN_PROGRESS">กำลังดำเนินการ (รับงานแล้ว)</option>
+            <option value="APPROVED">อนุมัติเสร็จสิ้น</option>
+            <option value="REJECTED">ไม่อนุมัติ / ยกเลิก</option>
+            <option value="SENT_BACK">ส่งกลับแก้ไข</option>
           </select>
 
           <button type="submit" className="refreshBtn" title="ค้นหาและรีเฟรชข้อมูล">
@@ -720,9 +720,15 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                               <>
                                 <span className="metaSep">•</span>
                                 {task.custom_payload.costType === 'HAS_COST' ? (
-                                  <span className="costPillHasCost">🔴 มีค่าใช้จ่าย</span>
+                                  <span className="costPillHasCost">
+                                    <span className="costBullet costBulletHasCost" aria-hidden="true" />
+                                    <span>มีค่าใช้จ่าย</span>
+                                  </span>
                                 ) : (
-                                  <span className="costPillNoCost">🟢 ไม่มีค่าใช้จ่าย</span>
+                                  <span className="costPillNoCost">
+                                    <span className="costBullet costBulletNoCost" aria-hidden="true" />
+                                    <span>ไม่มีค่าใช้จ่าย</span>
+                                  </span>
                                 )}
                                 {task.custom_payload.deliveryDate && (
                                   <span className="deliveryDateTag">
@@ -823,9 +829,15 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                     {task.task_type === 'MEDIA_REQUEST' && task.custom_payload && (
                       <div className="mediaRequestCustomPayload">
                         {task.custom_payload.costType === 'HAS_COST' ? (
-                          <span className="costPillHasCost">🔴 มีค่าใช้จ่าย</span>
+                          <span className="costPillHasCost">
+                            <span className="costBullet costBulletHasCost" aria-hidden="true" />
+                            <span>มีค่าใช้จ่าย</span>
+                          </span>
                         ) : (
-                          <span className="costPillNoCost">🟢 ไม่มีค่าใช้จ่าย</span>
+                          <span className="costPillNoCost">
+                            <span className="costBullet costBulletNoCost" aria-hidden="true" />
+                            <span>ไม่มีค่าใช้จ่าย</span>
+                          </span>
                         )}
                         {task.custom_payload.deliveryDate && (
                           <span className="deliveryDateTag">

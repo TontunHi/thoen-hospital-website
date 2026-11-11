@@ -165,8 +165,9 @@ export default function TaskHoldModal({
             />
           </div>
 
-          <div style={{ fontSize: '0.8rem', color: '#64748b', backgroundColor: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
-            💡 เมื่อบันทึกพักงาน ระบบจะเปลี่ยนสถานะเป็น <strong>พักงานชั่วคราว</strong> และส่งข้อความแจ้งเตือนพร้อมเหตุผลไปยังผู้ยื่นคำขอทาง Telegram ทันที
+          <div style={{ fontSize: '0.8rem', color: '#64748b', backgroundColor: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+            <Clock size={14} className="text-amber-600 shrink-0 mt-0.5" />
+            <span>เมื่อบันทึกพักงาน ระบบจะเปลี่ยนสถานะเป็น <strong>พักงานชั่วคราว</strong> และส่งข้อความแจ้งเตือนพร้อมเหตุผลไปยังผู้ยื่นคำขอทาง Telegram ทันที</span>
           </div>
         </div>
 

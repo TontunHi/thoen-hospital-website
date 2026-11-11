@@ -66,25 +66,23 @@ const TaskSendBackModal = dynamic(() => import('./components/TaskSendBackModal')
 
 // Predefined Work Types with quick assist tags for Media Request
 const WORK_TYPES_CONFIG = [
-  { key: 'tri_fold', label: 'แผ่นพับ 3 พับ', icon: '📄', hasCustomInput: false },
-  { key: 'website_aw', label: 'AW ขึ้นเว็บไซต์', icon: '🌐', hasCustomInput: false },
+  { key: 'tri_fold', label: 'แผ่นพับ 3 พับ', hasCustomInput: false },
+  { key: 'website_aw', label: 'AW ขึ้นเว็บไซต์', hasCustomInput: false },
   {
     key: 'poster',
     label: 'โปสเตอร์',
-    icon: '🖼️',
     hasCustomInput: true,
     placeholder: 'ระบุขนาด เช่น A3, A2, 60x90 ซม.…',
     quickTags: ['A4', 'A3', 'A2', '60x90 ซม.'],
   },
-  { key: 'staff_card', label: 'บัตรพนักงาน', icon: '🪪', hasCustomInput: false },
-  { key: 'announcement_board', label: 'ป้ายประกาศ', icon: '📌', hasCustomInput: false },
-  { key: 'sticker', label: 'สติ๊กเกอร์', icon: '🏷️', hasCustomInput: false },
-  { key: 'video_editing', label: 'ตัดต่อวิดีโอ', icon: '🎬', hasCustomInput: false },
-  { key: 'powerpoint', label: 'PowerPoint / Canva', icon: '📊', hasCustomInput: false },
+  { key: 'staff_card', label: 'บัตรพนักงาน', hasCustomInput: false },
+  { key: 'announcement_board', label: 'ป้ายประกาศ', hasCustomInput: false },
+  { key: 'sticker', label: 'สติ๊กเกอร์', hasCustomInput: false },
+  { key: 'video_editing', label: 'ตัดต่อวิดีโอ', hasCustomInput: false },
+  { key: 'powerpoint', label: 'PowerPoint / Canva', hasCustomInput: false },
   {
     key: 'other',
     label: 'อื่น ๆ',
-    icon: '✨',
     hasCustomInput: true,
     placeholder: 'ระบุลักษณะงาน เช่น ไวนิล, Standee, Roll-up…',
     quickTags: ['ไวนิล', 'Standee', 'Roll-up', 'ป้ายโฟมบอร์ด', 'ของที่ระลึก'],
@@ -93,12 +91,11 @@ const WORK_TYPES_CONFIG = [
 
 // Predefined Channels with quick assist tags for Media Request
 const CHANNELS_CONFIG = [
-  { key: 'hospital_social', label: 'สื่อโซเชียลของรพ.', icon: '📱', hasCustomInput: false },
-  { key: 'facebook_page', label: 'Page Facebook', icon: '🌐', hasCustomInput: false },
+  { key: 'hospital_social', label: 'สื่อโซเชียลของรพ.', hasCustomInput: false },
+  { key: 'facebook_page', label: 'Page Facebook', hasCustomInput: false },
   {
     key: 'indoor',
     label: 'ในอาคารโรงพยาบาล',
-    icon: '🏥',
     hasCustomInput: true,
     placeholder: 'ระบุบริเวณ เช่น หน้าห้องตรวจ OPD, โถงประชาสัมพันธ์ชั้น 1…',
     quickTags: ['หน้าห้องตรวจ OPD', 'โถงประชาสัมพันธ์ ชั้น 1', 'แผนกฉุกเฉิน (ER)', 'ตึกผู้ป่วยใน (IPD)'],
@@ -106,7 +103,6 @@ const CHANNELS_CONFIG = [
   {
     key: 'community',
     label: 'ในชุมชน',
-    icon: '🏘️',
     hasCustomInput: true,
     placeholder: 'ระบุจุด/ชุมชน เช่น รพ.สต. ในเครือข่าย, ชุมชนเทศบาลเถิน…',
     quickTags: ['รพ.สต. ในเครือข่าย', 'ชุมชนเทศบาลเถิน', 'ออกหน่วยบริการ'],
@@ -114,7 +110,6 @@ const CHANNELS_CONFIG = [
   {
     key: 'other',
     label: 'อื่น ๆ',
-    icon: '📣',
     hasCustomInput: true,
     placeholder: 'ระบุช่องทางเผยแพร่เพิ่มเติม…',
   },
@@ -1320,7 +1315,8 @@ export default function TaskDetailClient({
                     รูปแบบค่าใช้จ่าย / การพิจารณา
                   </span>
                   <strong className={`mediaCostValueText ${task.custom_payload?.costType === 'HAS_COST' ? 'hasCost' : 'noCost'}`}>
-                    {task.custom_payload?.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย' : '🟢 ไม่มีค่าใช้จ่าย'}
+                    <span className={`costBullet ${task.custom_payload?.costType === 'HAS_COST' ? 'costBulletHasCost' : 'costBulletNoCost'}`} aria-hidden="true" />
+                    <span>{task.custom_payload?.costType === 'HAS_COST' ? 'มีค่าใช้จ่าย' : 'ไม่มีค่าใช้จ่าย'}</span>
                     {task.custom_payload?.costType === 'HAS_COST' && task.custom_payload?.estimatedBudget ? (
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#991b1b' }}>
                         (ประมาณการ {Number(task.custom_payload.estimatedBudget).toLocaleString()} บาท)
@@ -1352,7 +1348,8 @@ export default function TaskDetailClient({
                     {task.custom_payload?.workTypes && Array.isArray(task.custom_payload.workTypes) && task.custom_payload.workTypes.length > 0 ? (
                       task.custom_payload.workTypes.map((wt: any, idx: number) => (
                         <span key={idx} className="mediaPillTag">
-                          <span>✓ {wt.label}</span>
+                          <Check size={12} className="text-emerald-700 flex-shrink-0" />
+                          <span>{wt.label}</span>
                           {wt.customDetail && (
                             <span style={{ color: '#0d9488', fontWeight: 500, fontSize: '0.775rem' }}>
                               ({wt.customDetail})
@@ -1376,7 +1373,8 @@ export default function TaskDetailClient({
                     {task.custom_payload?.channels && Array.isArray(task.custom_payload.channels) && task.custom_payload.channels.length > 0 ? (
                       task.custom_payload.channels.map((ch: any, idx: number) => (
                         <span key={idx} className="mediaPillTag">
-                          <span>📢 {ch.label}</span>
+                          <Share2 size={12} className="text-teal-700 flex-shrink-0" />
+                          <span>{ch.label}</span>
                           {ch.customDetail && (
                             <span style={{ color: '#2563eb', fontWeight: 500, fontSize: '0.775rem' }}>
                               ({ch.customDetail})
@@ -1415,7 +1413,10 @@ export default function TaskDetailClient({
                 {task.custom_payload?.phone && (
                   <div>
                     <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>เบอร์โทรติดต่อ</span>
-                    <strong style={{ color: '#0d9488' }}>📞 {task.custom_payload.phone}</strong>
+                    <strong style={{ color: '#0d9488', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Phone size={13} className="flex-shrink-0" />
+                      <span>{task.custom_payload.phone}</span>
+                    </strong>
                   </div>
                 )}
               </div>
@@ -1448,7 +1449,10 @@ export default function TaskDetailClient({
 
                   {task.custom_payload?.driveLink && (
                     <div style={{ fontSize: '0.825rem', paddingTop: '0.5rem', borderTop: task.custom_payload?.attachments?.length ? '1px dashed #99f6e4' : 'none' }}>
-                      <span style={{ color: '#0f766e', fontWeight: 600 }}>🔗 ลิงก์ Google Drive / Cloud: </span>
+                      <span style={{ color: '#0f766e', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <ExternalLink size={13} className="flex-shrink-0" />
+                        <span>ลิงก์ Google Drive / Cloud: </span>
+                      </span>
                       <a
                         href={task.custom_payload.driveLink}
                         target="_blank"
@@ -1552,9 +1556,9 @@ export default function TaskDetailClient({
                   repairDetail.repair_status === 'IN_PROGRESS' ? 'statusInProgress' :
                   repairDetail.repair_status === 'EXTERNAL_REPAIR' ? 'statusExternal' : 'statusPending'
                 }`}>
-                  {repairDetail.repair_status === 'COMPLETED' ? '✓ ซ่อมเสร็จสิ้น' :
-                   repairDetail.repair_status === 'IN_PROGRESS' ? '⚙ กำลังดำเนินการซ่อม' :
-                   repairDetail.repair_status === 'EXTERNAL_REPAIR' ? '↗ ส่งซ่อมภายนอก' : '⏳ รอช่างรับงาน'}
+                  {repairDetail.repair_status === 'COMPLETED' ? 'ซ่อมเสร็จสิ้น' :
+                   repairDetail.repair_status === 'IN_PROGRESS' ? 'กำลังดำเนินการซ่อม' :
+                   repairDetail.repair_status === 'EXTERNAL_REPAIR' ? 'ส่งซ่อมภายนอก' : 'รอช่างรับงาน'}
                 </span>
               </div>
 
@@ -2560,7 +2564,7 @@ export default function TaskDetailClient({
                           รูปแบบค่าใช้จ่าย
                         </label>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', minHeight: '38px' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer', color: '#0f766e' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', color: '#0f766e' }}>
                             <input
                               type="radio"
                               name="editCostType"
@@ -2568,9 +2572,10 @@ export default function TaskDetailClient({
                               checked={editTaskForm.costType === 'NO_COST'}
                               onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'NO_COST', estimatedBudget: '' }))}
                             />
-                            <span>🟢 ไม่มีค่าใช้จ่าย</span>
+                            <span className="costBullet costBulletNoCost" aria-hidden="true" />
+                            <span>ไม่มีค่าใช้จ่าย</span>
                           </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer', color: '#b91c1c' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', color: '#b91c1c' }}>
                             <input
                               type="radio"
                               name="editCostType"
@@ -2578,7 +2583,8 @@ export default function TaskDetailClient({
                               checked={editTaskForm.costType === 'HAS_COST'}
                               onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'HAS_COST' }))}
                             />
-                            <span>🔴 มีค่าใช้จ่าย</span>
+                            <span className="costBullet costBulletHasCost" aria-hidden="true" />
+                            <span>มีค่าใช้จ่าย</span>
                           </label>
                         </div>
                       </div>
@@ -2636,7 +2642,6 @@ export default function TaskDetailClient({
                               onChange={() => {}} // Handled by div onClick
                               style={{ cursor: 'pointer' }}
                             />
-                            <span style={{ fontSize: '1rem' }}>{cfg.icon}</span>
                             <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#0f766e' : '#334155' }}>
                               {cfg.label}
                             </span>
@@ -2717,7 +2722,6 @@ export default function TaskDetailClient({
                               onChange={() => {}} // Handled by div onClick
                               style={{ cursor: 'pointer' }}
                             />
-                            <span style={{ fontSize: '1rem' }}>{cfg.icon}</span>
                             <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#0f766e' : '#334155' }}>
                               {cfg.label}
                             </span>
