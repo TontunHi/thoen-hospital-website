@@ -67,11 +67,8 @@ next-env.d.ts
 *.sql
 *.sql.gz
 
-# understand-anything scratch and intermediate files
-.ua/.trash-*/
-.ua/intermediate/
-.ua/tmp/
-.understand-anything/.trash-*/
-.understand-anything/intermediate/
+# understand-anything scratch and knowledge graph
+.ua/
+.understand-anything/
 
 
