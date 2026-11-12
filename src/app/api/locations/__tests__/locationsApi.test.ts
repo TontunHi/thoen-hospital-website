@@ -73,6 +73,27 @@ describe('Hospital Locations API Routes (Named Gateway Integration)', () => {
     )
   })
 
+  it('GET /api/admin/locations supports unwrapped payload directly from apiGateway', async () => {
+    vi.mocked(apiGateway.app.getLocations).mockResolvedValue({
+      items: [{ id: 2, room_name: 'ER 1' }],
+      total: 1,
+      page: 1,
+      totalPages: 1,
+      buildings: [{ building_id: 2, building_name: 'อาคารฉุกเฉิน' }],
+      buildingFloors: [],
+      stats: { totalCount: 1, activeCount: 1, buildingCount: 1 },
+    } as any)
+
+    const req = new Request('http://localhost:3000/api/admin/locations?page=1&limit=50')
+    const res = await getAdminLocations(req)
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.data.items[0].room_name).toBe('ER 1')
+    expect(json.data.stats.totalCount).toBe(1)
+  })
+
   it('POST /api/admin/locations creates a new hospital location', async () => {
     vi.mocked(apiGateway.app.createLocation).mockResolvedValue({
       success: true,

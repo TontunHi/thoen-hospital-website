@@ -109,14 +109,15 @@ export default function LocationsAdminClient({ sessionUser }: { sessionUser: any
 
       const res = await fetch(`/api/admin/locations?${params.toString()}`)
       const data = await res.json()
-      if (data.success && data.data) {
-        setItems(data.data.items || [])
-        setBuildings(data.data.buildings || [])
-        setBuildingFloors(data.data.buildingFloors || [])
-        setStats(data.data.stats || { totalCount: 0, activeCount: 0, buildingCount: 0 })
-        setTotal(data.data.total || 0)
-        setTotalPages(data.data.totalPages || 1)
-        setPage(data.data.page || 1)
+      const payload = data.data || (data.items ? data : null)
+      if (data.success && payload) {
+        setItems(payload.items || [])
+        setBuildings(payload.buildings || [])
+        setBuildingFloors(payload.buildingFloors || [])
+        setStats(payload.stats || { totalCount: 0, activeCount: 0, buildingCount: 0 })
+        setTotal(payload.total || 0)
+        setTotalPages(payload.totalPages || 1)
+        setPage(payload.page || 1)
       } else {
         setError(data.error || 'ไม่สามารถโหลดข้อมูลสถานที่ได้')
       }
