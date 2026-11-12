@@ -281,13 +281,16 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
     render(<RepFundsClient />)
 
     // Check all 3 mode buttons are rendered
-    const customBtn = screen.getByRole('tab', { name: /กำหนดเอง \(วันถึงวัน\)/ })
+    const customBtn = screen.getByRole('tab', { name: /กำหนดเอง/ })
     const monthBtn = screen.getByRole('tab', { name: /รายเดือน/ })
     const yearBtn = screen.getByRole('tab', { name: /รายปีงบประมาณ/ })
 
     expect(customBtn).toBeInTheDocument()
     expect(monthBtn).toBeInTheDocument()
     expect(yearBtn).toBeInTheDocument()
+
+    // Ensure redundant timeframe badge (e.g. "1 ต.ค. 2569 - 30 ก.ย. 2570") is not rendered
+    expect(screen.queryByText(/1 ต\.ค\./)).not.toBeInTheDocument()
 
     // Default mode is year: fiscal year selector should be present
     expect(screen.getByLabelText(/1\. เลือกปีงบประมาณ/)).toBeInTheDocument()
@@ -323,7 +326,7 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
     render(<RepFundsClient />)
 
     // Switch to custom mode
-    const customBtn = screen.getByRole('tab', { name: /กำหนดเอง \(วันถึงวัน\)/ })
+    const customBtn = screen.getByRole('tab', { name: /กำหนดเอง/ })
     fireEvent.click(customBtn)
 
     await waitFor(() => {
@@ -340,5 +343,34 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
         expect.anything()
       )
     })
+  })
+
+  it('renders clean Excel export button and allows filtering by clicking KPI cards', async () => {
+    render(<RepFundsClient />)
+
+    // Export button has clean label "ส่งออก Excel" without "(รายการเคส Rep)"
+    const exportBtn = screen.getByRole('button', { name: 'ส่งออก Excel' })
+    expect(exportBtn).toBeInTheDocument()
+    expect(screen.queryByText(/รายการเคส Rep/)).not.toBeInTheDocument()
+
+    const statusSelect = screen.getByLabelText(/5\. เลือกสถานะการชดเชย/)
+    expect(statusSelect).toHaveValue('ALL')
+
+    // Click "ยอดเงินชดเชย สปสช. รวม" card -> sets status filter to 'paid'
+    const paidCard = screen.getByText('ยอดเงินชดเชย สปสช. รวม').closest('button')!
+    fireEvent.click(paidCard)
+    expect(statusSelect).toHaveValue('paid')
+    expect(paidCard).toHaveAttribute('aria-pressed', 'true')
+
+    // Click same card again -> toggles back to 'ALL'
+    fireEvent.click(paidCard)
+    expect(statusSelect).toHaveValue('ALL')
+    expect(paidCard).toHaveAttribute('aria-pressed', 'false')
+
+    // Click "เคสรออุทธรณ์ / ติด Error" card -> sets status filter to 'has_error'
+    const errorCard = screen.getByText('เคสรออุทธรณ์ / ติด Error').closest('button')!
+    fireEvent.click(errorCard)
+    expect(statusSelect).toHaveValue('has_error')
+    expect(errorCard).toHaveAttribute('aria-pressed', 'true')
   })
 })

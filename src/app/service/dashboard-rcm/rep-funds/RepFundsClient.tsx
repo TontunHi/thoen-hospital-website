@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
+  RotateCcw,
 } from 'lucide-react'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import type {
@@ -22,11 +23,27 @@ import type {
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
-export type { PatientClaimRecord, FundSummaryGroup, RepStatementSummary, RepFundsSummaryMetrics, RepFundsSummaryResult }
+export type {
+  PatientClaimRecord,
+  FundSummaryGroup,
+  RepStatementSummary,
+  RepFundsSummaryMetrics,
+  RepFundsSummaryResult,
+}
 
 const THAI_MONTH_NAMES = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+  'มกราคม',
+  'กุมภาพันธ์',
+  'มีนาคม',
+  'เมษายน',
+  'พฤษภาคม',
+  'มิถุนายน',
+  'กรกฎาคม',
+  'สิงหาคม',
+  'กันยายน',
+  'ตุลาคม',
+  'พฤศจิกายน',
+  'ธันวาคม',
 ]
 
 export interface RepFundsClientProps {
@@ -60,15 +77,14 @@ export default function RepFundsClient({
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(defaultFiscalYearStr)
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth)
   const [selectedMonthYear, setSelectedMonthYear] = useState<number>(currentCalYear + 543)
-  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(
+    initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`
+  )
+  const [ds2, setDs2] = useState<string>(
+    initialRange?.endDate || `${defaultFiscalYear}-09-30`
+  )
 
-  // Report Dimension Filters:
-  // 2. กองทุนหลัก (Fund)
-  // 3. กองทุนย่อย (SubFund)
-  // 4. แผนกบริการ (Department: OPD / IPD)
-  // 5. สถานะการชดเชย (Status)
-  // 6. คำค้นหา (Search: Rep, HN, Patient Name, Error Code)
+  // Report Dimension Filters
   const [selectedFund, setSelectedFund] = useState<string>('ALL')
   const [selectedSubFund, setSelectedSubFund] = useState<string>('ALL')
   const [selectedDept, setSelectedDept] = useState<'ALL' | 'OP' | 'IP'>('ALL')
@@ -91,24 +107,23 @@ export default function RepFundsClient({
       errorCount: 0,
     }
   )
-  const [fundGroups, setFundGroups] = useState<FundSummaryGroup[]>(initialSummary?.fundGroups || [])
+  const [fundGroups, setFundGroups] = useState<FundSummaryGroup[]>(
+    initialSummary?.fundGroups || []
+  )
   const [availableYears, setAvailableYears] = useState<string[]>(
     initialSummary?.availableYears || ['2570', '2569', '2568', '2567']
   )
-  const [availableFunds, setAvailableFunds] = useState<Array<{ key: string; label: string; count: number }>>(
-    initialSummary?.availableFunds || []
-  )
+  const [availableFunds, setAvailableFunds] = useState<
+    Array<{ key: string; label: string; count: number }>
+  >(initialSummary?.availableFunds || [])
 
   // Multi-Rep, Multi-HN Statement Cases Data States
   const [statementCases, setStatementCases] = useState<PatientClaimRecord[]>([])
   const [isCasesLoading, setIsCasesLoading] = useState<boolean>(true)
   const [casesError, setCasesError] = useState<string | null>(null)
 
-  // Modal States:
-  // 1. Single Case Detail (when clicking a row in the combined Rep view)
+  // Modal States
   const [selectedCaseDetail, setSelectedCaseDetail] = useState<PatientClaimRecord | null>(null)
-
-  // 2. Fund Group Cases Modal (when clicking a row in the Fund view)
   const [activeFundModalTarget, setActiveFundModalTarget] = useState<{
     group: FundSummaryGroup
     title: string
@@ -326,6 +341,18 @@ export default function RepFundsClient({
     }
   }, [fetchStatementCases])
 
+  // Escape key handler for modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (selectedCaseDetail) setSelectedCaseDetail(null)
+        else if (activeFundModalTarget) setActiveFundModalTarget(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedCaseDetail, activeFundModalTarget])
+
   // Extract distinct subFunds from fundGroups when a specific fund is selected
   const availableSubFunds = useMemo(() => {
     if (selectedFund === 'ALL') return []
@@ -339,7 +366,15 @@ export default function RepFundsClient({
   }, [fundGroups, selectedFund])
 
   // Determine whether the lookup section form is visible
-  const isFormVisible = isLookupOpen || hasSearched || Boolean(lookupHn.trim()) || Boolean(lookupDate.trim())
+  const isFormVisible =
+    isLookupOpen || hasSearched || Boolean(lookupHn.trim()) || Boolean(lookupDate.trim())
+
+  const hasActiveFilters =
+    selectedFund !== 'ALL' ||
+    selectedSubFund !== 'ALL' ||
+    selectedDept !== 'ALL' ||
+    selectedStatus !== 'ALL' ||
+    Boolean(searchTerm.trim())
 
   // 3. Quick Patient Claim Lookup
   const handleQuickLookup = async (e?: React.FormEvent) => {
@@ -382,7 +417,7 @@ export default function RepFundsClient({
     setActiveFundModalTarget({
       group,
       title: `รายชื่อคนไข้: ${group.fundLabel} > ${group.subFundLabel}`,
-      subtitle: `แผนก ${group.department === 'IP' ? 'ผู้ป่วยใน (IPD)' : 'ผู้ป่วยนอก (OPD)'} • ทั้งหมด ${group.caseCount.toLocaleString('th-TH')} เคส • ได้รับชดเชยรวม ${group.totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+      subtitle: `แผนก ${group.department === 'IP' ? 'ผู้ป่วยใน (IPD)' : 'ผู้ป่วยนอก (OPD)'} • ทั้งหมด ${(group.caseCount ?? 0).toLocaleString('th-TH')} เคส • ได้รับชดเชยรวม ${(group.totalCompensated ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
     })
     setFundModalSearchTerm('')
     setIsFundModalLoading(true)
@@ -425,6 +460,13 @@ export default function RepFundsClient({
         (c.errorCode && c.errorCode.toLowerCase().includes(term))
     )
   }, [fundModalCases, fundModalSearchTerm])
+
+  // Toggle status filter when clicking a KPI summary card
+  const handleCardFilter = (statusValue: string) => {
+    setSelectedStatus((prev) =>
+      statusValue === 'ALL' ? 'ALL' : prev === statusValue ? 'ALL' : statusValue
+    )
+  }
 
   // Reset all filters
   const handleResetFilters = () => {
@@ -559,11 +601,18 @@ export default function RepFundsClient({
       <header className="rep-header">
         <div className="rep-header-top">
           <div className="rep-title-group">
-            <h1>3.1.1 ข้อมูล Rep แต่ละกองทุน</h1>
+            <div className="rep-title-row">
+              <h1>3.1.1 ข้อมูล Rep แต่ละกองทุน</h1>
+              <span className="rep-meta-count">
+                {(metrics.totalCases ?? 0).toLocaleString('th-TH')} เคส ·{' '}
+                {(metrics.totalReps ?? 0).toLocaleString('th-TH')} ใบ REP
+              </span>
+            </div>
             <p className="rep-subtitle">
               ตรวจสอบการชดเชยค่าบริการทางการแพทย์จาก สปสช. (REP) รวมหลาย Rep และหลาย HN ในที่เดียว สามารถคลิกที่แถวเพื่อดูรายละเอียดเคสได้ทันที
             </p>
           </div>
+
           <div className="rep-header-actions">
             <button
               type="button"
@@ -579,7 +628,11 @@ export default function RepFundsClient({
                 fetchStatementCases()
               }}
             >
-              <RefreshCw size={16} />
+              <RefreshCw
+                size={16}
+                strokeWidth={1.5}
+                className={isLoadingSummary || isCasesLoading ? 'spin-icon' : ''}
+              />
               รีเฟรชข้อมูล
             </button>
             <button
@@ -588,64 +641,118 @@ export default function RepFundsClient({
               onClick={handleExportExcel}
               title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
             >
-              <Download size={16} />
-              ส่งออก Excel ({activeTab === 'reps' ? 'รายการเคส Rep' : 'ตารางกองทุน'})
+              <Download size={16} strokeWidth={1.5} />
+              ส่งออก Excel
             </button>
           </div>
         </div>
       </header>
 
-      {/* 2. Summary KPI Cards (Primary Financial Health First) */}
+      {/* 2. Summary KPI Cards (Numbers-first, Clickable Filters) */}
       <section className="summary-bar" aria-label="แถบสรุปยอดรวมประจำปีงบประมาณ">
-        <div className="card-surface metric-card">
+        <button
+          type="button"
+          className={`card-surface metric-card ${selectedStatus === 'ALL' ? 'is-active' : ''}`}
+          aria-pressed={selectedStatus === 'ALL'}
+          onClick={() => handleCardFilter('ALL')}
+          title="คลิกเพื่อแสดงรายการทั้งหมด"
+        >
           <span className="metric-label">ค่ารักษาพยาบาลจริงรวม</span>
           <span className="metric-value">
-            {metrics.totalIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+            {(metrics.totalIncome ?? 0).toLocaleString('th-TH', {
+              minimumFractionDigits: 2,
+            })}
           </span>
           <span className="metric-sub">ยอดบันทึกจริงในระบบ HOSxP (บาท)</span>
-        </div>
+        </button>
 
-        <div className="card-surface metric-card accent-primary">
+        <button
+          type="button"
+          className={`card-surface metric-card ${selectedStatus === 'paid' ? 'is-active' : ''}`}
+          aria-pressed={selectedStatus === 'paid'}
+          onClick={() => handleCardFilter('paid')}
+          title="คลิกเพื่อกรองเฉพาะรายการที่ได้รับเงินชดเชย"
+        >
           <span className="metric-label">ยอดเงินชดเชย สปสช. รวม</span>
           <span className="metric-value metric-value-primary">
-            {metrics.totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+            {(metrics.totalCompensated ?? 0).toLocaleString('th-TH', {
+              minimumFractionDigits: 2,
+            })}
           </span>
           <span className="metric-sub">ยอดเงินที่ได้รับโอนชดเชยจริง (บาท)</span>
-        </div>
+        </button>
 
-        <div className="card-surface metric-card accent-success">
+        <button
+          type="button"
+          className={`card-surface metric-card ${selectedStatus === 'denied' ? 'is-active' : ''}`}
+          aria-pressed={selectedStatus === 'denied'}
+          onClick={() => handleCardFilter('denied')}
+          title="คลิกเพื่อกรองรายการที่ไม่ได้รับชดเชย (0 บาท)"
+        >
           <span className="metric-label">อัตราการชดเชยเฉลี่ย</span>
-          <span className="metric-value metric-value-success">{metrics.rate}%</span>
+          <span className="metric-value">{metrics.rate ?? '0.0'}%</span>
           <span className="metric-sub">สัดส่วนเงินชดเชยเทียบกับค่ารักษาจริง</span>
-        </div>
+        </button>
 
-        <div className={`card-surface metric-card ${metrics.totalDiff < 0 ? 'accent-danger' : 'accent-success'}`}>
+        <button
+          type="button"
+          className={`card-surface metric-card ${selectedStatus === 'appeal' ? 'is-active' : ''}`}
+          aria-pressed={selectedStatus === 'appeal'}
+          onClick={() => handleCardFilter('appeal')}
+          title="คลิกเพื่อกรองเคสที่ชดเชยต่ำกว่าค่ารักษาจริง / รออุทธรณ์"
+        >
           <span className="metric-label">ส่วนต่างรายรับสุทธิ</span>
-          <span className={`metric-value ${metrics.totalDiff < 0 ? 'metric-value-danger' : 'metric-value-success'}`}>
-            {metrics.totalDiff.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+          <span
+            className={`metric-value ${
+              (metrics.totalDiff ?? 0) < 0 ? 'metric-value-danger' : 'metric-value-success'
+            }`}
+          >
+            {(metrics.totalDiff ?? 0).toLocaleString('th-TH', {
+              minimumFractionDigits: 2,
+            })}
           </span>
           <span className="metric-sub">
-            {metrics.totalDiff < 0 ? 'ส่วนขาดทุน / ยังไม่ได้รับการชดเชย' : 'ส่วนเกินรายรับ (บาท)'}
+            {(metrics.totalDiff ?? 0) < 0
+              ? 'ส่วนขาดทุน / ยังไม่ได้รับการชดเชย'
+              : 'ส่วนเกินรายรับ (บาท)'}
           </span>
-        </div>
+        </button>
 
-        <div className={`card-surface metric-card ${metrics.pendingAppeals > 0 || metrics.errorCount > 0 ? 'accent-warning' : ''}`}>
+        <button
+          type="button"
+          className={`card-surface metric-card ${
+            selectedStatus === 'has_error' ? 'is-active' : ''
+          }`}
+          aria-pressed={selectedStatus === 'has_error'}
+          onClick={() => handleCardFilter('has_error')}
+          title="คลิกเพื่อกรองเฉพาะเคสที่ติดรหัส Error Code"
+        >
           <span className="metric-label">เคสรออุทธรณ์ / ติด Error</span>
-          <span className={`metric-value ${metrics.pendingAppeals > 0 || metrics.errorCount > 0 ? 'metric-value-warning' : ''}`}>
-            {metrics.pendingAppeals} เคส
+          <span
+            className={`metric-value ${
+              (metrics.pendingAppeals ?? 0) > 0 || (metrics.errorCount ?? 0) > 0
+                ? 'metric-value-warning'
+                : ''
+            }`}
+          >
+            {metrics.pendingAppeals ?? 0} เคส
           </span>
-          <span className="metric-sub">Error {metrics.errorCount} เคส • รอส่งหลักฐานเพิ่ม</span>
-        </div>
+          <span className="metric-sub">
+            Error {metrics.errorCount ?? 0} เคส · รอส่งหลักฐานเพิ่ม
+          </span>
+        </button>
       </section>
 
       {/* 3. Quick Patient Claim Lookup (Collapsible) */}
       <section className="card-surface lookup-section" aria-labelledby="lookup-heading">
         <div className="lookup-header">
           <div className="lookup-header-left">
-            <h2 id="lookup-heading">ตรวจสอบข้อมูลการชดเชยรายบุคคล (Patient Claim Lookup)</h2>
+            <h2 id="lookup-heading">
+              ตรวจสอบข้อมูลการชดเชยรายบุคคล (Patient Claim Lookup)
+            </h2>
             <span className="lookup-guide">
               {isFormVisible
-                ? 'กรอก HN หรือวันที่รับบริการ เพื่อดูยันว่า Rep นี้เป็นของใคร ได้รับเงินชดเชยกี่บาท'
+                ? 'กรอก HN หรือวันที่รับบริการ เพื่อตรวจสอบใบแจ้งผล REP และยอดเงินชดเชยรายบุคคล'
                 : 'คลิกเพื่อเปิดเครื่องมือตรวจสอบสิทธิ์ ยอดชดเชย และใบแจ้งผล REP รายคนไข้'}
             </span>
           </div>
@@ -657,9 +764,13 @@ export default function RepFundsClient({
             aria-expanded={isFormVisible}
             title={isFormVisible ? 'ซ่อนแบบฟอร์มค้นหา' : 'เปิดแบบฟอร์มค้นหา'}
           >
-            <Search size={15} />
+            <Search size={16} strokeWidth={1.5} />
             <span>{isFormVisible ? 'ซ่อนการค้นหา' : 'ค้นหารายคนไข้'}</span>
-            {isFormVisible ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            {isFormVisible ? (
+              <ChevronUp size={16} strokeWidth={1.5} />
+            ) : (
+              <ChevronDown size={16} strokeWidth={1.5} />
+            )}
           </button>
         </div>
 
@@ -693,7 +804,7 @@ export default function RepFundsClient({
             </div>
 
             <button type="submit" className="btn-primary" disabled={isSearchingLookup}>
-              <Search size={16} />
+              <Search size={16} strokeWidth={1.5} />
               {isSearchingLookup ? 'กำลังค้นหา...' : 'ค้นหาข้อมูล Rep'}
             </button>
 
@@ -708,7 +819,7 @@ export default function RepFundsClient({
                   setHasSearched(false)
                 }}
               >
-                <X size={16} />
+                <X size={16} strokeWidth={1.5} />
                 ปิดผลค้นหา
               </button>
             )}
@@ -720,7 +831,8 @@ export default function RepFundsClient({
               {lookupResults.length > 0 ? (
                 <div>
                   <div className="lookup-result-summary-text">
-                    พบข้อมูลการชดเชยทั้งหมด {lookupResults.length} รายการ สำหรับคนไข้: {lookupResults[0].ptName} (HN: {lookupResults[0].hn})
+                    พบข้อมูลการชดเชยทั้งหมด {lookupResults.length} รายการ สำหรับคนไข้:{' '}
+                    {lookupResults[0].ptName} (HN: {lookupResults[0].hn})
                   </div>
 
                   {lookupResults.map((rec) => (
@@ -729,10 +841,10 @@ export default function RepFundsClient({
                         <div>
                           <span className="result-label">คนไข้ / วันที่รับบริการ</span>
                           <div className="lookup-patient-title">
-                            {rec.ptName} (HN: {rec.hn}) • {rec.serviceDateThai}
+                            {rec.ptName} (HN: {rec.hn}) · {rec.serviceDateThai}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                        <div className="badge-group">
                           {rec.compensated > 0 ? (
                             <span className="status-badge success">ได้รับชดเชย</span>
                           ) : (
@@ -749,7 +861,9 @@ export default function RepFundsClient({
                       <div className="lookup-result-grid">
                         <div className="result-item">
                           <span className="result-label">เลขที่ใบแจ้งผล (REP)</span>
-                          <span className="result-value accent-primary">{rec.rep}</span>
+                          <span className="result-value accent-primary font-mono">
+                            {rec.rep}
+                          </span>
                         </div>
                         <div className="result-item">
                           <span className="result-label">กองทุน / สิทธิ</span>
@@ -762,19 +876,32 @@ export default function RepFundsClient({
                         <div className="result-item">
                           <span className="result-label">ค่ารักษาจริง รพ.</span>
                           <span className="result-value">
-                            {rec.income.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                            {(rec.income ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}{' '}
+                            บาท
                           </span>
                         </div>
                         <div className="result-item">
                           <span className="result-label">สปสช./กองทุน ชดเชยให้</span>
                           <span className="result-value text-success">
-                            {rec.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                            {(rec.compensated ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}{' '}
+                            บาท
                           </span>
                         </div>
                         <div className="result-item">
                           <span className="result-label">ส่วนต่าง (ผลต่างรายรับ)</span>
-                          <span className={`result-value ${rec.diff < 0 ? 'text-danger' : 'text-success'}`}>
-                            {rec.diff.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                          <span
+                            className={`result-value ${
+                              rec.diff < 0 ? 'text-danger' : 'text-success'
+                            }`}
+                          >
+                            {(rec.diff ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}{' '}
+                            บาท
                           </span>
                         </div>
                         {rec.errorCode && (
@@ -789,7 +916,9 @@ export default function RepFundsClient({
                 </div>
               ) : (
                 <div className="empty-state">
-                  <span className="empty-state-title">ไม่พบข้อมูลใบ REP หรือยอดเงินชดเชยสำหรับเงื่อนไขที่ระบุ</span>
+                  <span className="empty-state-title">
+                    ไม่พบข้อมูลใบ REP หรือยอดเงินชดเชยสำหรับเงื่อนไขที่ระบุ
+                  </span>
                   <span>กรุณาตรวจสอบเลข HN หรือวันที่รับบริการอีกครั้ง</span>
                 </div>
               )}
@@ -800,7 +929,7 @@ export default function RepFundsClient({
 
       {/* 4. Filter Toolbar & Main Data Table */}
       <section className="card-surface main-dashboard-card" aria-labelledby="table-heading">
-        {/* View Switcher Tabs at top of Card */}
+        {/* Top Bar: View Switcher Tabs & Timeframe Selector */}
         <div className="card-tabs-header">
           <div className="view-tabs" role="tablist">
             <button
@@ -810,7 +939,7 @@ export default function RepFundsClient({
               className={`view-tab-btn ${activeTab === 'reps' ? 'active' : ''}`}
               onClick={() => setActiveTab('reps')}
             >
-              มุมมองตามใบแจ้งผล REP (Rep Statements)
+              <span>มุมมองตามใบแจ้งผล REP (Rep Statements)</span>
               <span className="tab-badge">{statementCases.length}</span>
             </button>
             <button
@@ -820,15 +949,12 @@ export default function RepFundsClient({
               className={`view-tab-btn ${activeTab === 'funds' ? 'active' : ''}`}
               onClick={() => setActiveTab('funds')}
             >
-              มุมมองตามกองทุน (Fund Matrix)
+              <span>มุมมองตามกองทุน (Fund Matrix)</span>
               <span className="tab-badge">{fundGroups.length}</span>
             </button>
           </div>
-        </div>
 
-        {/* Toolbar Controls - Strict Order: ใหญ่ไปเล็ก (Macro -> Micro) */}
-        <div className="toolbar-section">
-          {/* 1. Timeframe Controls (Date Mode Selector & Contextual Inputs) */}
+          {/* Timeframe Controls */}
           <div className="date-controls-row">
             <div className="rcm-button-group" role="tablist" aria-label="รูปแบบช่วงเวลา">
               <button
@@ -838,7 +964,7 @@ export default function RepFundsClient({
                 onClick={() => handleModeChange('custom')}
                 className={`rcm-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
               >
-                กำหนดเอง (วันถึงวัน)
+                กำหนดเอง
               </button>
               <button
                 type="button"
@@ -864,7 +990,7 @@ export default function RepFundsClient({
               {dateMode === 'year' && (
                 <div className="date-input-pair">
                   <select
-                    className="filter-select"
+                    className="filter-select compact-select"
                     value={selectedFiscalYear}
                     onChange={(e) => handleSelectFiscalYear(e.target.value)}
                     aria-label="1. เลือกปีงบประมาณ"
@@ -876,16 +1002,13 @@ export default function RepFundsClient({
                       </option>
                     ))}
                   </select>
-                  <span className="timeframe-hint-badge">
-                    1 ต.ค. {parseInt(selectedFiscalYear, 10) - 1} - 30 ก.ย. {selectedFiscalYear}
-                  </span>
                 </div>
               )}
 
               {dateMode === 'month' && (
                 <div className="date-input-pair">
                   <select
-                    className="filter-select"
+                    className="filter-select compact-select"
                     value={selectedMonth}
                     onChange={(e) => handleSelectMonth(Number(e.target.value))}
                     aria-label="เลือกเดือน"
@@ -898,7 +1021,7 @@ export default function RepFundsClient({
                     ))}
                   </select>
                   <select
-                    className="filter-select"
+                    className="filter-select compact-select"
                     value={selectedMonthYear}
                     onChange={(e) => handleSelectMonthYear(Number(e.target.value))}
                     aria-label="เลือกปี พ.ศ."
@@ -943,15 +1066,17 @@ export default function RepFundsClient({
                     className="btn-fetch-range"
                     title="ดึงข้อมูลตามช่วงวันที่ระบุ"
                   >
-                    <Filter size={14} />
+                    <Filter size={16} strokeWidth={1.5} />
                     <span>ดึงข้อมูล</span>
                   </button>
                 </div>
               )}
             </div>
           </div>
+        </div>
 
-          {/* 2. Dimension Filters Row */}
+        {/* Dimension Filters & Search Toolbar */}
+        <div className="toolbar-section">
           <div className="dimension-filters-row">
             <div className="filter-group">
               <h2 id="table-heading" className="sr-only">
@@ -1024,6 +1149,7 @@ export default function RepFundsClient({
                 <option value="ALL">สถานะการชดเชย: ทั้งหมด</option>
                 <option value="paid">ได้รับเงินชดเชย (Compensated &gt; 0)</option>
                 <option value="denied">ไม่ได้รับชดเชย (0 บาท)</option>
+                <option value="appeal">ชดเชยไม่ครบ / รออุทธรณ์</option>
                 <option value="has_error">มีรหัส Error Code</option>
               </select>
 
@@ -1044,10 +1170,23 @@ export default function RepFundsClient({
                   <option value={0}>แสดงทั้งหมด (ไม่จำกัด)</option>
                 </select>
               )}
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="btn-reset-inline"
+                  onClick={handleResetFilters}
+                  title="ล้างตัวกรองทั้งหมด"
+                >
+                  <RotateCcw size={16} strokeWidth={1.5} />
+                  <span>ล้างตัวกรอง</span>
+                </button>
+              )}
             </div>
 
             {/* 6. ช่องค้นหาเฉพาะเจาะจง (Search: Rep, HN, Name, Error) */}
             <div className="search-input-wrapper">
+              <Search size={16} strokeWidth={1.5} className="search-input-icon" aria-hidden="true" />
               <input
                 type="text"
                 className="search-input"
@@ -1056,11 +1195,21 @@ export default function RepFundsClient({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 aria-label="6. ค้นหาเลข Rep, HN, ชื่อคนไข้, หรือรหัส Error"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchTerm('')}
+                  aria-label="ล้างคำค้นหา"
+                >
+                  <X size={16} strokeWidth={1.5} />
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* TAB 1: Rep Statements View - Multiple Reps and Multiple HNs combined in one flat table */}
+        {/* TAB 1: Rep Statements View */}
         {activeTab === 'reps' && (
           <div>
             {isCasesLoading ? (
@@ -1070,8 +1219,8 @@ export default function RepFundsClient({
               </div>
             ) : casesError ? (
               <div className="empty-state">
-                <AlertCircle size={32} style={{ color: 'var(--danger)' }} />
-                <span className="empty-state-title" style={{ color: 'var(--danger)' }}>
+                <AlertCircle size={24} strokeWidth={1.5} className="error-icon" />
+                <span className="empty-state-title error-text">
                   เกิดข้อผิดพลาดในการโหลดข้อมูลเคส Rep
                 </span>
                 <span>{casesError}</span>
@@ -1114,32 +1263,38 @@ export default function RepFundsClient({
                             }
                           }}
                         >
-                          <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{record.rep}</td>
-                          <td style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{record.hn}</td>
-                          <td style={{ fontWeight: 600, color: 'var(--gray-900)' }}>{record.ptName}</td>
-                          <td>{record.serviceDateThai}</td>
+                          <td className="rep-code-cell">{record.rep}</td>
+                          <td className="hn-cell">{record.hn}</td>
+                          <td className="ptname-cell">{record.ptName}</td>
+                          <td className="date-cell">{record.serviceDateThai}</td>
                           <td>
-                            <span className="status-badge neutral">{record.department === 'IP' ? 'IPD' : 'OPD'}</span>
+                            <span className="dept-tag">
+                              {record.department === 'IP' ? 'IPD' : 'OPD'}
+                            </span>
                           </td>
-                          <td>{record.fundLabel}</td>
-                          <td className="num-col">{record.income.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                          <td className="num-col" style={{ color: 'var(--success)', fontWeight: 600 }}>
-                            {record.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                          <td className="fund-cell">{record.fundLabel}</td>
+                          <td className="num-col">
+                            {(record.income ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="num-col amount-compensated">
+                            {(record.compensated ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}
                           </td>
                           <td
-                            className="num-col"
-                            style={{
-                              color: record.diff < 0 ? 'var(--danger)' : 'var(--success)',
-                              fontWeight: 600,
-                            }}
+                            className={`num-col ${
+                              record.diff < 0 ? 'amount-negative' : 'amount-positive'
+                            }`}
                           >
-                            {record.diff.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                            {(record.diff ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}
                           </td>
-                          <td className="num-col" style={{ fontWeight: 600 }}>
-                            {record.percentPay}%
-                          </td>
+                          <td className="num-col rate-cell">{record.percentPay}%</td>
                           <td>
-                            <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
+                            <div className="badge-group">
                               {record.compensated > 0 ? (
                                 <span className="status-badge success">ได้รับชดเชย</span>
                               ) : (
@@ -1158,7 +1313,9 @@ export default function RepFundsClient({
                       <tr>
                         <td colSpan={11}>
                           <div className="empty-state">
-                            <span className="empty-state-title">ไม่พบข้อมูลเคสในใบ REP ตามเงื่อนไขที่เลือก</span>
+                            <span className="empty-state-title">
+                              ไม่พบข้อมูลเคสในใบ REP ตามเงื่อนไขที่เลือก
+                            </span>
                             <span>กรุณาปรับเปลี่ยนตัวกรองกองทุน หรือแผนก เพื่อดูข้อมูล</span>
                           </div>
                         </td>
@@ -1169,16 +1326,23 @@ export default function RepFundsClient({
                     <tfoot>
                       <tr>
                         <td colSpan={6}>
-                          แสดงทั้งหมด {statementCases.length.toLocaleString('th-TH')} รายการ (หลาย Rep หลาย HN รวมกัน • คลิกที่แถวเพื่อดูรายละเอียด)
+                          แสดงทั้งหมด {statementCases.length.toLocaleString('th-TH')} รายการ
+                          (หลาย Rep หลาย HN รวมกัน · คลิกที่แถวเพื่อดูรายละเอียด)
                         </td>
                         <td className="num-col">
-                          {statementCases.reduce((s, c) => s + c.income, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                          {statementCases
+                            .reduce((s, c) => s + (c.income ?? 0), 0)
+                            .toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="num-col" style={{ color: 'var(--success)' }}>
-                          {statementCases.reduce((s, c) => s + c.compensated, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        <td className="num-col amount-compensated">
+                          {statementCases
+                            .reduce((s, c) => s + (c.compensated ?? 0), 0)
+                            .toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="num-col">
-                          {statementCases.reduce((s, c) => s + c.diff, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                          {statementCases
+                            .reduce((s, c) => s + (c.diff ?? 0), 0)
+                            .toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                         </td>
                         <td colSpan={2}></td>
                       </tr>
@@ -1200,8 +1364,8 @@ export default function RepFundsClient({
               </div>
             ) : summaryError ? (
               <div className="empty-state">
-                <AlertCircle size={32} style={{ color: 'var(--danger)' }} />
-                <span className="empty-state-title" style={{ color: 'var(--danger)' }}>
+                <AlertCircle size={24} strokeWidth={1.5} className="error-icon" />
+                <span className="empty-state-title error-text">
                   เกิดข้อผิดพลาดในการโหลดข้อมูลสรุปกองทุน
                 </span>
                 <span>{summaryError}</span>
@@ -1242,39 +1406,49 @@ export default function RepFundsClient({
                             }
                           }}
                         >
-                          <td style={{ fontWeight: 600 }}>{group.fundLabel}</td>
+                          <td className="ptname-cell">{group.fundLabel}</td>
                           <td>
                             {group.subFundLabel !== '-' ? (
                               group.subFundLabel
                             ) : (
-                              <span style={{ color: 'var(--gray-400)' }}>-</span>
+                              <span className="muted-dash">—</span>
                             )}
                           </td>
                           <td>
-                            <span className="status-badge neutral">{group.department === 'OP' ? 'OPD' : 'IPD'}</span>
+                            <span className="dept-tag">
+                              {group.department === 'OP' ? 'OPD' : 'IPD'}
+                            </span>
                           </td>
-                          <td className="num-col">{group.caseCount.toLocaleString('th-TH')}</td>
-                          <td className="num-col">{group.totalIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                          <td className="num-col" style={{ color: 'var(--success)', fontWeight: 600 }}>
-                            {group.totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                          <td className="num-col">
+                            {(group.caseCount ?? 0).toLocaleString('th-TH')}
                           </td>
-                          <td className="num-col" style={{ fontWeight: 600 }}>
-                            {group.reimbursementRate}%
+                          <td className="num-col">
+                            {(group.totalIncome ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}
                           </td>
+                          <td className="num-col amount-compensated">
+                            {(group.totalCompensated ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="num-col rate-cell">{group.reimbursementRate}%</td>
                           <td
-                            className="num-col"
-                            style={{
-                              color: group.netDiff < 0 ? 'var(--danger)' : 'var(--success)',
-                              fontWeight: 600,
-                            }}
+                            className={`num-col ${
+                              group.netDiff < 0 ? 'amount-negative' : 'amount-positive'
+                            }`}
                           >
-                            {group.netDiff.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                            {(group.netDiff ?? 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                            })}
                           </td>
                           <td className="num-col">
                             {group.appealCount > 0 ? (
-                              <span className="status-badge warning">{group.appealCount} เคส</span>
+                              <span className="status-badge warning">
+                                {group.appealCount} เคส
+                              </span>
                             ) : (
-                              <span style={{ color: 'var(--gray-400)' }}>-</span>
+                              <span className="muted-dash">—</span>
                             )}
                           </td>
                         </tr>
@@ -1284,7 +1458,9 @@ export default function RepFundsClient({
                         <td colSpan={9}>
                           <div className="empty-state">
                             <span className="empty-state-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</span>
-                            <span>กรุณาปรับเปลี่ยนตัวกรองกองทุน หรือปีงบประมาณเพื่อดูข้อมูล</span>
+                            <span>
+                              กรุณาปรับเปลี่ยนตัวกรองกองทุน หรือปีงบประมาณเพื่อดูข้อมูล
+                            </span>
                           </div>
                         </td>
                       </tr>
@@ -1293,18 +1469,36 @@ export default function RepFundsClient({
                   {fundGroups.length > 0 && (
                     <tfoot>
                       <tr>
-                        <td colSpan={3}>รวมทั้งสิ้น ({fundGroups.length} รายการกองทุน • คลิกที่แถวเพื่อดูรายชื่อคนไข้)</td>
-                        <td className="num-col">{metrics.totalCases.toLocaleString('th-TH')}</td>
-                        <td className="num-col">{metrics.totalIncome.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                        <td className="num-col">{metrics.totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                        <td className="num-col">{metrics.rate}%</td>
-                        <td
-                          className="num-col"
-                          style={{ color: metrics.totalDiff < 0 ? 'var(--danger)' : 'var(--success)' }}
-                        >
-                          {metrics.totalDiff.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        <td colSpan={3}>
+                          รวมทั้งสิ้น ({fundGroups.length} รายการกองทุน ·
+                          คลิกที่แถวเพื่อดูรายชื่อคนไข้)
                         </td>
-                        <td className="num-col">{metrics.pendingAppeals} เคส</td>
+                        <td className="num-col">
+                          {(metrics.totalCases ?? 0).toLocaleString('th-TH')}
+                        </td>
+                        <td className="num-col">
+                          {(metrics.totalIncome ?? 0).toLocaleString('th-TH', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="num-col amount-compensated">
+                          {(metrics.totalCompensated ?? 0).toLocaleString('th-TH', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="num-col">{metrics.rate ?? '0.0'}%</td>
+                        <td
+                          className={`num-col ${
+                            (metrics.totalDiff ?? 0) < 0
+                              ? 'amount-negative'
+                              : 'amount-positive'
+                          }`}
+                        >
+                          {(metrics.totalDiff ?? 0).toLocaleString('th-TH', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="num-col">{metrics.pendingAppeals ?? 0} เคส</td>
                       </tr>
                     </tfoot>
                   )}
@@ -1315,17 +1509,26 @@ export default function RepFundsClient({
         )}
       </section>
 
-      {/* 5. Single Case Detail Modal (Triggered by clicking a row in the combined Rep view) */}
+      {/* 5. Single Case Detail Modal */}
       {selectedCaseDetail && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="case-detail-title">
-          <div className="modal-dialog" style={{ maxWidth: '780px' }}>
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="case-detail-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedCaseDetail(null)
+          }}
+        >
+          <div className="modal-dialog" style={{ maxWidth: '760px' }}>
             <div className="modal-header">
               <div>
                 <h3 id="case-detail-title">
                   รายละเอียดเคส: {selectedCaseDetail.ptName} (HN: {selectedCaseDetail.hn})
                 </h3>
                 <p className="modal-subtitle">
-                  ใบแจ้งผล REP: {selectedCaseDetail.rep} • {selectedCaseDetail.departmentLabel} • {selectedCaseDetail.serviceDateThai}
+                  ใบแจ้งผล REP: {selectedCaseDetail.rep} · {selectedCaseDetail.departmentLabel} ·{' '}
+                  {selectedCaseDetail.serviceDateThai}
                 </p>
               </div>
               <button
@@ -1334,7 +1537,7 @@ export default function RepFundsClient({
                 onClick={() => setSelectedCaseDetail(null)}
                 aria-label="ปิดหน้าต่าง"
               >
-                <X size={20} />
+                <X size={18} strokeWidth={1.5} />
               </button>
             </div>
 
@@ -1349,7 +1552,9 @@ export default function RepFundsClient({
                     </div>
                     <div className="result-item">
                       <span className="result-label">เลขประจำตัวผู้ป่วย (HN)</span>
-                      <span className="result-value accent-primary">{selectedCaseDetail.hn}</span>
+                      <span className="result-value accent-primary font-mono">
+                        {selectedCaseDetail.hn}
+                      </span>
                     </div>
                     <div className="result-item">
                       <span className="result-label">วันที่รับบริการ</span>
@@ -1361,7 +1566,9 @@ export default function RepFundsClient({
                     </div>
                     <div className="result-item">
                       <span className="result-label">เลขที่ใบแจ้งผล (REP)</span>
-                      <span className="result-value accent-primary">{selectedCaseDetail.rep}</span>
+                      <span className="result-value accent-primary font-mono">
+                        {selectedCaseDetail.rep}
+                      </span>
                     </div>
                     <div className="result-item">
                       <span className="result-label">กองทุน / สิทธิ</span>
@@ -1388,19 +1595,32 @@ export default function RepFundsClient({
                     <div className="result-item">
                       <span className="result-label">ค่ารักษาจริง รพ.</span>
                       <span className="result-value">
-                        {selectedCaseDetail.income.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                        {(selectedCaseDetail.income ?? 0).toLocaleString('th-TH', {
+                          minimumFractionDigits: 2,
+                        })}{' '}
+                        บาท
                       </span>
                     </div>
                     <div className="result-item">
                       <span className="result-label">เงินที่ได้รับการชดเชย</span>
                       <span className="result-value text-success">
-                        {selectedCaseDetail.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                        {(selectedCaseDetail.compensated ?? 0).toLocaleString('th-TH', {
+                          minimumFractionDigits: 2,
+                        })}{' '}
+                        บาท
                       </span>
                     </div>
                     <div className="result-item">
                       <span className="result-label">ส่วนต่างรายรับสุทธิ</span>
-                      <span className={`result-value ${selectedCaseDetail.diff < 0 ? 'text-danger' : 'text-success'}`}>
-                        {selectedCaseDetail.diff.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                      <span
+                        className={`result-value ${
+                          selectedCaseDetail.diff < 0 ? 'text-danger' : 'text-success'
+                        }`}
+                      >
+                        {(selectedCaseDetail.diff ?? 0).toLocaleString('th-TH', {
+                          minimumFractionDigits: 2,
+                        })}{' '}
+                        บาท
                       </span>
                     </div>
                     <div className="result-item">
@@ -1409,7 +1629,7 @@ export default function RepFundsClient({
                     </div>
                     <div className="result-item">
                       <span className="result-label">สถานะการชดเชย</span>
-                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                      <div className="badge-group">
                         {selectedCaseDetail.compensated > 0 ? (
                           <span className="status-badge success">ได้รับเงินชดเชย</span>
                         ) : (
@@ -1425,7 +1645,9 @@ export default function RepFundsClient({
                     {selectedCaseDetail.errorCode && (
                       <div className="result-item">
                         <span className="result-label">รหัส Error Code</span>
-                        <span className="result-value text-danger">{selectedCaseDetail.errorCode}</span>
+                        <span className="result-value text-danger">
+                          {selectedCaseDetail.errorCode}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1446,9 +1668,17 @@ export default function RepFundsClient({
         </div>
       )}
 
-      {/* 6. Fund Group Cases Modal (Triggered by clicking a row in the Fund Matrix view) */}
+      {/* 6. Fund Group Cases Modal */}
       {activeFundModalTarget && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setActiveFundModalTarget(null)
+          }}
+        >
           <div className="modal-dialog">
             <div className="modal-header">
               <div>
@@ -1461,16 +1691,22 @@ export default function RepFundsClient({
                 onClick={() => setActiveFundModalTarget(null)}
                 aria-label="ปิดหน้าต่าง"
               >
-                <X size={20} />
+                <X size={18} strokeWidth={1.5} />
               </button>
             </div>
 
             <div className="modal-body">
               <div className="modal-toolbar">
-                <div style={{ flex: 1, minWidth: '240px' }}>
+                <div className="search-input-wrapper" style={{ flex: 1, minWidth: '240px' }}>
+                  <Search
+                    size={16}
+                    strokeWidth={1.5}
+                    className="search-input-icon"
+                    aria-hidden="true"
+                  />
                   <input
                     type="text"
-                    className="form-input"
+                    className="search-input"
                     placeholder="ค้นหาชื่อคนไข้, HN, เลข Rep ในรายการนี้..."
                     value={fundModalSearchTerm}
                     onChange={(e) => setFundModalSearchTerm(e.target.value)}
@@ -1484,7 +1720,7 @@ export default function RepFundsClient({
                     disabled={fundModalCases.length === 0}
                     title="ส่งออกรายชื่อคนไข้เป็นไฟล์ Excel (.xlsx)"
                   >
-                    <Download size={15} />
+                    <Download size={16} strokeWidth={1.5} />
                     ส่งออกรายชื่อคนไข้ (Excel)
                   </button>
                 </div>
@@ -1520,32 +1756,42 @@ export default function RepFundsClient({
                             title="คลิกเพื่อดูรายละเอียดเชิงลึกของเคสนี้"
                             onClick={() => setSelectedCaseDetail(item)}
                           >
-                            <td style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{item.hn}</td>
-                            <td style={{ fontWeight: 600, color: 'var(--gray-900)' }}>{item.ptName}</td>
-                            <td>{item.serviceDateThai}</td>
-                            <td style={{ color: 'var(--primary)', fontWeight: 600 }}>{item.rep}</td>
+                            <td className="hn-cell">{item.hn}</td>
+                            <td className="ptname-cell">{item.ptName}</td>
+                            <td className="date-cell">{item.serviceDateThai}</td>
+                            <td className="rep-code-cell">{item.rep}</td>
                             <td>
-                              <span className="status-badge neutral">{item.department === 'IP' ? 'IPD' : 'OPD'}</span>
+                              <span className="dept-tag">
+                                {item.department === 'IP' ? 'IPD' : 'OPD'}
+                              </span>
                             </td>
-                            <td className="num-col">{item.income.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                            <td className="num-col" style={{ color: 'var(--success)', fontWeight: 600 }}>
-                              {item.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                            <td className="num-col">
+                              {(item.income ?? 0).toLocaleString('th-TH', {
+                                minimumFractionDigits: 2,
+                              })}
+                            </td>
+                            <td className="num-col amount-compensated">
+                              {(item.compensated ?? 0).toLocaleString('th-TH', {
+                                minimumFractionDigits: 2,
+                              })}
                             </td>
                             <td
-                              className="num-col"
-                              style={{
-                                color: item.diff < 0 ? 'var(--danger)' : 'var(--success)',
-                                fontWeight: 600,
-                              }}
+                              className={`num-col ${
+                                item.diff < 0 ? 'amount-negative' : 'amount-positive'
+                              }`}
                             >
-                              {item.diff.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                              {(item.diff ?? 0).toLocaleString('th-TH', {
+                                minimumFractionDigits: 2,
+                              })}
                             </td>
                             <td>
-                              <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
+                              <div className="badge-group">
                                 {item.compensated > 0 ? (
                                   <span className="status-badge success">ได้รับชดเชย</span>
                                 ) : (
-                                  <span className="status-badge danger">ไม่ได้รับชดเชย (0 บาท)</span>
+                                  <span className="status-badge danger">
+                                    ไม่ได้รับชดเชย (0 บาท)
+                                  </span>
                                 )}
                                 {item.errorCode && (
                                   <span className="status-badge warning" title={item.errorCode}>
@@ -1560,7 +1806,9 @@ export default function RepFundsClient({
                         <tr>
                           <td colSpan={9}>
                             <div className="empty-state">
-                              <span className="empty-state-title">ไม่พบข้อมูลคนไข้ตามเงื่อนไข</span>
+                              <span className="empty-state-title">
+                                ไม่พบข้อมูลคนไข้ตามเงื่อนไข
+                              </span>
                             </div>
                           </td>
                         </tr>
