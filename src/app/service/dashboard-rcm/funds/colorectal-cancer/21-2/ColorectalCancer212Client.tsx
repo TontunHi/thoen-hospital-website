@@ -37,6 +37,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1194,6 +1195,7 @@ export default function ColorectalCancer212Client({
                       </td>
                       <td className="crc-col-center" style={{ fontVariantNumeric: 'tabular-nums' }}>
                         {item.rep || '—'}
+                        <RcmSeamlessRepBadges row={item} />
                       </td>
                       <td
                         className="crc-col-center"
@@ -1205,6 +1207,7 @@ export default function ColorectalCancer212Client({
                         }}
                       >
                         {formatMoney(item.compensated)}
+                        <RcmSeamlessSubAmount row={item} />
                       </td>
                     </tr>
                   )
@@ -1541,6 +1544,7 @@ export default function ColorectalCancer212Client({
                   )}
                 </>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="crc-modal-footer">

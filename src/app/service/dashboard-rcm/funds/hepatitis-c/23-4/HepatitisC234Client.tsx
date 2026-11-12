@@ -38,6 +38,7 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1117,9 +1118,13 @@ export default function HepatitisC234Client({
                         <span className="hs-badge hs-badge-neutral">—</span>
                       )}
                     </td>
-                    <td className="text-center">{item.rep || '—'}</td>
+                    <td className="text-center">
+                      <div>{item.rep || '—'}</div>
+                      <RcmSeamlessRepBadges row={item} />
+                    </td>
                     <td className="text-center font-medium">
                       {item.compensated > 0 ? formatMoney(item.compensated) : '—'}
+                      <RcmSeamlessSubAmount row={item} />
                     </td>
                     <td className="text-center">
                       {item.isSeamlessCompensated ? (
@@ -1545,6 +1550,7 @@ export default function HepatitisC234Client({
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             {/* Modal Footer */}

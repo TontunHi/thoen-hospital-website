@@ -36,6 +36,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1141,9 +1142,11 @@ export default function FluorideVarnish201Client({
                     </td>
                     <td className="col-center fluoride-num font-mono">
                       {item.rep || '—'}
+                      <RcmSeamlessRepBadges row={item} />
                     </td>
                     <td className="col-center fluoride-num font-semibold" style={{ color: item.isCompensated ? '#059669' : '#475569', whiteSpace: 'nowrap' }}>
                       {formatMoney(item.compensated)}
+                      <RcmSeamlessSubAmount row={item} />
                     </td>
                   </tr>
                 ))}
@@ -1431,6 +1434,7 @@ export default function FluorideVarnish201Client({
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="fluoride-modal-footer">

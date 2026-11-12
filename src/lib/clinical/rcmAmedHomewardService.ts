@@ -8,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: ระบบ AMed และ Home Ward - รายงาน HOMEWARD ──────────────
 
@@ -387,13 +388,19 @@ export class RcmAmedHomewardService {
     })
 
     // Dual-mode summaryCohort filtering (pttypes takes precedence, ucOnly fallback)
-    let summaryCohort = allItems
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
+    let summaryCohort = enrichedAllItems
     if (params.pttypes) {
-      summaryCohort = allItems.filter((i) =>
+      summaryCohort = enrichedAllItems.filter((i) =>
         matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
       )
     } else if (params.ucOnly) {
-      summaryCohort = allItems.filter((i) => i.isUc)
+      summaryCohort = enrichedAllItems.filter((i) => i.isUc)
     }
 
     // Compute Tier 1 Aggregated Summary from summaryCohort
@@ -467,6 +474,7 @@ export class RcmAmedHomewardService {
     if (search) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.an.toLowerCase().includes(search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||

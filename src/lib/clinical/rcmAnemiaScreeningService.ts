@@ -8,6 +8,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 17.1 บริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก อายุ 13-24 ปี ADP (13001) ──
 
@@ -543,13 +544,19 @@ export class RcmAnemiaScreeningService {
       }
     })
 
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
     const pttypes = (params.pttypes || '').trim()
     const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
 
     // Cohort for summary KPIs (Full page filter Q2: A)
     const summaryCohort = selectedPttypesList.length > 0
-      ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
-      : allItems
+      ? enrichedAllItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
+      : enrichedAllItems
 
     // Calculate Summary Aggregates across summaryCohort
     const uniqueHnSet = new Set<string>()
@@ -647,6 +654,7 @@ export class RcmAnemiaScreeningService {
 
         // ALL searchField: searches hn, cid, ptname, vn, pdx, authencode, rep, pttypename
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.toLowerCase().includes(search) ||
           item.ptname.toLowerCase().includes(search) ||

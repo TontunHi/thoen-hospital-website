@@ -37,6 +37,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1153,6 +1154,7 @@ export default function DisabilityServicesClient({
                       {/* 11. ชดเชย (บาท) */}
                       <td className="col-center tabular font-semibold">
                         {formatMoney(row.compensated)}
+                        <RcmSeamlessSubAmount row={row} />
                       </td>
 
                       {/* 12. สถานะชดเชย */}
@@ -1166,6 +1168,7 @@ export default function DisabilityServicesClient({
                             {row.status || 'รอชดเชย'}
                           </span>
                         )}
+                        <RcmSeamlessRepBadges row={row} />
                       </td>
                     </tr>
                   )
@@ -1510,6 +1513,7 @@ export default function DisabilityServicesClient({
                   </table>
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="rehab-modal-footer">

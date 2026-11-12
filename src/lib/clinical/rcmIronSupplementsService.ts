@@ -8,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 18.2 รายชื่อผู้รับบริการยาเม็ดเสริมธาตุเหล็ก ADP (14001) ──
 
@@ -484,7 +485,7 @@ export class RcmIronSupplementsService {
 
     // Normalize and map items
     // Strict cohort guard: 18.2 Iron Supplements fund is strictly for Females (sex = 2) aged 13-45 years
-    const allItems: IronSupplementsItem[] = (rawRows || [])
+    let allItems: IronSupplementsItem[] = (rawRows || [])
       .filter((r: any) => {
         const sex = String(r.sex_code || r.sex || '').trim()
         const isFemale = sex === '2' || sex === 'หญิง' || sex === 'F'
@@ -569,6 +570,7 @@ export class RcmIronSupplementsService {
     })
 
     // Calculate Summary Aggregates (Full Page Filter based on pttypes / ucOnly)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       const selectedPttypesList = params.pttypes.split(',').map((p) => p.trim()).filter(Boolean)
@@ -687,6 +689,7 @@ export class RcmIronSupplementsService {
 
         // ALL searchField: searches hn, cid, ptname, vn, pdx, authencode, rep, pttypename, drugname, listname
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.toLowerCase().includes(search) ||
           item.ptname.toLowerCase().includes(search) ||

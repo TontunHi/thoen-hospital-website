@@ -8,6 +8,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: กองทุนมะเร็ง (CANCER ADP) ───────────────────────────────
 
@@ -553,14 +554,20 @@ export class RcmCancerFundService {
       }
     })
 
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
     const pttypes = (params.pttypes || '').trim()
     const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
 
     // Cohort for summary KPIs:
     // If pttypes filter is specified, compute summary KPIs based on matching pttypes (Full Page Filter Q2: A)
     const summaryCohort = selectedPttypesList.length > 0
-      ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
-      : allItems
+      ? enrichedAllItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
+      : enrichedAllItems
 
     // Compute Summary across summaryCohort
     const totalVisits = summaryCohort.length
@@ -660,6 +667,7 @@ export class RcmCancerFundService {
     if (search) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

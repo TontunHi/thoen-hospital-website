@@ -7,6 +7,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Types: หัวข้อที่ 3 รายชื่อผู้รับบริการแพทย์แผนไทยรวม ────────────────────────
 
@@ -481,7 +482,7 @@ export class RcmThaiTraditionalMedicineService {
     )
 
     // Map rows to typed items
-    const allItems: Ttm3Item[] = (rawRows || []).map((row, idx) => {
+    let allItems: Ttm3Item[] = (rawRows || []).map((row, idx) => {
       const pttypeEclaimId = String(row.pttype_eclaim_id || '').trim()
       const isUc = checkIsUc(row.maininscl, row.pttypename, pttypeEclaimId)
       const place = row.place === 'N' ? 'N' : 'Y'
@@ -536,6 +537,7 @@ export class RcmThaiTraditionalMedicineService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -657,6 +659,7 @@ export class RcmThaiTraditionalMedicineService {
     if (search) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
@@ -837,7 +840,7 @@ export class RcmThaiTraditionalMedicineService {
     )
 
     // Map rows to typed items
-    const allItems: Ttm11Item[] = (rawRows || []).map((row, idx) => {
+    let allItems: Ttm11Item[] = (rawRows || []).map((row, idx) => {
       const drugItems: Ttm11DrugItem[] = []
 
       const compensated = Number(row.compensated || 0)
@@ -905,6 +908,7 @@ export class RcmThaiTraditionalMedicineService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -986,6 +990,7 @@ export class RcmThaiTraditionalMedicineService {
     if (search) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

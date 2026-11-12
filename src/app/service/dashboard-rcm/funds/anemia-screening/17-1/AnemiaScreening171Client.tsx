@@ -39,6 +39,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1108,6 +1109,7 @@ export default function AnemiaScreening171Client({
                       >
                         {item.status || 'รอชดเชย'}
                       </span>
+                      <RcmSeamlessRepBadges row={item} />
                     </td>
                     <td className="col-center as-num font-semibold">
                       {item.isCompensated ? (
@@ -1115,6 +1117,7 @@ export default function AnemiaScreening171Client({
                       ) : (
                         <span style={{ color: '#64748b' }}>—</span>
                       )}
+                      <RcmSeamlessSubAmount row={item} />
                     </td>
                   </tr>
                 ))}
@@ -1495,6 +1498,7 @@ export default function AnemiaScreening171Client({
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="as-modal-footer">

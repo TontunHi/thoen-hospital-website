@@ -35,6 +35,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -973,6 +974,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                         ) : (
                           <span className="th-badge th-badge-neutral">รอ Rep</span>
                         )}
+                        <RcmSeamlessRepBadges row={row} />
                       </td>
                       <td className="col-center th-num">
                         {row.compensated > 0 ? (
@@ -982,6 +984,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                         ) : (
                           '—'
                         )}
+                        <RcmSeamlessSubAmount row={row} />
                       </td>
                     </tr>
                   ))
@@ -1281,6 +1284,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                   )}
                 </div>
               ); })()}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="th-modal-footer">

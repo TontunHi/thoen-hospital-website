@@ -37,6 +37,7 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import { formatThaiDate } from '@/lib/formatters'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1048,13 +1049,17 @@ export default function DentalImplantDensurClient({
                         <span className="densur-badge densur-badge-neutral">รอตรวจสอบ</span>
                       )}
                     </td>
-                    <td className="densur-col-rep">{it.rep || '—'}</td>
+                    <td className="densur-col-rep">
+                      <div>{it.rep || '—'}</div>
+                      <RcmSeamlessRepBadges row={it} />
+                    </td>
                     <td className="densur-col-compensated">
                       {it.compensated > 0 ? (
                         <span style={{ color: '#059669' }}>{formatMoney(it.compensated)}</span>
                       ) : (
                         '0.00'
                       )}
+                      <RcmSeamlessSubAmount row={it} />
                     </td>
                   </tr>
                 ))}
@@ -1387,6 +1392,7 @@ export default function DentalImplantDensurClient({
                   </div>
                 )}
               </div>
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             {/* Modal Footer */}

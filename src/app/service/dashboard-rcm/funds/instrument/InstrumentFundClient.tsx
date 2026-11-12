@@ -41,6 +41,7 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { InstrumentSelect } from './InstrumentSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTH_OPTIONS = [
   { value: 1, label: 'มกราคม' },
@@ -1108,6 +1109,7 @@ export default function InstrumentFundClient({
                       </td>
                       <td className="col-right" style={{ color: '#15803d', fontWeight: 600 }}>
                         {formatMoney(row.money_invoice || row.money_rep || 0)}
+                        <RcmSeamlessSubAmount row={row} />
                       </td>
                       <td className="col-center">
                         <span
@@ -1125,6 +1127,7 @@ export default function InstrumentFundClient({
                           {row.statusCode === 'UNSENT' && <AlertTriangle size={12} />}
                           <span>{row.status}</span>
                         </span>
+                        <RcmSeamlessRepBadges row={row} />
                       </td>
                       <td className="col-center inst-tabular">
                         {row.authencode ? (
@@ -1378,6 +1381,7 @@ export default function InstrumentFundClient({
                   </div>
                 </div>
               </div>
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             {/* Modal Footer */}

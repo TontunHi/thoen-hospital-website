@@ -2,6 +2,7 @@ import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 23.1 บริการตรวจคัดกรองไวรัสตับอักเสบ B (ADP 36318, 36319) ──
 
@@ -433,7 +434,7 @@ export class RcmViralHepatitisService {
     )
 
     // Transform raw rows into structured domain items
-    const allItems: ViralHepatitisItem[] = (rawRows || []).map((r, idx) => {
+    let allItems: ViralHepatitisItem[] = (rawRows || []).map((r, idx) => {
       const compensatedVal = Number(r.compensated) || 0
       const isComp =
         compensatedVal > 0 ||
@@ -507,6 +508,7 @@ export class RcmViralHepatitisService {
     })
 
     // Calculate Summary Aggregates (Full Page Filter based on pttypes / ucOnly)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       const selectedPttypesList = params.pttypes.split(',').map((p) => p.trim()).filter(Boolean)
@@ -599,6 +601,7 @@ export class RcmViralHepatitisService {
 
         // Global search across all fields
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.toLowerCase().includes(search) ||
           item.ptname.toLowerCase().includes(search) ||

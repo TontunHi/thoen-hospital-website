@@ -8,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: ไวรัสตับอักเสบ C (23.2 คัดกรอง 36331 & 23.4 ยืนยัน HCV RNA 36333) ──
 
@@ -534,7 +535,7 @@ export class RcmHepatitisCService {
       300000 // Cache TTL 5 minutes
     )
 
-    const allDomainItems: HepatitisCItem[] = rawRows.map((row: any, idx: number) => {
+    let allDomainItems: HepatitisCItem[] = rawRows.map((row: any, idx: number) => {
       const compensated = Number(row.compensated || 0)
       const compensatedSm = Number(row.compensated_sm || 0)
       const isComp = compensated > 0
@@ -611,6 +612,7 @@ export class RcmHepatitisCService {
     })
 
     // Calculate Summary Aggregates (Full Page Filter based on pttypes / ucOnly)
+    allDomainItems = await enrichItemsWithSeamlessCache(cacheKey, allDomainItems, executor, Boolean(params.refresh))
     let summaryCohort = allDomainItems
     if (params.pttypes) {
       const selectedPttypesList = params.pttypes.split(',').map((p) => p.trim()).filter(Boolean)
@@ -740,6 +742,7 @@ export class RcmHepatitisCService {
           case 'ALL':
           default:
             return (
+              matchesSeamlessRepSearch(item, search) ||
               matchHn ||
               matchCid ||
               matchPtname ||

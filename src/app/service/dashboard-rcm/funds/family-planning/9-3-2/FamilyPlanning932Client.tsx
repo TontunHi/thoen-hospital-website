@@ -40,6 +40,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1046,6 +1047,7 @@ export default function FamilyPlanning932Client({
                     </td>
                     <td className="font-mono text-xs text-slate-600 truncate max-w-[90px]" title={row.rep_eclaim || ''}>
                       {row.rep_eclaim || '—'}
+                      <RcmSeamlessRepBadges row={row} />
                     </td>
                     <td className="font-mono text-xs text-slate-600 truncate max-w-[90px]" title={row.rep_rep || ''}>
                       {row.rep_rep || '—'}
@@ -1064,6 +1066,7 @@ export default function FamilyPlanning932Client({
                     </td>
                     <td className="td-right font-semibold text-emerald-700">
                       {formatMoney(row.compensated)}
+                      <RcmSeamlessSubAmount row={row} />
                     </td>
                   </tr>
                 ))}
@@ -1333,6 +1336,7 @@ export default function FamilyPlanning932Client({
                   )}
                 </div>
               ) : null}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="fp-modal-footer">

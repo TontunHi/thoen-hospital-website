@@ -40,6 +40,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1258,6 +1259,7 @@ export default function StreptokinaseRecipientsClient({
                       {/* Compensated */}
                       <td className="col-center stk-num font-medium text-emerald-700">
                         {formatMoney(item.compensated)}
+                        <RcmSeamlessSubAmount row={item} />
                       </td>
 
                       {/* Rep Number */}
@@ -1267,6 +1269,7 @@ export default function StreptokinaseRecipientsClient({
                         ) : (
                           '—'
                         )}
+                        <RcmSeamlessRepBadges row={item} />
                       </td>
 
                       {/* E-Claim Status */}
@@ -1851,6 +1854,7 @@ export default function StreptokinaseRecipientsClient({
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             {/* Modal Footer */}

@@ -37,6 +37,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1072,6 +1073,7 @@ export default function ThaiTraditionalMedicine11Client({
                       >
                         {item.status || 'ยังไม่ได้ส่ง'}
                       </span>
+                      <RcmSeamlessRepBadges row={item} />
                     </td>
                     <td className="col-center ttm11-num font-semibold">
                       {item.isCompensated ? (
@@ -1081,6 +1083,7 @@ export default function ThaiTraditionalMedicine11Client({
                       ) : (
                         <span className="text-muted">—</span>
                       )}
+                      <RcmSeamlessSubAmount row={item} />
                     </td>
                   </tr>
                 ))}
@@ -1586,6 +1589,7 @@ export default function ThaiTraditionalMedicine11Client({
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 3.1 ธาลัสซีเมียในหญิงตั้งครรภ์ (Thalassemia in Pregnancy) ──
 
@@ -294,7 +295,7 @@ export class RcmThalassemiaService {
     ])
 
     // Map rows into strongly-typed domain items
-    const allItems: ThalassemiaItem[] = (rawRows || []).map((r, idx) => {
+    let allItems: ThalassemiaItem[] = (rawRows || []).map((r, idx) => {
       const labStatus = determineLabStatus(r.labname, r.labresult)
       const isThoen = r.labour_hospcode === '11152' || (r.hospital || '').includes('เถิน')
       const pttypeEclaimId = r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null
@@ -331,6 +332,7 @@ export class RcmThalassemiaService {
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
@@ -407,6 +409,7 @@ export class RcmThalassemiaService {
 
         // Default 'ALL'
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.includes(search) ||
           item.ptname.toLowerCase().includes(search) ||

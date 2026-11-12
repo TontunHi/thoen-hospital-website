@@ -38,6 +38,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1166,11 +1167,13 @@ export default function AncService23Client({
                         ) : (
                           '—'
                         )}
+                        <RcmSeamlessSubAmount row={row} />
                       </td>
 
                       {/* 23. เลข Rep */}
                       <td className="anc3-cell-mono" style={{ fontSize: '0.75rem' }}>
                         {row.rep || '—'}
+                        <RcmSeamlessRepBadges row={row} />
                       </td>
 
                       {/* 24. ข้อควรตรวจสอบ */}
@@ -1565,6 +1568,7 @@ export default function AncService23Client({
                   ) : null}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="anc3-modal-footer">

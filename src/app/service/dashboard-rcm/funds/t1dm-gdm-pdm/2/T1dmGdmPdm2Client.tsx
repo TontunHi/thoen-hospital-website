@@ -37,6 +37,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1082,6 +1083,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                         ) : (
                           <span style={{ color: '#94a3b8' }}>—</span>
                         )}
+                        <RcmSeamlessRepBadges row={row} />
                       </td>
                       <td className="col-center dm-num">
                         {row.compensated > 0 ? (
@@ -1091,6 +1093,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                         ) : (
                           '—'
                         )}
+                        <RcmSeamlessSubAmount row={row} />
                       </td>
                     </tr>
                   )
@@ -1485,6 +1488,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="dm-modal-footer">

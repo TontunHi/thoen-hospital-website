@@ -8,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: กองทุน Walkin - รายชื่อผู้รับบริการจาก ADP (WALKIN) ──
 
@@ -484,6 +485,7 @@ export class RcmWalkinFundService {
     })
 
     // กรองระดับ Cohort ด้วยสิทธิ์การรักษา (pttypes มาก่อน, รองรับ ucOnly fallback)
+    transformedItems = await enrichItemsWithSeamlessCache(cacheKey, transformedItems, executor, Boolean(params.refresh))
     let summaryCohort = transformedItems
     if (params.pttypes) {
       summaryCohort = transformedItems.filter((i) =>
@@ -578,6 +580,7 @@ export class RcmWalkinFundService {
     if (search) {
       filteredItems = filteredItems.filter((it) => {
         return (
+          matchesSeamlessRepSearch(it, search) ||
           it.hn.toLowerCase().includes(search) ||
           it.cid.includes(search) ||
           it.ptname.toLowerCase().includes(search) ||

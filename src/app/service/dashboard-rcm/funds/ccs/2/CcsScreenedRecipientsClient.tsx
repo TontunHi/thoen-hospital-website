@@ -29,6 +29,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1057,8 +1058,14 @@ export default function CcsScreenedRecipientsClient({
                       <td className="ccs2-mono">{row.listname || '—'}</td>
                       {/* Seamless */}
                       <td>{row.type || '—'}</td>
-                      <td className="ccs2-mono">{row.rep || '—'}</td>
-                      <td className="ccs2-align-right">{formatMoney(row.compensated)}</td>
+                      <td className="ccs2-mono">
+                        <div>{row.rep || '—'}</div>
+                        <RcmSeamlessRepBadges row={row} />
+                      </td>
+                      <td className="ccs2-align-right">
+                        <div>{formatMoney(row.compensated)}</div>
+                        <RcmSeamlessSubAmount row={row} />
+                      </td>
                       <td title={row.note || ''}>{row.note || '—'}</td>
                       <td>{row.paydate ? formatThaiDate(row.paydate) : '—'}</td>
                       {/* NHSO */}
@@ -1382,6 +1389,7 @@ export default function CcsScreenedRecipientsClient({
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="ccs2-modal-footer">

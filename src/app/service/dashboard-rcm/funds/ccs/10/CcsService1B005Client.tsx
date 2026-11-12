@@ -35,6 +35,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1116,7 +1117,10 @@ export default function CcsService1B005Client({
                         <span className="ccs10-badge ccs10-badge-ghost">รอส่งเบิก</span>
                       )}
                     </td>
-                    <td className="ccs10-mono ccs10-align-center">{it.rep || '—'}</td>
+                    <td className="ccs10-mono ccs10-align-center">
+                      <div>{it.rep || '—'}</div>
+                      <RcmSeamlessRepBadges row={it} />
+                    </td>
                     <td
                       className="ccs10-align-right ccs10-mono"
                       style={{
@@ -1125,6 +1129,7 @@ export default function CcsService1B005Client({
                       }}
                     >
                       {formatMoney(it.compensated)}
+                      <RcmSeamlessSubAmount row={it} />
                     </td>
                   </tr>
                 ))
@@ -1540,6 +1545,7 @@ export default function CcsService1B005Client({
                   ) : null}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             {/* Modal Footer */}

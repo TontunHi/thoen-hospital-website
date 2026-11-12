@@ -38,6 +38,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -996,6 +997,7 @@ export default function ClopidogrelUsageClient({
                       >
                         {item.status_eclaim}
                       </span>
+                      <RcmSeamlessRepBadges row={item} />
                     </td>
                     <td className="clop-col-center clop-tabular">
                       {item.isCompensated ? (
@@ -1005,6 +1007,7 @@ export default function ClopidogrelUsageClient({
                       ) : (
                         <span style={{ color: 'var(--gray-400, #94a3b8)' }}>—</span>
                       )}
+                      <RcmSeamlessSubAmount row={item} />
                     </td>
                   </tr>
                 ))}
@@ -1417,6 +1420,7 @@ export default function ClopidogrelUsageClient({
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="clop-modal-footer">

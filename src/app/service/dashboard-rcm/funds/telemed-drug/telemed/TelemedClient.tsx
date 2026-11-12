@@ -31,6 +31,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -2023,6 +2024,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                       {visibleColumns.compensated && (
                         <td className="cell-center" style={{ fontWeight: item.compensated > 0 ? 600 : 400 }}>
                           {item.compensated > 0 ? formatMoney(item.compensated) : '–'}
+                          <RcmSeamlessSubAmount row={item} />
                         </td>
                       )}
                       {visibleColumns.status && (
@@ -2041,6 +2043,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                               </span>
                             )}
                           </div>
+                          <RcmSeamlessRepBadges row={item} />
                         </td>
                       )}
                     </tr>
@@ -2520,6 +2523,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
           </div>
         </div>

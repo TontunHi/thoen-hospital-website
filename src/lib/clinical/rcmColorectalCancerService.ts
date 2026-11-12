@@ -8,6 +8,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 21.2 บริการตรวจคัดกรองมะเร็งลำไส้ใหญ่และลำไส้ตรง (Fit test) อายุ 50-70 ปี (ADP 90005) ──
 
@@ -636,14 +637,20 @@ export class RcmColorectalCancerService {
       }
     })
 
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
     const pttypes = (params.pttypes || '').trim()
     const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
 
     // Cohort for summary KPIs:
     // If pttypes filter is specified, compute summary KPIs based on matching pttypes (Full Page Filter Q2: A)
     const summaryCohort = selectedPttypesList.length > 0
-      ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
-      : allItems
+      ? enrichedAllItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
+      : enrichedAllItems
 
     // Calculate Summary KPIs across eligible records
     const totalVisits = summaryCohort.length
@@ -763,6 +770,7 @@ export class RcmColorectalCancerService {
 
         // Global search across all relevant fields
         return (
+          matchesSeamlessRepSearch(it, search) ||
           it.hn.toLowerCase().includes(search) ||
           it.cid.toLowerCase().includes(search) ||
           it.ptname.toLowerCase().includes(search) ||

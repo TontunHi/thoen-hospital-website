@@ -8,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── Types: ค้นหาจากรหัส ADP (OPD & IPD) ──────────────────────────────
 
@@ -399,10 +400,17 @@ export class RcmAdpSearchService {
     const adpMapping = await this.checkAdpMapping(adpCodes, queryExecutor, refresh)
 
     // Fetch items based on patientType
-    const allItems =
+    const rawItems =
       patientType === 'IPD'
         ? await this.fetchIpdRecords(ds1, ds2, adpCodes, queryExecutor, refresh)
         : await this.fetchOpdRecords(ds1, ds2, adpCodes, queryExecutor, refresh)
+
+    const allItems = await enrichItemsWithSeamlessCache(
+      `rcm:adp_search:${patientType}:${ds1}:${ds2}:${adpCodes.slice().sort().join('_')}`,
+      rawItems,
+      queryExecutor,
+      refresh
+    )
 
     // Dual-mode summaryCohort filtering (pttypes takes precedence, ucOnly fallback)
     let summaryCohort = allItems
@@ -433,10 +441,11 @@ export class RcmAdpSearchService {
       filtered = filtered.filter((it) => it.hasOperation)
     }
 
-    // Apply Global Search (HN, CID, Name, VN/AN, pttype, diag, icode, name, adp_code)
+    // Apply Global Search (HN, CID, Name, VN/AN, pttype, diag, icode, name, adp_code, seamless rep)
     if (search) {
       filtered = filtered.filter((it) => {
         return (
+          matchesSeamlessRepSearch(it, search) ||
           it.hn.toLowerCase().includes(search) ||
           it.cid.toLowerCase().includes(search) ||
           it.ptname.toLowerCase().includes(search) ||

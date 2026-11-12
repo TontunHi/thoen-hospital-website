@@ -3,6 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 8.1 การทดสอบการตั้งครรภ์ (Pregnancy Test ADP 31101, 30014) ──
 
@@ -428,7 +429,7 @@ export class RcmPregnancyTestService {
     )
 
     // Map raw rows into typed domain items
-    const allItems: PregnancyTestItem[] = rawRows.map((r, idx) => {
+    let allItems: PregnancyTestItem[] = rawRows.map((r, idx) => {
       const compensated = Number(r.compensated || 0)
       const income = Number(r.income || 0)
       const labResult = r.lab_order_result ? String(r.lab_order_result).trim() : null
@@ -476,6 +477,7 @@ export class RcmPregnancyTestService {
     })
 
     // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     const summaryCohort = allItems.filter((i) => {
       if (params.pttypes !== undefined) {
         return matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
@@ -598,6 +600,7 @@ export class RcmPregnancyTestService {
         }
         // ALL
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

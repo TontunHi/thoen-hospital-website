@@ -3,6 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types ──────────────────────────────────────────────────────────
 
@@ -1018,7 +1019,7 @@ export class RcmFamilyPlanningService {
       ),
     ])
 
-    const allItems = (rawRows || []).map((r: any, idx: number) => {
+    let allItems = (rawRows || []).map((r: any, idx: number) => {
       const listname = r.listname ? String(r.listname).trim() : null
       const drugname = r.drugname ? String(r.drugname).trim() : null
       const icd10 = r.icd10 ? String(r.icd10).trim() : null
@@ -1085,6 +1086,7 @@ export class RcmFamilyPlanningService {
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i: any) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
@@ -1156,6 +1158,7 @@ export class RcmFamilyPlanningService {
     if (search.length > 0) {
       filtered = filtered.filter(
         (i: any) =>
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
@@ -1332,7 +1335,7 @@ export class RcmFamilyPlanningService {
     })
 
     // Map target rows into strongly typed domain items with validation
-    const allItems: FamilyPlanningItem[] = targetRows.map((r, idx) => {
+    let allItems: FamilyPlanningItem[] = targetRows.map((r, idx) => {
       const moneyEclaim = Number(r.money_eclaim || 0)
       const moneyRep = Number(r.money_rep || 0)
       const moneyInvoice = Number(r.money_invoice || 0)
@@ -1427,6 +1430,7 @@ export class RcmFamilyPlanningService {
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
@@ -1515,6 +1519,7 @@ export class RcmFamilyPlanningService {
 
         // Default 'ALL'
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.includes(search) ||
           item.ptname.toLowerCase().includes(search) ||
@@ -2078,7 +2083,7 @@ export class RcmFamilyPlanningService {
     )
 
     // Map raw rows into strongly typed IudItem records with validation rules
-    const allItems: IudItem[] = rawRows.map((r, idx) => {
+    let allItems: IudItem[] = rawRows.map((r, idx) => {
       const moneyEclaim = Number(r.money_eclaim || 0)
       const moneyRep = Number(r.money_rep || 0)
       const moneyInvoice = Number(r.money_invoice || 0)
@@ -2150,6 +2155,7 @@ export class RcmFamilyPlanningService {
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
@@ -2259,6 +2265,7 @@ export class RcmFamilyPlanningService {
 
         // Default 'ALL'
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.includes(search) ||
           item.ptname.toLowerCase().includes(search) ||
@@ -2722,7 +2729,7 @@ export class RcmFamilyPlanningService {
       300000
     )
 
-    const allItems: FamilyPlanning932Item[] = (rawRows || []).map((row: any, idx: number) => {
+    let allItems: FamilyPlanning932Item[] = (rawRows || []).map((row: any, idx: number) => {
       const compensatedEclaim = Number(row.compensated_eclaim) || 0
       const compensatedRep = Number(row.compensated_rep) || 0
       const compensatedNhso = Number(row.compensated_nhso) || 0
@@ -2788,6 +2795,7 @@ export class RcmFamilyPlanningService {
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
@@ -2878,6 +2886,7 @@ export class RcmFamilyPlanningService {
           )
         }
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.toLowerCase().includes(search) ||
           item.ptname.toLowerCase().includes(search) ||

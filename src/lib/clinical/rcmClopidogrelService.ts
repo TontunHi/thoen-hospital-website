@@ -8,6 +8,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: กองทุนยา Clopidogrel ─────────────────────────────────────
 
@@ -557,14 +558,21 @@ export class RcmClopidogrelService {
       }
     })
 
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
+
     // Dual-Mode Cohort Filtering (pttypes takes precedence, ucOnly fallback)
-    let summaryCohort = allItems
+    let summaryCohort = enrichedAllItems
     if (params.pttypes) {
-      summaryCohort = allItems.filter((i) =>
+      summaryCohort = enrichedAllItems.filter((i) =>
         matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
       )
     } else if (ucOnly) {
-      summaryCohort = allItems.filter((i) => i.isUc)
+      summaryCohort = enrichedAllItems.filter((i) => i.isUc)
     }
 
     // Compute Tier 1 Aggregated Summary from summaryCohort
@@ -668,10 +676,11 @@ export class RcmClopidogrelService {
         break
     }
 
-    // Apply Global Search (cross-cutting: HN, CID, name, VN, doctor, clinic, department, diagnosis, drug)
+    // Apply Global Search (cross-cutting: HN, CID, name, VN, doctor, clinic, department, diagnosis, drug, seamless rep)
     if (search) {
       filtered = filtered.filter((item) => {
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.toLowerCase().includes(search) ||
           item.ptname.toLowerCase().includes(search) ||

@@ -34,6 +34,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTH_OPTIONS = [
   { value: 1, label: 'มกราคม' },
@@ -999,6 +1000,7 @@ export default function WalkinFundClient({
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
+                        <RcmSeamlessRepBadges row={item} />
                       </td>
                       <td className="col-right walkin-tabular font-semibold">
                         {item.compensated > 0 ? (
@@ -1008,6 +1010,7 @@ export default function WalkinFundClient({
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
+                        <RcmSeamlessSubAmount row={item} />
                       </td>
                       <td className="col-center">
                         {item.isCompensated ? (
@@ -1345,6 +1348,7 @@ export default function WalkinFundClient({
                   )}
                 </div>
               </div>
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="walkin-modal-footer">

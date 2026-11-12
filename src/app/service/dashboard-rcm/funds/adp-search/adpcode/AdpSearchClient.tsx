@@ -43,6 +43,7 @@ import AdpMultiSelect from './AdpMultiSelect'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1298,6 +1299,7 @@ export default function AdpSearchClient({
                       {/* Centered Reimbursement Column */}
                       <td className="col-center adp-num" style={{ fontWeight: 600 }}>
                         {formatMoney(item.compensated)}
+                        <RcmSeamlessSubAmount row={item} />
                       </td>
                       <td className="col-center">
                         {item.isCompensated ? (
@@ -1305,6 +1307,7 @@ export default function AdpSearchClient({
                         ) : (
                           <span className="adp-badge adp-badge-gray">รอชดเชย</span>
                         )}
+                        <RcmSeamlessRepBadges row={item} />
                       </td>
                     </tr>
                   )
@@ -1702,6 +1705,7 @@ export default function AdpSearchClient({
                   )}
                 </>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             {/* Modal Footer */}

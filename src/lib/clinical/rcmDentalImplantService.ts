@@ -8,6 +8,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: กองทุนรากฟันเทียม (Dental Implant) - DENSUR ────────────────
 
@@ -463,14 +464,21 @@ export class RcmDentalImplantService {
       }
     })
 
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
+
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
-    let summaryCohort = allItems
+    let summaryCohort = enrichedAllItems
     if (params.pttypes) {
-      summaryCohort = allItems.filter((it) =>
+      summaryCohort = enrichedAllItems.filter((it) =>
         matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, params.pttypes, it.isUc, it.pttype_eclaim_id)
       )
     } else if (params.ucOnly) {
-      summaryCohort = allItems.filter((it) => it.isUc)
+      summaryCohort = enrichedAllItems.filter((it) => it.isUc)
     }
 
     // Calculate aggregated summary
@@ -538,6 +546,7 @@ export class RcmDentalImplantService {
     if (search) {
       filteredItems = filteredItems.filter((it) => {
         return (
+          matchesSeamlessRepSearch(it, search) ||
           it.hn.toLowerCase().includes(search) ||
           it.cid.toLowerCase().includes(search) ||
           it.ptname.toLowerCase().includes(search) ||

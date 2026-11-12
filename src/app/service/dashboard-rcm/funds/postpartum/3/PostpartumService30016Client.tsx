@@ -34,6 +34,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1059,13 +1060,17 @@ export default function PostpartumService30016Client({
                         <span className="text-slate-400 text-xs">ยังไม่มีสถานะ</span>
                       )}
                     </td>
-                    <td className="tabular-nums font-mono text-xs">{it.rep || '—'}</td>
+                    <td className="tabular-nums font-mono text-xs">
+                      <div>{it.rep || '—'}</div>
+                      <RcmSeamlessRepBadges row={it} />
+                    </td>
                     <td className="text-right tabular-nums font-semibold whitespace-nowrap">
                       {it.compensated > 0 ? (
                         <span className="text-emerald-700">{formatMoney(it.compensated)}</span>
                       ) : (
                         <span className="text-slate-400">0.00</span>
                       )}
+                      <RcmSeamlessSubAmount row={it} />
                     </td>
                     <td className="whitespace-nowrap text-xs">
                       {it.fund ? (
@@ -1355,6 +1360,7 @@ export default function PostpartumService30016Client({
                   ) : null}
                 </>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="pp3-modal-footer">

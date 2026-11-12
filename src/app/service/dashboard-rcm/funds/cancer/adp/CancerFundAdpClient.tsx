@@ -36,6 +36,7 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1145,9 +1146,11 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                           </span>
                         )}
                       </div>
+                      <RcmSeamlessRepBadges row={item} />
                     </td>
                     <td className="col-center font-semibold tabular-nums">
                       {formatMoney(item.compensated)}
+                      <RcmSeamlessSubAmount row={item} />
                     </td>
                   </tr>
                 ))
@@ -1439,6 +1442,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                   )}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="cancer-modal-footer">

@@ -2,6 +2,7 @@ import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
@@ -564,7 +565,7 @@ export class RcmTelemedDrugService {
     )
 
     // Map and transform records
-    const allRecords: TelemedItem[] = (rawRows || []).map((row: any, idx: number) => {
+    let allRecords: TelemedItem[] = (rawRows || []).map((row: any, idx: number) => {
       const compensatedVal = parseFloat(String(row.compensated || 0)) || 0
       const sumPriceVal = parseFloat(String(row.sum_price || 0)) || 0
       const incomeVal = parseFloat(String(row.income || 0)) || 0
@@ -608,6 +609,7 @@ export class RcmTelemedDrugService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    allRecords = await enrichItemsWithSeamlessCache(cacheKey, allRecords, executor, Boolean(params.refresh))
     let summaryCohort = allRecords
     if (params.pttypes) {
       summaryCohort = allRecords.filter((rec) =>
@@ -725,6 +727,7 @@ export class RcmTelemedDrugService {
         } else {
           // Global search
           return (
+            matchesSeamlessRepSearch(rec, search) ||
             rec.hn.toLowerCase().includes(search) ||
             rec.cid.toLowerCase().includes(search) ||
             rec.ptname.toLowerCase().includes(search) ||
@@ -976,7 +979,7 @@ export class RcmTelemedDrugService {
     )
 
     // Map and transform records
-    const allRecords: PostalDrugItem[] = (rawRows || []).map((row: any, idx: number) => {
+    let allRecords: PostalDrugItem[] = (rawRows || []).map((row: any, idx: number) => {
       const compensatedVal = parseFloat(String(row.compensated || 0)) || 0
       const sumPriceVal = parseFloat(String(row.sum_price || 0)) || 0
       const incomeVal = parseFloat(String(row.income || 0)) || 0
@@ -1016,6 +1019,7 @@ export class RcmTelemedDrugService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    allRecords = await enrichItemsWithSeamlessCache(cacheKey, allRecords, executor, Boolean(params.refresh))
     let summaryCohort = allRecords
     if (params.pttypes) {
       summaryCohort = allRecords.filter((rec) =>
@@ -1131,6 +1135,7 @@ export class RcmTelemedDrugService {
           return (rec.clinic || '').toLowerCase().includes(search)
         } else {
           return (
+            matchesSeamlessRepSearch(rec, search) ||
             rec.hn.toLowerCase().includes(search) ||
             rec.cid.toLowerCase().includes(search) ||
             rec.ptname.toLowerCase().includes(search) ||

@@ -36,6 +36,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1121,6 +1122,7 @@ export default function PregnancyTestClient({
                           Rep: {row.rep}
                         </div>
                       )}
+                      <RcmSeamlessRepBadges row={row} />
                     </td>
                     <td className="preg81-td-money">
                       {row.isCompensated ? (
@@ -1130,6 +1132,7 @@ export default function PregnancyTestClient({
                       ) : (
                         <span style={{ color: 'var(--preg-text-muted)' }}>0.00</span>
                       )}
+                      <RcmSeamlessSubAmount row={row} />
                     </td>
                   </tr>
                 ))
@@ -1385,6 +1388,7 @@ export default function PregnancyTestClient({
                   ) : null}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
           </div>
         </div>

@@ -34,6 +34,7 @@ import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1016,6 +1017,7 @@ export default function AncService30011Client({
                       ) : (
                         '—'
                       )}
+                      <RcmSeamlessRepBadges row={row} />
                     </td>
 
                     {/* กองทุน */}
@@ -1038,6 +1040,7 @@ export default function AncService30011Client({
                       ) : (
                         <span className="text-muted">—</span>
                       )}
+                      <RcmSeamlessSubAmount row={row} />
                     </td>
                   </tr>
                 ))}
@@ -1357,6 +1360,7 @@ export default function AncService30011Client({
                   ) : null}
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             <div className="anc4-modal-footer">

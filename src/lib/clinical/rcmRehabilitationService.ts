@@ -8,6 +8,7 @@ import {
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Constants ──────────────────────────────────────────────────────────────
 
@@ -580,7 +581,7 @@ export class RcmRehabilitationService {
     // rehab_name = 'ไม่พบใน Web' -> orange (NOT_IN_WEB)
     // empty(rehab_code) -> lightyellow (NO_REHAB_CODE)
     // otherwise -> normal/green (MATCHED)
-    const allItems: RehabServiceItem[] = (rawRows || []).map((r, idx) => {
+    let allItems: RehabServiceItem[] = (rawRows || []).map((r, idx) => {
       const vn = r.vn ? String(r.vn).trim() : ''
       const rehabName = r.rehab_name ? String(r.rehab_name).trim() : 'ไม่พบใน Web'
       const rehabCode = r.rehab_code ? String(r.rehab_code).trim() : null
@@ -659,6 +660,7 @@ export class RcmRehabilitationService {
     })
 
     // ── 5. Calculate KPI Summary Cards ────────────────────────────────────────
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -729,6 +731,7 @@ export class RcmRehabilitationService {
     if (search) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

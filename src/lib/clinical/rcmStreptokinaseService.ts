@@ -9,6 +9,7 @@ import {
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── ADP Mapping Item ──────────────────────────────────────────────────────────
 
@@ -307,7 +308,7 @@ export class RcmStreptokinaseService {
     )
 
     // Parse and evaluate Clinical/Audit Rules
-    const allItems: StreptokinaseItem[] = (rawRows || []).map((r: any, idx: number) => {
+    let allItems: StreptokinaseItem[] = (rawRows || []).map((r: any, idx: number) => {
       const dx = r.dx ? String(r.dx).trim() : null
       const op = r.op ? String(r.op).trim() : null
 
@@ -385,6 +386,7 @@ export class RcmStreptokinaseService {
     })
 
     // Compute Summary Stats
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((it) =>
@@ -456,6 +458,7 @@ export class RcmStreptokinaseService {
     if (search) {
       filtered = filtered.filter((it) => {
         return (
+          matchesSeamlessRepSearch(it, search) ||
           it.hn.toLowerCase().includes(search) ||
           it.cid.includes(search) ||
           it.ptname.toLowerCase().includes(search) ||

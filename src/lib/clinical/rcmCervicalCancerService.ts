@@ -2,6 +2,7 @@ import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. PP Special Screening Classification Helper ──────────────────────
 
@@ -1680,8 +1681,15 @@ export class RcmCervicalCancerService {
       }
     })
 
+    const enrichedItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      items,
+      executor,
+      Boolean((params as any).refresh)
+    )
+
     // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
-    const summaryCohort = items.filter((i) => {
+    const summaryCohort = enrichedItems.filter((i) => {
       if (params.pttypes !== undefined) {
         return matchesPttypeFilter((i as any).pttypename || i.pttypename_visit || i.pttypename_patient || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
       }
@@ -1771,6 +1779,7 @@ export class RcmCervicalCancerService {
           return i.vn.toLowerCase().includes(search)
         }
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
@@ -2058,7 +2067,12 @@ export class RcmCervicalCancerService {
       withOpCount,
     }
 
-    let filtered = allItems
+    let filtered = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
 
     if (compensationFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.compensated > 0)
@@ -2091,6 +2105,7 @@ export class RcmCervicalCancerService {
             .some((dx) => dx!.toLowerCase().includes(search))
         }
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
@@ -2378,7 +2393,12 @@ export class RcmCervicalCancerService {
       withOpCount,
     }
 
-    let filtered = allItems
+    let filtered = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
 
     if (compensationFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.compensated > 0)
@@ -2417,6 +2437,7 @@ export class RcmCervicalCancerService {
         const cleanQ = search.replace(/\D/g, '')
         const matchCid = cleanQ ? i.cid.replace(/\D/g, '').includes(cleanQ) : false
         const matchText =
+          matchesSeamlessRepSearch(i, search) ||
           i.ptname.toLowerCase().includes(search) ||
           i.hn.toLowerCase().includes(search) ||
           i.vn.toLowerCase().includes(search) ||
@@ -2748,7 +2769,12 @@ export class RcmCervicalCancerService {
       withOpCount,
     }
 
-    let filtered = allItems
+    let filtered = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
 
     if (compensationFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.compensated > 0)
@@ -2781,6 +2807,7 @@ export class RcmCervicalCancerService {
             .some((dx) => dx!.toLowerCase().includes(search))
         }
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
@@ -2980,44 +3007,49 @@ export class RcmCervicalCancerService {
       600
     )
 
-    const allMappedItems: CcsService1B005Item[] = rawRows.map((row, idx) => {
-      const compVal = Number(row.compensated || 0)
-      return {
-        no: idx + 1,
-        vn: String(row.vn || ''),
-        cid: String(row.cid || ''),
-        hn: String(row.hn || ''),
-        ptname: String(row.ptname || ''),
-        age: row.age !== null && row.age !== undefined ? Number(row.age) : null,
-        nation: row.nation ? String(row.nation) : null,
-        vstdate: String(row.vstdate || ''),
-        vsttime: String(row.vsttime || ''),
-        authencode: row.authencode ? String(row.authencode) : null,
-        pttypename: row.pttypename ? String(row.pttypename) : null,
-        pttype_eclaim_id: row.pttype_eclaim_id ? String(row.pttype_eclaim_id).trim() : null,
-        isUc: isUcEclaimCode(row.pttype_eclaim_id ? String(row.pttype_eclaim_id) : null),
-        department: row.department ? String(row.department) : null,
-        clinic: row.clinic ? String(row.clinic) : null,
-        pdx: row.pdx ? String(row.pdx) : null,
-        dx0: row.dx0 ? String(row.dx0) : null,
-        dx1: row.dx1 ? String(row.dx1) : null,
-        dx2: row.dx2 ? String(row.dx2) : null,
-        dx3: row.dx3 ? String(row.dx3) : null,
-        dx4: row.dx4 ? String(row.dx4) : null,
-        dx5: row.dx5 ? String(row.dx5) : null,
-        op0: row.op0 ? String(row.op0) : null,
-        op1: row.op1 ? String(row.op1) : null,
-        op2: row.op2 ? String(row.op2) : null,
-        op3: row.op3 ? String(row.op3) : null,
-        op4: row.op4 ? String(row.op4) : null,
-        op5: row.op5 ? String(row.op5) : null,
-        listname: row.listname ? String(row.listname) : null,
-        status: row.status ? String(row.status) : null,
-        rep: row.rep ? String(row.rep) : null,
-        compensated: compVal,
-        isCompensated: compVal > 0,
-      }
-    })
+    const allMappedItems: CcsService1B005Item[] = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      rawRows.map((row, idx) => {
+        const compVal = Number(row.compensated || 0)
+        return {
+          no: idx + 1,
+          vn: String(row.vn || ''),
+          cid: String(row.cid || ''),
+          hn: String(row.hn || ''),
+          ptname: String(row.ptname || ''),
+          age: row.age !== null && row.age !== undefined ? Number(row.age) : null,
+          nation: row.nation ? String(row.nation) : null,
+          vstdate: String(row.vstdate || ''),
+          vsttime: String(row.vsttime || ''),
+          authencode: row.authencode ? String(row.authencode) : null,
+          pttypename: row.pttypename ? String(row.pttypename) : null,
+          pttype_eclaim_id: row.pttype_eclaim_id ? String(row.pttype_eclaim_id).trim() : null,
+          isUc: isUcEclaimCode(row.pttype_eclaim_id ? String(row.pttype_eclaim_id) : null),
+          department: row.department ? String(row.department) : null,
+          clinic: row.clinic ? String(row.clinic) : null,
+          pdx: row.pdx ? String(row.pdx) : null,
+          dx0: row.dx0 ? String(row.dx0) : null,
+          dx1: row.dx1 ? String(row.dx1) : null,
+          dx2: row.dx2 ? String(row.dx2) : null,
+          dx3: row.dx3 ? String(row.dx3) : null,
+          dx4: row.dx4 ? String(row.dx4) : null,
+          dx5: row.dx5 ? String(row.dx5) : null,
+          op0: row.op0 ? String(row.op0) : null,
+          op1: row.op1 ? String(row.op1) : null,
+          op2: row.op2 ? String(row.op2) : null,
+          op3: row.op3 ? String(row.op3) : null,
+          op4: row.op4 ? String(row.op4) : null,
+          op5: row.op5 ? String(row.op5) : null,
+          listname: row.listname ? String(row.listname) : null,
+          status: row.status ? String(row.status) : null,
+          rep: row.rep ? String(row.rep) : null,
+          compensated: compVal,
+          isCompensated: compVal > 0,
+        }
+      }),
+      executor,
+      Boolean(params.refresh)
+    )
 
     // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
     const summaryCohort = allMappedItems.filter((i) => {
@@ -3104,6 +3136,7 @@ export class RcmCervicalCancerService {
             .some((dx) => dx!.toLowerCase().includes(search))
         }
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

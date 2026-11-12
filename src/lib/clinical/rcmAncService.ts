@@ -3,6 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 2.4 บริการฝากครรภ์ (ANC 30011) ──────────────────────
 
@@ -367,8 +368,15 @@ export class RcmAncService {
       }
     })
 
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
+
     // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
-    const summaryCohort = allItems.filter((i) => {
+    const summaryCohort = enrichedAllItems.filter((i) => {
       if (params.pttypes !== undefined) {
         return matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
       }
@@ -455,6 +463,7 @@ export class RcmAncService {
           return dxStr.includes(search)
         }
         // ALL
+        if (matchesSeamlessRepSearch(i, search)) return true
         const fullStr = [
           i.hn,
           i.cid,
@@ -930,14 +939,20 @@ export class RcmAncService {
       300000 // 5 minutes cache TTL
     )
 
+    const enrichedAllRows = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allRows,
+      executor,
+      Boolean(params.refresh)
+    )
     const pttypes = (params.pttypes || '').trim()
     const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
 
     // Cohort for summary KPIs:
     // If pttypes filter is applied, compute summary KPIs based on matching pttypes (Full Page Filter Q2: A)
     const summaryCohort = selectedPttypesList.length > 0
-      ? allRows.filter((i) => matchesPttypeFilter((i as any).pttypename || i.pttypename_visit || i.pttype_eclaim_id, selectedPttypesList, i.uc === 'Y', i.pttype_eclaim_id))
-      : allRows
+      ? enrichedAllRows.filter((i) => matchesPttypeFilter((i as any).pttypename || i.pttypename_visit || i.pttype_eclaim_id, selectedPttypesList, i.uc === 'Y', i.pttype_eclaim_id))
+      : enrichedAllRows
 
     // Compute Summary KPIs on the eligible cohort
     const totalVisits = summaryCohort.length
@@ -1044,6 +1059,7 @@ export class RcmAncService {
         const cleanQ = search.replace(/\D/g, '')
         const matchCid = cleanQ && cleanQ.length >= 3 && i.cid.replace(/\D/g, '').includes(cleanQ)
         const matchText =
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
           i.vn.toLowerCase().includes(search) ||

@@ -7,6 +7,7 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── Types: กองทุน Thalassemia (ผู้ป่วยนอก OPD & ผู้ป่วยใน IPD) ──────────────────────
 
@@ -377,7 +378,7 @@ export class RcmThalassemiaFundService {
     )
 
     // Map rows into domain objects
-    const allItems: ThalassemiaOpdItem[] = rawRows.map((r, idx) => {
+    let allItems: ThalassemiaOpdItem[] = rawRows.map((r, idx) => {
       const hasDrug = Boolean(r.drugname && String(r.drugname).trim().length > 0)
       const hasBlood = Boolean(r.blood && String(r.blood).trim().length > 0)
       const compensated = Number(r.compensated || 0)
@@ -430,6 +431,7 @@ export class RcmThalassemiaFundService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -496,6 +498,7 @@ export class RcmThalassemiaFundService {
     if (search) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||
@@ -691,7 +694,7 @@ export class RcmThalassemiaFundService {
     )
 
     // Map rows into domain objects
-    const allItems: ThalassemiaIpdItem[] = rawRows.map((r, idx) => {
+    let allItems: ThalassemiaIpdItem[] = rawRows.map((r, idx) => {
       const hasDrug = Boolean(r.drugname && String(r.drugname).trim().length > 0)
       const hasBlood =
         Boolean(r.blood && String(r.blood).trim().length > 0) ||
@@ -744,6 +747,7 @@ export class RcmThalassemiaFundService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -810,6 +814,7 @@ export class RcmThalassemiaFundService {
     if (search) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

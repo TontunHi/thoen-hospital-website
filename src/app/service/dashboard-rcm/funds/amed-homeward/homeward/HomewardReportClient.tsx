@@ -36,6 +36,7 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
+import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -1035,6 +1036,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
                         ) : (
                           <span className="hw-badge hw-badge-neutral">รอ Rep</span>
                         )}
+                        <RcmSeamlessRepBadges row={item} />
                       </td>
                       <td className="col-center font-tabular">
                         <span
@@ -1045,6 +1047,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
                         >
                           {formatMoney(item.debit)}
                         </span>
+                        <RcmSeamlessSubAmount row={item} />
                       </td>
                       <td className="col-center">
                         <span
@@ -1470,6 +1473,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
                   </div>
                 </div>
               )}
+              <RcmSeamlessModalSection item={selectedItem} />
             </div>
 
             {/* Modal Footer */}

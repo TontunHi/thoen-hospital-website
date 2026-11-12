@@ -8,6 +8,7 @@ import {
   type FiscalDateRangeParams,
   type QueryExecutor,
 } from './rcmDashboardService'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Domain Types: 20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001) ──
 
@@ -529,14 +530,21 @@ export class RcmFluorideVarnishService {
       }
     })
 
+    const enrichedAllItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      executor,
+      Boolean(params.refresh)
+    )
+
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
-    let summaryCohort = allItems
+    let summaryCohort = enrichedAllItems
     if (params.pttypes) {
-      summaryCohort = allItems.filter((i) =>
+      summaryCohort = enrichedAllItems.filter((i) =>
         matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
       )
     } else if (ucOnly) {
-      summaryCohort = allItems.filter((i) => i.isUc)
+      summaryCohort = enrichedAllItems.filter((i) => i.isUc)
     }
 
     // Compute Summary across summaryCohort
@@ -620,6 +628,7 @@ export class RcmFluorideVarnishService {
 
         // Global search across all relevant fields
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

@@ -9,6 +9,7 @@ import {
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── 1. Types & Interfaces ───────────────────────────────────────────────────
 
@@ -515,7 +516,7 @@ export class RcmInstrumentFundService {
     ])
 
     // แปลง Raw Rows เข้าสู่ Typed Domain Objects
-    const allItems: InstrumentItem[] = (rawRows || []).map((r: any, idx: number) => {
+    let allItems: InstrumentItem[] = (rawRows || []).map((r: any, idx: number) => {
       const moneyInvoice = Number(r.money_invoice || 0)
       const moneyRep = Number(r.money_rep || 0)
       const moneyEclaim = Number(r.money_eclaim || 0)
@@ -590,6 +591,7 @@ export class RcmInstrumentFundService {
     })
 
     // กรองระดับ Cohort ด้วยสิทธิ์การรักษา (pttypes มาก่อน, รองรับ ucOnly fallback)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -762,6 +764,7 @@ export class RcmInstrumentFundService {
     if (search.length > 0) {
       filtered = filtered.filter((i) => {
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

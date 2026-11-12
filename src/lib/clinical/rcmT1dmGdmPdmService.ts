@@ -8,6 +8,7 @@ import {
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmColorectalCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── Types: กองทุน T1DM/GDM/PDM (หัวข้อที่ 2 รายชื่อผู้รับบริการ) ──────────────────────
 
@@ -349,7 +350,7 @@ export class RcmT1dmGdmPdmService {
     )
 
     // Map rows into domain objects
-    const allItems: T1dmGdmPdmRecipientItem[] = (rawRows || []).map((r, index) => {
+    let allItems: T1dmGdmPdmRecipientItem[] = (rawRows || []).map((r, index) => {
       const okVal = r.ok === 'Y' || r.ok === '1' ? 'Y' : null
       const isRegistered = okVal === 'Y'
       const compensatedVal = Number(r.compensated || 0)
@@ -429,6 +430,7 @@ export class RcmT1dmGdmPdmService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -542,6 +544,7 @@ export class RcmT1dmGdmPdmService {
 
         // Default 'ALL'
         return (
+          matchesSeamlessRepSearch(i, search) ||
           i.hn.toLowerCase().includes(search) ||
           i.cid.toLowerCase().includes(search) ||
           i.ptname.toLowerCase().includes(search) ||

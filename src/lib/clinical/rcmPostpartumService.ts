@@ -3,6 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 
 // ── Common Domain Types: กองทุนการตรวจหลังคลอด (PNC) ─────────────────────────
 
@@ -445,7 +446,7 @@ export class RcmPostpartumService {
       600
     )
 
-    const allItems: PostpartumServiceItem[] = rawRows.map((r, idx) => {
+    let allItems: PostpartumServiceItem[] = rawRows.map((r, idx) => {
       const compensated = Number(r.compensated || 0)
       return {
         no: idx + 1,
@@ -489,6 +490,7 @@ export class RcmPostpartumService {
     })
 
     // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     const summaryCohort = allItems.filter((i) => {
       if (params.pttypes !== undefined) {
         return matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)
@@ -602,7 +604,7 @@ export class RcmPostpartumService {
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
-        return fullStr.includes(search)
+        return matchesSeamlessRepSearch(i, search) || fullStr.includes(search)
       })
     }
 

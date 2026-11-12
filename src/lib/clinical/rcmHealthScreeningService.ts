@@ -2,6 +2,7 @@ import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 
 // ── 1. Domain Types: 14. บริการคัดกรองและประเมินปัจจัยเสี่ยงต่อสุขภาพกาย/สุขภาพจิต-ADP ──
@@ -490,7 +491,7 @@ export class RcmHealthScreeningService {
     )
 
     // Transform raw rows into structured domain items
-    const allItems: HealthScreeningItem[] = (rawRows || []).map((r, idx) => {
+    let allItems: HealthScreeningItem[] = (rawRows || []).map((r, idx) => {
       const compensatedVal = Number(r.compensated) || 0
       const isComp = compensatedVal > 0 || Boolean(r.rep)
       const isUc = isUniversalCoverageScheme(r.maininscl, r.pttypename)
@@ -563,6 +564,7 @@ export class RcmHealthScreeningService {
     const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
 
     // Cohort for summary KPIs (Full page filter Q2: A)
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     const summaryCohort = selectedPttypesList.length > 0
       ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
       : allItems
@@ -664,6 +666,7 @@ export class RcmHealthScreeningService {
 
         // searchField === 'ALL'
         return (
+          matchesSeamlessRepSearch(item, search) ||
           item.hn.toLowerCase().includes(search) ||
           item.cid.toLowerCase().includes(search) ||
           item.ptname.toLowerCase().includes(search) ||
