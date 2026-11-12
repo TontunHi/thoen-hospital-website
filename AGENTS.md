@@ -18,16 +18,19 @@ This is the always-on rule set. Domain-specific integration detail (HOSxP DB acc
 ### 1. Code Cleanliness & Structure
 - **Separation of Concerns:** Keep UI, business logic, and data-access separate. UI components handle layout/presentation only; business rules live in services/utilities; DB and third-party calls live in a dedicated data layer.
 - **Thin Route Adapters & Deep Domain Modules:** API Route handlers (`src/app/api/**`) must be thin HTTP adapters (~20–40 lines) responsible solely for request validation, session/RBAC checking, calling domain services, and returning JSON. Never place raw SQL queries, complex data transformations, or batch calculations directly inside route handlers.
-- **Dependency Injection for Testability:** Domain services (e.g. `@/lib/clinical/ipdWardService`, `@/lib/taskInboxService`) must accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb`. This enables 100% unit test coverage in Vitest without needing live DB connections.
+- **Dependency Injection for Testability:** Domain services (e.g. `@/lib/clinical/ipdWardService`, `@/lib/taskInboxService`, `@/lib/clinical/rcmDashboardService`) must accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb` or `queryMemberDb`. This enables 100% unit test coverage in Vitest without needing live DB connections.
 - **Unified Task Permission Resolver:** Always authorize inbox tasks through `@/lib/taskPermissionResolver.ts` (`resolveTaskPermissions`). All workflow state transitions (APPROVE, REJECT, SEND_BACK) must go through `@/lib/taskInboxService.ts` (`executeWorkflowAction`). Never compute ad-hoc `canEdit`, `canApprove`, or `canTakeJob` flags across different UI components or route handlers, and never embed raw SQL permission checks inside route handlers.
 - **Unified File Storage Seam:** Never import raw Node.js `fs` or `fs/promises` in API routes. All file I/O — writes, reads, streaming (including HTTP 206 range requests), batch uploads, deletions, replacements, and dated-directory formatting — MUST go through `@/lib/storage/documentStorage.ts` (`DocumentStorage`). Use `DocumentStorage.readBuffer()` for image/binary reads and `DocumentStorage.serveFile()` for HTTP streaming.
-- **Unified Member Auth Seam:** All member session lifecycle — OTP request, OTP verification, session creation (JWT build), session verification, ThaID OAuth exchange — MUST go through `@/lib/auth/MemberAuthService.ts`. Route handlers for `/member` auth endpoints must be thin adapters: read cookie/body → call `MemberAuthService` → set/clear cookie → return JSON. Never create or verify JWTs inside route handlers directly.
+- **Unified Member Auth Seam:** All member session lifecycle — OTP request, OTP verification, session creation (JWT build), session verification, session refresh (`/api/member/auth/refresh`), ThaID OAuth exchange — MUST go through `@/lib/auth/MemberAuthService.ts`. Route handlers for `/member` auth endpoints must be thin adapters: read cookie/body → call `MemberAuthService` → set/clear cookie → return JSON. Never create or verify JWTs inside route handlers directly.
 - **Unified Hospital Asset Seam:** All asset management, category inference (IT/Medical/General from FSN and keywords), Gotowin location binding, and asset statistics MUST go through `@/lib/assets/assetService.ts` (`HospitalAssetService`). Route handlers under `src/app/api/assets/**` must be thin adapters delegating to this service.
 - **Unified Hospital Events Seam:** All event lifecycle, attendee management, leaderboard, and ThaID checkin window validation MUST go through `@/lib/events/hospitalEventService.ts` (`HospitalEventService`) and `@/lib/events/eventTimeUtils.ts`. Event datetimes are stored literally in Thai local time (`Asia/Bangkok` UTC+7) in MySQL DATETIME, and serialized via `toBangkokIsoString` (`+07:00`) to prevent client-side double-shifting.
 - **Unified Equipment Borrowing Seam:** All asset and consumable material borrow requests, approval workflows, and inventory tracking MUST go through `@/lib/equipment/equipmentBorrowService.ts` (`EquipmentBorrowService`). Route handlers under `src/app/api/member/equipment-borrow/**` must be thin adapters delegating to this service.
+- **Unified Revenue Cycle Analytics Seam:** All RCM clinical dashboards, telemed tracking, fund reconciliations (NHSO SMT, MISHOS, RH1), and T1DM/GDM/PDM clinical cohort imports MUST go through `@/lib/clinical/rcmDashboardService.ts` (`RcmDashboardService`). Standardized 10 clinical specialties (`buildDepartmentSqlCase`, `classifySpecialty`), strongly typed `FiscalDateRange` (`startDate`, `endDate`), and dynamic Thai fiscal bounds (`getDefaultFiscalYearDateRange`, `resolveFiscalDateRange`).
+- **Unified Member Work Summary Seam:** All member task tallies, pending approvals, and staff queue statistics MUST route through `@/lib/taskInboxService.ts` (`TaskInboxService.getMemberWorkSummary`). Never run raw SQL queries directly inside page server components.
 - **Media & Video Delivery (HTTP 206):** For video files (e.g. Hero Slide MP4s), serve via `/api/stream?path=...` supporting HTTP 206 Partial Content (byte range requests) to enable smooth timeline seeking and Safari/iOS compatibility. Next.js CSP `media-src` must include `'self' data: blob: https:`.
+- **Shared Formatters:** Avatar initials must use `@/lib/formatters.ts` (`getInitials`) to correctly strip Thai civil and medical honorifics (เช่น นพ., พญ., นาย, นางสาว, ทพ.).
 - **Naming Conventions:** Names must reflect real hospital/medical domain terms (e.g. `PatientVisit`, `LabResult`, `AttendingPhysician`, `IpdWardService`, `TaskInboxService`) — never generic names like `data`, `item`, `handleStuff`.
-- **State & Data Flow:** Use a predictable state pattern (e.g. server state via React Query/SWR, local UI state via hooks). Never bind component state directly to raw DB models — map to view-specific types/DTOs.
+- **State & Data Flow:** Use a predictable state pattern (server state via React Query/SWR with strict TTL, local UI state via hooks). Never bind component state directly to raw DB models — map to view-specific types/DTOs.
 - **TypeScript Strictness:** `strict` mode on. No `any` without an inline comment explaining why. Explicit types/interfaces for all API payloads and DB models.
 
 ### 2. Security & Privacy First
@@ -53,7 +56,7 @@ This is the always-on rule set. Domain-specific integration detail (HOSxP DB acc
 - **Secure Logging:** Logs must be detailed enough to diagnose an issue but must never leak stack traces, raw queries, internal file paths, or PII/PHI to the client. Client-facing errors get a generic message plus an internal reference ID for support lookup. Use `pino` (@/lib/logger) for structured backend logging.
 - **Consistent API Responses:** Every API route returns a predictable shape: `{ success: boolean, data?: T, error?: { code: string, message: string } }`, with correct HTTP status codes.
 - **Scalability:** Optimize loops/queries for concurrent load; avoid N+1 queries (use joins/includes); paginate any list endpoint that can grow unbounded.
-- **Rate Limiting:** Apply rate limits to public-facing and auth-sensitive endpoints (login, signature submission, contact forms) to reduce brute-force and abuse risk.
+- **Rate Limiting:** Apply rate limits to public-facing and auth-sensitive endpoints (login, signature submission) to reduce brute-force and abuse risk.
 
 ### 4. Testing, Data, & Maintenance
 - **Test Data:** Never seed dev/test databases with real patient records. Generate synthetic fixtures (fake names, fake citizen IDs that fail checksum validation on purpose so they can't be confused with real ones).
@@ -84,6 +87,18 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 - **No silent guessing on clinical logic:** if a requirement touches medical data, dosing, scheduling that affects care, or compliance, state the assumption explicitly and ask before proceeding rather than guessing.
 - **Ambiguity → ask, don't assume:** for anything affecting patient safety or data exposure, a clarifying question is cheaper than a wrong guess.
 - **Accessibility:** Public-facing hospital pages should meet WCAG 2.1 AA at minimum (many users are elderly or have disabilities) — semantic HTML, sufficient contrast, full keyboard navigation, meaningful alt text.
+
+### 9. Engineering Principles & Rigor (pstack Integration)
+The global plugin `pstack` (`C:\Users\Tontun\.gemini\config\plugins\pstack`) provides core engineering discipline and playbooks:
+- **Boundary Discipline (`principle-boundary-discipline`):** Place validation, type narrowing, and error handling at system boundaries (API routes, form actions, gateway responses). Trust internal domain types unconditionally; keep business logic in pure, framework-free functions.
+- **Model the Domain (`principle-model-the-domain`):** Encode real domain rules in data structures (state machines, discriminated unions, typed registries) instead of scattered if/else chains or boolean flag soup.
+- **Fix Root Causes (`principle-fix-root-causes`):** Trace defects back to the earliest point where state diverged. Never patch downstream symptoms with ad-hoc null-guards.
+- **Prove It Works (`principle-prove-it-works`):** Verify every change against real runtime evidence or passing Vitest tests before declaring done.
+- **Laziness Protocol (`principle-laziness-protocol`):** Favor deletion over addition. Implement the smallest viable change that fully meets requirements without unnecessary layers or speculative abstractions.
+- **Hospital Guardrail Override:** When executing `/poteto-mode` or any pstack playbook:
+  1. *Never create direct DB sockets* — all data must flow via `@/lib/apiGateway`.
+  2. *Never log or inspect plaintext PHI* — always mask or use synthetic fixtures.
+  3. *Never use raw `fs` in API routes* — always use `DocumentStorage`.
 <!-- END:project-architecture-rules -->
 
 <!-- BEGIN:hospital-project-context -->
@@ -100,17 +115,24 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 - **100% Zero-Database Architecture:** The Next.js application opens ZERO direct database sockets (no MySQL port 3306). All data operations route strictly through the centralized **Thoen Hospital Unified API Gateway** (`http://192.168.1.208:8443` or `process.env.API_GATEWAY_URL`) via `@/lib/apiGateway` (`ApiGatewayClient`).
 - **Strict Fail-Closed Policy:** If the Gateway is unreachable, `GatewayUnavailableError` (HTTP 503) is thrown immediately. Never silently fallback to direct DB connections.
 - **HOSxP Clinical DB (Read-Only):** `@/lib/clinicalDb` (`queryClinicalDb`) and clinical domain services delegate to `apiGateway.clinical.query` or dedicated endpoints. Enforced read-only (`SELECT`, `EXPLAIN`, `SHOW`). See `.agents/skills/hosxp-db-access/SKILL.md`.
-- **Salary DB:** `@/lib/salaryDb` (`querySalaryDb`, `querySalaryEditDb`) delegates to `apiGateway.salary`. See `.agents/skills/salary-db/SKILL.md`.
+- **Salary DB:** `@/lib/salaryDb` (`querySalaryDb`, `querySalaryEditDb`) delegates to `apiGateway.salary`. Supports batch uploads and ADP search enhancements. See `.agents/skills/salary-db/SKILL.md`.
 - **Website Core & Member DB:** `@/lib/memberDb` (`queryMemberDb`) delegates to `apiGateway.app.query`, `apiGateway.app.execute`, and `apiGateway.app.transaction`.
+- **Gateway Named APIs:** Named endpoint sets exist on the Gateway for Hero Slides, News CMS, Locations, Task Inbox, and Salary. Prefer Gateway named endpoints where available over raw SQL queries.
 - **Remote Infrastructure & Server Operations (`/ssh-thlp`):** Whenever inspecting, modifying, or deploying on the internal API Gateway VM (`192.168.1.208`, user `thoen`) or the File Storage Proxmox CT (`192.168.1.24`, user `root`), invoke `.agents/skills/ssh-thlp/SKILL.md` via `/ssh-thlp`. Always use ephemeral Python paramiko scripts without persistent credentials, and consult the refactoring roadmap in `docs/gateway/TODO.md`.
 
 ### 3. Authentication & Access Control Flow
 - **Hospital Staff Portal (`/member`):** Passwordless OTP auth. Full flow and required session-check pattern are in `.agents/skills/member-auth-flow/SKILL.md` — read that skill before touching any `/member` route or its APIs.
+- **Session Refresh Seam:** Member session renewal occurs via `/api/member/auth/refresh`, maintaining session validity without forcing re-authentication during active work.
 - **Task Permission & Inbox Workflow:** Centralized authorization in `@/lib/taskPermissionResolver.ts` (`resolveTaskPermissions`). All workflow state transitions route through `@/lib/taskInboxService.ts` (`executeWorkflowAction`). Field-level manager edits go through `updateTaskByManager`.
 - **Ethics CMS:** All ethics document tree-building, cascading deletion, and year aggregation MUST go through `@/lib/cms/EthicsDocumentService.ts`. Route handlers under `src/app/api/ethics/**` and `src/app/api/member/ethics/**` must be thin adapters that call service methods — no inline Prisma tree maps or file cleanup logic inside routes.
 - **Hospital Asset & Location Management:** Centralized asset domain logic in `@/lib/assets/assetService.ts` (`HospitalAssetService`). Auto-infers category from FSN codes (`7440`/`7430` → IT, `6515`/`6520`/`6530` → Medical, otherwise General) and binds Gotowin room locations.
 - **Equipment & Material Borrowing Management:** Centralized workflow in `@/lib/equipment/equipmentBorrowService.ts` (`EquipmentBorrowService`). Manages borrow requests, inventory deduction, and approval states.
 - **Hospital Events & QR Check-in System:** Centralized in `@/lib/events/hospitalEventService.ts` (`HospitalEventService`) and `@/lib/events/eventTimeUtils.ts`. Event datetimes are stored in Thai local time (`Asia/Bangkok` UTC+7) in MySQL DATETIME, and verified against Bangkok scan windows.
+- **Revenue Cycle Management (RCM):** Centralized analytics in `@/lib/clinical/rcmDashboardService.ts` (`RcmDashboardService`). Supports monthly OPD/Invoice summaries, rep-funds waterfall ledger, telemed tracking, and direct cohort imports (T1DM/GDM/PDM) with HOSxP patient matching.
 - **MariaDB Charset & Database Connection:** The hospital server defaults `init_connect='SET NAMES tis620'`. Always use `@/lib/prisma` (which automatically pins an interactive transaction with `SET NAMES utf8mb4`) rather than unpinned raw clients to avoid UTF-8 deserializer errors.
 - **Audit Logging:** Any access to PHI or sensitive employee records must call `logAudit()`. Workflow transitions must write to `inbox_task_audit_logs`. See `.agents/skills/audit-logging/SKILL.md`.
+
+### 4. Permanent Deletions & Deprecations
+- **Contact Inquiries & Complaints:** The public contact form and complaint messaging features have been permanently removed from both UI and API. Do not re-create routes or forms for contact inquiries.
+- **Direct Database Sockets:** MySQL port 3306 direct connections are permanently disabled. Never introduce direct database client libraries or fallback connection strings.
 <!-- END:hospital-project-context -->
