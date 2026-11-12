@@ -87,14 +87,14 @@
         └── Centralized Gateway Client (@/lib/apiGateway)
                 │ (HTTP/2 + API-Key Encrypted Communication)
                 ▼
-[ Thoen Hospital Unified API Gateway :8443 ]
+[ Thoen Hospital Unified API Gateway ]
         ├── Named APIs (/api/v1/app/*, /clinical/*, /salary/*, /tasks/*)
         ├── Primary Database (App CMS, Members, Tasks, Permissions, Audit Logs)
         ├── HOSxP Clinical DB (Read-Only Replica: Appointments, Lab, ER, Wards)
         └── Salary DB (Read-Only Replica: Payroll, Statements, Batch Ingest)
                 │
                 ▼
-[ Proxmox File Storage LXC (192.168.1.24) ]
+[ Proxmox File Storage LXC ]
         └── MinIO S3 Compatible Storage (public-assets & private-documents)
 ```
 
@@ -157,32 +157,33 @@ cmd.exe /c "npm install"
 cmd.exe /c "copy .env.example .env"
 ```
 
-ตั้งค่าตัวแปรสำคัญใน `.env`:
+ตั้งค่าตัวแปรสำคัญใน `.env` (ดูรายละเอียดตัวแปรทั้งหมดใน `.env.example`):
 ```ini
 # Centralized API Gateway (Zero-DB Architecture)
-API_GATEWAY_URL="http://192.168.1.208:8443"
-API_GATEWAY_TOKEN="your_gateway_token"
+API_GATEWAY_URL="http://gateway.internal:8443"
+API_GATEWAY_KEY="your_api_gateway_key_here"
 
-# MinIO S3 Storage (Proxmox LXC 192.168.1.24)
-S3_ENDPOINT="http://192.168.1.24:9000"
+# MinIO S3 Storage
+S3_ENDPOINT="http://storage.internal:9000"
 S3_ACCESS_KEY="your_minio_access_key"
 S3_SECRET_KEY="your_minio_secret_key"
 S3_BUCKET_PUBLIC="public-assets"
 S3_BUCKET_PRIVATE="private-documents"
 
 # Session & Security
-SESSION_SECRET="your_secure_random_string_min_32_chars"
+MEMBER_SESSION_SECRET="your_secure_random_string_min_32_chars"
+CRON_SECRET="your_cron_secret_min_32_chars"
 
 # Email Delivery for OTP
-SMTP_HOST="smtp-relay.brevo.com"
-SMTP_PORT=587
-SMTP_USER="your_smtp_user"
-SMTP_PASS="your_smtp_password"
+BREVO_SMTP_HOST="smtp-relay.brevo.com"
+BREVO_SMTP_PORT=587
+BREVO_SMTP_USER="your_smtp_user"
+BREVO_SMTP_PASS="your_smtp_password"
 
 # ThaID OAuth Integration
 THAID_CLIENT_ID="your_thaid_client_id"
 THAID_CLIENT_SECRET="your_thaid_client_secret"
-THAID_REDIRECT_URI="http://localhost:3000/api/auth/callback"
+THAID_REDIRECT_URI="http://localhost:3000/api/auth/thaid/callback"
 ```
 
 ### 3. รันระบบในโหมด Development
