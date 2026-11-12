@@ -63,6 +63,25 @@ const mockItem: ImcItem = {
   status: 'NHSO :: มี Invoice แล้ว',
   rep: 'REP2610-001',
   compensated: 12000,
+  repSeamless: 'DDSA68103100077,DDSA69093000090',
+  compensatedSeamless: 484.41,
+  seamlessFunds: 'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ',
+  seamlessRepItems: [
+    {
+      rep: 'DDSA68103100077',
+      fund: 'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ',
+      type: 'กิจกรรมบำบัด (รหัสรายบุคคล)',
+      collected: 450,
+      compensated: 450,
+    },
+    {
+      rep: 'DDSA69093000090',
+      fund: 'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ',
+      type: 'การจ่าย Point เพิ่มเติม กายภาพบำบัด',
+      collected: 150,
+      compensated: 34.41,
+    },
+  ],
   getprice: 1500,
   address: '12 ม.1 ต.ล้อมแรด อ.เถิน',
   tel: '0812345678',
@@ -120,6 +139,12 @@ describe('ImcEligiblePatientsClient', () => {
     expect(screen.getByText('690001')).toBeInTheDocument()
     expect(screen.getByText('ขึ้นทะเบียนแล้ว')).toBeInTheDocument()
     expect(screen.getByText('มีใน Web')).toBeInTheDocument()
+
+    // Multiple Reps (e-Claim + Seamless) rendered as Rep-only badges, with + Seamless in compensated cell
+    expect(screen.getByText('REP2610-001')).toBeInTheDocument()
+    expect(screen.getByText('DDSA68103100077')).toBeInTheDocument()
+    expect(screen.getByText('DDSA69093000090')).toBeInTheDocument()
+    expect(screen.getByText('+ Seamless 484.41')).toBeInTheDocument()
 
     // 8 KPI Cards check
     expect(screen.getByText('ผู้รับบริการตามเกณฑ์ IMC ทั้งหมด')).toBeInTheDocument()
@@ -197,6 +222,18 @@ describe('ImcEligiblePatientsClient', () => {
       ).toBeInTheDocument()
       expect(
         screen.getByText(/สิทธิ์การรักษาและการชดเชยค่าบริการ/i)
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('DDSA68103100077, DDSA69093000090')
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ')
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/กิจกรรมบำบัด \(รหัสรายบุคคล\)/)
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('ชดเชย 450.00 ฿')
       ).toBeInTheDocument()
     })
   })

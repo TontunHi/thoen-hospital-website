@@ -428,4 +428,111 @@ describe('RcmImcService', () => {
     expect(opdItem1?.cc).toBe('อ่อนแรงซีกซ้าย มาตรวจติดตาม')
     expect(opdItem1?.department).toBe('เวชศาสตร์ฟื้นฟู')
   })
+
+  describe('Seamless Rep enrichment', () => {
+    const opdExecutor = (seamless: () => Promise<any[]>) =>
+      vi.fn().mockImplementation((sql: string, params: any[] = []) => {
+        if (sql.includes('SELECT DISTINCT o.vn') && sql.includes('ovstdiag')) {
+          return Promise.resolve([{ vn: '681003123142' }, { vn: '690101000001' }])
+        }
+        if (sql.includes('FROM ovst o')) {
+          return Promise.resolve([
+            { vn: '681003123142', hn: '0070210', cid: '1', ptname: 'ก ข', date: '2025-10-03', vstdate: '2025-10-03' },
+            { vn: '690101000001', hn: '0000002', cid: '2', ptname: 'ค ง', date: '2026-01-01', vstdate: '2026-01-01' },
+          ])
+        }
+        if (sql.includes('FROM rcmdb.repeclaim')) {
+          return Promise.resolve([
+            { vn: '681003123142', rep: '681000024', compensated: 500, statusname: 'NHSO :: มี Invoice แล้ว' },
+          ])
+        }
+        if (sql.includes('FROM rcmdb.seamless')) {
+          expect(sql).toContain('VN IN')
+          expect(params).toEqual(expect.arrayContaining(['681003123142', '690101000001']))
+          return seamless()
+        }
+        return Promise.resolve([])
+      })
+
+    it('attaches Seamless Reps by VN and keeps their amount out of e-Claim totals', async () => {
+      const executor = opdExecutor(() =>
+        Promise.resolve([
+          {
+            k: '681003123142',
+            rep_seamless: 'DDSA68103100077,DDSA69093000090',
+            seamless_funds: 'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ',
+            compensated_seamless: 1350,
+          },
+        ])
+      )
+
+      const res = await RcmImcService.getImcReport(
+        { startDate: '2025-10-01', endDate: '2026-09-30', patientType: 'OPD' },
+        executor
+      )
+
+      const multi = res.items.find((i) => i.vn === '681003123142')
+      expect(multi?.rep).toBe('681000024')
+      expect(multi?.repSeamless).toBe('DDSA68103100077,DDSA69093000090')
+      expect(multi?.compensatedSeamless).toBe(1350)
+      expect(multi?.seamlessFunds).toBe('ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ')
+
+      const none = res.items.find((i) => i.vn === '690101000001')
+      expect(none?.repSeamless).toBeNull()
+      expect(none?.compensatedSeamless).toBe(0)
+
+      // e-Claim totals are untouched by Seamless amounts
+      expect(res.summary.totalCompensated).toBe(500)
+    })
+
+    it('matches a Seamless Rep number in global search', async () => {
+      const executor = opdExecutor(() =>
+        Promise.resolve([{ k: '681003123142', rep_seamless: 'DDSA68103100077', compensated_seamless: 100 }])
+      )
+
+      const res = await RcmImcService.getImcReport(
+        { startDate: '2025-10-01', endDate: '2026-09-30', patientType: 'OPD', search: 'ddsa6810' },
+        executor
+      )
+
+      expect(res.items).toHaveLength(1)
+      expect(res.items[0].hn).toBe('0070210')
+    })
+
+    it('still returns the report when the Seamless query fails', async () => {
+      const executor = opdExecutor(() => Promise.reject(new Error('seamless down')))
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const res = await RcmImcService.getImcReport(
+        { startDate: '2025-10-01', endDate: '2026-09-30', patientType: 'OPD' },
+        executor
+      )
+
+      expect(res.totalCount).toBe(2)
+      expect(res.items.every((i) => i.repSeamless === null)).toBe(true)
+      warn.mockRestore()
+    })
+
+    it('matches IPD rows by AN', async () => {
+      const executor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT DISTINCT i.an')) return Promise.resolve([{ an: '690001' }])
+        if (sql.includes('FROM ipt i')) {
+          return Promise.resolve([{ an: '690001', hn: '001', cid: '1', ptname: 'ก ข', date: '2026-10-01' }])
+        }
+        if (sql.includes('FROM rcmdb.seamless')) {
+          expect(sql).toContain('AN IN')
+          return Promise.resolve([{ k: '690001', rep_seamless: 'DTDT69010100001', compensated_seamless: 200 }])
+        }
+        return Promise.resolve([])
+      })
+
+      const res = await RcmImcService.getImcReport(
+        { startDate: '2026-10-01', endDate: '2027-09-30', patientType: 'IPD' },
+        executor
+      )
+
+      expect(res.items[0].repSeamless).toBe('DTDT69010100001')
+      expect(res.items[0].compensatedSeamless).toBe(200)
+    })
+  })
 })

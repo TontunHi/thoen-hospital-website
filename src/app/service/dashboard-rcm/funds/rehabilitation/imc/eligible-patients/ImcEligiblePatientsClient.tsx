@@ -66,6 +66,12 @@ function splitPtName(fullName: string): { first: string; last: string } {
   return { first: parts[0], last: parts.slice(1).join(' ') }
 }
 
+/** แยกเลข Rep ที่ได้จาก GROUP_CONCAT (คั่นด้วย comma) */
+function splitReps(value?: string | null): string[] {
+  if (!value) return []
+  return Array.from(new Set(value.split(',').map((s) => s.trim()).filter(Boolean)))
+}
+
 export interface ImcEligiblePatientsClientProps {
   initialData?: ImcReportResult | null
 }
@@ -392,6 +398,8 @@ export default function ImcEligiblePatientsClient({
               'ชดเชยแล้ว',
               'สถานะชดเชย',
               'เลขที่ REP',
+              'เลข Rep Seamless',
+              'ชดเชยจาก Seamless',
               'ClaimCode',
               'ที่อยู่',
               'เบอร์โทรศัพท์',
@@ -419,6 +427,8 @@ export default function ImcEligiblePatientsClient({
               'ชดเชยแล้ว',
               'สถานะชดเชย',
               'เลขที่ REP',
+              'เลข Rep Seamless',
+              'ชดเชยจาก Seamless',
               'ClaimCode',
               'ที่อยู่',
               'เบอร์โทรศัพท์',
@@ -448,6 +458,8 @@ export default function ImcEligiblePatientsClient({
             r.compensated || 0,
             r.status || '',
             r.rep || '',
+            r.repSeamless || '',
+            r.compensatedSeamless || 0,
             r.authencode || '',
             r.address || '',
             r.tel || '',
@@ -476,6 +488,8 @@ export default function ImcEligiblePatientsClient({
             r.compensated || 0,
             r.status || '',
             r.rep || '',
+            r.repSeamless || '',
+            r.compensatedSeamless || 0,
             r.authencode || '',
             r.address || '',
             r.tel || '',
@@ -1181,26 +1195,82 @@ export default function ImcEligiblePatientsClient({
                       {/* 15. พึงได้จาก Web */}
                       <td className="col-right">{formatMoney(row.getprice)}</td>
 
-                      {/* 16. ชดเชยแล้ว */}
+                      {/* 16. ชดเชยแล้ว (e-Claim + Seamless) */}
                       <td className="col-right">
-                        {row.compensated > 0 ? (
-                          <strong style={{ color: '#15803d' }}>{formatMoney(row.compensated)}</strong>
+                        {row.compensated > 0 || (row.compensatedSeamless ?? 0) > 0 ? (
+                          <div className="imc-comp-stack tabular">
+                            {row.compensated > 0 && (
+                              <strong style={{ color: '#15803d' }} title="ชดเชยจาก e-Claim">
+                                {formatMoney(row.compensated)}
+                              </strong>
+                            )}
+                            {(row.compensatedSeamless ?? 0) > 0 && (
+                              <span
+                                className="imc-comp-sub"
+                                title={`ชดเชยจาก Seamless${row.seamlessFunds ? ` (${row.seamlessFunds})` : ''}`}
+                              >
+                                {row.compensated > 0 ? '+ ' : ''}Seamless {formatMoney(row.compensatedSeamless)}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           '—'
                         )}
                       </td>
 
-                      {/* 17. สถานะ / REP */}
+                      {/* 17. สถานะ / REP (แสดงเฉพาะเลข REP) */}
                       <td className="col-center">
-                        {row.rep ? (
-                          <span className="imc-badge imc-badge-info" title={row.status || ''}>
-                            {row.rep}
-                          </span>
-                        ) : row.status ? (
-                          <span className="imc-badge imc-badge-neutral">{row.status}</span>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>—</span>
-                        )}
+                        {(() => {
+                          const eclaimReps = splitReps(row.rep)
+                          const seamlessItems =
+                            row.seamlessRepItems && row.seamlessRepItems.length > 0
+                              ? row.seamlessRepItems
+                              : splitReps(row.repSeamless).map((rep, idx, arr) => ({
+                                  rep,
+                                  fund: row.seamlessFunds || null,
+                                  type: null,
+                                  collected: 0,
+                                  compensated: arr.length === 1 ? (row.compensatedSeamless ?? 0) : 0,
+                                }))
+
+                          if (eclaimReps.length === 0 && seamlessItems.length === 0) {
+                            return row.status ? (
+                              <span className="imc-badge imc-badge-neutral">{row.status}</span>
+                            ) : (
+                              <span style={{ color: '#94a3b8' }}>—</span>
+                            )
+                          }
+                          return (
+                            <div className="imc-rep-stack">
+                              {eclaimReps.map((rep) => (
+                                <span
+                                  key={`e-${rep}`}
+                                  className="imc-badge imc-badge-info font-mono"
+                                  title={`e-Claim${row.status ? ` · ${row.status}` : ''}${row.compensated > 0 ? ` · ชดเชย ${formatMoney(row.compensated)} บาท` : ''}`}
+                                >
+                                  {rep}
+                                </span>
+                              ))}
+                              {seamlessItems.map((item) => (
+                                <span
+                                  key={`s-${item.rep}`}
+                                  className="imc-badge imc-badge-seamless font-mono"
+                                  title={[
+                                    'Seamless',
+                                    item.fund || row.seamlessFunds,
+                                    item.type,
+                                    item.collected > 0 ? `ขอเบิก ${formatMoney(item.collected)} ฿` : null,
+                                    item.compensated > 0 ? `ชดเชย ${formatMoney(item.compensated)} ฿` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                >
+                                  {item.rep}
+                                </span>
+                              ))}
+                            </div>
+                          )
+                        })()}
                       </td>
                     </tr>
                   )
@@ -1516,6 +1586,62 @@ export default function ImcEligiblePatientsClient({
                       {formatMoney(selectedItem.compensated)} บาท
                     </span>
                   </div>
+
+                  <div className="imc-modal-field">
+                    <span className="imc-modal-label">เลข Rep Seamless</span>
+                    <span className="imc-modal-val font-mono">
+                      {splitReps(selectedItem.repSeamless).join(', ') || '—'}
+                    </span>
+                  </div>
+
+                  <div className="imc-modal-field">
+                    <span className="imc-modal-label">ชดเชยจาก Seamless (รวม)</span>
+                    <span className="imc-modal-val" style={{ color: '#6b21a8', fontWeight: 700 }}>
+                      {formatMoney(selectedItem.compensatedSeamless ?? 0)} บาท
+                    </span>
+                  </div>
+
+                  {selectedItem.seamlessFunds && (
+                    <div className="imc-modal-field" style={{ gridColumn: 'span 2' }}>
+                      <span className="imc-modal-label">กองทุน Seamless</span>
+                      <span className="imc-modal-val">{selectedItem.seamlessFunds}</span>
+                    </div>
+                  )}
+
+                  {selectedItem.seamlessRepItems && selectedItem.seamlessRepItems.length > 0 && (
+                    <div className="imc-modal-field" style={{ gridColumn: 'span 2' }}>
+                      <span className="imc-modal-label">รายละเอียดยอดเงินแยกรายใบ Rep (Seamless)</span>
+                      <div className="imc-modal-rep-breakdown">
+                        {selectedItem.seamlessRepItems.map((item) => (
+                          <div key={`modal-s-${item.rep}`} className="imc-modal-rep-item">
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span className="font-mono" style={{ fontWeight: 600, color: '#6b21a8' }}>
+                                {item.rep}
+                              </span>
+                              {(item.type || item.fund) && (
+                                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                  {[item.type, item.fund].filter(Boolean).join(' · ')}
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              className="tabular"
+                              style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap' }}
+                            >
+                              {item.collected > 0 && (
+                                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                  ขอเบิก {formatMoney(item.collected)} ฿
+                                </span>
+                              )}
+                              <strong style={{ color: '#6b21a8' }}>
+                                ชดเชย {formatMoney(item.compensated)} ฿
+                              </strong>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="imc-modal-field">
                     <span className="imc-modal-label">เบอร์โทรศัพท์ติดต่อ</span>

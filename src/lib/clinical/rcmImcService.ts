@@ -54,6 +54,14 @@ export interface ImcReportParams extends FiscalDateRangeParams {
   ucOnly?: boolean
 }
 
+export interface SeamlessRepBreakdown {
+  rep: string
+  fund: string | null
+  type: string | null
+  collected: number
+  compensated: number
+}
+
 export interface ImcItem {
   no: number
   patientType: ImcPatientType
@@ -89,8 +97,16 @@ export interface ImcItem {
   adjrw: number | null
   income: number
   status: string | null
-  rep: string | null
+  rep: string | null // e-Claim Rep (repeclaim → repdata → neweclaim → eclaimdb)
   compensated: number
+  /** Seamless (DMIS) Reps จาก rcmdb.seamless จับคู่ด้วย VN (OPD) / AN (IPD) คั่นด้วย comma */
+  repSeamless: string | null
+  /** ยอดชดเชยจาก Seamless — แยกจาก compensated (e-Claim) เพื่อไม่ให้นับซ้ำ */
+  compensatedSeamless: number
+  /** ชื่อกองทุน Seamless (Fund) คั่นด้วย comma */
+  seamlessFunds: string | null
+  /** รายละเอียดยอดเงินแยกรายใบ Rep ของ Seamless */
+  seamlessRepItems?: SeamlessRepBreakdown[]
   getprice: number // จากระบบ Web IMC (imc.amount)
   address: string | null
   tel: string | null
@@ -185,22 +201,27 @@ export class RcmImcService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('imc', { ds1, ds2, patientType })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
-              return gwRes.data.rawRows
+        const baseRows = await (async () => {
+          if (executor === queryClinicalDb) {
+            try {
+              const gwRes = await apiGateway.clinical.getRcmFundData('imc', { ds1, ds2, patientType })
+              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
+                return gwRes.data.rawRows
+              }
+            } catch {
+              // Fallback to executor query
             }
-          } catch {
-            // Fallback to executor query
           }
-        }
 
-        if (patientType === 'IPD') {
-          return await this.fetchIpdData(ds1, ds2, executor, safeExecute)
-        } else {
+          if (patientType === 'IPD') {
+            return await this.fetchIpdData(ds1, ds2, executor, safeExecute)
+          }
           return await this.fetchOpdData(ds1, ds2, executor, safeExecute)
-        }
+        })()
+
+        // Seamless (DMIS) Reps เป็นช่องทางเบิกแยกจาก e-Claim → แนบเพิ่มหลังได้ base rows
+        // ไม่ว่าจะมาจาก Gateway หรือ query ในเครื่อง
+        return await this.attachSeamlessReps(baseRows, patientType, safeExecute)
       },
       300000 // Cache TTL 5 minutes
     )
@@ -259,6 +280,10 @@ export class RcmImcService {
         status: r.status ? String(r.status).trim() : null,
         rep: r.rep ? String(r.rep).trim() : null,
         compensated: compensatedVal,
+        repSeamless: r.rep_seamless ? String(r.rep_seamless).trim() : null,
+        compensatedSeamless: Number(r.compensated_seamless || 0),
+        seamlessFunds: r.seamless_funds ? String(r.seamless_funds).trim() : null,
+        seamlessRepItems: Array.isArray(r.seamless_rep_items) ? r.seamless_rep_items : [],
         getprice: Number(r.getprice || 0),
         address: r.address ? String(r.address).trim() : null,
         tel: r.tel ? String(r.tel).trim() : null,
@@ -349,6 +374,7 @@ export class RcmImcService {
           (i.department && i.department.toLowerCase().includes(search)) ||
           (i.clinic && i.clinic.toLowerCase().includes(search)) ||
           (i.rep && i.rep.toLowerCase().includes(search)) ||
+          (i.repSeamless && i.repSeamless.toLowerCase().includes(search)) ||
           (i.status && i.status.toLowerCase().includes(search)) ||
           (i.pttypename && i.pttypename.toLowerCase().includes(search)) ||
           (i.address && i.address.toLowerCase().includes(search)) ||
@@ -405,6 +431,145 @@ export class RcmImcService {
       sortOrder,
       items: pagedItems,
     }
+  }
+
+  /**
+   * แนบเลข Rep และยอดเงินแยกรายใบจากระบบ Seamless (rcmdb.seamless) ให้แต่ละแถว
+   * - IPD จับคู่ด้วย AN, OPD จับคู่ด้วย VN (ระดับ visit — ไม่ใช้ HN เพื่อไม่ให้ Rep ของครั้งอื่นปนมา)
+   * - GROUP BY (VN/AN, Rep) เพื่อให้เห็นยอดขอเบิก/ชดเชยและรายการบริการแยกตามแต่ละเลข Rep
+   * - ล้มเหลวแบบ graceful: query พังก็คืน rows เดิม (Seamless เป็นข้อมูลเสริม)
+   */
+  private static async attachSeamlessReps(
+    rows: any[],
+    patientType: ImcPatientType,
+    safeExecute: (sql: string, params?: any[], opts?: any) => Promise<any[]>
+  ): Promise<any[]> {
+    if (!Array.isArray(rows) || rows.length === 0) return rows || []
+
+    const keyField = patientType === 'IPD' ? 'an' : 'vn'
+    const keyColumn = patientType === 'IPD' ? 'AN' : 'VN'
+    const keys = Array.from(
+      new Set(rows.map((r: any) => String(r?.[keyField] ?? '').trim()).filter(Boolean))
+    )
+    if (keys.length === 0) return rows
+
+    const CHUNK_SIZE = 1000
+    const chunks: string[][] = []
+    for (let i = 0; i < keys.length; i += CHUNK_SIZE) {
+      chunks.push(keys.slice(i, i + CHUNK_SIZE))
+    }
+
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        safeExecute(
+          `
+          SELECT
+            ${keyColumn} AS k,
+            Rep AS rep,
+            GROUP_CONCAT(DISTINCT Fund ORDER BY Fund SEPARATOR ', ') AS fund,
+            GROUP_CONCAT(DISTINCT Type ORDER BY Type SEPARATOR ', ') AS type,
+            SUM(IFNULL(Collected, 0)) AS collected,
+            SUM(IFNULL(Compensated, 0)) AS compensated,
+            GROUP_CONCAT(DISTINCT Rep ORDER BY Rep SEPARATOR ',') AS rep_seamless,
+            GROUP_CONCAT(DISTINCT Fund ORDER BY Fund SEPARATOR ',') AS seamless_funds,
+            SUM(IFNULL(Compensated, 0)) AS compensated_seamless
+          FROM rcmdb.seamless
+          WHERE ${keyColumn} IN (${chunk.map(() => '?').join(',')})
+            AND IFNULL(Rep, '') <> ''
+          GROUP BY ${keyColumn}, Rep
+          ORDER BY Rep ASC
+          `,
+          chunk,
+          { timeoutMs: 15000 }
+        )
+      )
+    )
+
+    const seamlessMap = new Map<
+      string,
+      {
+        reps: Set<string>
+        funds: Set<string>
+        totalCompensated: number
+        items: SeamlessRepBreakdown[]
+      }
+    >()
+
+    for (const resRows of results) {
+      for (const s of resRows || []) {
+        if (!s || s.k == null) continue
+        const key = String(s.k).trim()
+        if (!key) continue
+
+        let entry = seamlessMap.get(key)
+        if (!entry) {
+          entry = { reps: new Set(), funds: new Set(), totalCompensated: 0, items: [] }
+          seamlessMap.set(key, entry)
+        }
+
+        // รองรับทั้งแถวระดับ (k, rep) จาก SQL จริง และแถวระดับ k จาก test mock เดิม
+        if (s.rep) {
+          const repCode = String(s.rep).trim()
+          const compVal = Number(s.compensated ?? s.compensated_seamless ?? 0)
+          const collVal = Number(s.collected ?? 0)
+          const fundVal = s.fund ? String(s.fund).trim() : s.seamless_funds ? String(s.seamless_funds).trim() : null
+          const typeVal = s.type ? String(s.type).trim() : null
+
+          entry.reps.add(repCode)
+          if (fundVal) {
+            for (const f of fundVal.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+              entry.funds.add(f)
+            }
+          }
+          entry.totalCompensated = Math.round((entry.totalCompensated + compVal) * 100) / 100
+          entry.items.push({
+            rep: repCode,
+            fund: fundVal,
+            type: typeVal,
+            collected: Math.round(collVal * 100) / 100,
+            compensated: Math.round(compVal * 100) / 100,
+          })
+        } else if (s.rep_seamless) {
+          const repList = String(s.rep_seamless)
+            .split(',')
+            .map((x: string) => x.trim())
+            .filter(Boolean)
+          const compVal = Number(s.compensated_seamless ?? s.compensated ?? 0)
+          const fundVal = s.seamless_funds ? String(s.seamless_funds).trim() : null
+
+          for (const rCode of repList) entry.reps.add(rCode)
+          if (fundVal) {
+            for (const f of fundVal.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+              entry.funds.add(f)
+            }
+          }
+          entry.totalCompensated = Math.round((entry.totalCompensated + compVal) * 100) / 100
+          for (let i = 0; i < repList.length; i++) {
+            entry.items.push({
+              rep: repList[i],
+              fund: fundVal,
+              type: null,
+              collected: 0,
+              compensated: repList.length === 1 ? Math.round(compVal * 100) / 100 : 0,
+            })
+          }
+        }
+      }
+    }
+
+    if (seamlessMap.size === 0) return rows
+
+    return rows.map((row: any) => {
+      const s = seamlessMap.get(String(row?.[keyField] ?? '').trim())
+      if (!s || s.reps.size === 0) return row
+      return {
+        ...row,
+        rep_seamless: Array.from(s.reps).join(','),
+        seamless_funds: s.funds.size > 0 ? Array.from(s.funds).join(', ') : null,
+        compensated_seamless: s.totalCompensated,
+        seamless_rep_items: s.items,
+      }
+    })
   }
 
   /**

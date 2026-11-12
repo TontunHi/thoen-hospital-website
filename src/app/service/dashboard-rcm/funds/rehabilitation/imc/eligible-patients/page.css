@@ -615,6 +615,69 @@
   border: 1px solid #bae6fd;
 }
 
+.imc-badge-seamless {
+  background-color: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+/* Rep หลายแหล่งในช่องเดียว (e-Claim + Seamless) */
+.imc-rep-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.imc-rep-source {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.imc-rep-amt {
+  font-size: 10px;
+  font-weight: 700;
+  padding-left: 4px;
+  margin-left: 2px;
+  border-left: 1px solid currentColor;
+  opacity: 0.9;
+}
+
+.imc-comp-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.imc-comp-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b21a8;
+  white-space: nowrap;
+}
+
+.imc-modal-rep-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.imc-modal-rep-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+}
+
 /* Empty & Error States */
 .imc-empty-state {
   padding: 64px 24px;
