@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import LtcRegistryClient from './LtcRegistryClient'
 import { LtcRegistryService } from '@/lib/clinical/ltcRegistryService'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'ทะเบียน Long Term Care (LTC) | Dashboard-RCM โรงพยาบาลเถิน',
   description: 'ระบบบันทึกและจัดการทะเบียนผู้ป่วย Long Term Care (LTC) โรงพยาบาลเถิน',
@@ -16,18 +18,43 @@ export default async function LtcRegistryPage() {
   }
 
   const member = await fetchAuthenticatedMember(session.username, session.email)
-  const canManage = member?.isAdmin || member?.can('manage_ltc_registry')
-
-  if (!canManage) {
-    redirect('/service/dashboard-rcm/palliative-care/registry')
+  if (!member) {
+    redirect('/member/login')
   }
 
-  let initialData = null
+  const canView =
+    member.isAdmin ||
+    member.can([
+      'view_ltc_registry',
+      'edit_ltc_registry',
+      'manage_ltc_registry',
+    ])
+
+  if (!canView) {
+    redirect('/service/dashboard-rcm/palliative-care/pc-1')
+  }
+
+  const canManage = member.isAdmin || member.can('manage_ltc_registry')
+  const canEdit = canManage || member.can('edit_ltc_registry')
+
+  const initialPermissions = {
+    canView: true,
+    canEdit,
+    canManage,
+  }
+
+  let initialData: (Awaited<ReturnType<typeof LtcRegistryService.listRegistries>> & {
+    permissions?: typeof initialPermissions
+  }) | null = null
   try {
-    initialData = await LtcRegistryService.listRegistries({
+    const data = await LtcRegistryService.listRegistries({
       page: 1,
       limit: 50,
     })
+    initialData = {
+      ...data,
+      permissions: initialPermissions,
+    }
   } catch (error) {
     console.error('Failed to prefetch LTC Registry SSR data:', error)
   }
@@ -43,7 +70,9 @@ export default async function LtcRegistryPage() {
       <LtcRegistryClient
         userRole={session.role}
         username={session.username}
-        isAdmin={Boolean(member?.isAdmin)}
+        isAdmin={Boolean(member.isAdmin)}
+        canEdit={canEdit}
+        canManage={canManage}
         initialData={initialData}
       />
     </Suspense>

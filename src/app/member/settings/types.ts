@@ -19,6 +19,7 @@ import {
   Calendar,
   ClipboardList,
   Upload,
+  ShieldCheck,
 } from 'lucide-react'
 import { PermRoleType, TaskRoleConfig, TaskDefinition } from '@/lib/permissions/taskDefinitions'
 
@@ -55,6 +56,7 @@ export const ICON_MAP: Record<string, React.ComponentType<{ size?: number; class
   Calendar,
   ClipboardList,
   Upload,
+  ShieldCheck,
 }
 
 export const ROLE_TYPE_CONFIG: Record<

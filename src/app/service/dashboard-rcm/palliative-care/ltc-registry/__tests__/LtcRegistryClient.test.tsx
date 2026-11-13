@@ -189,4 +189,60 @@ describe('LtcRegistryClient Component', () => {
     expect(screen.getByText('0001234')).toBeInTheDocument()
     expect(screen.getByText('0005678')).toBeInTheDocument()
   })
+
+  it('renders read-only view without add/edit/delete controls for view_ltc_registry', () => {
+    render(
+      <LtcRegistryClient
+        userRole="member"
+        username="viewer_ltc"
+        isAdmin={false}
+        canEdit={false}
+        canManage={false}
+        initialData={mockLtcData}
+      />
+    )
+
+    expect(screen.getByText('นายใจดี ล้อมแรด')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /เพิ่มผู้ป่วยขึ้นทะเบียน LTC/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/แก้ไขข้อมูลในช่องตาราง/)).not.toBeInTheDocument()
+    expect(screen.queryByTitle('ลบเคสออกจากทะเบียน LTC')).not.toBeInTheDocument()
+
+    // Clicking HN does not open edit modal in read-only mode
+    fireEvent.click(screen.getByText('0001234'))
+    expect(screen.queryByRole('heading', { name: /แก้ไขข้อมูลทะเบียน LTC/ })).not.toBeInTheDocument()
+  })
+
+  it('allows add and edit without delete controls for edit_ltc_registry', () => {
+    render(
+      <LtcRegistryClient
+        userRole="member"
+        username="editor_ltc"
+        isAdmin={false}
+        canEdit={true}
+        canManage={false}
+        initialData={mockLtcData}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /เพิ่มผู้ป่วยขึ้นทะเบียน LTC/ })).toBeInTheDocument()
+    expect(screen.getByDisplayValue('นายใจดี ล้อมแรด')).toBeInTheDocument()
+    expect(screen.queryByTitle('ลบเคสออกจากทะเบียน LTC')).not.toBeInTheDocument()
+  })
+
+  it('allows add, edit, and delete controls for manage_ltc_registry', () => {
+    render(
+      <LtcRegistryClient
+        userRole="member"
+        username="manager_ltc"
+        isAdmin={false}
+        canEdit={true}
+        canManage={true}
+        initialData={mockLtcData}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /เพิ่มผู้ป่วยขึ้นทะเบียน LTC/ })).toBeInTheDocument()
+    expect(screen.getByDisplayValue('นายใจดี ล้อมแรด')).toBeInTheDocument()
+    expect(screen.getAllByTitle('ลบเคสออกจากทะเบียน LTC').length).toBeGreaterThanOrEqual(1)
+  })
 })

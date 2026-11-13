@@ -541,26 +541,81 @@ describe('PalliativeRegistryClient Component', () => {
   })
 
   it('automatically opens Add Patient modal and looks up patient demographics when addHn query param is present', async () => {
+    const originalLocation = window.location
     delete (window as any).location
     window.location = new URL('http://localhost/service/dashboard-rcm/palliative-care/registry?addHn=0074679') as any
 
-    render(<PalliativeRegistryClient userRole="admin" />)
+    try {
+      render(<PalliativeRegistryClient userRole="admin" />)
 
-    // The modal should open automatically
-    await waitFor(() => {
-      expect(screen.getByText('+ เพิ่มทะเบียนผู้ป่วย Palliative Care')).toBeInTheDocument()
-    })
+      // The modal should open automatically
+      await waitFor(() => {
+        expect(screen.getByText('+ เพิ่มทะเบียนผู้ป่วย Palliative Care')).toBeInTheDocument()
+      })
 
-    // HN should be set in input
-    const hnInput = screen.getByPlaceholderText('เช่น 000206') as HTMLInputElement
-    expect(hnInput.value).toBe('0074679')
+      // HN should be set in input
+      const hnInput = screen.getByPlaceholderText('เช่น 000206') as HTMLInputElement
+      expect(hnInput.value).toBe('0074679')
 
-    // The patient data should be fetched and pre-populated
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('นายประสิทธิ์ ทดสอบ')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('100 ม.1 ต.ล้อมแรด')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('0812345678')).toBeInTheDocument()
-      expect(screen.getByText(/พบใน HOSxP คลินิก Palliative Care/)).toBeInTheDocument()
-    })
+      // The patient data should be fetched and pre-populated
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('นายประสิทธิ์ ทดสอบ')).toBeInTheDocument()
+        expect(screen.getByDisplayValue('100 ม.1 ต.ล้อมแรด')).toBeInTheDocument()
+        expect(screen.getByDisplayValue('0812345678')).toBeInTheDocument()
+        expect(screen.getByText(/พบใน HOSxP คลินิก Palliative Care/)).toBeInTheDocument()
+      })
+    } finally {
+      window.location = originalLocation as any
+    }
+  })
+
+  it('respects SSR initialPermissions for non-admin member with edit_palliative_registry even when initialData skips mount fetch', () => {
+    const ssrData = { ...mockData, permissions: undefined }
+    render(
+      <PalliativeRegistryClient
+        userRole="member"
+        username="nurse_pc"
+        initialData={ssrData}
+        initialPermissions={{ canView: true, canEdit: true, canManage: false }}
+      />
+    )
+
+    expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
+    expect(screen.getByText('+ เพิ่มทะเบียนผู้ป่วย')).toBeInTheDocument()
+    expect(screen.getByTitle('แก้ไข / บันทึกการเยี่ยม')).toBeInTheDocument()
+    expect(screen.queryByTitle('ลบเคส')).not.toBeInTheDocument()
+  })
+
+  it('respects SSR initialPermissions for non-admin member with manage_palliative_registry', () => {
+    const ssrData = { ...mockData, permissions: undefined }
+    render(
+      <PalliativeRegistryClient
+        userRole="member"
+        username="manager_pc"
+        initialData={ssrData}
+        initialPermissions={{ canView: true, canEdit: true, canManage: true }}
+      />
+    )
+
+    expect(screen.getByText('+ เพิ่มทะเบียนผู้ป่วย')).toBeInTheDocument()
+    expect(screen.getByTitle('แก้ไข / บันทึกการเยี่ยม')).toBeInTheDocument()
+    expect(screen.getByTitle('ลบเคส')).toBeInTheDocument()
+  })
+
+  it('renders read-only view for non-admin member with view_palliative_registry only', () => {
+    const ssrData = { ...mockData, permissions: undefined }
+    render(
+      <PalliativeRegistryClient
+        userRole="member"
+        username="viewer_pc"
+        initialData={ssrData}
+        initialPermissions={{ canView: true, canEdit: false, canManage: false }}
+      />
+    )
+
+    expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
+    expect(screen.queryByText('+ เพิ่มทะเบียนผู้ป่วย')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('แก้ไข / บันทึกการเยี่ยม')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('ลบเคส')).not.toBeInTheDocument()
   })
 })

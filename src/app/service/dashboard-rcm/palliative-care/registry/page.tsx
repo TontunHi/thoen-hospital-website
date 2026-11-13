@@ -1,8 +1,10 @@
 import { Suspense } from 'react'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { verifyMemberSession, fetchAuthenticatedMember } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
 import PalliativeRegistryClient from './PalliativeRegistryClient'
 import { PalliativeRegistryService } from '@/lib/clinical/palliativeRegistryService'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'ทะเบียน Palliative Care | Dashboard-RCM โรงพยาบาลเถิน',
@@ -15,16 +17,46 @@ export default async function PalliativeRegistryPage() {
     redirect('/member/login')
   }
 
-  if (session.role !== 'admin' && session.role !== 'staff' && session.role !== 'member') {
-    redirect('/service')
+  const member = await fetchAuthenticatedMember(session.username, session.email)
+  if (!member) {
+    redirect('/member/login')
   }
 
-  let initialData = null
+  const canView =
+    member.isAdmin ||
+    member.role === 'staff' ||
+    member.can([
+      'view_palliative_registry',
+      'edit_palliative_registry',
+      'manage_palliative_registry',
+    ])
+
+  if (!canView) {
+    redirect('/service/dashboard-rcm/palliative-care/pc-1')
+  }
+
+  const canManage = member.isAdmin || member.can('manage_palliative_registry')
+  const canEdit =
+    canManage || member.can('edit_palliative_registry')
+
+  const initialPermissions = {
+    canView: true,
+    canEdit,
+    canManage,
+  }
+
+  let initialData: (Awaited<ReturnType<typeof PalliativeRegistryService.listRegistries>> & {
+    permissions?: typeof initialPermissions
+  }) | null = null
   try {
-    initialData = await PalliativeRegistryService.listRegistries({
+    const data = await PalliativeRegistryService.listRegistries({
       page: 1,
       limit: 50,
     })
+    initialData = {
+      ...data,
+      permissions: initialPermissions,
+    }
   } catch (error) {
     console.error('Failed to prefetch Palliative Registry SSR data:', error)
   }
@@ -41,6 +73,7 @@ export default async function PalliativeRegistryPage() {
         userRole={session.role}
         username={session.username}
         initialData={initialData}
+        initialPermissions={initialPermissions}
       />
     </Suspense>
   )

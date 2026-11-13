@@ -45,6 +45,21 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       )
     }
 
+    const canView =
+      member.isAdmin ||
+      member.can('view_palliative_registry') ||
+      member.can('edit_palliative_registry') ||
+      member.can('manage_palliative_registry') ||
+      member.role === 'admin' ||
+      member.role === 'staff'
+
+    if (!canView) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: คุณไม่มีสิทธิ์เข้าถึงข้อมูลทะเบียน Palliative Care' },
+        { status: 403 }
+      )
+    }
+
     const { id: idStr } = await params
     const id = parseInt(idStr, 10)
     if (isNaN(id)) {

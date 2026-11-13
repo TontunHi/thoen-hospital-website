@@ -31,6 +31,11 @@ export interface PalliativeRegistryClientProps {
   userRole?: string
   username?: string
   initialData?: any | null
+  initialPermissions?: {
+    canView: boolean
+    canEdit: boolean
+    canManage: boolean
+  }
 }
 
 const PROJECT_CODE_PRESETS = [
@@ -319,6 +324,7 @@ export default function PalliativeRegistryClient({
   userRole = 'staff',
   username = '',
   initialData,
+  initialPermissions,
 }: PalliativeRegistryClientProps) {
   // Data state
   const [items, setItems] = useState<PalliativeRegistryItem[]>(initialData?.items || [])
@@ -348,11 +354,12 @@ export default function PalliativeRegistryClient({
   const [loading, setLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
   const [permissions, setPermissions] = useState(
-    initialData?.permissions || {
-      canView: true,
-      canEdit: userRole === 'admin',
-      canManage: userRole === 'admin',
-    }
+    initialPermissions ||
+      initialData?.permissions || {
+        canView: true,
+        canEdit: userRole === 'admin',
+        canManage: userRole === 'admin',
+      }
   )
 
   // Filter & Search states

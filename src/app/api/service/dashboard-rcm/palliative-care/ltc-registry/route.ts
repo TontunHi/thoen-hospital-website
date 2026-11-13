@@ -15,11 +15,18 @@ export async function GET(request: Request) {
     }
 
     const member = await fetchAuthenticatedMember(session.username, session.email)
+    if (!member) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: ไม่พบข้อมูลผู้ใช้งานในระบบ' },
+        { status: 401 }
+      )
+    }
+
     const canAccess =
-      member?.isAdmin ||
-      member?.can('manage_ltc_registry') ||
-      member?.can('edit_ltc_registry') ||
-      member?.can('view_ltc_registry')
+      member.isAdmin ||
+      member.can('manage_ltc_registry') ||
+      member.can('edit_ltc_registry') ||
+      member.can('view_ltc_registry')
 
     if (!canAccess) {
       return NextResponse.json(
@@ -27,6 +34,14 @@ export async function GET(request: Request) {
         { status: 403 }
       )
     }
+
+    const canEdit =
+      member.isAdmin ||
+      member.can('manage_ltc_registry') ||
+      member.can('edit_ltc_registry')
+
+    const canManage =
+      member.isAdmin || member.can('manage_ltc_registry')
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || undefined
@@ -45,6 +60,11 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      permissions: {
+        canView: true,
+        canEdit,
+        canManage,
+      },
       ...result,
     })
   } catch (error: unknown) {

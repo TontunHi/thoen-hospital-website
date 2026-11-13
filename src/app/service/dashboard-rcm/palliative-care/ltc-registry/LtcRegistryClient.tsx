@@ -110,6 +110,8 @@ export interface LtcRegistryClientProps {
   userRole: string
   username: string
   isAdmin: boolean
+  canEdit?: boolean
+  canManage?: boolean
   initialData?: any | null
 }
 
@@ -117,8 +119,18 @@ export default function LtcRegistryClient({
   userRole,
   username,
   isAdmin,
+  canEdit: initialCanEdit,
+  canManage: initialCanManage,
   initialData,
 }: LtcRegistryClientProps) {
+  const [permissions, setPermissions] = useState({
+    canView: initialData?.permissions?.canView ?? true,
+    canEdit: initialCanEdit ?? initialData?.permissions?.canEdit ?? isAdmin,
+    canManage: initialCanManage ?? initialData?.permissions?.canManage ?? isAdmin,
+  })
+  const effectiveCanEdit = permissions.canEdit
+  const effectiveCanManage = permissions.canManage
+
   // Data state
   const [items, setItems] = useState<LongTermCareRecord[]>(initialData?.items || [])
   const [total, setTotal] = useState(initialData?.total || 0)
@@ -229,6 +241,7 @@ export default function LtcRegistryClient({
       setTotalPages(data.totalPages || 1)
       setAvailableAreaZones(data.availableAreaZones || [])
       if (data.stats) setStats(data.stats)
+      if (data.permissions) setPermissions(data.permissions)
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
         setError(err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
@@ -699,18 +712,20 @@ export default function LtcRegistryClient({
             <Download size={14} />
             ส่งออก Excel
           </button>
-          <button
-            type="button"
-            className="ltc-btn ltc-btn-primary"
-            onClick={() => {
-              setLookupFeedback(null)
-              setIsDuplicateInLtc(false)
-              setIsAddModalOpen(true)
-            }}
-          >
-            <Plus size={14} />
-            เพิ่มผู้ป่วยขึ้นทะเบียน LTC
-          </button>
+          {effectiveCanEdit && (
+            <button
+              type="button"
+              className="ltc-btn ltc-btn-primary"
+              onClick={() => {
+                setLookupFeedback(null)
+                setIsDuplicateInLtc(false)
+                setIsAddModalOpen(true)
+              }}
+            >
+              <Plus size={14} />
+              เพิ่มผู้ป่วยขึ้นทะเบียน LTC
+            </button>
+          )}
         </div>
       </div>
 
@@ -822,9 +837,11 @@ export default function LtcRegistryClient({
         </div>
 
         <div style={{ fontSize: '0.8125rem', color: 'var(--ltc-muted)' }}>
-          <span style={{ marginRight: '0.75rem', color: 'var(--ltc-accent)', fontWeight: 600 }}>
-            • แก้ไขข้อมูลในช่องตารางแล้วกด Enter หรือคลิกออกเพื่อบันทึกอัตโนมัติ
-          </span>
+          {effectiveCanEdit && (
+            <span style={{ marginRight: '0.75rem', color: 'var(--ltc-accent)', fontWeight: 600 }}>
+              • แก้ไขข้อมูลในช่องตารางแล้วกด Enter หรือคลิกออกเพื่อบันทึกอัตโนมัติ
+            </span>
+          )}
           แสดง {displayedItems.length} จากทั้งหมด {adlFilter === 'ALL' ? total : displayedItems.length} รายการ
         </div>
       </div>
@@ -832,7 +849,7 @@ export default function LtcRegistryClient({
       {/* 4. Table Card */}
       <div className="ltc-table-card">
         <div className="ltc-table-wrap">
-          <table className="ltc-table is-sheet-mode">
+          <table className={`ltc-table${effectiveCanEdit ? ' is-sheet-mode' : ''}`}>
             <thead>
               <tr>
                 <th style={{ width: 45, textAlign: 'center' }}>ลำดับ</th>
@@ -845,13 +862,15 @@ export default function LtcRegistryClient({
                 <th style={{ minWidth: 65, textAlign: 'center' }}>อายุ</th>
                 <th style={{ minWidth: 95, textAlign: 'center' }}>คะแนน ADL</th>
                 <th style={{ minWidth: 150 }}>เขตพื้นที่</th>
-                <th style={{ width: 65, textAlign: 'center' }}>จัดการ</th>
+                {effectiveCanManage && (
+                  <th style={{ width: 65, textAlign: 'center' }}>จัดการ</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '3rem', color: 'var(--ltc-muted)' }}>
+                  <td colSpan={effectiveCanManage ? 11 : 10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--ltc-muted)' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
                       <RefreshCw size={16} className="animate-spin" />
                       กำลังดึงข้อมูลทะเบียน Long Term Care...
@@ -860,14 +879,14 @@ export default function LtcRegistryClient({
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '2.5rem', color: '#be123c' }}>
+                  <td colSpan={effectiveCanManage ? 11 : 10} style={{ textAlign: 'center', padding: '2.5rem', color: '#be123c' }}>
                     <AlertCircle size={20} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
                     {error}
                   </td>
                 </tr>
               ) : displayedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '3rem', color: 'var(--ltc-muted)' }}>
+                  <td colSpan={effectiveCanManage ? 11 : 10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--ltc-muted)' }}>
                     ไม่พบข้อมูลผู้ป่วยในทะเบียน Long Term Care (LTC) ตามเงื่อนไขที่เลือก
                   </td>
                 </tr>
@@ -875,19 +894,19 @@ export default function LtcRegistryClient({
                 displayedItems.map((item, index) => (
                   <tr
                     key={item.id}
-                    onDoubleClick={() => handleOpenEdit(item)}
-                    title="ดับเบิลคลิกเพื่อเปิดการ์ดแก้ไข"
+                    onDoubleClick={effectiveCanEdit ? () => handleOpenEdit(item) : undefined}
+                    title={effectiveCanEdit ? 'ดับเบิลคลิกเพื่อเปิดการ์ดแก้ไข' : undefined}
                   >
                     <td style={{ textAlign: 'center', color: 'var(--ltc-muted)', fontSize: '0.8rem' }}>
                       {(page - 1) * limit + index + 1}
                     </td>
 
-                    {/* HN: click to open record edit modal */}
+                    {/* HN: click to open record edit modal when editable */}
                     <td style={{ textAlign: 'center' }}>
                       <span
-                        className="ltc-clickable-cell"
-                        onClick={() => handleOpenEdit(item)}
-                        title="คลิกเพื่อเปิดดูและแก้ไขทั้งเรคอร์ด"
+                        className={effectiveCanEdit ? 'ltc-clickable-cell' : undefined}
+                        onClick={effectiveCanEdit ? () => handleOpenEdit(item) : undefined}
+                        title={effectiveCanEdit ? 'คลิกเพื่อเปิดดูและแก้ไขทั้งเรคอร์ด' : undefined}
                         style={{
                           fontWeight: 700,
                           fontFamily: 'ui-monospace, monospace',
@@ -904,114 +923,150 @@ export default function LtcRegistryClient({
 
                     {/* CID */}
                     <td style={{ textAlign: 'center' }}>
-                      <SheetInput
-                        value={item.cid}
-                        onSave={(val) => handleCellUpdate(item, 'cid', val)}
-                        status={savingCells[`${item.id}-cid`]}
-                        centered
-                        placeholder="เลขบัตร 13 หลัก"
-                        style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.825rem', textAlign: 'center' }}
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          value={item.cid}
+                          onSave={(val) => handleCellUpdate(item, 'cid', val)}
+                          status={savingCells[`${item.id}-cid`]}
+                          centered
+                          placeholder="เลขบัตร 13 หลัก"
+                          style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.825rem', textAlign: 'center' }}
+                        />
+                      ) : (
+                        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.825rem' }}>
+                          {item.cid || '-'}
+                        </span>
+                      )}
                     </td>
 
                     {/* Patient Name */}
                     <td>
-                      <SheetInput
-                        value={item.patientName}
-                        onSave={(val) => handleCellUpdate(item, 'patientName', val)}
-                        status={savingCells[`${item.id}-patientName`]}
-                        style={{ fontWeight: 600 }}
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          value={item.patientName}
+                          onSave={(val) => handleCellUpdate(item, 'patientName', val)}
+                          status={savingCells[`${item.id}-patientName`]}
+                          style={{ fontWeight: 600 }}
+                        />
+                      ) : (
+                        <span style={{ fontWeight: 600 }}>{item.patientName || '-'}</span>
+                      )}
                     </td>
 
                     {/* Address */}
                     <td>
-                      <SheetInput
-                        value={item.address}
-                        onSave={(val) => handleCellUpdate(item, 'address', val)}
-                        status={savingCells[`${item.id}-address`]}
-                        placeholder="บ้านเลขที่"
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          value={item.address}
+                          onSave={(val) => handleCellUpdate(item, 'address', val)}
+                          status={savingCells[`${item.id}-address`]}
+                          placeholder="บ้านเลขที่"
+                        />
+                      ) : (
+                        <span>{item.address || '-'}</span>
+                      )}
                     </td>
 
                     {/* Moo */}
                     <td style={{ textAlign: 'center' }}>
-                      <SheetInput
-                        value={item.moo}
-                        onSave={(val) => handleCellUpdate(item, 'moo', val)}
-                        status={savingCells[`${item.id}-moo`]}
-                        centered
-                        style={{ textAlign: 'center', width: 45 }}
-                        placeholder="หมู่"
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          value={item.moo}
+                          onSave={(val) => handleCellUpdate(item, 'moo', val)}
+                          status={savingCells[`${item.id}-moo`]}
+                          centered
+                          style={{ textAlign: 'center', width: 45 }}
+                          placeholder="หมู่"
+                        />
+                      ) : (
+                        <span>{item.moo || '-'}</span>
+                      )}
                     </td>
 
                     {/* Tambon */}
                     <td>
-                      <SheetInput
-                        value={item.tambon}
-                        onSave={(val) => handleCellUpdate(item, 'tambon', val)}
-                        status={savingCells[`${item.id}-tambon`]}
-                        placeholder="ตำบล"
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          value={item.tambon}
+                          onSave={(val) => handleCellUpdate(item, 'tambon', val)}
+                          status={savingCells[`${item.id}-tambon`]}
+                          placeholder="ตำบล"
+                        />
+                      ) : (
+                        <span>{item.tambon || '-'}</span>
+                      )}
                     </td>
 
                     {/* Age */}
                     <td style={{ textAlign: 'center' }}>
-                      <SheetInput
-                        type="number"
-                        min={0}
-                        max={150}
-                        placeholder="-"
-                        value={item.age}
-                        onSave={(val) => handleCellUpdate(item, 'age', val)}
-                        status={savingCells[`${item.id}-age`]}
-                        centered
-                        style={{ textAlign: 'center', width: 55 }}
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          type="number"
+                          min={0}
+                          max={150}
+                          placeholder="-"
+                          value={item.age}
+                          onSave={(val) => handleCellUpdate(item, 'age', val)}
+                          status={savingCells[`${item.id}-age`]}
+                          centered
+                          style={{ textAlign: 'center', width: 55 }}
+                        />
+                      ) : (
+                        <span>{item.age ?? '-'}</span>
+                      )}
                     </td>
 
                     {/* ADL Score */}
                     <td style={{ textAlign: 'center' }}>
-                      <SheetInput
-                        type="number"
-                        min={0}
-                        max={20}
-                        placeholder="-"
-                        value={item.adlScore}
-                        onSave={(val) => handleCellUpdate(item, 'adlScore', val)}
-                        status={savingCells[`${item.id}-adlScore`]}
-                        centered
-                        style={{ textAlign: 'center', width: 52, fontWeight: 700 }}
-                        title={
-                          item.adlScore !== null && item.adlScore !== undefined && String(item.adlScore).trim() !== ''
-                            ? `คะแนน ADL: ${item.adlScore} (${getAdlCategoryText(item.adlScore)})`
-                            : 'คะแนน ADL (0-20)'
-                        }
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          type="number"
+                          min={0}
+                          max={20}
+                          placeholder="-"
+                          value={item.adlScore}
+                          onSave={(val) => handleCellUpdate(item, 'adlScore', val)}
+                          status={savingCells[`${item.id}-adlScore`]}
+                          centered
+                          style={{ textAlign: 'center', width: 52, fontWeight: 700 }}
+                          title={
+                            item.adlScore !== null && item.adlScore !== undefined && String(item.adlScore).trim() !== ''
+                              ? `คะแนน ADL: ${item.adlScore} (${getAdlCategoryText(item.adlScore)})`
+                              : 'คะแนน ADL (0-20)'
+                          }
+                        />
+                      ) : (
+                        renderAdlBadge(item.adlScore) ?? <span>-</span>
+                      )}
                     </td>
 
                     {/* Area Zone */}
                     <td>
-                      <SheetInput
-                        value={item.areaZone}
-                        onSave={(val) => handleCellUpdate(item, 'areaZone', val)}
-                        status={savingCells[`${item.id}-areaZone`]}
-                        placeholder="เช่น รพ.สต.ล้อมแรด"
-                      />
+                      {effectiveCanEdit ? (
+                        <SheetInput
+                          value={item.areaZone}
+                          onSave={(val) => handleCellUpdate(item, 'areaZone', val)}
+                          status={savingCells[`${item.id}-areaZone`]}
+                          placeholder="เช่น รพ.สต.ล้อมแรด"
+                        />
+                      ) : (
+                        <span>{item.areaZone || '-'}</span>
+                      )}
                     </td>
 
                     {/* Actions */}
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        className="ltc-btn ltc-btn-danger ltc-btn-sm"
-                        onClick={() => setDeleteTarget(item)}
-                        title="ลบเคสออกจากทะเบียน LTC"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
+                    {effectiveCanManage && (
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="ltc-btn ltc-btn-danger ltc-btn-sm"
+                          onClick={() => setDeleteTarget(item)}
+                          title="ลบเคสออกจากทะเบียน LTC"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
