@@ -592,7 +592,7 @@ export default function ThalassemiaService31Client({
                   onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
                   aria-label="เลือกปีงบประมาณ"
                 >
-                  {[2569, 2570].map((y) => (
+                  {yearOptions.map((y) => (
                     <option key={y} value={y}>
                       ปีงบ {y}
                     </option>

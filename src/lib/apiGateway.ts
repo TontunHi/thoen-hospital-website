@@ -185,9 +185,11 @@ export class ApiGatewayClient {
       }
 
       const isAbort = (err as Error)?.name === 'AbortError'
+      const cause = (err as Error & { cause?: { code?: string; message?: string } })?.cause
+      const causeDetail = cause?.code || cause?.message ? ` (${[cause.code, cause.message].filter(Boolean).join(': ')})` : ''
       const errorMsg = isAbort
         ? `Gateway request to ${path} timed out after ${timeoutMs}ms.`
-        : `Connection to API Gateway failed: ${(err as Error)?.message || 'Network error'}`
+        : `Connection to API Gateway failed: ${(err as Error)?.message || 'Network error'}${causeDetail}`
 
       throw new GatewayUnavailableError(errorMsg, err)
     }
@@ -550,13 +552,15 @@ export class ApiGatewayClient {
     },
 
     // ── RCM Rep Statement & Fund Group Named APIs ──
-    getRepFundsYears: async () => {
-      const res = await this.get<any>('/api/v1/clinical/rcm/rep-funds/years')
+    getRepFundsYears: async (source?: string) => {
+      const qs = source ? `?source=${encodeURIComponent(source)}` : ''
+      const res = await this.get<any>(`/api/v1/clinical/rcm/rep-funds/years${qs}`)
       const data: string[] = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
       return { success: true, data }
     },
 
     getRepFundsSummary: async (params?: {
+      source?: string
       fiscalYear?: string
       ds1?: string
       ds2?: string
@@ -568,6 +572,7 @@ export class ApiGatewayClient {
       search?: string
     }) => {
       const q = new URLSearchParams()
+      if (params?.source) q.set('source', params.source)
       if (params?.fiscalYear) q.set('fiscalYear', params.fiscalYear)
       if (params?.ds1) q.set('ds1', params.ds1)
       if (params?.ds2) q.set('ds2', params.ds2)
@@ -584,6 +589,7 @@ export class ApiGatewayClient {
     },
 
     getRepFundsCases: async (params?: {
+      source?: string
       rep?: string
       fund?: string
       subFund?: string
@@ -599,6 +605,7 @@ export class ApiGatewayClient {
       offset?: number
     }) => {
       const q = new URLSearchParams()
+      if (params?.source) q.set('source', params.source)
       if (params?.rep) q.set('rep', params.rep)
       if (params?.fund) q.set('fund', params.fund)
       if (params?.subFund) q.set('subFund', params.subFund)
@@ -671,6 +678,69 @@ export class ApiGatewayClient {
         deletedCount: number
         message?: string
       }>('/api/v1/clinical/rcm/t1dm/registries', payload)
+    },
+
+    // ── Seamless Claim Rep Import ──
+    importSeamlessRecords: (
+      rows: Array<Record<string, unknown>>,
+      duplicateMode: 'update' | 'skip' = 'update',
+      extras?: {
+        denyCodes?: Array<{ code: string; name: string }>
+        summaryUpdate?: {
+          rep: string
+          payNo: string
+          payDate: string | null
+          yymmPay: string | null
+          yearBudgetPay: string | null
+          period: string | null
+          codeAccount: string | null
+        } | null
+      }
+    ) => {
+      return this.post<{
+        success: boolean
+        totalSubmitted: number
+        insertedCount: number
+        updatedCount: number
+        skippedCount: number
+        duplicateCount: number
+      }>(
+        '/api/v1/clinical/rcm/seamless/import',
+        {
+          rows,
+          duplicateMode,
+          ...(extras?.denyCodes ? { denyCodes: extras.denyCodes } : {}),
+          ...(extras?.summaryUpdate ? { summaryUpdate: extras.summaryUpdate } : {}),
+        },
+        { timeoutMs: 120000 }
+      )
+    },
+
+    deleteSeamlessRecords: (payload: {
+      mode: 'by_file' | 'by_files' | 'other_hospitals' | 'all'
+      fileName?: string
+      fileNames?: string[]
+      myHospCode?: string
+    }) => {
+      return this.delete<{
+        success: boolean
+        deletedCount: number
+        message?: string
+      }>('/api/v1/clinical/rcm/seamless/records', payload, { timeoutMs: 60000 })
+    },
+
+    syncSeamlessPayment: (payload?: {
+      rep?: string
+      payNo?: string
+      payDate?: string | null
+      codeAccount?: string | null
+      force?: boolean
+    }) => {
+      return this.post<{
+        success: boolean
+        updatedPaymentCount: number
+        backfilledDateCount: number
+      }>('/api/v1/clinical/rcm/seamless/sync-payment', payload || {}, { timeoutMs: 60000 })
     },
 
     lookupPatientClaims: async (params: {

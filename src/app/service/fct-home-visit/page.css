@@ -1,0 +1,1528 @@
+/* Scoped to FCT Home Visit page — Light-mode locked, aligned with DESIGN.md & tokens.css */
+.fctPage {
+  color-scheme: light;
+
+  /* Lock semantic DS tokens strictly to the Light palette */
+  --ds-color-surface-sunken: var(--ds-color-neutral-light-2);
+  --ds-color-surface-base: var(--ds-color-neutral-light-1);
+  --ds-color-surface-raised: var(--ds-color-white);
+  --ds-color-surface-overlay: var(--ds-color-white);
+  --ds-color-text-primary: var(--ds-color-neutral-light-12);
+  --ds-color-text-secondary: var(--ds-color-neutral-light-11);
+  --ds-color-text-disabled: var(--ds-color-neutral-light-8);
+  --ds-color-text-accent: var(--ds-color-accent-light-11);
+  --ds-color-text-on-action: var(--ds-color-white);
+  --ds-color-text-inverse: var(--ds-color-white);
+  --ds-color-text-success: var(--ds-color-success-light-11);
+  --ds-color-text-warning: var(--ds-color-warning-light-11);
+  --ds-color-text-danger: var(--ds-color-danger-light-11);
+  --ds-color-bg-neutral-subtle: var(--ds-color-neutral-light-3);
+  --ds-color-bg-neutral-subtle-hover: var(--ds-color-neutral-light-4);
+  --ds-color-bg-neutral-subtle-pressed: var(--ds-color-neutral-light-5);
+  --ds-color-bg-accent-subtle: var(--ds-color-accent-light-3);
+  --ds-color-bg-action-primary: var(--ds-color-accent-light-9);
+  --ds-color-bg-action-primary-hover: var(--ds-color-accent-light-10);
+  --ds-color-bg-action-primary-pressed: var(--ds-color-accent-light-solid-pressed);
+  --ds-color-bg-success-subtle: var(--ds-color-success-light-3);
+  --ds-color-bg-success-bold: var(--ds-color-success-light-9);
+  --ds-color-bg-warning-subtle: var(--ds-color-warning-light-3);
+  --ds-color-bg-warning-bold: var(--ds-color-warning-light-9);
+  --ds-color-bg-danger-subtle: var(--ds-color-danger-light-3);
+  --ds-color-bg-danger-bold: var(--ds-color-danger-light-9);
+  --ds-color-bg-inverse: var(--ds-color-neutral-light-12);
+  --ds-color-border-subtle: var(--ds-color-neutral-light-6);
+  --ds-color-border-input: var(--ds-color-neutral-light-8);
+  --ds-color-border-accent: var(--ds-color-accent-light-8);
+  --ds-color-border-separator: var(--ds-color-neutral-light-4);
+  --ds-color-border-danger: var(--ds-color-danger-light-8);
+  --ds-color-overlay-scrim: var(--ds-color-neutral-alpha-light-8);
+  --ds-color-shadow-key: var(--ds-color-neutral-alpha-light-3);
+  --ds-color-shadow-ring: var(--ds-color-neutral-alpha-light-4);
+
+  --fct-bg-base: var(--ds-color-surface-base);
+  --fct-bg-sunken: var(--ds-color-surface-sunken);
+  --fct-bg-raised: var(--ds-color-surface-raised);
+  --fct-bg-hover: var(--ds-color-bg-accent-subtle);
+  --fct-bg-subtle-neutral: var(--ds-color-bg-neutral-subtle-pressed);
+  --fct-bg-subtle-hover: var(--ds-color-bg-neutral-subtle-hover);
+
+  --fct-text-primary: var(--ds-color-text-primary);
+  --fct-text-secondary: var(--ds-color-text-secondary);
+  --fct-text-muted: var(--ds-color-text-disabled);
+  --fct-text-accent: var(--ds-color-text-accent);
+  --fct-text-on-accent: var(--ds-color-text-on-action);
+
+  --fct-accent: var(--ds-color-bg-action-primary);
+  --fct-accent-hover: var(--ds-color-bg-action-primary-hover);
+  --fct-accent-pressed: var(--ds-color-bg-action-primary-pressed);
+  --fct-accent-subtle: var(--ds-color-bg-accent-subtle);
+  --fct-accent-border: var(--ds-color-border-accent);
+
+  --fct-success: var(--ds-color-text-success);
+  --fct-success-dot: var(--ds-color-bg-success-bold);
+  --fct-success-bg: var(--ds-color-bg-success-subtle);
+
+  --fct-warning: var(--ds-color-text-warning);
+  --fct-warning-dot: var(--ds-color-bg-warning-bold);
+  --fct-warning-bg: var(--ds-color-bg-warning-subtle);
+
+  --fct-danger: var(--ds-color-text-danger);
+  --fct-danger-dot: var(--ds-color-bg-danger-bold);
+  --fct-danger-bg: var(--ds-color-bg-danger-subtle);
+  --fct-danger-border: var(--ds-color-border-danger);
+
+  --fct-border-separator: var(--ds-color-border-separator);
+  --fct-border-subtle: var(--ds-color-border-subtle);
+  --fct-border-input: var(--ds-color-border-input);
+
+  --fct-radius-detail: var(--ds-radius-control-sm);
+  --fct-radius-control: var(--ds-radius-control);
+  --fct-radius-card: var(--ds-radius-container);
+  --fct-radius-modal: var(--ds-radius-overlay);
+
+  --fct-shadow-raised: var(--ds-elevation-raised);
+  --fct-shadow-overlay: var(--ds-elevation-overlay);
+  --fct-ease: var(--ds-motion-easing-standard);
+  --fct-duration: var(--ds-motion-duration-medium);
+
+  min-height: 100vh;
+  min-height: 100svh;
+  background: var(--fct-bg-base);
+  color: var(--fct-text-primary);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  padding: 1.25rem 1rem 3rem;
+}
+
+@media (min-width: 48rem) {
+  .fctPage {
+    padding: 1.5rem 1.5rem 4rem;
+  }
+}
+
+.fctContainer {
+  max-width: 92.5rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Header */
+.fctHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 0.0625rem solid var(--fct-border-separator);
+}
+
+.fctBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--fct-text-secondary);
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+  transition: color var(--fct-duration) var(--fct-ease);
+}
+
+.fctBackLink:hover {
+  color: var(--fct-text-accent);
+}
+
+.fctTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.fctTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-24);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-primary);
+}
+
+.fctFyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--fct-radius-detail);
+  background: var(--fct-accent-subtle);
+  border: 0.0625rem solid var(--fct-accent-border);
+  color: var(--fct-text-accent);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.fctFyDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--ds-radius-person);
+  background: var(--fct-accent);
+}
+
+.fctViewOnlyBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--fct-radius-detail);
+  background: var(--fct-bg-sunken);
+  border: 0.0625rem solid var(--fct-border-subtle);
+  color: var(--fct-text-secondary);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-body);
+}
+
+.fctSubtitle {
+  margin: 0.25rem 0 0;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--fct-text-secondary);
+}
+
+.fctHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Controls & Buttons */
+.fctBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--fct-radius-control);
+  border: 0.0625rem solid var(--fct-border-subtle);
+  background: var(--fct-bg-raised);
+  color: var(--fct-text-primary);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--fct-duration) var(--fct-ease),
+    border-color var(--fct-duration) var(--fct-ease),
+    color var(--fct-duration) var(--fct-ease);
+}
+
+.fctBtn:hover:not(:disabled) {
+  background: var(--fct-bg-sunken);
+  border-color: var(--fct-border-input);
+}
+
+.fctBtn:active:not(:disabled) {
+  background: var(--fct-bg-subtle-neutral);
+}
+
+.fctBtn:focus-visible {
+  outline: 0.125rem solid var(--fct-accent);
+  outline-offset: 0.125rem;
+}
+
+.fctBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fctBtnPrimary {
+  background: var(--fct-accent);
+  border-color: var(--fct-accent);
+  color: var(--fct-text-on-accent);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.fctBtnPrimary:hover:not(:disabled) {
+  background: var(--fct-accent-hover);
+  border-color: var(--fct-accent-hover);
+}
+
+.fctBtnPrimary:active:not(:disabled) {
+  background: var(--fct-accent-pressed);
+  border-color: var(--fct-accent-pressed);
+}
+
+.fctBtnGhost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--fct-text-secondary);
+}
+
+.fctBtnGhost:hover:not(:disabled) {
+  background: var(--fct-bg-sunken);
+  border-color: transparent;
+  color: var(--fct-text-primary);
+}
+
+.fctBtnDanger {
+  color: var(--fct-danger);
+  border-color: transparent;
+  background: transparent;
+}
+
+.fctBtnDanger:hover:not(:disabled) {
+  background: var(--fct-danger-bg);
+  border-color: var(--fct-danger-border);
+}
+
+.fctBtnSm {
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  border-radius: var(--fct-radius-detail);
+}
+
+.fctActionBtns {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.fctEditIconBtn,
+.fctDeleteIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: var(--fct-radius-control);
+  border: 0.0625rem solid var(--fct-border-separator);
+  background: var(--fct-bg-raised);
+  cursor: pointer;
+  transition:
+    background-color var(--fct-duration) var(--fct-ease),
+    border-color var(--fct-duration) var(--fct-ease);
+}
+
+.fctEditIconBtn {
+  color: var(--fct-text-secondary);
+}
+
+.fctEditIconBtn:hover:not(:disabled) {
+  background: var(--fct-accent-subtle);
+  border-color: var(--fct-accent-border);
+  color: var(--fct-text-accent);
+}
+
+.fctEditIconBtn:focus-visible {
+  outline: 0.125rem solid var(--fct-accent);
+  outline-offset: 0.125rem;
+}
+
+.fctDeleteIconBtn {
+  color: var(--fct-danger);
+}
+
+.fctDeleteIconBtn:hover:not(:disabled) {
+  background: var(--fct-danger-bg);
+  border-color: var(--fct-danger-border);
+}
+
+.fctDeleteIconBtn:focus-visible {
+  outline: 0.125rem solid var(--fct-danger);
+  outline-offset: 0.125rem;
+}
+
+.fctEditIconBtn:disabled,
+.fctDeleteIconBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Control & Filter Bar */
+.fctControlBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--fct-bg-raised);
+  border-radius: var(--fct-radius-card);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--fct-shadow-raised);
+}
+
+.fctFilterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1;
+}
+
+.fctSelect,
+.fctInput {
+  min-height: 2.25rem;
+  padding: 0.375rem 0.75rem;
+  border: 0.0625rem solid var(--fct-border-input);
+  border-radius: var(--fct-radius-control);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--fct-text-primary);
+  background: var(--fct-bg-raised);
+  transition: border-color var(--fct-duration) var(--fct-ease);
+}
+
+.fctSelect:focus,
+.fctInput:focus,
+.fctTextarea:focus {
+  outline: 0.125rem solid var(--fct-accent);
+  outline-offset: 0.125rem;
+  border-color: var(--fct-accent);
+}
+
+.fctSearchWrap {
+  position: relative;
+  min-width: 13.75rem;
+  flex: 1;
+  max-width: 20rem;
+}
+
+.fctSearchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fct-text-muted);
+  pointer-events: none;
+}
+
+.fctSearchInput {
+  width: 100%;
+  padding-left: 2.25rem;
+}
+
+.fctTabGroup {
+  display: inline-flex;
+  background: var(--fct-bg-sunken);
+  padding: 0.25rem;
+  border-radius: var(--fct-radius-control);
+  gap: 0.25rem;
+  border: 0.0625rem solid var(--fct-border-separator);
+}
+
+.fctSettingsTabs {
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.fctTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--fct-radius-detail);
+  border: none;
+  background: transparent;
+  color: var(--fct-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--fct-duration) var(--fct-ease),
+    color var(--fct-duration) var(--fct-ease);
+}
+
+.fctTabBtn:hover {
+  color: var(--fct-text-primary);
+}
+
+.fctTabBtn.active {
+  background: var(--fct-bg-raised);
+  color: var(--fct-text-accent);
+  font-weight: var(--ds-font-weight-heading);
+  box-shadow: var(--fct-shadow-raised);
+}
+
+/* KPI Strip */
+.fctDashboardSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fctKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 68.75rem) {
+  .fctKpiGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 37.5rem) {
+  .fctKpiGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fctKpiCard {
+  background: var(--fct-bg-raised);
+  border-radius: var(--fct-radius-card);
+  padding: 1rem 1.25rem;
+  box-shadow: var(--fct-shadow-raised);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fctKpiCardAccent {
+  border-left: 0.1875rem solid var(--fct-accent);
+}
+
+.fctKpiCardDanger {
+  border-left: 0.1875rem solid var(--fct-danger-dot);
+}
+
+.fctKpiLabel {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--fct-text-secondary);
+}
+
+.fctKpiValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.fctKpiValue {
+  font-size: var(--ds-font-size-24);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.fctKpiValueMd {
+  font-size: var(--ds-font-size-20);
+  line-height: 1.4;
+}
+
+.fctKpiHighlight {
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.fctKpiHighlightDanger {
+  color: var(--fct-danger);
+}
+
+.fctKpiSub {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--fct-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.fctKpiNoteWarn {
+  color: var(--fct-warning);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+/* Charts & Analytics Grid */
+.fctChartsGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.fctCard {
+  background: var(--fct-bg-raised);
+  border-radius: var(--fct-radius-card);
+  padding: 1.25rem;
+  box-shadow: var(--fct-shadow-raised);
+}
+
+.fctSpan8 {
+  grid-column: span 8;
+}
+
+.fctSpan6 {
+  grid-column: span 6;
+}
+
+.fctSpan4 {
+  grid-column: span 4;
+}
+
+.fctSpan12 {
+  grid-column: span 12;
+}
+
+@media (max-width: 64rem) {
+  .fctSpan8,
+  .fctSpan6,
+  .fctSpan4 {
+    grid-column: span 12;
+  }
+}
+
+.fctCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.fctCardTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-primary);
+}
+
+.fctCardMeta {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  color: var(--fct-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.fctChartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.875rem;
+  font-size: var(--ds-font-size-12);
+  color: var(--fct-text-secondary);
+}
+
+.fctLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.fctLegendSwatch {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: var(--ds-radius-detail);
+}
+
+.fctLegendSwatchBedbound {
+  background: var(--fct-danger-dot);
+}
+
+.fctLegendSwatchHomebound {
+  background: var(--fct-warning-dot);
+}
+
+.fctLegendSwatchSocial {
+  background: var(--fct-accent);
+}
+
+.fctChartScroll {
+  width: 100%;
+  max-height: 28.75rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+/* Status Share Ranked List */
+.fctShareBar {
+  display: flex;
+  height: 0.625rem;
+  width: 100%;
+  border-radius: var(--fct-radius-detail);
+  overflow: hidden;
+  background: var(--fct-bg-sunken);
+  gap: 0.125rem;
+  margin-bottom: 1rem;
+}
+
+.fctStatusList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fctStatusBtn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--fct-radius-control);
+  border: 0.0625rem solid var(--fct-border-separator);
+  background: var(--fct-bg-base);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color var(--fct-duration) var(--fct-ease),
+    border-color var(--fct-duration) var(--fct-ease);
+}
+
+.fctStatusBtn:hover {
+  background: var(--fct-bg-sunken);
+  border-color: var(--fct-border-subtle);
+}
+
+.fctStatusBtn.active {
+  background: var(--fct-accent-subtle);
+  border-color: var(--fct-accent-border);
+}
+
+.fctStatusBtnTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+}
+
+.fctStatusLabelWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fct-text-primary);
+  font-weight: var(--ds-font-weight-body);
+}
+
+.fctStatusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--ds-radius-person);
+  flex-shrink: 0;
+}
+
+.fctToneBedbound,
+.fctToneWorse,
+.fctToneHigh {
+  background: var(--fct-danger-dot);
+}
+
+.fctToneHomebound,
+.fctToneModerate {
+  background: var(--fct-warning-dot);
+}
+
+.fctToneSocial,
+.fctToneImproved,
+.fctToneLow {
+  background: var(--fct-accent);
+}
+
+.fctToneStable {
+  background: var(--fct-text-secondary);
+}
+
+.fctToneDeceased {
+  background: var(--ds-color-bg-inverse);
+}
+
+.fctToneUnknown {
+  background: var(--fct-border-input);
+}
+
+.fctStatusNums {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  color: var(--fct-text-secondary);
+}
+
+.fctStatusNums strong {
+  color: var(--fct-text-primary);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.fctTrack {
+  width: 100%;
+  height: 0.25rem;
+  border-radius: var(--ds-radius-detail);
+  background: var(--fct-bg-sunken);
+  overflow: hidden;
+}
+
+.fctTrackFill {
+  height: 100%;
+  border-radius: var(--ds-radius-detail);
+}
+
+/* Breakdown List & Discipline Engagement */
+.fctBreakdownList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fctBreakdownItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fctBreakdownRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.38;
+  color: var(--fct-text-secondary);
+}
+
+.fctBreakdownLabelStrong {
+  color: var(--fct-text-primary);
+  font-weight: var(--ds-font-weight-body);
+}
+
+.fctBreakdownCount {
+  font-weight: var(--ds-font-weight-heading);
+  font-variant-numeric: tabular-nums;
+  color: var(--fct-text-primary);
+  white-space: nowrap;
+}
+
+.fctMiniTrack {
+  width: 100%;
+  height: 0.375rem;
+  background: var(--fct-bg-sunken);
+  border-radius: var(--ds-radius-detail);
+  overflow: hidden;
+}
+
+.fctMiniFill {
+  height: 100%;
+  background: var(--fct-accent);
+  border-radius: var(--ds-radius-detail);
+}
+
+.fctMiniFillMuted {
+  height: 100%;
+  background: var(--fct-accent-border);
+  border-radius: var(--ds-radius-detail);
+}
+
+/* Clinical Spreadsheet Table */
+.fctTableCard {
+  background: var(--fct-bg-raised);
+  border-radius: var(--fct-radius-card);
+  box-shadow: var(--fct-shadow-raised);
+  overflow: hidden;
+}
+
+.fctTableMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 0.0625rem solid var(--fct-border-separator);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--fct-text-secondary);
+}
+
+.fctTableScroll {
+  width: 100%;
+  max-height: 68vh;
+  overflow: auto;
+  background: var(--fct-bg-raised);
+}
+
+.fctTable {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.fctTable thead {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+.fctTable th,
+.fctTable td {
+  box-sizing: border-box;
+  padding: 0.5rem 0.625rem;
+  border-bottom: 0.0625rem solid var(--fct-border-separator);
+  border-right: 0.0625rem solid var(--fct-border-separator);
+  text-align: center;
+  vertical-align: middle;
+  background: var(--fct-bg-raised);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.fctTable thead tr.fctGroupRow th {
+  background: var(--fct-bg-sunken);
+  color: var(--fct-text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  font-weight: var(--ds-font-weight-heading);
+  padding: 0.375rem 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  border-bottom: 0.0625rem solid var(--fct-border-subtle);
+}
+
+.fctTable thead tr.fctColRow th {
+  background: var(--fct-bg-sunken);
+  color: var(--fct-text-primary);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.35;
+  font-weight: var(--ds-font-weight-heading);
+  padding: 0.5rem 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+  white-space: normal;
+  border-bottom: 0.0625rem solid var(--fct-border-subtle);
+}
+
+.fctTable tbody tr:hover td {
+  background: var(--fct-bg-hover);
+}
+
+.fctGroupStart {
+  border-left: 0.0625rem solid var(--fct-border-subtle);
+}
+
+.fctCellNum {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.fctFwSemibold {
+  font-weight: var(--ds-font-weight-heading);
+}
+
+/* Sheet-like Inline Cell Editing */
+.fctSheetTd {
+  padding: 0.25rem 0.375rem;
+  cursor: cell;
+  transition: background-color var(--fct-duration) var(--fct-ease);
+}
+
+.fctSheetTd:hover:not(.fctSheetTdEditing) {
+  background: var(--fct-bg-sunken);
+}
+
+.fctSheetTd:focus-visible {
+  outline: 0.125rem solid var(--fct-accent);
+  outline-offset: -0.125rem;
+}
+
+.fctSheetTdEditing {
+  padding: 0.1875rem 0.25rem;
+}
+
+.fctSheetDisplay {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.25rem 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.fctSheetDisplayLeft {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.fctSheetCellSaving {
+  opacity: 0.6;
+}
+
+.fctSheetCellMuted {
+  color: var(--fct-text-muted);
+}
+
+.fctSheetCellInput,
+.fctSheetCellSelect,
+.fctSheetCellTextarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.25rem 0.375rem;
+  border: 0.125rem solid var(--fct-accent);
+  border-radius: var(--fct-radius-detail);
+  background: var(--fct-bg-raised);
+  color: var(--fct-text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-family: inherit;
+  text-align: center;
+  text-align-last: center;
+  outline: none;
+}
+
+.fctSheetCellInput,
+.fctSheetCellSelect {
+  min-height: 2rem;
+}
+
+.fctSheetCellTextarea {
+  min-height: 3.25rem;
+  resize: vertical;
+  text-align: left;
+}
+
+.fctStickyActions {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  background: var(--fct-bg-raised);
+  box-shadow: -0.125rem 0 0.375rem var(--ds-color-shadow-key);
+}
+
+.fctTable thead tr.fctGroupRow th.fctStickyActions,
+.fctTable thead tr.fctColRow th.fctStickyActions {
+  background: var(--fct-bg-sunken);
+  z-index: 7;
+}
+
+.fctTable tbody tr:hover td.fctStickyActions {
+  background: var(--fct-bg-hover);
+}
+
+/* Semantic Status, ADL, Outcome & Risk Badges */
+.fctBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--fct-radius-detail);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  white-space: nowrap;
+}
+
+.fctBadgeDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--ds-radius-person);
+  flex-shrink: 0;
+}
+
+.fctBadgeSuccess {
+  background: var(--fct-success-bg);
+  color: var(--fct-success);
+}
+
+.fctBadgeSuccess .fctBadgeDot {
+  background: var(--fct-success-dot);
+}
+
+.fctBadgeDanger {
+  background: var(--fct-danger-bg);
+  color: var(--fct-danger);
+}
+
+.fctBadgeDanger .fctBadgeDot {
+  background: var(--fct-danger-dot);
+}
+
+.fctBadgeWarning {
+  background: var(--fct-warning-bg);
+  color: var(--fct-warning);
+}
+
+.fctBadgeWarning .fctBadgeDot {
+  background: var(--fct-warning-dot);
+}
+
+.fctBadgeAccent {
+  background: var(--fct-accent-subtle);
+  color: var(--fct-text-accent);
+}
+
+.fctBadgeAccent .fctBadgeDot {
+  background: var(--fct-accent);
+}
+
+.fctBadgeNeutral {
+  background: var(--fct-bg-sunken);
+  color: var(--fct-text-secondary);
+}
+
+.fctBadgeNeutral .fctBadgeDot {
+  background: var(--fct-text-muted);
+}
+
+.fctBadgeDark {
+  background: var(--ds-color-neutral-light-4);
+  color: var(--ds-color-neutral-light-12);
+}
+
+.fctBadgeDark .fctBadgeDot {
+  background: var(--ds-color-bg-inverse);
+}
+
+/* Alerts & Empty States */
+.fctAlert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--fct-radius-card);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+}
+
+.fctAlertError {
+  background: var(--fct-danger-bg);
+  border: 0.0625rem solid var(--fct-danger-border);
+  color: var(--fct-danger);
+}
+
+.fctAlertInfo {
+  background: var(--fct-accent-subtle);
+  border: 0.0625rem solid var(--fct-accent-border);
+  color: var(--fct-text-accent);
+}
+
+.fctAlertWarning {
+  background: var(--fct-warning-bg);
+  border: 0.0625rem solid var(--ds-color-warning-light-7);
+  color: var(--fct-warning);
+}
+
+.fctEmpty {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  color: var(--fct-text-secondary);
+}
+
+.fctEmptyCompact {
+  padding: 1.5rem 1rem;
+}
+
+/* Modals */
+.fctModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--ds-color-overlay-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1100;
+}
+
+.fctModal {
+  background: var(--fct-bg-raised);
+  border-radius: var(--fct-radius-modal);
+  width: 100%;
+  max-width: 60rem;
+  max-height: 90vh;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--fct-shadow-overlay);
+}
+
+.fctModalSm {
+  max-width: 42rem;
+}
+
+.fctModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 0.0625rem solid var(--fct-border-separator);
+}
+
+.fctModalTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-primary);
+}
+
+.fctModalBody {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fctModalDesc {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--fct-text-secondary);
+}
+
+.fctModalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 0.0625rem solid var(--fct-border-separator);
+  background: var(--fct-bg-sunken);
+}
+
+.fctFormContents {
+  display: contents;
+}
+
+.fctSectionBox {
+  border: 0.0625rem solid var(--fct-border-separator);
+  border-radius: var(--fct-radius-card);
+  padding: 1rem;
+  background: var(--fct-bg-base);
+}
+
+.fctSectionTitle {
+  margin: 0 0 0.75rem;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-accent);
+}
+
+.fctFormGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.fctFormGrid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 45rem) {
+  .fctFormGrid,
+  .fctFormGrid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fctField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fctFieldSpaced {
+  margin-top: 0.75rem;
+}
+
+.fctFieldSpan2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 45rem) {
+  .fctFieldSpan2 {
+    grid-column: span 1;
+  }
+}
+
+.fctFieldLabel {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-secondary);
+}
+
+.fctTextarea {
+  width: 100%;
+  min-height: 4rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--fct-border-input);
+  border-radius: var(--fct-radius-control);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-family: inherit;
+  color: var(--fct-text-primary);
+  background: var(--fct-bg-raised);
+  resize: vertical;
+}
+
+.fctHnRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fctHnRow input {
+  flex: 1;
+}
+
+.fctFlex1 {
+  flex: 1;
+}
+
+.fctDisciplineGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fctDisciplineBox {
+  border: 0.0625rem solid var(--fct-border-separator);
+  border-radius: var(--fct-radius-control);
+  padding: 0.75rem;
+  background: var(--fct-bg-raised);
+}
+
+.fctDisciplineBoxTitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-primary);
+}
+
+/* Import Modal */
+.fctDropzone {
+  border: 0.125rem dashed var(--fct-border-subtle);
+  border-radius: var(--fct-radius-card);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  background: var(--fct-bg-base);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition:
+    border-color var(--fct-duration) var(--fct-ease),
+    background-color var(--fct-duration) var(--fct-ease);
+}
+
+.fctDropzone:hover,
+.fctDropzoneActive {
+  border-color: var(--fct-accent);
+  background: var(--fct-accent-subtle);
+}
+
+.fctFileInputHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.fctImportStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 45rem) {
+  .fctImportStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.fctImportStatCard {
+  background: var(--fct-bg-base);
+  border: 0.0625rem solid var(--fct-border-separator);
+  border-radius: var(--fct-radius-control);
+  padding: 0.625rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.fctImportStatLabel {
+  font-size: var(--ds-font-size-12);
+  color: var(--fct-text-secondary);
+}
+
+.fctImportStatNum {
+  font-size: var(--ds-font-size-17);
+  font-weight: var(--ds-font-weight-heading);
+  font-variant-numeric: tabular-nums;
+  color: var(--fct-text-primary);
+}
+
+.fctImportStatNumSuccess {
+  color: var(--fct-success);
+}
+
+.fctImportStatNumWarning {
+  color: var(--fct-warning);
+}
+
+.fctImportStatNumDanger {
+  color: var(--fct-danger);
+}
+
+.fctPreviewWrap {
+  border: 0.0625rem solid var(--fct-border-separator);
+  border-radius: var(--fct-radius-control);
+  overflow: auto;
+  max-height: 18rem;
+}
+
+.fctPreviewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.fctPreviewTable th,
+.fctPreviewTable td {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 0.0625rem solid var(--fct-border-separator);
+  text-align: left;
+  vertical-align: top;
+}
+
+.fctPreviewTable thead th {
+  position: sticky;
+  top: 0;
+  background: var(--fct-bg-sunken);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--fct-text-primary);
+  z-index: 2;
+}
+
+.fctWarnBadge {
+  display: inline-block;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--fct-radius-detail);
+  background: var(--fct-warning-bg);
+  color: var(--fct-warning);
+  font-size: 0.7rem;
+  font-weight: var(--ds-font-weight-heading);
+  margin: 0.0625rem;
+}
+
+.fctIssueBox {
+  border: 0.0625rem solid var(--fct-border-separator);
+  border-radius: var(--fct-radius-control);
+  padding: 0.75rem;
+  background: var(--fct-bg-base);
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.fctIssueBoxTitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.fctIssueList {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.75rem;
+  color: var(--fct-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Settings Modal Option Rows */
+.fctOptionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fctOptionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--fct-border-separator);
+  border-radius: var(--fct-radius-control);
+  background: var(--fct-bg-raised);
+}
+
+.fctOptionRowInactive {
+  background: var(--fct-bg-sunken);
+}
+
+.fctOptionLabel {
+  font-weight: var(--ds-font-weight-heading);
+  font-size: var(--ds-font-size-14);
+  color: var(--fct-text-primary);
+}
+
+.fctOptionLabelInactive {
+  font-weight: var(--ds-font-weight-body);
+  color: var(--fct-text-muted);
+  text-decoration: line-through;
+}
+
+.fctOptionActions {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fctBackLink,
+  .fctBtn,
+  .fctEditIconBtn,
+  .fctDeleteIconBtn,
+  .fctSelect,
+  .fctInput,
+  .fctTabBtn,
+  .fctStatusBtn,
+  .fctSheetTd,
+  .fctDropzone {
+    transition: none;
+  }
+}

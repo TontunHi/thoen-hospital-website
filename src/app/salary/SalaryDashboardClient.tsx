@@ -512,7 +512,7 @@ export default function SalaryDashboardPage() {
                     </div>
                     <ul className="slipList">
                       <li>
-                        <span>ภาษีหัก ณ ที่จ่าย 5%</span>
+                        <span>ภาษีหัก ณ ที่จ่าย</span>
                         <strong>{otData.c16 || '0.00'}</strong>
                       </li>
                       <li>
@@ -733,7 +733,7 @@ export default function SalaryDashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {otData.c16 && <tr><td>ภาษีหัก ณ ที่จ่าย 5%</td><td className="numCol">{otData.c16}</td></tr>}
+                      {otData.c16 && <tr><td>ภาษีหัก ณ ที่จ่าย</td><td className="numCol">{otData.c16}</td></tr>}
                       {otData.c17 && <tr><td>ค่าบำรุงหอพัก / ค่าไฟฟ้า</td><td className="numCol">{otData.c17}</td></tr>}
                       {otData.c18 && <tr><td>ค่าน้ำประปา</td><td className="numCol">{otData.c18}</td></tr>}
                       {otData.c21 && <tr><td>ค่าทำความสะอาด</td><td className="numCol">{otData.c21}</td></tr>}

@@ -18,7 +18,8 @@ import {
   ChevronRight,
   Target,
   Coins,
-  HeartPulse
+  HeartPulse,
+  Home
 } from 'lucide-react'
 import './page.css'
 
@@ -120,6 +121,22 @@ export default async function ServicePage() {
       category: 'clinical',
       icon: HeartPulse,
     },
+    {
+      title: 'DM Remission',
+      desc: 'ระบบลงทะเบียน ติดตามผลลัพธ์ทางคลินิก พฤติกรรมสุขภาพ และ Dashboard สรุปผู้ป่วยเบาหวานเข้าสู่ระยะสงบ แยกตามปีงบประมาณและ รพ.สต.',
+      link: '/service/dm-remission',
+      btnText: 'เข้าสู่ระบบ DM Remission',
+      category: 'clinical',
+      icon: Activity,
+    },
+    {
+      title: 'เยี่ยมบ้านทีม FCT',
+      desc: 'ระบบบันทึกและติดตามการเยี่ยมบ้านทีมสหวิชาชีพ (FCT) ประเมิน ADL นำเข้าข้อมูล Excel/CSV และ Dashboard สรุปผลราย รพ.สต.',
+      link: '/service/fct-home-visit',
+      btnText: 'เข้าสู่ระบบเยี่ยมบ้าน FCT',
+      category: 'clinical',
+      icon: Home,
+    },
 
     // Administrative & Management
     {
@@ -191,7 +208,7 @@ export default async function ServicePage() {
   ]
 
   const displaySystems = session.role === 'subdistrict'
-    ? internalSystems.filter((sys) => sys.link === '/service/lab' || sys.link === '/service/lab-tracker' || sys.link === '/service/tb-cxr-tracker')
+    ? internalSystems.filter((sys) => sys.link === '/service/lab' || sys.link === '/service/lab-tracker' || sys.link === '/service/tb-cxr-tracker' || sys.link === '/service/dm-remission' || sys.link === '/service/fct-home-visit')
     : internalSystems
 
   const categories = [

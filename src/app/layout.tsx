@@ -3,6 +3,7 @@ import { Sarabun } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/common/Navbar/Navbar";
 import Footer from "@/components/common/Footer/Footer";
+import ConsoleSecurityWarning from "@/components/common/ConsoleSecurityWarning";
 import { siteConfig } from "@/config/site";
 import { Suspense } from "react";
 
@@ -84,6 +85,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <ConsoleSecurityWarning />
         <Suspense fallback={<nav className="navbar" style={{ height: "var(--navbar-height)" }}></nav>}>
           <Navbar />
         </Suspense>

@@ -873,3 +873,60 @@ model PalliativeCareRegistryVisit {
   @@map("palliative_care_registry_visits")
 }
 
+model DmRemissionCohort {
+  id                 Int       @id @default(autoincrement())
+  fiscalYear         Int       @map("fiscal_year")
+  pcuName            String?   @map("pcu_name") @db.VarChar(150)
+  patientName        String    @map("patient_name") @db.VarChar(255)
+  cid                String?   @db.VarChar(20)
+  hn                 String?   @db.VarChar(20)
+  age                Int?
+  underlyingDiseases String?   @map("underlying_diseases") @db.VarChar(500)
+  heightCm           Decimal?  @map("height_cm") @db.Decimal(5, 2)
+  weightBeforeKg     Decimal?  @map("weight_before_kg") @db.Decimal(6, 2)
+  weightAfterKg      Decimal?  @map("weight_after_kg") @db.Decimal(6, 2)
+  waistBeforeCm      Decimal?  @map("waist_before_cm") @db.Decimal(6, 2)
+  waistAfterCm       Decimal?  @map("waist_after_cm") @db.Decimal(6, 2)
+  fpgBefore          Decimal?  @map("fpg_before") @db.Decimal(6, 2)
+  fpgAfter           Decimal?  @map("fpg_after") @db.Decimal(6, 2)
+  a1cBefore          Decimal?  @map("a1c_before") @db.Decimal(5, 2)
+  a1cAfter           Decimal?  @map("a1c_after") @db.Decimal(5, 2)
+  a1cPostStop3m      Decimal?  @map("a1c_post_stop_3m") @db.Decimal(5, 2)
+  medsBefore         String?   @map("meds_before") @db.Text
+  medsAfter          String?   @map("meds_after") @db.Text
+  summaryA1c         String?   @map("summary_a1c") @db.VarChar(50)
+  summaryMeds        String?   @map("summary_meds") @db.VarChar(50)
+  summaryWeight      String?   @map("summary_weight") @db.VarChar(50)
+  summaryWaist       String?   @map("summary_waist") @db.VarChar(50)
+  summaryDiet        String?   @map("summary_diet") @db.VarChar(100)
+  summaryExercise    String?   @map("summary_exercise") @db.VarChar(100)
+  summaryIf          String?   @map("summary_if") @db.VarChar(100)
+  summaryRemission   String?   @map("summary_remission") @db.VarChar(100)
+  createdBy          String?   @map("created_by") @db.VarChar(100)
+  updatedBy          String?   @map("updated_by") @db.VarChar(100)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@unique([fiscalYear, hn], map: "uq_dm_remission_fy_hn")
+  @@unique([fiscalYear, cid], map: "uq_dm_remission_fy_cid")
+  @@index([fiscalYear], map: "idx_dm_remission_fy")
+  @@index([pcuName], map: "idx_dm_remission_pcu")
+  @@index([summaryRemission], map: "idx_dm_remission_status")
+  @@map("dm_remission_cohorts")
+}
+
+model DmRemissionOption {
+  id        Int      @id @default(autoincrement())
+  category  String   @db.VarChar(50)
+  label     String   @db.VarChar(150)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdBy String?  @map("created_by") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@unique([category, label], map: "uq_dm_remission_opt_cat_label")
+  @@index([category, isActive, sortOrder], map: "idx_dm_remission_opt_lookup")
+  @@map("dm_remission_options")
+}
+

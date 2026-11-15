@@ -193,4 +193,28 @@ describe('FastingPlasmaGlucoseClient Component (14.5 ADP 12003)', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1)
     })
   })
+
+  it('lists dynamic fiscal years in fiscal mode and updates date range on change', async () => {
+    render(<FastingPlasmaGlucoseClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นายสมชาย ใจดี')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'ปีงบประมาณ' }))
+
+    const fiscalSelect = screen.getByLabelText('ปีงบประมาณ พ.ศ.:') as HTMLSelectElement
+    expect(fiscalSelect.options.length).toBe(8)
+
+    const targetBeYear = Number(fiscalSelect.options[2].value)
+    const targetCeYear = targetBeYear - 543
+    fireEvent.change(fiscalSelect, { target: { value: String(targetBeYear) } })
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining(`ds1=${targetCeYear - 1}-10-01&ds2=${targetCeYear}-09-30`),
+        expect.anything()
+      )
+    })
+  })
 })

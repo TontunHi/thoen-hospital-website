@@ -634,7 +634,7 @@ export default function HepatitisC234Client({
                   value={selectedFiscalYear}
                   onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 >
-                  {[2569, 2570].map((y) => (
+                  {yearOptions.map((y) => (
                     <option key={y} value={y}>
                       ปีงบ {y}
                     </option>

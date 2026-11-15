@@ -768,7 +768,7 @@ export default function AllSalaryClient() {
                       <span className="totalBadge deductionBadge">-{otData.c22} บาท</span>
                     </div>
                     <ul className="itemList">
-                      <li><span>ภาษีหัก ณ ที่จ่าย 5%</span><strong>{otData.c16 || '0.00'}</strong></li>
+                      <li><span>ภาษีหัก ณ ที่จ่าย</span><strong>{otData.c16 || '0.00'}</strong></li>
                       <li><span>ค่าบำรุงหอพัก / ค่าไฟฟ้า</span><strong>{otData.c17 || '0.00'}</strong></li>
                       <li><span>ค่าน้ำประปา</span><strong>{otData.c18 || '0.00'}</strong></li>
                       <li><span>ค่าทำความสะอาด</span><strong>{otData.c21 || '0.00'}</strong></li>

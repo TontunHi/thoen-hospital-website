@@ -729,7 +729,7 @@ export default function AdpSearchClient({
                 value={selectedFiscalYear}
                 onChange={(e) => handleFiscalYearChange(parseInt(e.target.value, 10))}
               >
-                {[2569, 2570].map((y) => (
+                {yearOptions.map((y) => (
                   <option key={y} value={y}>
                     ปีงบ {y}
                   </option>

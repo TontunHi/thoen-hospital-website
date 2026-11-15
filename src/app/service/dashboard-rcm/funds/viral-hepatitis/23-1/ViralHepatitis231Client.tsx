@@ -625,7 +625,7 @@ export default function ViralHepatitis231Client({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {[2569, 2570].map((fy) => (
+                {yearOptions.map((fy) => (
                   <option key={fy} value={fy}>
                     ปีงบ {fy}
                   </option>

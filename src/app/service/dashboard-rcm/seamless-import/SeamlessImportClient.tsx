@@ -25,23 +25,48 @@ import {
   AlertTriangle,
   FolderOpen,
   Download,
+  Building2,
+  CalendarCheck2,
+  BookOpen,
+  StopCircle,
+  Settings2,
 } from 'lucide-react'
 import {
   SeamlessDatabaseStats,
   SeamlessParseResult,
+  SeamlessDuplicateMode,
   ParsedSeamlessRow,
   SeamlessDenyCode,
   SeamlessParseError,
+  SeamlessLedgerResult,
+  SeamlessImportedFileDetail,
+  SeamlessHospFilter,
+  SeamlessPayStatusFilter,
+  SeamlessLedgerSortField,
+  SeamlessFundBreakdownItem,
   SEAMLESS_FUND_MAP,
+  isSeamlessFileName,
 } from '@/lib/clinical/rcmSeamlessImportService'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
+import { formatThaiDate } from '@/lib/formatters'
+import SeamlessLedgerSection from './components/SeamlessLedgerSection'
+import {
+  ImportedFilesModal,
+  DeleteConfirmModal,
+  SyncPaymentModal,
+} from './components/SeamlessManagementModals'
 import './seamless-import.css'
 
 interface SeamlessImportClientProps {
   initialStats: SeamlessDatabaseStats | null
+  initialLedger?: SeamlessLedgerResult | null
+  initialImportedFiles?: SeamlessImportedFileDetail[]
+  initialDenyCodes?: SeamlessDenyCode[]
   initialError: string | null
   userRole?: string
   username?: string
+  canImport?: boolean
+  canManage?: boolean
 }
 
 export interface QueuedFile {
@@ -62,25 +87,67 @@ interface ErrorModalState {
   details?: string
 }
 
+interface ActionBannerState {
+  type: 'success' | 'error'
+  message: string
+}
+
 type TabType = 'individual' | 'summary' | 'denyCodes' | 'errors'
 
 export default function SeamlessImportClient({
   initialStats,
+  initialLedger = null,
+  initialImportedFiles = [],
+  initialDenyCodes,
   initialError,
   userRole = 'member',
   username = '',
+  canImport = true,
+  canManage = false,
 }: SeamlessImportClientProps) {
+  const effectiveCanManage = canManage || userRole === 'admin'
   // Database stats state
   const [stats, setStats] = useState<SeamlessDatabaseStats | null>(initialStats)
   const [isRefreshingStats, setIsRefreshingStats] = useState(false)
   const [statsError, setStatsError] = useState<string | null>(initialError)
 
+  // Live Database Ledger Explorer & Deny Codes state
+  const [ledger, setLedger] = useState<SeamlessLedgerResult | null>(initialLedger)
+  const [isLoadingLedger, setIsLoadingLedger] = useState(false)
+  const [ledgerError, setLedgerError] = useState<string | null>(null)
+  const [ledgerSearch, setLedgerSearch] = useState('')
+  const [debouncedLedgerSearch, setDebouncedLedgerSearch] = useState('')
+  const [hospFilter, setHospFilter] = useState<SeamlessHospFilter>('ALL')
+  const [payStatus, setPayStatus] = useState<SeamlessPayStatusFilter>('ALL')
+  const [fundFilter, setFundFilter] = useState('ALL')
+  const [fileNameFilter, setFileNameFilter] = useState('')
+  const [sortBy, setSortBy] = useState<SeamlessLedgerSortField>('admDate')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [ledgerPage, setLedgerPage] = useState(1)
+  const [isExportingLedger, setIsExportingLedger] = useState(false)
+
+  const [denyCodes, setDenyCodes] = useState<SeamlessDenyCode[]>(initialDenyCodes ?? [])
+  const [isLoadingDenyCodes, setIsLoadingDenyCodes] = useState(false)
+  const [denySearch, setDenySearch] = useState('')
+  const [debouncedDenySearch, setDebouncedDenySearch] = useState('')
+
+  // FoxPro Management state
+  const [importedFiles, setImportedFiles] = useState<SeamlessImportedFileDetail[]>(initialImportedFiles)
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false)
+  const [isFilesModalOpen, setIsFilesModalOpen] = useState(false)
+  const [deleteConfirmMode, setDeleteConfirmMode] = useState<'other_hospitals' | 'all' | null>(null)
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
+  const [isManagingDb, setIsManagingDb] = useState(false)
+  const [actionBanner, setActionBanner] = useState<ActionBannerState | null>(null)
+
   // Multi-File upload queue
   const [fileQueue, setFileQueue] = useState<QueuedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
-  const [isDryRun, setIsDryRun] = useState(true)
+  const [isDryRun, setIsDryRun] = useState(false)
   const [autoEnrichHosp, setAutoEnrichHosp] = useState(true)
   const [updatePayment, setUpdatePayment] = useState(true)
+  const [filterMyHospOnly, setFilterMyHospOnly] = useState(true)
+  const [duplicateMode, setDuplicateMode] = useState<SeamlessDuplicateMode>('update')
 
   // Batch execution & Progress state
   const [isProcessingBatch, setIsProcessingBatch] = useState(false)
@@ -102,13 +169,48 @@ export default function SeamlessImportClient({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const batchCancelledRef = useRef(false)
+  const statsAbortRef = useRef<AbortController | null>(null)
+  const ledgerAbortRef = useRef<AbortController | null>(null)
+  const denyAbortRef = useRef<AbortController | null>(null)
   const isFirstMount = useRef(true)
+  const isFirstLedgerMount = useRef(true)
+  const isFirstDenyMount = useRef(true)
+
+  const importedFileNameSet = useMemo(() => {
+    const set = new Set<string>()
+    importedFiles.forEach((f) => set.add(f.fileName.toLowerCase()))
+    stats?.recentFiles?.forEach((f) => set.add(f.fileName.toLowerCase()))
+    return set
+  }, [importedFiles, stats])
+
+  // Debounce ledger & deny searches
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedLedgerSearch(ledgerSearch)
+      setLedgerPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [ledgerSearch])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedDenySearch(denySearch)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [denySearch])
 
   // Refresh DB stats from server
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (forceRefresh = false) => {
+    statsAbortRef.current?.abort()
+    const controller = new AbortController()
+    statsAbortRef.current = controller
     setIsRefreshingStats(true)
     try {
-      const res = await fetch('/api/service/dashboard-rcm/seamless-import')
+      const qs = forceRefresh ? '?refresh=true' : ''
+      const res = await fetch(`/api/service/dashboard-rcm/seamless-import${qs}`, {
+        signal: controller.signal,
+      })
       const json = await res.json()
       if (json.success && json.data) {
         setStats(json.data)
@@ -116,12 +218,113 @@ export default function SeamlessImportClient({
       } else {
         setStatsError(json.error || 'ไม่สามารถโหลดข้อมูลสถิติได้')
       }
-    } catch {
+    } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') return
       setStatsError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
     } finally {
       setIsRefreshingStats(false)
     }
   }, [])
+
+  const fetchLedger = useCallback(
+    async (forceRefresh = false) => {
+      ledgerAbortRef.current?.abort()
+      const controller = new AbortController()
+      ledgerAbortRef.current = controller
+      setIsLoadingLedger(true)
+      try {
+        const params = new URLSearchParams({
+          view: 'ledger',
+          page: String(ledgerPage),
+          pageSize: '50',
+          hospFilter,
+          payStatus,
+          fundFilter,
+          sortBy,
+          sortOrder,
+        })
+        if (debouncedLedgerSearch.trim()) params.set('search', debouncedLedgerSearch.trim())
+        if (fileNameFilter.trim()) params.set('fileName', fileNameFilter.trim())
+        if (forceRefresh) params.set('refresh', 'true')
+
+        const res = await fetch(`/api/service/dashboard-rcm/seamless-import?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        const json = await res.json()
+        if (json.success && json.data) {
+          setLedger(json.data)
+          setLedgerError(null)
+        } else {
+          setLedgerError(json.error || 'ไม่สามารถโหลดตารางข้อมูล Seamless ได้')
+        }
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') return
+        setLedgerError('เกิดข้อผิดพลาดในการโหลดข้อมูลตาราง Seamless')
+      } finally {
+        setIsLoadingLedger(false)
+      }
+    },
+    [
+      ledgerPage,
+      hospFilter,
+      payStatus,
+      fundFilter,
+      sortBy,
+      sortOrder,
+      debouncedLedgerSearch,
+      fileNameFilter,
+    ]
+  )
+
+  const fetchImportedFiles = useCallback(async (forceRefresh = false) => {
+    setIsLoadingFiles(true)
+    try {
+      const qs = forceRefresh ? 'view=files&refresh=true' : 'view=files'
+      const res = await fetch(`/api/service/dashboard-rcm/seamless-import?${qs}`)
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setImportedFiles(json.data)
+      }
+    } catch {
+      // ignore transient modal refresh error
+    } finally {
+      setIsLoadingFiles(false)
+    }
+  }, [])
+
+  const fetchDenyCodes = useCallback(async () => {
+    denyAbortRef.current?.abort()
+    const controller = new AbortController()
+    denyAbortRef.current = controller
+    setIsLoadingDenyCodes(true)
+    try {
+      const params = new URLSearchParams({ view: 'deny_codes' })
+      if (debouncedDenySearch.trim()) params.set('search', debouncedDenySearch.trim())
+      const res = await fetch(`/api/service/dashboard-rcm/seamless-import?${params.toString()}`, {
+        signal: controller.signal,
+      })
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setDenyCodes(json.data)
+      }
+    } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') return
+    } finally {
+      setIsLoadingDenyCodes(false)
+    }
+  }, [debouncedDenySearch])
+
+  const refreshAllDatabaseViews = useCallback(
+    async (forceRefresh = true) => {
+      await Promise.all([
+        fetchStats(forceRefresh),
+        fetchLedger(forceRefresh),
+        fetchImportedFiles(forceRefresh),
+        fetchDenyCodes(),
+      ])
+    },
+    [fetchStats, fetchLedger, fetchImportedFiles, fetchDenyCodes]
+  )
 
   useEffect(() => {
     if (isFirstMount.current) {
@@ -130,6 +333,54 @@ export default function SeamlessImportClient({
     }
     fetchStats()
   }, [fetchStats, initialStats])
+
+  useEffect(() => {
+    if (isFirstLedgerMount.current) {
+      isFirstLedgerMount.current = false
+      if (
+        initialLedger &&
+        ledgerPage === 1 &&
+        !debouncedLedgerSearch &&
+        hospFilter === 'ALL' &&
+        payStatus === 'ALL' &&
+        fundFilter === 'ALL' &&
+        !fileNameFilter &&
+        sortBy === 'admDate' &&
+        sortOrder === 'desc'
+      ) {
+        return
+      }
+    }
+    fetchLedger()
+  }, [
+    fetchLedger,
+    initialLedger,
+    ledgerPage,
+    debouncedLedgerSearch,
+    hospFilter,
+    payStatus,
+    fundFilter,
+    fileNameFilter,
+    sortBy,
+    sortOrder,
+  ])
+
+  useEffect(() => {
+    if (isFirstDenyMount.current) {
+      isFirstDenyMount.current = false
+      if (initialDenyCodes !== undefined && !debouncedDenySearch) return
+    }
+    fetchDenyCodes()
+  }, [fetchDenyCodes, initialDenyCodes, debouncedDenySearch])
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      statsAbortRef.current?.abort()
+      ledgerAbortRef.current?.abort()
+      denyAbortRef.current?.abort()
+    }
+  }, [])
 
   // Drag & drop handlers for multiple files
   const handleDragOver = (e: React.DragEvent) => {
@@ -146,7 +397,7 @@ export default function SeamlessImportClient({
     const invalidNames: string[] = []
 
     Array.from(filesList).forEach((file) => {
-      if (/\.(xlsx|xls)$/i.test(file.name)) {
+      if (/\.(xlsx|xls|csv)$/i.test(file.name)) {
         // Prevent duplicate file entries
         const exists = fileQueue.some(
           (item) => item.name === file.name && item.size === file.size
@@ -168,12 +419,12 @@ export default function SeamlessImportClient({
     if (invalidNames.length > 0) {
       setErrorModal({
         isOpen: true,
-        title: 'พบไฟล์ที่ไม่ใช่รูปแบบ Excel (.xlsx, .xls)',
-        message: `ระบบรองรับเฉพาะไฟล์ Excel (.xlsx, .xls) เท่านั้น ไฟล์ต่อไปนี้ไม่ได้รับการเพิ่มลงคิว:\n${invalidNames.join(
+        title: 'พบไฟล์ที่ไม่ใช่รูปแบบ Excel (.xlsx, .csv)',
+        message: `ระบบรองรับไฟล์ .xlsx และ .csv (หรือ .xls ที่แปลงแล้ว) ไฟล์ต่อไปนี้ไม่ได้รับการเพิ่มลงคิว:\n${invalidNames.join(
           ', '
         )}`,
         details:
-          'โปรดตรวจสอบว่าไฟล์รายงานที่ดาวน์โหลดจาก e-Claim หรือ สปสช. เป็นนามสกุล .xlsx หรือ .xls ถูกต้องก่อนนำเข้า',
+          'โปรดตรวจสอบว่าไฟล์รายงานที่ดาวน์โหลดจาก e-Claim หรือ สปสช. เป็นนามสกุล .xlsx หรือ .csv ก่อนนำเข้า',
       })
     }
 
@@ -226,10 +477,172 @@ export default function SeamlessImportClient({
     })
   }
 
+  const handleCancelBatch = () => {
+    batchCancelledRef.current = true
+    abortRef.current?.abort()
+    setIsProcessingBatch(false)
+    setProgressStage('ยกเลิกการประมวลผลคิวแล้ว')
+  }
+
+  // Export all filtered ledger records to Excel
+  const handleExportAllLedger = async () => {
+    setIsExportingLedger(true)
+    try {
+      const params = new URLSearchParams({
+        view: 'ledger',
+        exportAll: 'true',
+        hospFilter,
+        payStatus,
+        fundFilter,
+        sortBy,
+        sortOrder,
+      })
+      if (debouncedLedgerSearch.trim()) params.set('search', debouncedLedgerSearch.trim())
+      if (fileNameFilter.trim()) params.set('fileName', fileNameFilter.trim())
+
+      const res = await fetch(`/api/service/dashboard-rcm/seamless-import?${params.toString()}`)
+      const json = await res.json()
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || 'ไม่สามารถส่งออกข้อมูล Seamless ได้')
+      }
+      const rows = (json.data as SeamlessLedgerResult).items || []
+      await exportRcmExcel({
+        filename: `Seamless_Database_${new Date().toISOString().slice(0, 10)}`,
+        sheetName: 'Seamless',
+        title: `ทะเบียนข้อมูล Seamless ในฐานข้อมูล (${rows.length.toLocaleString('th-TH')} รายการ)`,
+        headers: [
+          'TransID',
+          'Rep',
+          'กองทุน',
+          'HN',
+          'VN',
+          'AN',
+          'CID 13 หลัก',
+          'ชื่อ-สกุล',
+          'วันที่รับบริการ',
+          'HCode',
+          'สิทธิ',
+          'เรียกเก็บ (฿)',
+          'ชดเชย (฿)',
+          'ไม่ชดเชย (฿)',
+          'PayNo',
+          'วันที่โอน',
+          'CodeAccount',
+          'YYMM',
+          'YearBudget',
+          'ชื่อไฟล์',
+        ],
+        rows: rows.map((r) => [
+          r.id,
+          r.rep,
+          r.fund,
+          r.hn || '',
+          r.vn || '',
+          r.an || '',
+          r.pid || '',
+          r.ptname || '',
+          formatThaiDate(r.admDate),
+          r.hcode || '',
+          r.mainInscl || '',
+          r.collected || 0,
+          r.compensated || 0,
+          r.noCompensated || 0,
+          r.payNo || '',
+          formatThaiDate(r.payDate),
+          r.codeAccount || '',
+          r.yymm || '',
+          r.yearBudget || '',
+          r.fileName || '',
+        ]),
+      })
+    } catch (err: unknown) {
+      setActionBanner({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งออก Excel',
+      })
+    } finally {
+      setIsExportingLedger(false)
+    }
+  }
+
+  // FoxPro Management handlers
+  const handleDeleteRequest = async (payload: {
+    mode: 'by_file' | 'by_files' | 'other_hospitals' | 'all'
+    fileName?: string
+    fileNames?: string[]
+  }) => {
+    setIsManagingDb(true)
+    setActionBanner(null)
+    try {
+      const res = await fetch('/api/service/dashboard-rcm/seamless-import', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        const msg = json.error?.message || json.error || `ไม่สามารถลบข้อมูลได้ (${res.status})`
+        throw new Error(msg)
+      }
+      const deletedCount = Number(json.data?.deletedCount || 0)
+      setActionBanner({
+        type: 'success',
+        message: `ลบข้อมูล Seamless สำเร็จ ${deletedCount.toLocaleString('th-TH')} รายการ`,
+      })
+      if (payload.mode === 'by_file' && payload.fileName === fileNameFilter) {
+        setFileNameFilter('')
+      }
+      setDeleteConfirmMode(null)
+      await refreshAllDatabaseViews(true)
+    } catch (err: unknown) {
+      setActionBanner({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบข้อมูล',
+      })
+    } finally {
+      setIsManagingDb(false)
+    }
+  }
+
+  const handleSyncPayment = async (force: boolean) => {
+    setIsManagingDb(true)
+    setActionBanner(null)
+    try {
+      const res = await fetch('/api/service/dashboard-rcm/seamless-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_payment', force }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        const msg = json.error?.message || json.error || `ซิงค์วันที่โอนไม่สำเร็จ (${res.status})`
+        throw new Error(msg)
+      }
+      const updated = Number(json.data?.updatedPaymentCount || 0)
+      const backfilled = Number(json.data?.backfilledDateCount || 0)
+      setActionBanner({
+        type: 'success',
+        message: `ซิงค์วันที่โอนเงินจาก nhso_budget สำเร็จ: อัปเดตวันโอน ${updated.toLocaleString(
+          'th-TH'
+        )} แถว • คำนวณ YYMM/ปีงบประมาณ ${backfilled.toLocaleString('th-TH')} แถว`,
+      })
+      setIsSyncModalOpen(false)
+      await refreshAllDatabaseViews(true)
+    } catch (err: unknown) {
+      setActionBanner({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการซิงค์วันที่โอนเงิน',
+      })
+    } finally {
+      setIsManagingDb(false)
+    }
+  }
+
   // Batch process all pending files
   const handleProcessBatch = async () => {
-    if (fileQueue.length === 0 || isProcessingBatch) return
+    if (!canImport || fileQueue.length === 0 || isProcessingBatch) return
 
+    batchCancelledRef.current = false
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
@@ -246,9 +659,12 @@ export default function SeamlessImportClient({
     }
 
     const totalBatchCount = pendingFiles.length
-    let lastErrorEncountered: ErrorModalState | null = null
+    const failedItems: Array<{ fileName: string; message: string; details: string }> = []
 
     for (let i = 0; i < totalBatchCount; i++) {
+      if (batchCancelledRef.current || controller.signal.aborted) {
+        break
+      }
       const currentItem = pendingFiles[i]
       setCurrentFileIndex(i + 1)
 
@@ -273,6 +689,8 @@ export default function SeamlessImportClient({
         formData.append('dryRun', String(isDryRun))
         formData.append('autoEnrichHosp', String(autoEnrichHosp))
         formData.append('updatePayment', String(updatePayment))
+        formData.append('filterMyHospOnly', String(filterMyHospOnly))
+        formData.append('duplicateMode', duplicateMode)
 
         setProgressPercent(Math.round(fileProgressBase + fileProgressChunk * 0.4))
         setProgressStage(`[${i + 1}/${totalBatchCount}] ตรวจสอบคอลัมน์ & แมปโครงสร้าง 30 กองทุน...`)
@@ -285,7 +703,11 @@ export default function SeamlessImportClient({
         })
 
         setProgressPercent(Math.round(fileProgressBase + fileProgressChunk * 0.75))
-        setProgressStage(`[${i + 1}/${totalBatchCount}] เชื่อมโยง HOSxP ค้นหา HN/VN แบบ Batch...`)
+        setProgressStage(
+          isDryRun
+            ? `[${i + 1}/${totalBatchCount}] เชื่อมโยง HOSxP ค้นหา HN/VN แบบ Batch...`
+            : `[${i + 1}/${totalBatchCount}] จับคู่ HOSxP และบันทึกลง rcmdb.seamless...`
+        )
         setActiveStageIndex(3)
 
         const json = await res.json()
@@ -320,30 +742,60 @@ export default function SeamlessImportClient({
           )
         )
 
-        lastErrorEncountered = {
-          isOpen: true,
-          title: 'เกิดข้อผิดพลาดในการนำเข้าไฟล์',
+        const contextualDetails = errorMsg.includes('.xls')
+          ? 'แนะนำ: ไฟล์รูปแบบ Excel 97-2003 (.xls) / HTML ไม่สามารถอ่านได้โดยตรง กรุณาเปิดด้วย Excel แล้วเลือก Save As เป็น .xlsx หรือ .csv'
+          : /command denied|access denied|API Gateway|เชื่อมต่อ|Timeout|นานเกินกำหนด/i.test(errorMsg)
+          ? 'แนะนำ: เกิดปัญหาการเชื่อมต่อหรือ Timeout ฝั่ง API Gateway (ไม่ได้เกิดจากโครงสร้างไฟล์) — ไฟล์ที่ล้มเหลวยังไม่ถูกบันทึกครบถ้วน สามารถกดปุ่มนำเข้าอีกครั้งเพื่อลองใหม่เฉพาะไฟล์ที่ค้างได้ทันที'
+          : 'แนะนำ: ตรวจสอบว่าไฟล์มีชีท INDIVIDUAL หรือส่วนหัว "REP แบบ INDIVIDUAL" และคอลัมน์ Trans ID / PID ครบถ้วน'
+
+        failedItems.push({
           fileName: currentItem.name,
           message: errorMsg,
-          details:
-            'แนะนำ: ตรวจสอบว่าไฟล์มีชีท INDIVIDUAL หรือไม่ และมีคอลัมน์เลขประจำตัวประชาชน (PID/CID) ถูกต้องตามรูปแบบ สปสช.',
-        }
+          details: contextualDetails,
+        })
       }
     }
 
+    if (batchCancelledRef.current) {
+      setIsProcessingBatch(false)
+      return
+    }
+
     setProgressPercent(100)
-    setProgressStage(`ประมวลผลเสร็จสมบูรณ์ทั้งสิ้น ${totalBatchCount} ไฟล์`)
+    setProgressStage(
+      failedItems.length > 0
+        ? `ประมวลผลเสร็จสิ้น: สำเร็จ ${totalBatchCount - failedItems.length}/${totalBatchCount} ไฟล์ (ล้มเหลว ${failedItems.length} ไฟล์)`
+        : `ประมวลผลเสร็จสมบูรณ์ทั้งสิ้น ${totalBatchCount} ไฟล์`
+    )
     setActiveStageIndex(4)
     setIsProcessingBatch(false)
 
-    // Trigger Error Modal if any error occurred
-    if (lastErrorEncountered) {
-      setErrorModal(lastErrorEncountered)
+    // Trigger Error Modal listing ALL failed files if any error occurred
+    if (failedItems.length === 1) {
+      const only = failedItems[0]
+      setErrorModal({
+        isOpen: true,
+        title: 'เกิดข้อผิดพลาดในการนำเข้าไฟล์',
+        fileName: only.fileName,
+        message: only.message,
+        details: only.details,
+      })
+    } else if (failedItems.length > 1) {
+      const failedSummaryList = failedItems
+        .map((item, idx) => `${idx + 1}. ${item.fileName} — ${item.message}`)
+        .join('\n')
+      setErrorModal({
+        isOpen: true,
+        title: `พบข้อผิดพลาดในการนำเข้า ${failedItems.length} ไฟล์ (จากทั้งหมด ${totalBatchCount} ไฟล์)`,
+        fileName: failedItems.map((item) => item.fileName).join(', '),
+        message: `ไฟล์ที่ล้มเหลวทั้ง ${failedItems.length} ไฟล์ยังไม่ได้บันทึกลงฐานข้อมูลครบถ้วน กดปุ่มนำเข้าอีกครั้งเพื่อลองใหม่เฉพาะไฟล์ที่ค้างได้เลย`,
+        details: `${failedSummaryList}\n\n${failedItems[failedItems.length - 1].details}`,
+      })
     }
 
-    // Refresh database stats if any file was processed not in dry-run
+    // Refresh database stats & ledger if any file was processed not in dry-run
     if (!isDryRun) {
-      fetchStats()
+      refreshAllDatabaseViews(true)
     }
   }
 
@@ -366,6 +818,13 @@ export default function SeamlessImportClient({
     let totalCompensation = 0
     let matchedHn = 0
     let matchedVn = 0
+    let insertedCount = 0
+    let updatedCount = 0
+    let skippedCount = 0
+    let skippedOtherHospCount = 0
+    let existingInDbCount = 0
+    let newInDbCount = 0
+    let hasLiveSaved = false
 
     const targetList = activeResultFile?.result
       ? [activeResultFile]
@@ -376,6 +835,15 @@ export default function SeamlessImportClient({
         totalRows += item.result.totalRows
         validRows += item.result.validRows
         errorRows += item.result.errorRows
+        insertedCount += item.result.insertedCount || 0
+        updatedCount += item.result.updatedCount || 0
+        skippedCount += item.result.skippedCount || 0
+        skippedOtherHospCount += item.result.skippedOtherHospCount || 0
+        existingInDbCount += item.result.existingInDbCount || 0
+        newInDbCount += item.result.newInDbCount || 0
+        if (!item.result.isDryRun) {
+          hasLiveSaved = true
+        }
         if (item.result.summary) {
           totalCompensation += item.result.summary.totalCompensation || 0
           matchedHn += item.result.summary.matchedPatientsHOSxP || 0
@@ -397,6 +865,13 @@ export default function SeamlessImportClient({
       totalCompensation,
       matchedHn,
       matchedVn,
+      insertedCount,
+      updatedCount,
+      skippedCount,
+      skippedOtherHospCount,
+      existingInDbCount,
+      newInDbCount,
+      hasLiveSaved,
       processedCount: targetList.length,
     }
   }, [successfulFiles, activeResultFile])
@@ -427,6 +902,29 @@ export default function SeamlessImportClient({
         (r.fund && r.fund.toLowerCase().includes(q))
     )
   }, [activeResultFile, successfulFiles, tableSearch])
+
+  // Aggregated Fund Breakdown (accurate 4-char code + collected/compensated totals)
+  const displayedFundBreakdown = useMemo(() => {
+    const map = new Map<string, SeamlessFundBreakdownItem>()
+    const sourceFiles = activeResultFile?.result ? [activeResultFile] : successfulFiles
+    sourceFiles.forEach((f) => {
+      ;(f.result?.fundBreakdown || []).forEach((item) => {
+        const key = item.fundName
+        const cur = map.get(key) || {
+          fundCode: item.fundCode,
+          fundName: item.fundName,
+          count: 0,
+          totalCollected: 0,
+          totalCompensated: 0,
+        }
+        cur.count += item.count
+        cur.totalCollected = Math.round((cur.totalCollected + item.totalCollected) * 100) / 100
+        cur.totalCompensated = Math.round((cur.totalCompensated + item.totalCompensated) * 100) / 100
+        map.set(key, cur)
+      })
+    })
+    return Array.from(map.values())
+  }, [activeResultFile, successfulFiles])
 
   // Aggregated Funds detected
   const displayedFunds = useMemo(() => {
@@ -814,26 +1312,54 @@ export default function SeamlessImportClient({
         <div className="seamless-actions">
           <button
             type="button"
-            onClick={fetchStats}
-            disabled={isRefreshingStats}
+            onClick={() => refreshAllDatabaseViews(true)}
+            disabled={isRefreshingStats || isLoadingLedger}
             className="seamless-btn secondary"
-            title="รีเฟรชข้อมูลสถิติจากฐานข้อมูล"
+            title="รีเฟรชข้อมูลสถิติและตารางฐานข้อมูลล่าสุด"
           >
             <RefreshCw size={16} className={isRefreshingStats ? 'seamless-spin' : ''} />
-            <span>รีเฟรช</span>
+            <span>รีเฟรชทั้งหมด</span>
           </button>
           <button
             type="button"
             onClick={handleExportExcel}
             disabled={displayedPreviewRows.length === 0}
             className="seamless-btn primary"
-            title="ส่งออกรายการที่ประมวลผลเป็นไฟล์ Excel"
+            title="ส่งออกรายการที่ประมวลผลในรอบนี้เป็นไฟล์ Excel"
           >
             <Download size={16} />
             <span>ส่งออก Excel</span>
           </button>
         </div>
       </div>
+
+      {statsError && (
+        <div className="seamless-inline-alert error" role="alert">
+          <AlertCircle size={16} />
+          <span>{statsError}</span>
+        </div>
+      )}
+
+      {actionBanner && (
+        <div className={`seamless-feedback-banner ${actionBanner.type}`} role="status">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {actionBanner.type === 'success' ? (
+              <CheckCircle2 size={16} />
+            ) : (
+              <AlertCircle size={16} />
+            )}
+            <span>{actionBanner.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActionBanner(null)}
+            className="seamless-icon-action-btn"
+            aria-label="ปิดการแจ้งเตือน"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Database Overview Stats Cards */}
       <div className="seamless-stats-grid">
@@ -893,18 +1419,99 @@ export default function SeamlessImportClient({
             <FileSpreadsheet size={20} />
           </div>
           <div className="seamless-stat-info">
-            <span className="seamless-stat-label">จำนวนเลขที่ Rep สะสม</span>
+            <span className="seamless-stat-label">จำนวนเลขที่ Rep / หน่วยอื่น / รอวันโอน</span>
             {isRefreshingStats ? (
               <div className="rcm-skeleton-bar" style={{ width: '80px', height: '24px', margin: '4px 0' }} />
             ) : (
               <span className="seamless-stat-value tabular-nums">
-                {(stats?.totalReps ?? 0).toLocaleString('th-TH')} รายการ
+                {(stats?.totalReps ?? 0).toLocaleString('th-TH')} Rep
               </span>
             )}
-            <span className="seamless-stat-sub">งวดการโอนเงินชดเชย</span>
+            <span className="seamless-stat-sub tabular-nums">
+              ต่างหน่วย {(stats?.otherHospCount ?? 0).toLocaleString('th-TH')} • รอวันโอน{' '}
+              {(stats?.missingPayDateCount ?? 0).toLocaleString('th-TH')} • Deny{' '}
+              {(stats?.denyCodeCount ?? 0).toLocaleString('th-TH')}
+            </span>
           </div>
         </div>
       </div>
+
+      {/* FoxPro Management & Maintenance Bar */}
+      <div className="seamless-management-bar">
+        <div className="seamless-management-label">
+          <Settings2 size={16} style={{ color: '#059669' }} />
+          <span>คำสั่งจัดการฐานข้อมูล Seamless (FoxPro Parity)</span>
+          {stats?.latestAdmDate && (
+            <span className="seamless-mini-badge neutral">
+              ข้อมูลล่าสุด: {formatThaiDate(stats.latestAdmDate)}
+            </span>
+          )}
+        </div>
+        <div className="seamless-management-actions">
+          <button
+            type="button"
+            onClick={() => {
+              fetchImportedFiles()
+              setIsFilesModalOpen(true)
+            }}
+            className="seamless-btn secondary"
+            title="ดูรายชื่อไฟล์ที่นำเข้าแล้วและลบรายไฟล์ / หลายไฟล์"
+          >
+            <FolderOpen size={15} />
+            <span>จัดการไฟล์ ({(stats?.totalFiles ?? importedFiles.length).toLocaleString('th-TH')})</span>
+          </button>
+
+          {canImport && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsSyncModalOpen(true)}
+                disabled={isManagingDb}
+                className="seamless-btn secondary"
+                title="เทียบเท่า FoxPro AddPay: ดึงวันที่โอนจาก nhso_budget และเติม YYMM / YearBudget"
+              >
+                <CalendarCheck2 size={15} style={{ color: '#059669' }} />
+                <span>ซิงค์วันที่โอน (nhso_budget)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmMode('other_hospitals')}
+                disabled={isManagingDb || (stats?.otherHospCount ?? 0) === 0}
+                className="seamless-btn warn-outline"
+                title="เทียบเท่า FoxPro cmdDel.RightClick: ลบแถวที่ HCode <> 11152"
+              >
+                <Building2 size={15} />
+                <span>ลบต่างหน่วย ({(stats?.otherHospCount ?? 0).toLocaleString('th-TH')})</span>
+              </button>
+            </>
+          )}
+
+          {effectiveCanManage && (
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmMode('all')}
+              disabled={isManagingDb || (stats?.totalRows ?? 0) === 0}
+              className="seamless-btn danger"
+              title="เทียบเท่า FoxPro CalDelete: ล้างข้อมูลทั้งหมดในตาราง (เฉพาะผู้ดูแล)"
+            >
+              <Trash2 size={15} />
+              <span>ล้างข้อมูลทั้งหมด</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {!canImport && (
+        <div className="seamless-feedback-banner error" role="note">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Info size={16} />
+            <span>
+              บัญชี <strong>{username || 'ผู้ใช้งาน'}</strong> มีสิทธิ์ดูข้อมูลเท่านั้น (<code>view_rcm_import</code>) สามารถค้นหาและส่งออกตารางฐานข้อมูลด้านล่างได้
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Upload & Multi-File Queue Card */}
       <div className="seamless-card">
@@ -914,7 +1521,7 @@ export default function SeamlessImportClient({
             <span>เลือกไฟล์ Excel ข้อมูล Seamless</span>
           </h2>
           <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-            รองรับ .xlsx, .xls ทั้งชีท INDIVIDUAL, SUMMARY และ DENY CODE
+            รองรับ .xlsx และ .csv ทั้งชีท INDIVIDUAL, SUMMARY และ DENY CODE (หากเป็น .xls กรุณา Save As เป็น .xlsx ก่อน)
           </span>
         </div>
 
@@ -933,7 +1540,7 @@ export default function SeamlessImportClient({
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.csv"
             onChange={handleFileInputChange}
             style={{ display: 'none' }}
           />
@@ -1020,7 +1627,19 @@ export default function SeamlessImportClient({
                         <FileSpreadsheet size={20} />
                       </div>
                       <div className="seamless-file-item-details">
-                        <span className="seamless-file-item-name">{item.name}</span>
+                        <span className="seamless-file-item-name">
+                          {item.name}
+                          <span className="seamless-inline-badges">
+                            {isSeamlessFileName(item.name) ? (
+                              <span className="seamless-mini-badge emerald">ตรงแพทเทิร์น Seamless</span>
+                            ) : (
+                              <span className="seamless-mini-badge amber">ชื่อไฟล์นอกแพทเทิร์น</span>
+                            )}
+                            {importedFileNameSet.has(item.name.toLowerCase()) && (
+                              <span className="seamless-mini-badge rose">เคยนำเข้าแล้ว</span>
+                            )}
+                          </span>
+                        </span>
                         <div className="seamless-file-item-meta">
                           <span>{(item.size / 1024).toFixed(1)} KB</span>
                           {item.result && (
@@ -1031,6 +1650,35 @@ export default function SeamlessImportClient({
                               <span style={{ color: '#059669', fontWeight: 600 }}>
                                 ฿{(item.result.summary ? item.result.summary.totalCompensation : (item.result.previewRows ? item.result.previewRows.reduce((sum, r) => sum + (r.compensated || 0), 0) : 0)).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                               </span>
+                              {!item.result.isDryRun ? (
+                                <>
+                                  <span>•</span>
+                                  <span style={{ color: '#0369a1', fontWeight: 600 }}>
+                                    เพิ่มใหม่ {item.result.insertedCount.toLocaleString('th-TH')}
+                                    {item.result.updatedCount > 0
+                                      ? ` / อัปเดต ${item.result.updatedCount.toLocaleString('th-TH')}`
+                                      : ''}
+                                    {item.result.skippedCount > 0
+                                      ? ` / ข้ามซ้ำ ${item.result.skippedCount.toLocaleString('th-TH')}`
+                                      : ''}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>•</span>
+                                  <span style={{ color: '#b45309', fontWeight: 500 }}>
+                                    โหมดตรวจสอบ (ใหม่ {item.result.newInDbCount.toLocaleString('th-TH')} / ซ้ำ {item.result.existingInDbCount.toLocaleString('th-TH')})
+                                  </span>
+                                </>
+                              )}
+                              {item.result.skippedOtherHospCount > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span style={{ color: '#64748b' }}>
+                                    ข้ามต่างหน่วย {item.result.skippedOtherHospCount.toLocaleString('th-TH')}
+                                  </span>
+                                </>
+                              )}
                             </>
                           )}
                           {item.errorMessage && (
@@ -1058,16 +1706,21 @@ export default function SeamlessImportClient({
                       {isItemError && (
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            const errText = item.errorMessage || 'ข้อผิดพลาดในการประมวลผล'
+                            const errHint = errText.includes('.xls')
+                              ? 'ไฟล์รูปแบบ Excel 97-2003 (.xls) / HTML ไม่สามารถอ่านได้โดยตรง กรุณาเปิดใน Excel แล้ว Save As เป็น .xlsx หรือ .csv'
+                              : errText.includes('API Gateway') || errText.includes('เชื่อมต่อ')
+                              ? 'ตรวจสอบการเชื่อมต่อ API Gateway (192.168.1.208:8443) หรือลองรีเฟรชหน้าเว็บ'
+                              : 'ตรวจสอบว่าชีทของไฟล์ตรงกับรูปแบบ e-Claim (มีส่วนหัว REP แบบ INDIVIDUAL) และโครงสร้างคอลัมน์ครบถ้วน'
                             setErrorModal({
                               isOpen: true,
                               title: 'รายละเอียดข้อผิดพลาดของไฟล์',
                               fileName: item.name,
-                              message: item.errorMessage || 'ข้อผิดพลาดในการประมวลผล',
-                              details:
-                                'ตรวจสอบว่าชีทของไฟล์ตรงกับรูปแบบ e-Claim และโครงสร้างคอลัมน์ไม่ถูกเปลี่ยนชื่อ',
+                              message: errText,
+                              details: errHint,
                             })
-                          }
+                          }}
                           className="seamless-file-status-badge error"
                           style={{ cursor: 'pointer', border: 'none' }}
                           title="คลิกเพื่อดูข้อผิดพลาดอย่างละเอียด"
@@ -1146,6 +1799,48 @@ export default function SeamlessImportClient({
               </span>
             </div>
           </label>
+
+          <label className="seamless-checkbox-label">
+            <input
+              type="checkbox"
+              checked={filterMyHospOnly}
+              onChange={(e) => setFilterMyHospOnly(e.target.checked)}
+              disabled={isProcessingBatch}
+            />
+            <div>
+              <span className="seamless-checkbox-title">นำเข้าเฉพาะหน่วยบริการ รพ.เถิน (11152)</span>
+              <span className="seamless-checkbox-desc">
+                (FoxPro: lHospCode=.T.) กรองเฉพาะ HCode = 11152 (รองรับ SeekHCode จากส่วนหัวชีท) แถวต่างหน่วยบริการจะถูกข้ามอัตโนมัติ
+              </span>
+            </div>
+          </label>
+
+          <div className="seamless-checkbox-label" style={{ cursor: 'default' }}>
+            <div style={{ width: '100%' }}>
+              <span className="seamless-checkbox-title">เมื่อพบข้อมูล Trans ID ซ้ำในฐานข้อมูล</span>
+              <select
+                value={duplicateMode}
+                onChange={(e) =>
+                  setDuplicateMode(e.target.value === 'skip' ? 'skip' : 'update')
+                }
+                disabled={isProcessingBatch}
+                aria-label="การจัดการข้อมูลซ้ำ"
+                style={{
+                  marginTop: '0.35rem',
+                  width: '100%',
+                  padding: '0.4rem 0.5rem',
+                  borderRadius: '0.375rem',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  fontSize: '0.8125rem',
+                  color: '#0f172a',
+                }}
+              >
+                <option value="update">อัปเดตทับรายการเดิม (แนะนำ — ป้องกันแถวซ้ำ)</option>
+                <option value="skip">ข้ามรายการที่มีอยู่แล้ว (เพิ่มเฉพาะรายการใหม่)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Process Button & Action Bar */}
@@ -1159,29 +1854,41 @@ export default function SeamlessImportClient({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleProcessBatch}
-            disabled={fileQueue.length === 0 || isProcessingBatch}
-            className={`seamless-cta-btn ${isDryRun ? 'is-dryrun' : 'is-live'}`}
-          >
-            {isProcessingBatch ? (
-              <>
-                <RefreshCw size={15} className="seamless-spin" />
-                <span>
-                  กำลังประมวลผล {currentFileIndex}/{fileQueue.length}
-                </span>
-              </>
-            ) : (
-              <>
-                {isDryRun ? <ShieldCheck size={15} /> : <Upload size={15} />}
-                <span>
-                  {isDryRun ? 'เริ่มตรวจสอบ' : 'เริ่มนำเข้าข้อมูล'}
-                  {fileQueue.length > 0 ? ` • ${fileQueue.length} ไฟล์` : ''}
-                </span>
-              </>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {isProcessingBatch && (
+              <button
+                type="button"
+                onClick={handleCancelBatch}
+                className="seamless-btn danger"
+              >
+                <StopCircle size={15} />
+                <span>ยกเลิกคิว</span>
+              </button>
             )}
-          </button>
+            <button
+              type="button"
+              onClick={handleProcessBatch}
+              disabled={!canImport || fileQueue.length === 0 || isProcessingBatch}
+              className={`seamless-cta-btn ${isDryRun ? 'is-dryrun' : 'is-live'}`}
+            >
+              {isProcessingBatch ? (
+                <>
+                  <RefreshCw size={15} className="seamless-spin" />
+                  <span>
+                    กำลังประมวลผล {currentFileIndex}/{fileQueue.length}
+                  </span>
+                </>
+              ) : (
+                <>
+                  {isDryRun ? <ShieldCheck size={15} /> : <Upload size={15} />}
+                  <span>
+                    {isDryRun ? 'เริ่มตรวจสอบ' : 'เริ่มนำเข้าข้อมูล'}
+                    {fileQueue.length > 0 ? ` • ${fileQueue.length} ไฟล์` : ''}
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Multi-Stage Animated Progress Bar */}
@@ -1291,15 +1998,23 @@ export default function SeamlessImportClient({
               <span className="seamless-sum-sub">รวมทุกชีทที่ประมวลผล</span>
             </div>
             <div className="seamless-sum-card">
-              <span className="seamless-sum-label">รายการที่ถูกต้อง</span>
+              <span className="seamless-sum-label">
+                {combinedMetrics.hasLiveSaved ? 'บันทึกลงฐานข้อมูลแล้ว' : 'รายการที่ถูกต้อง (โหมดตรวจสอบ)'}
+              </span>
               {isProcessingBatch ? (
                 <div className="rcm-skeleton-bar" style={{ width: '90px', height: '24px', margin: '4px 0' }} />
               ) : (
                 <span className="seamless-sum-val green tabular-nums">
-                  {combinedMetrics.validRows.toLocaleString('th-TH')}
+                  {combinedMetrics.hasLiveSaved
+                    ? (combinedMetrics.insertedCount + combinedMetrics.updatedCount).toLocaleString('th-TH')
+                    : combinedMetrics.validRows.toLocaleString('th-TH')}
                 </span>
               )}
-              <span className="seamless-sum-sub">พร้อมใช้งาน / บันทึก</span>
+              <span className="seamless-sum-sub">
+                {combinedMetrics.hasLiveSaved
+                  ? `เพิ่มใหม่ ${combinedMetrics.insertedCount.toLocaleString('th-TH')} • อัปเดต ${combinedMetrics.updatedCount.toLocaleString('th-TH')}${combinedMetrics.skippedCount > 0 ? ` • ข้ามซ้ำ ${combinedMetrics.skippedCount.toLocaleString('th-TH')}` : ''}${combinedMetrics.skippedOtherHospCount > 0 ? ` • ข้ามต่างหน่วย ${combinedMetrics.skippedOtherHospCount.toLocaleString('th-TH')}` : ''}`
+                  : `รายการใหม่ ${combinedMetrics.newInDbCount.toLocaleString('th-TH')} • ซ้ำในระบบ ${combinedMetrics.existingInDbCount.toLocaleString('th-TH')}${combinedMetrics.skippedOtherHospCount > 0 ? ` • ข้ามต่างหน่วย ${combinedMetrics.skippedOtherHospCount.toLocaleString('th-TH')}` : ''}`}
+              </span>
             </div>
             <div className="seamless-sum-card">
               <span className="seamless-sum-label">ยอดเงินชดเชยรวม</span>
@@ -1335,6 +2050,42 @@ export default function SeamlessImportClient({
               </div>
             )}
           </div>
+
+          {/* Per-Fund Breakdown Summary (accurate 4-char codes + sums) */}
+          {displayedFundBreakdown.length > 0 && (
+            <div className="seamless-fund-breakdown-wrap">
+              <table className="seamless-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '90px' }}>รหัสกองทุน</th>
+                    <th>ชื่อกองทุน Seamless</th>
+                    <th style={{ textAlign: 'right' }}>จำนวนรายการ</th>
+                    <th style={{ textAlign: 'right' }}>เรียกเก็บรวม (฿)</th>
+                    <th style={{ textAlign: 'right' }}>ชดเชยรวม (฿)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedFundBreakdown.map((fb) => (
+                    <tr key={`${fb.fundCode}-${fb.fundName}`}>
+                      <td className="tabular-nums">
+                        <span className="seamless-mini-badge emerald">{fb.fundCode}</span>
+                      </td>
+                      <td style={{ fontWeight: 500 }}>{fb.fundName}</td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {fb.count.toLocaleString('th-TH')}
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right' }}>
+                        {fb.totalCollected.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="tabular-nums" style={{ textAlign: 'right', fontWeight: 600, color: '#059669' }}>
+                        {fb.totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Sub Tabs Navigation */}
           <div className="seamless-tabs-bar">
@@ -1596,6 +2347,100 @@ export default function SeamlessImportClient({
       )}
 
       {/* Prominent Error Modal Dialog (Following ui-style-brief) */}
+      {/* Live Database Explorer & DENY CODE Dictionary */}
+      <SeamlessLedgerSection
+        ledger={ledger}
+        isLoadingLedger={isLoadingLedger}
+        ledgerError={ledgerError}
+        denyCodes={denyCodes}
+        isLoadingDenyCodes={isLoadingDenyCodes}
+        search={ledgerSearch}
+        onSearchChange={setLedgerSearch}
+        hospFilter={hospFilter}
+        onHospFilterChange={(val) => {
+          setHospFilter(val)
+          setLedgerPage(1)
+        }}
+        payStatus={payStatus}
+        onPayStatusChange={(val) => {
+          setPayStatus(val)
+          setLedgerPage(1)
+        }}
+        fundFilter={fundFilter}
+        onFundFilterChange={(val) => {
+          setFundFilter(val)
+          setLedgerPage(1)
+        }}
+        fileNameFilter={fileNameFilter}
+        onClearFileFilter={() => {
+          setFileNameFilter('')
+          setLedgerPage(1)
+        }}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(field) => {
+          if (sortBy === field) {
+            setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+          } else {
+            setSortBy(field)
+            setSortOrder('desc')
+          }
+          setLedgerPage(1)
+        }}
+        page={ledgerPage}
+        onPageChange={setLedgerPage}
+        denySearch={denySearch}
+        onDenySearchChange={setDenySearch}
+        onRefreshLedger={() => fetchLedger(true)}
+        onExportAllLedger={handleExportAllLedger}
+        isExportingLedger={isExportingLedger}
+        canImport={canImport}
+        onDeleteSingleFile={(fname) => handleDeleteRequest({ mode: 'by_file', fileName: fname })}
+      />
+
+      {/* FoxPro Management Modals */}
+      <ImportedFilesModal
+        isOpen={isFilesModalOpen}
+        files={importedFiles}
+        isLoading={isLoadingFiles}
+        isDeleting={isManagingDb}
+        canImport={canImport}
+        onClose={() => setIsFilesModalOpen(false)}
+        onFilterByFile={(fname) => {
+          setFileNameFilter(fname)
+          setLedgerPage(1)
+        }}
+        onDeleteSingleFile={async (fname) => {
+          await handleDeleteRequest({ mode: 'by_file', fileName: fname })
+        }}
+        onDeleteMultipleFiles={async (fnames) => {
+          await handleDeleteRequest({ mode: 'by_files', fileNames: fnames })
+        }}
+      />
+
+      <DeleteConfirmModal
+        mode={deleteConfirmMode}
+        otherHospCount={stats?.otherHospCount ?? 0}
+        totalRows={stats?.totalRows ?? 0}
+        myHospCode={stats?.myHospCode || ledger?.myHospCode || '11152'}
+        isSubmitting={isManagingDb}
+        onClose={() => setDeleteConfirmMode(null)}
+        onConfirm={async () => {
+          if (deleteConfirmMode) {
+            await handleDeleteRequest({ mode: deleteConfirmMode })
+          }
+        }}
+      />
+
+      <SyncPaymentModal
+        isOpen={isSyncModalOpen}
+        missingPayDateCount={stats?.missingPayDateCount ?? 0}
+        isSubmitting={isManagingDb}
+        onClose={() => setIsSyncModalOpen(false)}
+        onConfirm={handleSyncPayment}
+      />
+
+      {/* Detailed Error Modal */}
       {errorModal?.isOpen && (
         <div
           className="seamless-modal-backdrop"
@@ -1652,7 +2497,7 @@ export default function SeamlessImportClient({
               <div className="seamless-modal-guidance">
                 <Info size={18} style={{ color: '#16a34a', flexShrink: 0, marginTop: '2px' }} />
                 <div>
-                  <strong>แนวทางแก้ไข:</strong> ตรวจสอบว่าไฟล์เปิดด้วยโปรแกรมอื่นค้างอยู่หรือไม่, ไฟล์เป็นนามสกุล .xlsx หรือ .xls, มีแผ่นงานชื่อ <code>INDIVIDUAL</code> และมีคอลัมน์เลขประจำตัวประชาชนครบถ้วน
+                  <strong>แนวทางแก้ไข:</strong> ตรวจสอบว่าไฟล์เป็นนามสกุล <code>.xlsx</code> หรือ <code>.csv</code> (หากเป็น <code>.xls</code> เก่า ให้เปิดใน Excel แล้ว Save As เป็น <code>.xlsx</code>), มีชีทหรือส่วนหัว <code>REP แบบ INDIVIDUAL</code> และไม่ได้เปิดไฟล์ค้างไว้ในโปรแกรมอื่น
                 </div>
               </div>
             </div>

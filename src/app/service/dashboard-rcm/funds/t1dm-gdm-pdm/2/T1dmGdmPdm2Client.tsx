@@ -602,7 +602,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                   setCurrentPage(1)
                 }}
               >
-                {[2569, 2570].map((y) => (
+                {yearOptions.map((y) => (
                   <option key={y} value={y}>
                     ปีงบ {y}
                   </option>

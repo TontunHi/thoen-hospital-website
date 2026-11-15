@@ -45,6 +45,26 @@ describe('TaskPermissionService', () => {
       expect(taskIds).toContain('ITA')
       expect(taskIds).toContain('RDU')
       expect(taskIds).toContain('NEWS')
+      expect(taskIds).toContain('DM_REMISSION_REGISTRY')
+      expect(taskIds).toContain('FCT_HOME_VISIT_REGISTRY')
+    })
+
+    it('defines single manage_dm_remission role for DM_REMISSION_REGISTRY task', () => {
+      const dmTask = TASK_DEFINITIONS.find((t) => t.id === 'DM_REMISSION_REGISTRY')
+      expect(dmTask).toBeDefined()
+      expect(dmTask?.roles).toHaveLength(1)
+      expect(dmTask?.roles[0]?.roleType).toBe('manage')
+      expect(dmTask?.roles[0]?.label).toBe('ผู้ดูแลระบบทะเบียน DM Remission')
+      expect(dmTask?.roles[0]?.permissionKey).toBe('manage_dm_remission')
+    })
+
+    it('defines single manage_fct_home_visit role for FCT_HOME_VISIT_REGISTRY task', () => {
+      const fctTask = TASK_DEFINITIONS.find((t) => t.id === 'FCT_HOME_VISIT_REGISTRY')
+      expect(fctTask).toBeDefined()
+      expect(fctTask?.roles).toHaveLength(1)
+      expect(fctTask?.roles[0]?.roleType).toBe('manage')
+      expect(fctTask?.roles[0]?.label).toBe('ผู้ดูแลระบบเยี่ยมบ้านทีม FCT')
+      expect(fctTask?.roles[0]?.permissionKey).toBe('manage_fct_home_visit')
     })
 
     it('defines 4 canonical roles for MEDIA_REQUEST task', () => {

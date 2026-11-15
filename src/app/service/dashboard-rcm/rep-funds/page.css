@@ -461,6 +461,7 @@
 
 .view-tabs {
   display: inline-flex;
+  flex-wrap: wrap;
   background-color: var(--rf-bg-raised);
   padding: 4px;
   border-radius: 8px;

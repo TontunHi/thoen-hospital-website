@@ -554,6 +554,62 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     ],
   },
   {
+    id: 'DM_REMISSION_REGISTRY',
+    name: 'งานทะเบียน DM Remission',
+    shortName: 'ทะเบียน DM Remission',
+    category: 'workflow',
+    categoryLabel: 'งานบริการ & กล่องงาน',
+    description:
+      'ระบบบันทึกและติดตามทะเบียนผู้ป่วยเบาหวานเข้าสู่ระยะสงบ (DM Remission) ผู้ที่ล็อกอินทุกคนสามารถเปิดดูและ Export Excel ได้ ส่วนสิทธิ์นี้ใช้สำหรับเพิ่ม แก้ไข ลบข้อมูล',
+    iconName: 'HeartPulse',
+    badgeColor: '#0d7446',
+    roles: [
+      {
+        roleType: 'manage',
+        label: 'ผู้ดูแลระบบทะเบียน DM Remission',
+        shortLabel: 'ผู้ดูแลทะเบียน DM Remission',
+        description:
+          'สามารถเพิ่มผู้ป่วยใหม่ ค้นหา HN จาก HOSxP แก้ไขข้อมูลในตารางแบบ Sheet ลบรายการ และคัดลอกผู้ป่วยข้ามปีงบประมาณได้',
+        permissionKey: 'manage_dm_remission',
+        allowedActions: [
+          'เพิ่มผู้ป่วยใหม่เข้าทะเบียน DM Remission',
+          'ค้นหาข้อมูลพื้นฐานผู้ป่วยจาก HN (HOSxP)',
+          'แก้ไขข้อมูลทุกช่องในตารางแบบ Sheet',
+          'ลบรายการผู้ป่วยออกจากทะเบียน',
+          'คัดลอกผู้ป่วยค้างติดตามข้ามปีงบประมาณ',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'FCT_HOME_VISIT_REGISTRY',
+    name: 'งานทะเบียนเยี่ยมบ้านทีม FCT',
+    shortName: 'เยี่ยมบ้าน FCT',
+    category: 'workflow',
+    categoryLabel: 'งานบริการ & กล่องงาน',
+    description:
+      'ระบบบันทึกและติดตามการเยี่ยมบ้านผู้ป่วยทีมสหวิชาชีพ (FCT) ผู้ที่ล็อกอินทุกคนสามารถเปิดดูและ Export Excel ได้ ส่วนสิทธิ์นี้ใช้สำหรับเพิ่ม แก้ไข นำเข้า และลบข้อมูล',
+    iconName: 'Home',
+    badgeColor: '#0f766e',
+    roles: [
+      {
+        roleType: 'manage',
+        label: 'ผู้ดูแลระบบเยี่ยมบ้านทีม FCT',
+        shortLabel: 'ผู้ดูแลเยี่ยมบ้าน FCT',
+        description:
+          'สามารถบันทึกการเยี่ยมบ้าน ค้นหา HN จาก HOSxP แก้ไขข้อมูล นำเข้าไฟล์ Excel และลบรายการเยี่ยมบ้านได้',
+        permissionKey: 'manage_fct_home_visit',
+        allowedActions: [
+          'บันทึกข้อมูลการเยี่ยมบ้านทีม FCT รายครั้ง',
+          'ค้นหาข้อมูลพื้นฐานผู้ป่วยจาก HN (HOSxP)',
+          'แก้ไขข้อมูลสหวิชาชีพในตารางเยี่ยมบ้าน',
+          'นำเข้าข้อมูลการเยี่ยมบ้านจากไฟล์ Excel',
+          'ลบรายการเยี่ยมบ้านออกจากระบบ',
+        ],
+      },
+    ],
+  },
+  {
     id: 'RCM_SEAMLESS_IMPORT',
     name: 'งานนำเข้าข้อมูล (RCM Import)',
     shortName: 'นำเข้าข้อมูล',
