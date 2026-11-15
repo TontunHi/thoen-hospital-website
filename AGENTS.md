@@ -75,9 +75,7 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 | Auth, PHI, HOSxP/ER/lab data, signatures, audit logging, payments/salary, task transitions | Lint + type-check + full test suite + manual trace of the auth/RBAC path + confirm audit log entry is written. State any assumption about clinical/compliance behavior explicitly and ask before proceeding — don't guess. |
 
 ### 6. Git & Review
-- Branch naming: `feature/<name>`, `fix/<name>`, `hotfix/<name>`.
-- Any change that touches auth, PHI-adjacent code, or the HOSxP/ER/lab/salary data layers requires human review before merging to the production branch — an agent should open a PR for these, not push directly, regardless of autonomy mode.
-- Trivial/non-clinical changes may follow your team's normal direct-commit workflow if that's already the convention.
+- Work directly on `main` (commit, merge, and push to `origin/main` once verification gates pass) unless the user asks for a separate branch or PR.
 
 ### 7. Locale & Time
 - Server and stored timestamps: UTC. Display timezone: Asia/Bangkok.

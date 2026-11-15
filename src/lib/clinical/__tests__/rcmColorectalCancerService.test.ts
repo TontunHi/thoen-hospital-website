@@ -393,7 +393,8 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
       } as any)
 
       // Query spy that should not be called for main data if gateway has dedicated response
-      const querySpy = vi.spyOn(apiGateway.clinical, 'query')
+      // (Seamless Rep lookup via FROM rcmdb.seamless still enriches VN rows afterwards)
+      const querySpy = vi.spyOn(apiGateway.clinical, 'query').mockResolvedValue([])
 
       const res = await RcmColorectalCancerService.getColorectalCancerReport(
         { refresh: true },
@@ -404,8 +405,11 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
       const completeItem = res.items.find((it) => it.hn === '0001234')
       expect(completeItem?.code).toBe('1B0060 FIT test ผลปกติ')
       expect(completeItem?.dataQualityStatus).toBe('COMPLETE')
-      // Ensure raw SQL query was not executed because dedicated gateway data was accepted
-      expect(querySpy).not.toHaveBeenCalled()
+      // Ensure main HOSxP raw SQL query was not executed because dedicated gateway data was accepted
+      const nonSeamlessCalls = querySpy.mock.calls.filter(
+        ([sql]) => !String(sql).includes('FROM rcmdb.seamless')
+      )
+      expect(nonSeamlessCalls).toHaveLength(0)
     })
   })
 })
