@@ -643,7 +643,7 @@ export default function FluorideVarnish201Client({
               value={selectedFiscalYear}
               onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
             >
-              {[2569, 2570].map((fy) => (
+              {yearOptions.map((fy) => (
                 <option key={fy} value={fy}>
                   ปีงบ {fy}
                 </option>

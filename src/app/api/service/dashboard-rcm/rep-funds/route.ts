@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { RcmRepFundsService } from '@/lib/clinical/rcmRepFundsService'
+import { RcmRepFundsService, normalizeRepSource } from '@/lib/clinical/rcmRepFundsService'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -22,6 +22,8 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
+    const sourceParam = searchParams.get('source')
+    const source = sourceParam ? normalizeRepSource(sourceParam) : undefined
     const fiscalYear = searchParams.get('fiscalYear') || undefined
     const ds1 = searchParams.get('ds1') || undefined
     const ds2 = searchParams.get('ds2') || undefined
@@ -36,11 +38,12 @@ export async function GET(request: Request) {
     logThrottledAudit(
       'READ',
       'rep_funds',
-      `Viewed REP funds summary (${timeFrameLabel}, dept: ${department}, status: ${status || 'all'})`,
+      `Viewed REP funds summary (source: ${source || 'repdata'}, ${timeFrameLabel}, dept: ${department}, status: ${status || 'all'})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'REP funds audit log failed'))
 
     const data = await RcmRepFundsService.getRepFundsSummary({
+      ...(source ? { source } : {}),
       fiscalYear,
       ds1,
       ds2,

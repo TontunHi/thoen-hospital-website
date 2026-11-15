@@ -1,8 +1,59 @@
 import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData } from '@/lib/cache'
 
+export type RepDataSource = 'repdata' | 'repeclaim' | 'seamless'
+
+export const REP_SOURCE_TABLES: Record<RepDataSource, string> = {
+  repdata: 'rcmdb.repdata',
+  repeclaim: 'rcmdb.repeclaim',
+  seamless: 'rcmdb.seamless',
+}
+
+export const REP_DATA_SOURCES: Array<{
+  id: RepDataSource
+  label: string
+  tableName: string
+  shortLabel: string
+  description: string
+}> = [
+  {
+    id: 'repdata',
+    label: 'REP หลัก (repdata)',
+    tableName: 'rcmdb.repdata',
+    shortLabel: 'repdata',
+    description: 'ข้อมูล REP/STM หลักจาก สปสช. และกองทุนหลัก',
+  },
+  {
+    id: 'repeclaim',
+    label: 'REP e-Claim (repeclaim)',
+    tableName: 'rcmdb.repeclaim',
+    shortLabel: 'repeclaim',
+    description: 'ข้อมูลตอบรับผลเคลมจากระบบ e-Claim / Statement',
+  },
+  {
+    id: 'seamless',
+    label: 'Seamless / DMIS (seamless)',
+    tableName: 'rcmdb.seamless',
+    shortLabel: 'seamless',
+    description: 'ข้อมูลการชดเชยระบบ Seamless / กองทุนเฉพาะ (DDSA, DCCS, DANC, DTTM ฯลฯ)',
+  },
+]
+
+export function normalizeRepSource(source?: string | null): RepDataSource {
+  const s = String(source || '').trim().toLowerCase()
+  if (s === 'repeclaim' || s === 'seamless') return s
+  return 'repdata'
+}
+
+export function getDynamicFallbackYears(): string[] {
+  const now = new Date()
+  const fy = now.getFullYear() + 543 + (now.getMonth() + 1 >= 10 ? 1 : 0)
+  return [String(fy), String(fy - 1), String(fy - 2), String(fy - 3)]
+}
+
 export interface PatientClaimRecord {
   id: string
+  source?: RepDataSource
   rep: string
   hn: string
   maskedHn: string
@@ -24,6 +75,19 @@ export interface PatientClaimRecord {
   errorCode?: string
   appeal?: 'Y' | 'N'
   status: 'paid' | 'appeal' | 'denied'
+  vn?: string
+  an?: string
+  eclaimNo?: string
+  period?: string
+  payNo?: string
+  payDate?: string
+  payDateThai?: string
+  noCompensated?: number
+  payMore?: number
+  recall?: number
+  seamlessStatus?: string
+  stmid?: string
+  fileName?: string
 }
 
 export interface FundSummaryGroup {
@@ -70,6 +134,7 @@ export interface RepFundsSummaryMetrics {
 }
 
 export interface RepFundsSummaryResult {
+  source?: RepDataSource
   metrics: RepFundsSummaryMetrics
   fundGroups: FundSummaryGroup[]
   repList: RepStatementSummary[]
@@ -79,6 +144,7 @@ export interface RepFundsSummaryResult {
 }
 
 export interface RepFundsSummaryParams {
+  source?: RepDataSource
   fiscalYear?: string
   ds1?: string
   ds2?: string
@@ -91,6 +157,7 @@ export interface RepFundsSummaryParams {
 }
 
 export interface RepCasesParams {
+  source?: RepDataSource
   rep?: string
   fund?: string
   subFund?: string
@@ -180,8 +247,8 @@ export function formatSubFundLabel(subFund: string | null | undefined): string {
 }
 
 export class RcmRepFundsService {
-  private static mapClaimRecord(r: any): PatientClaimRecord {
-    const income = Number(r.Income ?? r.income ?? 0)
+  private static mapClaimRecord(r: any, source: RepDataSource = 'repdata'): PatientClaimRecord {
+    const income = Number(r.Income ?? r.income ?? r.Collected ?? r.collected ?? 0)
     const compensated = Number(r.Compensated ?? r.compensated ?? 0)
     const diff = Number(r.Diff ?? r.diff ?? (compensated - income))
     const percentPay = income > 0 ? Math.round((compensated / income) * 100) : (compensated > 0 ? 100 : 0)
@@ -200,47 +267,203 @@ export class RcmRepFundsService {
     const serviceDate = formatDateYMD(sDate)
     const serviceDateThai = formatThaiDate(sDate)
 
-    const hn = String(r.HN ?? r.hn ?? '')
-    const rep = String(r.Rep ?? r.rep ?? '')
-    const fund = String(r.Fund ?? r.fund ?? '')
-    const subFund = String(r.SubFund ?? r.subFund ?? '-')
+    const hn = String(r.HN ?? r.hn ?? '').trim()
+    const rep = String(r.Rep ?? r.rep ?? '').trim()
+    const fund = String(r.Fund ?? r.fund ?? '').trim()
+    const subFund = String(r.SubFund ?? r.subFund ?? r.Type ?? r.type ?? '-').trim()
     const dept = (r.Department ?? r.department) === 'IP' ? 'IP' : 'OP'
+    const rawMainInscl = r.MainInscl ?? r.mainInscl
+    const payDateRaw = r.PayDate ?? r.payDate
 
     return {
       id: String(r.ID ?? r.id ?? `${rep}:${hn}`),
+      source,
       rep,
       hn,
       maskedHn: maskHn(hn),
-      ptName: String(r.PtName ?? r.ptName ?? '').trim(),
+      ptName: String(r.PtName ?? r.Ptname ?? r.ptName ?? '').trim(),
       serviceDate,
       serviceDateThai,
       department: dept,
       departmentLabel: dept === 'IP' ? 'ผู้ป่วยใน (IPD)' : 'ผู้ป่วยนอก (OPD)',
-      mainInscl: resolveMainInscl(fund),
+      mainInscl: rawMainInscl ? resolveMainInscl(String(rawMainInscl)) : resolveMainInscl(fund),
       fund,
       fundLabel: formatFundLabel(fund),
-      subFund,
+      subFund: subFund || '-',
       subFundLabel: formatSubFundLabel(subFund),
       projectCode: (r.ProjectCode ?? r.projectCode) ? String(r.ProjectCode ?? r.projectCode) : undefined,
       income,
       compensated,
       diff,
       percentPay,
-      errorCode: (r.ErrorCode ?? r.errorCode) ? String(r.ErrorCode ?? r.errorCode) : undefined,
+      errorCode: (r.ErrorCode ?? r.errorCode ?? r.Note ?? r.note)
+        ? String(r.ErrorCode ?? r.errorCode ?? r.Note ?? r.note).trim() || undefined
+        : undefined,
       appeal: appealVal === 'Y' ? 'Y' : 'N',
       status,
+      vn: r.VN ?? r.vn ? String(r.VN ?? r.vn).trim() : undefined,
+      an: r.AN ?? r.an ? String(r.AN ?? r.an).trim() : undefined,
+      eclaimNo: r.EclaimNo ?? r.eclaimNo ? String(r.EclaimNo ?? r.eclaimNo).trim() : undefined,
+      period: r.Period ?? r.period ? String(r.Period ?? r.period).trim() : undefined,
+      payNo: r.PayNo ?? r.payNo ? String(r.PayNo ?? r.payNo).trim() : undefined,
+      payDate: payDateRaw ? formatDateYMD(payDateRaw) : undefined,
+      payDateThai: payDateRaw ? formatThaiDate(payDateRaw) : undefined,
+      noCompensated: r.NoCompensated !== undefined ? Number(r.NoCompensated || 0) : undefined,
+      payMore: r.PayMore !== undefined ? Number(r.PayMore || 0) : undefined,
+      recall: r.Recall !== undefined ? Number(r.Recall || 0) : undefined,
+      seamlessStatus: r.SeamlessStatus ?? r.seamlessStatus ? String(r.SeamlessStatus ?? r.seamlessStatus).trim() : undefined,
+      stmid: r.STMID ?? r.stmid ? String(r.STMID ?? r.stmid).trim() : undefined,
+      fileName: r.FileName ?? r.fileName ? String(r.FileName ?? r.fileName).trim() : undefined,
     }
   }
 
   /**
-   * Get list of available fiscal years from rcmdb.repdata
+   * Build unified SQL WHERE clause for repdata / repeclaim / seamless
    */
-  static async getAvailableYears(): Promise<string[]> {
-    return getCachedData('rcm-rep-available-years', async () => {
+  private static buildWhereClause(
+    source: RepDataSource,
+    params: {
+      rep?: string
+      fiscalYear?: string
+      ds1?: string
+      ds2?: string
+      department?: 'ALL' | 'OP' | 'IP'
+      fund?: string | null
+      subFund?: string | null
+      status?: string
+      errorCode?: string
+      hn?: string
+      search?: string | null
+    }
+  ): { whereSql: string; queryParams: any[] } {
+    const isSeamless = source === 'seamless'
+    const whereClauses: string[] = []
+    const queryParams: any[] = []
+
+    if (params.rep && params.rep.trim()) {
+      whereClauses.push('Rep = ?')
+      queryParams.push(params.rep.trim())
+    }
+
+    if (params.ds1 && params.ds2) {
+      if (isSeamless) {
+        whereClauses.push('AdmDate BETWEEN ? AND ?')
+        queryParams.push(params.ds1, params.ds2)
+      } else {
+        whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
+        queryParams.push(`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`)
+      }
+    } else if (params.fiscalYear) {
+      whereClauses.push('YearBudget = ?')
+      queryParams.push(params.fiscalYear)
+    }
+
+    if (params.department && params.department !== 'ALL') {
+      if (isSeamless) {
+        if (params.department === 'IP') {
+          whereClauses.push("(Department = 'IP' OR (IFNULL(Department, '') = '' AND IFNULL(AN, '') <> ''))")
+        } else {
+          whereClauses.push("(Department = 'OP' OR (IFNULL(Department, '') = '' AND IFNULL(AN, '') = ''))")
+        }
+      } else {
+        whereClauses.push('Department = ?')
+        queryParams.push(params.department)
+      }
+    }
+
+    if (params.fund && params.fund !== 'ALL') {
+      const f = params.fund
+      if (['UCS', 'OFC', 'SSS', 'LGO', 'STP'].includes(f)) {
+        const col = isSeamless ? 'MainInscl' : 'Fund'
+        if (f === 'OFC') {
+          whereClauses.push(`(${col} LIKE '%CS%' OR ${col} LIKE '%OFC%')`)
+        } else if (f === 'LGO') {
+          whereClauses.push(`(${col} LIKE '%LG%' OR ${col} LIKE '%LGO%')`)
+        } else if (f === 'SSS') {
+          whereClauses.push(`(${col} LIKE '%SSS%' OR ${col} LIKE '%SS%')`)
+        } else if (f === 'STP') {
+          whereClauses.push(`${col} LIKE '%STP%'`)
+        } else if (f === 'UCS') {
+          whereClauses.push(
+            isSeamless
+              ? "(MainInscl IN ('UCS', 'WEL', 'UC') OR MainInscl LIKE '%UC%')"
+              : "(Fund LIKE '%UC%' OR Fund LIKE 'IP0%' OR Fund LIKE 'OP0%' OR Fund LIKE 'HC%' OR Fund LIKE 'DM%' OR Fund LIKE 'AE%')"
+          )
+        }
+      } else if (f === 'UNKNOWN') {
+        whereClauses.push("(Fund IS NULL OR TRIM(Fund) = '')")
+      } else {
+        whereClauses.push('TRIM(Fund) = ?')
+        queryParams.push(f.trim())
+      }
+    }
+
+    if (!isSeamless && params.subFund && params.subFund !== 'ALL') {
+      whereClauses.push('SubFund = ?')
+      queryParams.push(params.subFund)
+    }
+
+    if (params.status && params.status !== 'ALL') {
+      if (params.status === 'paid' || params.status === 'compensated') {
+        whereClauses.push('Compensated > 0')
+      } else if (params.status === 'denied' || params.status === 'zero') {
+        whereClauses.push('(Compensated = 0 OR Compensated IS NULL)')
+      } else if (params.status === 'appeal') {
+        whereClauses.push(
+          isSeamless
+            ? '(Compensated < Collected AND Compensated > 0)'
+            : "(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))"
+        )
+      } else if (params.status === 'has_error') {
+        whereClauses.push(
+          isSeamless
+            ? '(Note IS NOT NULL AND LENGTH(TRIM(Note)) > 0)'
+            : '(ErrorCode IS NOT NULL AND LENGTH(TRIM(ErrorCode)) > 0)'
+        )
+      }
+    }
+
+    if (params.errorCode && params.errorCode !== 'ALL') {
+      const cleanErr = params.errorCode.trim()
+      whereClauses.push(isSeamless ? '(Note = ? OR Note LIKE ?)' : '(ErrorCode = ? OR ErrorCode LIKE ?)')
+      queryParams.push(cleanErr, `%${cleanErr}%`)
+    }
+
+    if (params.hn && params.hn.trim()) {
+      const cleanHn = params.hn.trim()
+      whereClauses.push('(HN = ? OR HN LIKE ?)')
+      queryParams.push(cleanHn, `%${cleanHn}`)
+    }
+
+    if (params.search && params.search.trim()) {
+      const s = `%${params.search.trim()}%`
+      if (isSeamless) {
+        whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR Type LIKE ? OR Ptname LIKE ? OR HN LIKE ? OR Note LIKE ? OR PayNo LIKE ?)')
+        queryParams.push(s, s, s, s, s, s, s)
+      } else {
+        whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
+        queryParams.push(s, s, s, s, s, s)
+      }
+    }
+
+    return {
+      whereSql: whereClauses.length > 0 ? whereClauses.join(' AND ') : '1=1',
+      queryParams,
+    }
+  }
+
+  /**
+   * Get list of available fiscal years for a given REP data source
+   */
+  static async getAvailableYears(sourceInput?: RepDataSource | string): Promise<string[]> {
+    const source = normalizeRepSource(sourceInput)
+    const tableName = REP_SOURCE_TABLES[source]
+
+    return getCachedData(`rcm-rep-available-years-${source}`, async () => {
       // 1. Dual-Path: Named REST API first
       if (typeof (apiGateway.clinical as any).getRepFundsYears === 'function') {
         try {
-          const res = await (apiGateway.clinical as any).getRepFundsYears()
+          const res = await (apiGateway.clinical as any).getRepFundsYears(source)
           if (res?.success && Array.isArray(res?.data) && res.data.length > 0) {
             return res.data
           }
@@ -253,36 +476,40 @@ export class RcmRepFundsService {
       try {
         const rows = await apiGateway.clinical.query<{ YearBudget: string }>(`
           SELECT DISTINCT YearBudget 
-          FROM rcmdb.repdata 
-          WHERE YearBudget IS NOT NULL AND YearBudget != '' 
+          FROM ${tableName} 
+          WHERE YearBudget IS NOT NULL AND TRIM(YearBudget) != '' 
           ORDER BY YearBudget DESC
         `)
         const list = rows.map((r) => String(r.YearBudget).trim()).filter(Boolean)
-        return list.length > 0 ? list : ['2570', '2569', '2568', '2567']
+        return list.length > 0 ? list : getDynamicFallbackYears()
       } catch {
-        return ['2570', '2569', '2568', '2567']
+        return getDynamicFallbackYears()
       }
     }, 60000)
   }
 
   /**
-   * Summarize Rep and Fund compensation data for a given fiscal year
+   * Summarize Rep and Fund compensation data for a given source & timeframe
    */
   static async getRepFundsSummary(params: RepFundsSummaryParams = {}): Promise<RepFundsSummaryResult> {
-    const availableYears = await this.getAvailableYears()
-    const fiscalYear = params.fiscalYear || availableYears[0] || '2570'
+    const source = normalizeRepSource(params.source)
+    const tableName = REP_SOURCE_TABLES[source]
+    const isSeamless = source === 'seamless'
+    const availableYears = await this.getAvailableYears(source)
+    const fiscalYear = params.fiscalYear || availableYears[0] || getDynamicFallbackYears()[0]
     const department = params.department || 'ALL'
     const fund = params.fund && params.fund !== 'ALL' ? params.fund : null
     const subFund = params.subFund && params.subFund !== 'ALL' ? params.subFund : null
     const search = params.search ? params.search.trim() : null
 
-    const cacheKey = `rcm-rep-summary-${fiscalYear}-${department}-${fund || ''}-${subFund || ''}-${search || ''}-${params.ds1 || ''}-${params.ds2 || ''}`
+    const cacheKey = `rcm-rep-summary-${source}-${fiscalYear}-${department}-${fund || ''}-${subFund || ''}-${params.status || ''}-${params.errorCode || ''}-${search || ''}-${params.ds1 || ''}-${params.ds2 || ''}`
 
     return getCachedData(cacheKey, async () => {
       // 1. Dual-Path: Named REST API first
       if (typeof (apiGateway.clinical as any).getRepFundsSummary === 'function') {
         try {
           const res = await (apiGateway.clinical as any).getRepFundsSummary({
+            source,
             fiscalYear,
             department,
             fund: fund || undefined,
@@ -311,66 +538,20 @@ export class RcmRepFundsService {
               errorCount: Number(m.errorCount || 0),
             }
 
-            const fundGroups: FundSummaryGroup[] = (d.fundGroups || []).map((r: any) => {
-              const inc = Number(r.totalIncome || 0)
-              const comp = Number(r.totalCompensated || 0)
-              const reimbRate = inc > 0 ? Math.round((comp / inc) * 1000) / 10 : 0
-              return {
-                fundKey: String(r.fundKey),
-                fundLabel: formatFundLabel(r.fundKey),
-                subFundKey: String(r.subFundKey),
-                subFundLabel: formatSubFundLabel(r.subFundKey),
-                department: r.department === 'IP' ? 'IP' : 'OP',
-                caseCount: Number(r.caseCount || 0),
-                totalIncome: inc,
-                totalCompensated: comp,
-                reimbursementRate: reimbRate,
-                netDiff: Number(r.netDiff || 0),
-                appealCount: Number(r.appealCount || 0),
-                errorCount: Number(r.errorCount || 0),
-              }
-            })
-
-            const repList: RepStatementSummary[] = (d.repList || []).map((r: any) => {
-              const inc = Number(r.totalIncome || 0)
-              const comp = Number(r.totalCompensated || 0)
-              const reimbRate = inc > 0 ? Math.round((comp / inc) * 1000) / 10 : 0
-              return {
-                rep: String(r.rep || ''),
-                yearBudget: String(r.yearBudget || fiscalYear),
-                department: r.department === 'IP' ? 'IP' : 'OP',
-                fund: String(r.fund || '-'),
-                fundLabel: formatFundLabel(r.fund),
-                caseCount: Number(r.caseCount || 0),
-                totalIncome: inc,
-                totalCompensated: comp,
-                reimbursementRate: reimbRate,
-                netDiff: Number(r.netDiff || 0),
-                minDate: r.minDate ? String(r.minDate) : null,
-                maxDate: r.maxDate ? String(r.maxDate) : null,
-                appealCount: Number(r.appealCount || 0),
-                errorCount: Number(r.errorCount || 0),
-              }
-            })
-
             const availableFunds = (d.availableFunds || []).map((r: any) => ({
               key: String(r.fundKey),
               label: `${formatFundLabel(r.fundKey)} (${Number(r.cnt).toLocaleString('th-TH')})`,
               count: Number(r.cnt || 0),
             }))
 
-            const availableErrorCodes = (d.availableErrorCodes || []).map((r: any) => ({
-              code: String(r.code),
-              count: Number(r.cnt || 0),
-            }))
-
             return {
+              source,
               metrics,
-              fundGroups,
-              repList,
+              fundGroups: [],
+              repList: [],
               availableYears,
               availableFunds,
-              availableErrorCodes,
+              availableErrorCodes: [],
             }
           }
         } catch {
@@ -378,271 +559,115 @@ export class RcmRepFundsService {
         }
       }
 
-      // 2. Fallback to SQL queries
-      const whereClauses: string[] = []
-      const queryParams: any[] = []
+      // 2. Fallback to parallel SQL queries
+      const { whereSql, queryParams } = this.buildWhereClause(source, {
+        fiscalYear,
+        ds1: params.ds1,
+        ds2: params.ds2,
+        department,
+        fund,
+        subFund,
+        status: params.status,
+        errorCode: params.errorCode,
+        search,
+      })
 
+      const metricsSql = isSeamless
+        ? `
+          SELECT
+            COUNT(*) as totalCases,
+            COUNT(DISTINCT NULLIF(TRIM(Rep), '')) as totalReps,
+            COALESCE(ROUND(SUM(Collected), 2), 0) as totalIncome,
+            COALESCE(ROUND(SUM(Compensated), 2), 0) as totalCompensated,
+            COALESCE(ROUND(SUM(Compensated - Collected), 2), 0) as totalDiff,
+            SUM(CASE WHEN Compensated < Collected AND Compensated > 0 THEN 1 ELSE 0 END) as pendingAppeals,
+            SUM(CASE WHEN Note IS NOT NULL AND LENGTH(TRIM(Note)) > 0 THEN 1 ELSE 0 END) as errorCount
+          FROM ${tableName}
+          WHERE ${whereSql}
+        `
+        : `
+          SELECT 
+            COUNT(*) as totalCases,
+            COUNT(DISTINCT NULLIF(TRIM(Rep), '')) as totalReps,
+            COALESCE(ROUND(SUM(Income), 2), 0) as totalIncome,
+            COALESCE(ROUND(SUM(Compensated), 2), 0) as totalCompensated,
+            COALESCE(ROUND(SUM(Compensated - Income), 2), 0) as totalDiff,
+            SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as pendingAppeals,
+            SUM(CASE WHEN ErrorCode IS NOT NULL AND LENGTH(TRIM(ErrorCode)) > 0 THEN 1 ELSE 0 END) as errorCount
+          FROM ${tableName}
+          WHERE ${whereSql}
+        `
 
-    if (params.ds1 && params.ds2) {
-      whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
-      queryParams.push(`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`)
-    } else {
-      whereClauses.push('YearBudget = ?')
-      queryParams.push(fiscalYear)
-    }
-
-    if (department !== 'ALL') {
-      whereClauses.push('Department = ?')
-      queryParams.push(department)
-    }
-
-    if (fund) {
-      if (['UCS', 'OFC', 'SSS', 'LGO', 'STP'].includes(fund)) {
-        if (fund === 'OFC') {
-          whereClauses.push("(Fund LIKE '%CS%' OR Fund LIKE '%OFC%')")
-        } else if (fund === 'LGO') {
-          whereClauses.push("(Fund LIKE '%LG%' OR Fund LIKE '%LGO%')")
-        } else if (fund === 'SSS') {
-          whereClauses.push("(Fund LIKE '%SSS%' OR Fund LIKE '%SS%')")
-        } else if (fund === 'STP') {
-          whereClauses.push("Fund LIKE '%STP%'")
-        } else if (fund === 'UCS') {
-          whereClauses.push("(Fund LIKE '%UC%' OR Fund LIKE 'IP0%' OR Fund LIKE 'OP0%' OR Fund LIKE 'HC%' OR Fund LIKE 'DM%' OR Fund LIKE 'AE%')")
-        }
+      let availableFundsSql = `
+        SELECT COALESCE(NULLIF(TRIM(Fund), ''), 'UNKNOWN') as fundKey, COUNT(*) as cnt
+        FROM ${tableName}
+      `
+      let fundsQueryParams: any[] = []
+      if (params.ds1 && params.ds2) {
+        availableFundsSql += isSeamless
+          ? ` WHERE AdmDate BETWEEN ? AND ? GROUP BY COALESCE(NULLIF(TRIM(Fund), ''), 'UNKNOWN') ORDER BY cnt DESC`
+          : ` WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? GROUP BY COALESCE(NULLIF(TRIM(Fund), ''), 'UNKNOWN') ORDER BY cnt DESC`
+        fundsQueryParams = isSeamless
+          ? [params.ds1, params.ds2]
+          : [`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`]
       } else {
-        whereClauses.push('Fund = ?')
-        queryParams.push(fund)
+        availableFundsSql += ` WHERE YearBudget = ? GROUP BY COALESCE(NULLIF(TRIM(Fund), ''), 'UNKNOWN') ORDER BY cnt DESC`
+        fundsQueryParams = [fiscalYear]
       }
-    }
 
-    if (subFund) {
-      whereClauses.push('SubFund = ?')
-      queryParams.push(subFund)
-    }
+      const [metricsRows, fundRows] = await Promise.all([
+        apiGateway.clinical.query<any>(metricsSql, queryParams),
+        apiGateway.clinical.query<any>(availableFundsSql, fundsQueryParams),
+      ])
 
-    if (params.status && params.status !== 'ALL') {
-      if (params.status === 'paid' || params.status === 'compensated') {
-        whereClauses.push('Compensated > 0')
-      } else if (params.status === 'denied' || params.status === 'zero') {
-        whereClauses.push('(Compensated = 0 OR Compensated IS NULL)')
-      } else if (params.status === 'appeal') {
-        whereClauses.push("(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))")
-      } else if (params.status === 'has_error') {
-        whereClauses.push('(ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0)')
+      const m = metricsRows[0] || {}
+      const totalIncome = Number(m.totalIncome || 0)
+      const totalCompensated = Number(m.totalCompensated || 0)
+      const rate = totalIncome > 0 ? ((totalCompensated / totalIncome) * 100).toFixed(1) : '0.0'
+
+      const metrics: RepFundsSummaryMetrics = {
+        totalCases: Number(m.totalCases || 0),
+        totalReps: Number(m.totalReps || 0),
+        totalIncome,
+        totalCompensated,
+        rate,
+        totalDiff: Number(m.totalDiff || 0),
+        pendingAppeals: Number(m.pendingAppeals || 0),
+        errorCount: Number(m.errorCount || 0),
       }
-    }
 
-    if (params.errorCode && params.errorCode !== 'ALL') {
-      whereClauses.push('(ErrorCode = ? OR ErrorCode LIKE ?)')
-      const cleanErr = params.errorCode.trim()
-      queryParams.push(cleanErr, `%${cleanErr}%`)
-    }
-
-    if (search) {
-      whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
-      const s = `%${search}%`
-      queryParams.push(s, s, s, s, s, s)
-    }
-
-    const whereSql = whereClauses.join(' AND ')
-
-    // 1. Overall KPI Metrics
-    const metricsSql = `
-      SELECT 
-        COUNT(*) as totalCases,
-        COUNT(DISTINCT Rep) as totalReps,
-        COALESCE(ROUND(SUM(Income), 2), 0) as totalIncome,
-        COALESCE(ROUND(SUM(Compensated), 2), 0) as totalCompensated,
-        COALESCE(ROUND(SUM(Compensated - Income), 2), 0) as totalDiff,
-        SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as pendingAppeals,
-        SUM(CASE WHEN ErrorCode IS NOT NULL AND ErrorCode != '' THEN 1 ELSE 0 END) as errorCount
-      FROM rcmdb.repdata
-      WHERE ${whereSql}
-    `
-    const metricsRows = await apiGateway.clinical.query<any>(metricsSql, queryParams)
-    const m = metricsRows[0] || {}
-    const totalIncome = Number(m.totalIncome || 0)
-    const totalCompensated = Number(m.totalCompensated || 0)
-    const rate = totalIncome > 0 ? ((totalCompensated / totalIncome) * 100).toFixed(1) : '0.0'
-
-    const metrics: RepFundsSummaryMetrics = {
-      totalCases: Number(m.totalCases || 0),
-      totalReps: Number(m.totalReps || 0),
-      totalIncome,
-      totalCompensated,
-      rate,
-      totalDiff: Number(m.totalDiff || 0),
-      pendingAppeals: Number(m.pendingAppeals || 0),
-      errorCount: Number(m.errorCount || 0),
-    }
-
-    // 2. Fund Groups Breakdown
-    const fundGroupsSql = `
-      SELECT 
-        COALESCE(Fund, 'UNKNOWN') as fundKey,
-        COALESCE(SubFund, '-') as subFundKey,
-        Department as department,
-        COUNT(*) as caseCount,
-        ROUND(SUM(Income), 2) as totalIncome,
-        ROUND(SUM(Compensated), 2) as totalCompensated,
-        ROUND(SUM(Compensated - Income), 2) as netDiff,
-        SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as appealCount,
-        SUM(CASE WHEN ErrorCode IS NOT NULL AND ErrorCode != '' THEN 1 ELSE 0 END) as errorCount
-      FROM rcmdb.repdata
-      WHERE ${whereSql}
-      GROUP BY Fund, SubFund, Department
-      ORDER BY totalCompensated DESC
-    `
-    const fundGroupRows = await apiGateway.clinical.query<any>(fundGroupsSql, queryParams)
-    const fundGroups: FundSummaryGroup[] = fundGroupRows.map((r) => {
-      const inc = Number(r.totalIncome || 0)
-      const comp = Number(r.totalCompensated || 0)
-      const reimbRate = inc > 0 ? Math.round((comp / inc) * 1000) / 10 : 0
-      return {
-        fundKey: String(r.fundKey),
-        fundLabel: formatFundLabel(r.fundKey),
-        subFundKey: String(r.subFundKey),
-        subFundLabel: formatSubFundLabel(r.subFundKey),
-        department: r.department === 'IP' ? 'IP' : 'OP',
-        caseCount: Number(r.caseCount || 0),
-        totalIncome: inc,
-        totalCompensated: comp,
-        reimbursementRate: reimbRate,
-        netDiff: Number(r.netDiff || 0),
-        appealCount: Number(r.appealCount || 0),
-        errorCount: Number(r.errorCount || 0),
-      }
-    })
-
-    // 3. Statement-level Rep List
-    const repListSql = `
-      SELECT 
-        Rep as rep,
-        YearBudget as yearBudget,
-        Department as department,
-        COALESCE(Fund, '-') as fund,
-        COUNT(*) as caseCount,
-        ROUND(SUM(Income), 2) as totalIncome,
-        ROUND(SUM(Compensated), 2) as totalCompensated,
-        ROUND(SUM(Compensated - Income), 2) as netDiff,
-        MIN(AdmDate) as minDate,
-        MAX(DchDate) as maxDate,
-        SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as appealCount,
-        SUM(CASE WHEN ErrorCode IS NOT NULL AND ErrorCode != '' THEN 1 ELSE 0 END) as errorCount
-      FROM rcmdb.repdata
-      WHERE ${whereSql}
-      GROUP BY Rep, YearBudget, Department, Fund
-      ORDER BY totalCompensated DESC
-    `
-    const repListRows = await apiGateway.clinical.query<any>(repListSql, queryParams)
-    const repList: RepStatementSummary[] = repListRows.map((r) => {
-      const inc = Number(r.totalIncome || 0)
-      const comp = Number(r.totalCompensated || 0)
-      const reimbRate = inc > 0 ? Math.round((comp / inc) * 1000) / 10 : 0
-      return {
-        rep: String(r.rep || ''),
-        yearBudget: String(r.yearBudget || fiscalYear),
-        department: r.department === 'IP' ? 'IP' : 'OP',
-        fund: String(r.fund || '-'),
-        fundLabel: formatFundLabel(r.fund),
-        caseCount: Number(r.caseCount || 0),
-        totalIncome: inc,
-        totalCompensated: comp,
-        reimbursementRate: reimbRate,
-        netDiff: Number(r.netDiff || 0),
-        minDate: r.minDate ? String(r.minDate) : null,
-        maxDate: r.maxDate ? String(r.maxDate) : null,
-        appealCount: Number(r.appealCount || 0),
-        errorCount: Number(r.errorCount || 0),
-      }
-    })
-
-    // 4. Distinct Available Funds in selected timeframe
-    let availableFundsSql = `
-      SELECT 
-        COALESCE(Fund, 'UNKNOWN') as fundKey,
-        COUNT(*) as cnt
-      FROM rcmdb.repdata
-    `
-    let fundsQueryParams: any[] = []
-    if (params.ds1 && params.ds2) {
-      availableFundsSql += `
-        WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ?
-        GROUP BY Fund
-        ORDER BY cnt DESC
-      `
-      fundsQueryParams = [`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`]
-    } else {
-      availableFundsSql += `
-        WHERE YearBudget = ?
-        GROUP BY Fund
-        ORDER BY cnt DESC
-      `
-      fundsQueryParams = [fiscalYear]
-    }
-    const fundRows = await apiGateway.clinical.query<any>(availableFundsSql, fundsQueryParams)
-    const availableFunds = fundRows.map((r) => ({
-      key: String(r.fundKey),
-      label: `${formatFundLabel(r.fundKey)} (${Number(r.cnt).toLocaleString('th-TH')})`,
-      count: Number(r.cnt || 0),
-    }))
-
-    // 5. Distinct Available Error Codes in selected timeframe
-    let availableErrorCodesSql = `
-      SELECT 
-        ErrorCode as code,
-        COUNT(*) as cnt
-      FROM rcmdb.repdata
-    `
-    let errQueryParams: any[] = []
-    if (params.ds1 && params.ds2) {
-      availableErrorCodesSql += `
-        WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
-        GROUP BY ErrorCode
-        ORDER BY cnt DESC
-      `
-      errQueryParams = [`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`]
-    } else {
-      availableErrorCodesSql += `
-        WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
-        GROUP BY ErrorCode
-        ORDER BY cnt DESC
-      `
-      errQueryParams = [fiscalYear]
-    }
-    let availableErrorCodes: Array<{ code: string; count: number }> = []
-    try {
-      const errRows = await apiGateway.clinical.query<any>(availableErrorCodesSql, errQueryParams)
-      availableErrorCodes = errRows.map((r) => ({
-        code: String(r.code),
+      const availableFunds = (fundRows || []).map((r) => ({
+        key: String(r.fundKey),
+        label: `${formatFundLabel(r.fundKey)} (${Number(r.cnt).toLocaleString('th-TH')})`,
         count: Number(r.cnt || 0),
       }))
-    } catch {
-      availableErrorCodes = []
-    }
 
       return {
+        source,
         metrics,
-        fundGroups,
-        repList,
+        fundGroups: [],
+        repList: [],
         availableYears,
         availableFunds,
-        availableErrorCodes,
+        availableErrorCodes: [],
       }
     }, 30000)
   }
 
   /**
-   * Get patient individual claim cases under a specific Rep or Fund group
-   * Directly answers: "Rep นี้เป็นของใครเลย ได้เท่าไหร่ด้วย"
+   * Get patient individual claim cases for a given source (repdata / repeclaim / seamless)
    */
   static async getRepCases(params: RepCasesParams): Promise<PatientClaimRecord[]> {
+    const source = normalizeRepSource(params.source)
+    const tableName = REP_SOURCE_TABLES[source]
+    const isSeamless = source === 'seamless'
+
     // 1. Dual-Path: Named REST API first
     if (typeof (apiGateway.clinical as any).getRepFundsCases === 'function') {
       try {
-        const res = await (apiGateway.clinical as any).getRepFundsCases(params)
+        const res = await (apiGateway.clinical as any).getRepFundsCases({ ...params, source })
         if (res?.success && Array.isArray(res?.data)) {
-          return res.data.map((r: any) => this.mapClaimRecord(r))
+          return res.data.map((r: any) => this.mapClaimRecord(r, source))
         }
       } catch {
         // fallback to raw query
@@ -650,100 +675,63 @@ export class RcmRepFundsService {
     }
 
     // 2. Fallback to SQL query
-    const whereClauses: string[] = []
-    const queryParams: any[] = []
-
-    if (params.rep) {
-      whereClauses.push('Rep = ?')
-      queryParams.push(params.rep.trim())
+    const effectiveParams = { ...params }
+    if (
+      !params.rep &&
+      !(params.ds1 && params.ds2) &&
+      !params.fiscalYear &&
+      !params.hn &&
+      !(params.search && params.search.trim())
+    ) {
+      effectiveParams.fiscalYear = getDynamicFallbackYears()[0]
     }
 
-    if (params.ds1 && params.ds2) {
-      whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
-      queryParams.push(`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`)
-    } else if (params.fiscalYear) {
-      whereClauses.push('YearBudget = ?')
-      queryParams.push(params.fiscalYear)
-    }
-
-    if (params.department && params.department !== 'ALL') {
-      whereClauses.push('Department = ?')
-      queryParams.push(params.department)
-    }
-
-    if (params.fund && params.fund !== 'ALL') {
-      if (['UCS', 'OFC', 'SSS', 'LGO', 'STP'].includes(params.fund)) {
-        if (params.fund === 'OFC') {
-          whereClauses.push("(Fund LIKE '%CS%' OR Fund LIKE '%OFC%')")
-        } else if (params.fund === 'LGO') {
-          whereClauses.push("(Fund LIKE '%LG%' OR Fund LIKE '%LGO%')")
-        } else if (params.fund === 'SSS') {
-          whereClauses.push("(Fund LIKE '%SSS%' OR Fund LIKE '%SS%')")
-        } else if (params.fund === 'STP') {
-          whereClauses.push("Fund LIKE '%STP%'")
-        } else if (params.fund === 'UCS') {
-          whereClauses.push("(Fund LIKE '%UC%' OR Fund LIKE 'IP0%' OR Fund LIKE 'OP0%' OR Fund LIKE 'HC%' OR Fund LIKE 'DM%' OR Fund LIKE 'AE%')")
-        }
-      } else {
-        whereClauses.push('Fund = ?')
-        queryParams.push(params.fund)
-      }
-    }
-
-    if (params.subFund && params.subFund !== 'ALL') {
-      whereClauses.push('SubFund = ?')
-      queryParams.push(params.subFund)
-    }
-
-    if (params.status && params.status !== 'ALL') {
-      if (params.status === 'paid' || params.status === 'compensated') {
-        whereClauses.push('Compensated > 0')
-      } else if (params.status === 'denied' || params.status === 'zero') {
-        whereClauses.push('(Compensated = 0 OR Compensated IS NULL)')
-      } else if (params.status === 'appeal') {
-        whereClauses.push("(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))")
-      } else if (params.status === 'has_error') {
-        whereClauses.push('(ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0)')
-      }
-    }
-
-    if (params.errorCode && params.errorCode !== 'ALL') {
-      whereClauses.push('(ErrorCode = ? OR ErrorCode LIKE ?)')
-      const cleanErr = params.errorCode.trim()
-      queryParams.push(cleanErr, `%${cleanErr}%`)
-    }
-
-    if (params.hn) {
-      whereClauses.push('(HN = ? OR HN LIKE ?)')
-      const cleanHn = params.hn.trim()
-      queryParams.push(cleanHn, `%${cleanHn}`)
-    }
-
-    if (params.search && params.search.trim()) {
-      whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
-      const s = `%${params.search.trim()}%`
-      queryParams.push(s, s, s, s, s, s)
-    }
-
-    if (whereClauses.length === 0) {
-      // Safety guard against unrestricted full table scan
-      whereClauses.push('YearBudget = ?')
-      queryParams.push('2570')
-    }
+    const { whereSql, queryParams } = this.buildWhereClause(source, effectiveParams)
 
     const hasLimit = params.limit !== undefined ? Number(params.limit) > 0 : true
     const limit = hasLimit ? Math.max(Number(params.limit || 200), 1) : null
     const offset = Math.max(Number(params.offset || 0), 0)
 
-    const sql = `
-      SELECT 
-        ID, Rep, HN, PtName, AdmDate, DchDate, Department, 
-        Income, Compensated, Diff, Fund, SubFund, ErrorCode, Appeal, YearBudget, ProjectCode
-      FROM rcmdb.repdata
-      WHERE ${whereClauses.join(' AND ')}
-      ORDER BY AdmDate DESC, ID DESC
-      ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
-    `
+    const sql = isSeamless
+      ? `
+        SELECT
+          ID, Rep, HN, VN, AN, Ptname AS PtName, AdmDate,
+          CASE
+            WHEN Department = 'IP' OR (IFNULL(Department, '') = '' AND IFNULL(AN, '') <> '') THEN 'IP'
+            ELSE 'OP'
+          END AS Department,
+          COALESCE(Collected, 0) AS Income,
+          COALESCE(Compensated, 0) AS Compensated,
+          (COALESCE(Compensated, 0) - COALESCE(Collected, 0)) AS Diff,
+          Fund,
+          Type AS SubFund,
+          Note AS ErrorCode,
+          'N' AS Appeal,
+          YearBudget,
+          MainInscl,
+          Period,
+          PayNo,
+          PayDate,
+          NoCompensated,
+          PayMore,
+          Recall,
+          Status AS SeamlessStatus,
+          STMID,
+          FileName
+        FROM ${tableName}
+        WHERE ${whereSql}
+        ORDER BY AdmDate DESC, ID DESC
+        ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
+      `
+      : `
+        SELECT 
+          ID, Rep, HN, VN, AN, EclaimNo, PtName, AdmDate, DchDate, Department, 
+          Income, Compensated, Diff, TRIM(Fund) AS Fund, SubFund, ErrorCode, Appeal, YearBudget, ProjectCode, MainInscl, FileName
+        FROM ${tableName}
+        WHERE ${whereSql}
+        ORDER BY AdmDate DESC, ID DESC
+        ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
+      `
 
     if (limit !== null) {
       queryParams.push(limit, offset)
@@ -751,7 +739,7 @@ export class RcmRepFundsService {
 
     const rows = await apiGateway.clinical.query<any>(sql, queryParams)
 
-    return rows.map((r) => this.mapClaimRecord(r))
+    return rows.map((r) => this.mapClaimRecord(r, source))
   }
 
   /**

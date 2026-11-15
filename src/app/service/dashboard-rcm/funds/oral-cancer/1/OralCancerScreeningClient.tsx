@@ -685,7 +685,7 @@ export default function OralCancerScreeningClient({
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
               >
-                {[2569, 2570].map((y) => (
+                {yearOptions.map((y) => (
                   <option key={y} value={y}>
                     ปีงบ {y}
                   </option>

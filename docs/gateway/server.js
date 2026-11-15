@@ -21,7 +21,8 @@ import rawSqlRoutes from './routes/rawSql.js'
 
 const fastify = Fastify({
   logger: { level: 'info' },
-  maxParamLength: 5000
+  maxParamLength: 5000,
+  bodyLimit: 5 * 1024 * 1024
 })
 
 await fastify.register(cors, { origin: true })

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { RcmRepFundsService } from '@/lib/clinical/rcmRepFundsService'
+import { RcmRepFundsService, normalizeRepSource } from '@/lib/clinical/rcmRepFundsService'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -22,6 +22,8 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
+    const sourceParam = searchParams.get('source')
+    const source = sourceParam ? normalizeRepSource(sourceParam) : undefined
     const rep = searchParams.get('rep') || undefined
     const fund = searchParams.get('fund') || undefined
     const subFund = searchParams.get('subFund') || undefined
@@ -40,11 +42,12 @@ export async function GET(request: Request) {
     logThrottledAudit(
       'READ',
       'rep_cases',
-      `Viewed patient cases for REP/Fund (rep: ${rep || 'all'}, fund: ${fund || 'all'}, ${timeFrameLabel}, dept: ${department}, status: ${status || 'all'})`,
+      `Viewed patient cases for REP/Fund (source: ${source || 'repdata'}, rep: ${rep || 'all'}, fund: ${fund || 'all'}, ${timeFrameLabel}, dept: ${department}, status: ${status || 'all'})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'REP cases audit log failed'))
 
     const cases = await RcmRepFundsService.getRepCases({
+      ...(source ? { source } : {}),
       rep,
       fund,
       subFund,

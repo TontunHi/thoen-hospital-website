@@ -569,7 +569,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                   setCurrentPage(1)
                 }}
               >
-                {[2569, 2570].map((y) => (
+                {yearOptions.map((y) => (
                   <option key={y} value={y}>
                     ปีงบ {y}
                   </option>

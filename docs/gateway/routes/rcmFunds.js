@@ -6,7 +6,9 @@
 
 export default async function rcmFundsRoutes(fastify, options) {
   const { pools, getCached } = options
-  const { hosPool } = pools
+  const { hosPool, salaryEditPool } = pools
+  // hosPool ('guest') is read-only; route writes to rcmdb.* through salaryEditPool (same 192.168.1.4 MySQL server, RW privileges)
+  const rcmWritePool = salaryEditPool || hosPool
 
   // ------------------------------------------------------------------
   // 1. Universal ADP Mapping Check
@@ -1867,46 +1869,89 @@ export default async function rcmFundsRoutes(fastify, options) {
   })
 
   // ------------------------------------------------------------------
-  // Helper for Rep Funds filtering
+  // Helper for Rep Funds multi-source filtering (repdata / repeclaim / seamless)
   // ------------------------------------------------------------------
-  function buildRepFundsWhere(params) {
+  const REP_SOURCE_TABLES = {
+    repdata: 'rcmdb.repdata',
+    repeclaim: 'rcmdb.repeclaim',
+    seamless: 'rcmdb.seamless',
+  }
+
+  function normalizeRepSource(source) {
+    const s = String(source || '').trim().toLowerCase()
+    return s === 'repeclaim' || s === 'seamless' ? s : 'repdata'
+  }
+
+  function getDynamicFallbackYears() {
+    const now = new Date()
+    const fy = now.getFullYear() + 543 + (now.getMonth() + 1 >= 10 ? 1 : 0)
+    return [String(fy), String(fy - 1), String(fy - 2), String(fy - 3)]
+  }
+
+  function buildRepFundsWhere(params, source = 'repdata') {
+    const isSeamless = source === 'seamless'
     const whereClauses = []
     const queryParams = []
 
+    if (params.rep && String(params.rep).trim()) {
+      whereClauses.push('Rep = ?')
+      queryParams.push(String(params.rep).trim())
+    }
+
     if (params.ds1 && params.ds2) {
-      whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
-      queryParams.push(`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`)
+      if (isSeamless) {
+        whereClauses.push('AdmDate BETWEEN ? AND ?')
+        queryParams.push(params.ds1, params.ds2)
+      } else {
+        whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
+        queryParams.push(`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`)
+      }
     } else if (params.fiscalYear) {
       whereClauses.push('YearBudget = ?')
       queryParams.push(params.fiscalYear)
     }
 
     if (params.department && params.department !== 'ALL') {
-      whereClauses.push('Department = ?')
-      queryParams.push(params.department)
+      if (isSeamless) {
+        if (params.department === 'IP') {
+          whereClauses.push("(Department = 'IP' OR (IFNULL(Department, '') = '' AND IFNULL(AN, '') <> ''))")
+        } else {
+          whereClauses.push("(Department = 'OP' OR (IFNULL(Department, '') = '' AND IFNULL(AN, '') = ''))")
+        }
+      } else {
+        whereClauses.push('Department = ?')
+        queryParams.push(params.department)
+      }
     }
 
     if (params.fund && params.fund !== 'ALL') {
       const f = params.fund
       if (['UCS', 'OFC', 'SSS', 'LGO', 'STP'].includes(f)) {
+        const col = isSeamless ? 'MainInscl' : 'Fund'
         if (f === 'OFC') {
-          whereClauses.push("(Fund LIKE '%CS%' OR Fund LIKE '%OFC%')")
+          whereClauses.push(`(${col} LIKE '%CS%' OR ${col} LIKE '%OFC%')`)
         } else if (f === 'LGO') {
-          whereClauses.push("(Fund LIKE '%LG%' OR Fund LIKE '%LGO%')")
+          whereClauses.push(`(${col} LIKE '%LG%' OR ${col} LIKE '%LGO%')`)
         } else if (f === 'SSS') {
-          whereClauses.push("(Fund LIKE '%SSS%' OR Fund LIKE '%SS%')")
+          whereClauses.push(`(${col} LIKE '%SSS%' OR ${col} LIKE '%SS%')`)
         } else if (f === 'STP') {
-          whereClauses.push("Fund LIKE '%STP%'")
+          whereClauses.push(`${col} LIKE '%STP%'`)
         } else if (f === 'UCS') {
-          whereClauses.push("(Fund LIKE '%UC%' OR Fund LIKE 'IP0%' OR Fund LIKE 'OP0%' OR Fund LIKE 'HC%' OR Fund LIKE 'DM%' OR Fund LIKE 'AE%')")
+          whereClauses.push(
+            isSeamless
+              ? "(MainInscl IN ('UCS', 'WEL', 'UC') OR MainInscl LIKE '%UC%')"
+              : "(Fund LIKE '%UC%' OR Fund LIKE 'IP0%' OR Fund LIKE 'OP0%' OR Fund LIKE 'HC%' OR Fund LIKE 'DM%' OR Fund LIKE 'AE%')"
+          )
         }
+      } else if (f === 'UNKNOWN') {
+        whereClauses.push("(Fund IS NULL OR TRIM(Fund) = '')")
       } else {
-        whereClauses.push('Fund = ?')
-        queryParams.push(f)
+        whereClauses.push('TRIM(Fund) = ?')
+        queryParams.push(f.trim())
       }
     }
 
-    if (params.subFund && params.subFund !== 'ALL') {
+    if (!isSeamless && params.subFund && params.subFund !== 'ALL') {
       whereClauses.push('SubFund = ?')
       queryParams.push(params.subFund)
     }
@@ -1917,22 +1962,45 @@ export default async function rcmFundsRoutes(fastify, options) {
       } else if (params.status === 'denied' || params.status === 'zero') {
         whereClauses.push('(Compensated = 0 OR Compensated IS NULL)')
       } else if (params.status === 'appeal') {
-        whereClauses.push("(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))")
+        whereClauses.push(
+          isSeamless
+            ? '(Compensated < Collected AND Compensated > 0)'
+            : "(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))"
+        )
       } else if (params.status === 'has_error') {
-        whereClauses.push('(ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0)')
+        whereClauses.push(
+          isSeamless
+            ? '(Note IS NOT NULL AND LENGTH(TRIM(Note)) > 0)'
+            : '(ErrorCode IS NOT NULL AND LENGTH(TRIM(ErrorCode)) > 0)'
+        )
       }
     }
 
     if (params.errorCode && params.errorCode !== 'ALL') {
-      whereClauses.push('(ErrorCode = ? OR ErrorCode LIKE ?)')
       const cleanErr = params.errorCode.trim()
+      if (isSeamless) {
+        whereClauses.push('(Note = ? OR Note LIKE ?)')
+      } else {
+        whereClauses.push('(ErrorCode = ? OR ErrorCode LIKE ?)')
+      }
       queryParams.push(cleanErr, `%${cleanErr}%`)
     }
 
+    if (params.hn && String(params.hn).trim()) {
+      const cleanHn = String(params.hn).trim()
+      whereClauses.push('(HN = ? OR HN LIKE ?)')
+      queryParams.push(cleanHn, `%${cleanHn}`)
+    }
+
     if (params.search && params.search.trim()) {
-      whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
       const s = `%${params.search.trim()}%`
-      queryParams.push(s, s, s, s, s, s)
+      if (isSeamless) {
+        whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR Type LIKE ? OR Ptname LIKE ? OR HN LIKE ? OR Note LIKE ? OR PayNo LIKE ?)')
+        queryParams.push(s, s, s, s, s, s, s)
+      } else {
+        whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
+        queryParams.push(s, s, s, s, s, s)
+      }
     }
 
     return {
@@ -1947,7 +2015,13 @@ export default async function rcmFundsRoutes(fastify, options) {
   fastify.get('/api/v1/clinical/rcm/rep-funds/years', {
     schema: {
       tags: ['1. Clinical Services (HOSxP)'],
-      summary: 'รายการปีงบประมาณที่มีข้อมูลใน rcmdb.repdata',
+      summary: 'รายการปีงบประมาณที่มีข้อมูลใน rcmdb.repdata / repeclaim / seamless',
+      querystring: {
+        type: 'object',
+        properties: {
+          source: { type: 'string' }
+        }
+      },
       response: {
         200: {
           type: 'object',
@@ -1960,15 +2034,17 @@ export default async function rcmFundsRoutes(fastify, options) {
     }
   }, async (req, reply) => {
     try {
-      const data = await getCached('rcm-rep-available-years', 60000, async () => {
+      const source = normalizeRepSource(req.query?.source)
+      const tableName = REP_SOURCE_TABLES[source]
+      const data = await getCached(`rcm-rep-available-years-${source}`, 60000, async () => {
         const [rows] = await hosPool.query(`
           SELECT DISTINCT YearBudget 
-          FROM rcmdb.repdata 
-          WHERE YearBudget IS NOT NULL AND YearBudget != '' 
+          FROM ${tableName} 
+          WHERE YearBudget IS NOT NULL AND TRIM(YearBudget) != '' 
           ORDER BY YearBudget DESC
         `)
         const list = (rows || []).map((r) => String(r.YearBudget).trim()).filter(Boolean)
-        return list.length > 0 ? list : ['2570', '2569', '2568', '2567']
+        return list.length > 0 ? list : getDynamicFallbackYears()
       })
       return { success: true, data }
     } catch (err) {
@@ -1977,15 +2053,16 @@ export default async function rcmFundsRoutes(fastify, options) {
   })
 
   // ------------------------------------------------------------------
-  // 30. Rep Funds - Summary (Metrics, Fund Groups, Rep Statements)
+  // 30. Rep Funds - Summary (Metrics & Available Funds across 3 sources)
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/rep-funds/summary', {
     schema: {
       tags: ['1. Clinical Services (HOSxP)'],
-      summary: 'สรุปภาพรวม KPI, กองทุน และ Rep Statement จาก rcmdb.repdata',
+      summary: 'สรุปภาพรวม KPI และรายการกองทุน จาก rcmdb.repdata / rcmdb.repeclaim / rcmdb.seamless',
       querystring: {
         type: 'object',
         properties: {
+          source: { type: 'string' },
           fiscalYear: { type: 'string' },
           ds1: { type: 'string' },
           ds2: { type: 'string' },
@@ -2001,7 +2078,11 @@ export default async function rcmFundsRoutes(fastify, options) {
   }, async (req, reply) => {
     try {
       const query = req.query || {}
-      const fiscalYear = query.fiscalYear || '2570'
+      const source = normalizeRepSource(query.source)
+      const tableName = REP_SOURCE_TABLES[source]
+      const isSeamless = source === 'seamless'
+      const fallbackYears = getDynamicFallbackYears()
+      const fiscalYear = query.fiscalYear || fallbackYears[0]
       const department = query.department || 'ALL'
       const fund = query.fund && query.fund !== 'ALL' ? query.fund : null
       const subFund = query.subFund && query.subFund !== 'ALL' ? query.subFund : null
@@ -2009,107 +2090,67 @@ export default async function rcmFundsRoutes(fastify, options) {
       const ds1 = query.ds1 || ''
       const ds2 = query.ds2 || ''
 
-      const cacheKey = `rcm-rep-summary-${fiscalYear}-${department}-${fund || ''}-${subFund || ''}-${search || ''}-${ds1}-${ds2}-${query.status || ''}-${query.errorCode || ''}`
+      const cacheKey = `rcm-rep-summary-${source}-${fiscalYear}-${department}-${fund || ''}-${subFund || ''}-${search || ''}-${ds1}-${ds2}-${query.status || ''}-${query.errorCode || ''}`
 
-      const data = await getCached(cacheKey, 30000, async () => {
+      const data = await getCached(cacheKey, 15000, async () => {
         const { whereSql, queryParams } = buildRepFundsWhere({
           fiscalYear, ds1, ds2, department, fund, subFund, search,
           status: query.status, errorCode: query.errorCode
-        })
+        }, source)
 
-        const metricsSql = `
-          SELECT 
-            COUNT(*) as totalCases,
-            COUNT(DISTINCT Rep) as totalReps,
-            COALESCE(ROUND(SUM(Income), 2), 0) as totalIncome,
-            COALESCE(ROUND(SUM(Compensated), 2), 0) as totalCompensated,
-            COALESCE(ROUND(SUM(Compensated - Income), 2), 0) as totalDiff,
-            SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as pendingAppeals,
-            SUM(CASE WHEN ErrorCode IS NOT NULL AND ErrorCode != '' THEN 1 ELSE 0 END) as errorCount
-          FROM rcmdb.repdata
-          WHERE ${whereSql}
-        `
-        const [metricsRows] = await hosPool.query(metricsSql, queryParams)
-
-        const fundGroupsSql = `
-          SELECT 
-            COALESCE(Fund, 'UNKNOWN') as fundKey,
-            COALESCE(SubFund, '-') as subFundKey,
-            Department as department,
-            COUNT(*) as caseCount,
-            ROUND(SUM(Income), 2) as totalIncome,
-            ROUND(SUM(Compensated), 2) as totalCompensated,
-            ROUND(SUM(Compensated - Income), 2) as netDiff,
-            SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as appealCount,
-            SUM(CASE WHEN ErrorCode IS NOT NULL AND ErrorCode != '' THEN 1 ELSE 0 END) as errorCount
-          FROM rcmdb.repdata
-          WHERE ${whereSql}
-          GROUP BY Fund, SubFund, Department
-          ORDER BY totalCompensated DESC
-        `
-        const [fundGroupRows] = await hosPool.query(fundGroupsSql, queryParams)
-
-        const repListSql = `
-          SELECT 
-            Rep as rep,
-            YearBudget as yearBudget,
-            Department as department,
-            COALESCE(Fund, '-') as fund,
-            COUNT(*) as caseCount,
-            ROUND(SUM(Income), 2) as totalIncome,
-            ROUND(SUM(Compensated), 2) as totalCompensated,
-            ROUND(SUM(Compensated - Income), 2) as netDiff,
-            MIN(AdmDate) as minDate,
-            MAX(DchDate) as maxDate,
-            SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as appealCount,
-            SUM(CASE WHEN ErrorCode IS NOT NULL AND ErrorCode != '' THEN 1 ELSE 0 END) as errorCount
-          FROM rcmdb.repdata
-          WHERE ${whereSql}
-          GROUP BY Rep, YearBudget, Department, Fund
-          ORDER BY totalCompensated DESC
-        `
-        const [repListRows] = await hosPool.query(repListSql, queryParams)
+        const metricsSql = isSeamless
+          ? `
+            SELECT
+              COUNT(*) as totalCases,
+              COUNT(DISTINCT NULLIF(TRIM(Rep), '')) as totalReps,
+              COALESCE(ROUND(SUM(Collected), 2), 0) as totalIncome,
+              COALESCE(ROUND(SUM(Compensated), 2), 0) as totalCompensated,
+              COALESCE(ROUND(SUM(Compensated - Collected), 2), 0) as totalDiff,
+              SUM(CASE WHEN Compensated < Collected AND Compensated > 0 THEN 1 ELSE 0 END) as pendingAppeals,
+              SUM(CASE WHEN Note IS NOT NULL AND LENGTH(TRIM(Note)) > 0 THEN 1 ELSE 0 END) as errorCount
+            FROM ${tableName}
+            WHERE ${whereSql}
+          `
+          : `
+            SELECT 
+              COUNT(*) as totalCases,
+              COUNT(DISTINCT NULLIF(TRIM(Rep), '')) as totalReps,
+              COALESCE(ROUND(SUM(Income), 2), 0) as totalIncome,
+              COALESCE(ROUND(SUM(Compensated), 2), 0) as totalCompensated,
+              COALESCE(ROUND(SUM(Compensated - Income), 2), 0) as totalDiff,
+              SUM(CASE WHEN Appeal = 'Y' THEN 1 ELSE 0 END) as pendingAppeals,
+              SUM(CASE WHEN ErrorCode IS NOT NULL AND LENGTH(TRIM(ErrorCode)) > 0 THEN 1 ELSE 0 END) as errorCount
+            FROM ${tableName}
+            WHERE ${whereSql}
+          `
 
         let availableFundsSql = `
-          SELECT COALESCE(Fund, 'UNKNOWN') as fundKey, COUNT(*) as cnt
-          FROM rcmdb.repdata
+          SELECT COALESCE(NULLIF(TRIM(Fund), ''), 'UNKNOWN') as fundKey, COUNT(*) as cnt
+          FROM ${tableName}
         `
         let fundsQueryParams = []
         if (ds1 && ds2) {
-          availableFundsSql += ` WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? GROUP BY Fund ORDER BY cnt DESC`
-          fundsQueryParams = [`${ds1} 00:00:00`, `${ds2} 23:59:59`]
+          availableFundsSql += isSeamless
+            ? ' WHERE AdmDate BETWEEN ? AND ? GROUP BY COALESCE(NULLIF(TRIM(Fund), \'\'), \'UNKNOWN\') ORDER BY cnt DESC'
+            : ' WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? GROUP BY COALESCE(NULLIF(TRIM(Fund), \'\'), \'UNKNOWN\') ORDER BY cnt DESC'
+          fundsQueryParams = isSeamless ? [ds1, ds2] : [`${ds1} 00:00:00`, `${ds2} 23:59:59`]
         } else {
-          availableFundsSql += ` WHERE YearBudget = ? GROUP BY Fund ORDER BY cnt DESC`
+          availableFundsSql += ' WHERE YearBudget = ? GROUP BY COALESCE(NULLIF(TRIM(Fund), \'\'), \'UNKNOWN\') ORDER BY cnt DESC'
           fundsQueryParams = [fiscalYear]
         }
-        const [fundRows] = await hosPool.query(availableFundsSql, fundsQueryParams)
 
-        let availableErrorCodesSql = `
-          SELECT ErrorCode as code, COUNT(*) as cnt
-          FROM rcmdb.repdata
-        `
-        let errQueryParams = []
-        if (ds1 && ds2) {
-          availableErrorCodesSql += ` WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0 GROUP BY ErrorCode ORDER BY cnt DESC`
-          errQueryParams = [`${ds1} 00:00:00`, `${ds2} 23:59:59`]
-        } else {
-          availableErrorCodesSql += ` WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0 GROUP BY ErrorCode ORDER BY cnt DESC`
-          errQueryParams = [fiscalYear]
-        }
-        let errRows = []
-        try {
-          const [res] = await hosPool.query(availableErrorCodesSql, errQueryParams)
-          errRows = res || []
-        } catch (_) {
-          errRows = []
-        }
+        const [[metricsRows], [fundRows]] = await Promise.all([
+          hosPool.query(metricsSql, queryParams),
+          hosPool.query(availableFundsSql, fundsQueryParams),
+        ])
 
         return {
+          source,
           metrics: metricsRows[0] || {},
-          fundGroups: fundGroupRows || [],
-          repList: repListRows || [],
+          fundGroups: [],
+          repList: [],
           availableFunds: fundRows || [],
-          availableErrorCodes: errRows || []
+          availableErrorCodes: []
         }
       })
 
@@ -2120,15 +2161,16 @@ export default async function rcmFundsRoutes(fastify, options) {
   })
 
   // ------------------------------------------------------------------
-  // 31. Rep Funds - Individual Cases by Rep/Fund
+  // 31. Rep Funds - Individual Cases by Source / Rep / Fund
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/rep-funds/cases', {
     schema: {
       tags: ['1. Clinical Services (HOSxP)'],
-      summary: 'รายการเคสผู้ป่วยรายบุคคลตาม Rep หรือ กองทุน จาก rcmdb.repdata',
+      summary: 'รายการเคสผู้ป่วยรายบุคคลตามแหล่งข้อมูล (repdata / repeclaim / seamless)',
       querystring: {
         type: 'object',
         properties: {
+          source: { type: 'string' },
           rep: { type: 'string' },
           fund: { type: 'string' },
           subFund: { type: 'string' },
@@ -2148,99 +2190,62 @@ export default async function rcmFundsRoutes(fastify, options) {
   }, async (req, reply) => {
     try {
       const q = req.query || {}
-      const whereClauses = []
-      const queryParams = []
+      const source = normalizeRepSource(q.source)
+      const tableName = REP_SOURCE_TABLES[source]
+      const isSeamless = source === 'seamless'
+      const fallbackYear = getDynamicFallbackYears()[0]
 
-      if (q.rep) {
-        whereClauses.push('Rep = ?')
-        queryParams.push(q.rep.trim())
+      const effectiveParams = { ...q }
+      if (!q.rep && !(q.ds1 && q.ds2) && !q.fiscalYear && !q.hn && !(q.search && q.search.trim())) {
+        effectiveParams.fiscalYear = fallbackYear
       }
 
-      if (q.ds1 && q.ds2) {
-        whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
-        queryParams.push(`${q.ds1} 00:00:00`, `${q.ds2} 23:59:59`)
-      } else if (q.fiscalYear) {
-        whereClauses.push('YearBudget = ?')
-        queryParams.push(q.fiscalYear)
-      }
-
-      if (q.department && q.department !== 'ALL') {
-        whereClauses.push('Department = ?')
-        queryParams.push(q.department)
-      }
-
-      if (q.fund && q.fund !== 'ALL') {
-        if (['UCS', 'OFC', 'SSS', 'LGO', 'STP'].includes(q.fund)) {
-          if (q.fund === 'OFC') {
-            whereClauses.push("(Fund LIKE '%CS%' OR Fund LIKE '%OFC%')")
-          } else if (q.fund === 'LGO') {
-            whereClauses.push("(Fund LIKE '%LG%' OR Fund LIKE '%LGO%')")
-          } else if (q.fund === 'SSS') {
-            whereClauses.push("(Fund LIKE '%SSS%' OR Fund LIKE '%SS%')")
-          } else if (q.fund === 'STP') {
-            whereClauses.push("Fund LIKE '%STP%'")
-          } else if (q.fund === 'UCS') {
-            whereClauses.push("(Fund LIKE '%UC%' OR Fund LIKE 'IP0%' OR Fund LIKE 'OP0%' OR Fund LIKE 'HC%' OR Fund LIKE 'DM%' OR Fund LIKE 'AE%')")
-          }
-        } else {
-          whereClauses.push('Fund = ?')
-          queryParams.push(q.fund)
-        }
-      }
-
-      if (q.subFund && q.subFund !== 'ALL') {
-        whereClauses.push('SubFund = ?')
-        queryParams.push(q.subFund)
-      }
-
-      if (q.status && q.status !== 'ALL') {
-        if (q.status === 'paid' || q.status === 'compensated') {
-          whereClauses.push('Compensated > 0')
-        } else if (q.status === 'denied' || q.status === 'zero') {
-          whereClauses.push('(Compensated = 0 OR Compensated IS NULL)')
-        } else if (q.status === 'appeal') {
-          whereClauses.push("(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))")
-        } else if (q.status === 'has_error') {
-          whereClauses.push('(ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0)')
-        }
-      }
-
-      if (q.errorCode && q.errorCode !== 'ALL') {
-        whereClauses.push('(ErrorCode = ? OR ErrorCode LIKE ?)')
-        const cleanErr = q.errorCode.trim()
-        queryParams.push(cleanErr, `%${cleanErr}%`)
-      }
-
-      if (q.hn) {
-        whereClauses.push('(HN = ? OR HN LIKE ?)')
-        const cleanHn = q.hn.trim()
-        queryParams.push(cleanHn, `%${cleanHn}`)
-      }
-
-      if (q.search && q.search.trim()) {
-        whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
-        const s = `%${q.search.trim()}%`
-        queryParams.push(s, s, s, s, s, s)
-      }
-
-      if (whereClauses.length === 0) {
-        whereClauses.push('YearBudget = ?')
-        queryParams.push('2570')
-      }
+      const { whereSql, queryParams } = buildRepFundsWhere(effectiveParams, source)
 
       const hasLimit = q.limit !== undefined ? Number(q.limit) > 0 : true
       const limit = hasLimit ? Math.max(Number(q.limit || 200), 1) : null
       const offset = Math.max(Number(q.offset || 0), 0)
 
-      const sql = `
-        SELECT 
-          ID, Rep, HN, PtName, AdmDate, DchDate, Department, 
-          Income, Compensated, Diff, Fund, SubFund, ErrorCode, Appeal, YearBudget, ProjectCode
-        FROM rcmdb.repdata
-        WHERE ${whereClauses.join(' AND ')}
-        ORDER BY AdmDate DESC, ID DESC
-        ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
-      `
+      const sql = isSeamless
+        ? `
+          SELECT
+            ID, Rep, HN, VN, AN, Ptname AS PtName, AdmDate,
+            CASE
+              WHEN Department = 'IP' OR (IFNULL(Department, '') = '' AND IFNULL(AN, '') <> '') THEN 'IP'
+              ELSE 'OP'
+            END AS Department,
+            COALESCE(Collected, 0) AS Income,
+            COALESCE(Compensated, 0) AS Compensated,
+            (COALESCE(Compensated, 0) - COALESCE(Collected, 0)) AS Diff,
+            Fund,
+            Type AS SubFund,
+            Note AS ErrorCode,
+            'N' AS Appeal,
+            YearBudget,
+            MainInscl,
+            Period,
+            PayNo,
+            PayDate,
+            NoCompensated,
+            PayMore,
+            Recall,
+            Status AS SeamlessStatus,
+            STMID,
+            FileName
+          FROM ${tableName}
+          WHERE ${whereSql}
+          ORDER BY AdmDate DESC, ID DESC
+          ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
+        `
+        : `
+          SELECT 
+            ID, Rep, HN, VN, AN, EclaimNo, PtName, AdmDate, DchDate, Department, 
+            Income, Compensated, Diff, TRIM(Fund) AS Fund, SubFund, ErrorCode, Appeal, YearBudget, ProjectCode, MainInscl, FileName
+          FROM ${tableName}
+          WHERE ${whereSql}
+          ORDER BY AdmDate DESC, ID DESC
+          ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
+        `
       if (limit !== null) {
         queryParams.push(limit, offset)
       }
@@ -2316,7 +2321,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   async function ensureT1dmTable() {
     if (t1dmTableEnsured) return
     try {
-      await hosPool.query(`
+      await rcmWritePool.query(`
         CREATE TABLE IF NOT EXISTS rcmdb.t1dm (
           ID VARCHAR(20) NOT NULL,
           Year VARCHAR(4) NULL,
@@ -2408,7 +2413,7 @@ export default async function rcmFundsRoutes(fastify, options) {
       let insertedCount = 0
       for (const r of rows) {
         if (!r.id) continue
-        await hosPool.query(`
+        await rcmWritePool.query(`
           INSERT INTO rcmdb.t1dm (
             ID, Year, PID, PtName, Maininscl, HCode, Type, Register_Date, Visit_Date, FileName
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2462,18 +2467,490 @@ export default async function rcmFundsRoutes(fastify, options) {
       await ensureT1dmTable()
       let res
       if (mode === 'other_hospitals') {
-        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm WHERE LPAD(TRIM(IFNULL(HCode, "")), 5, "0") <> ?', [myHospCode])
+        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm WHERE LPAD(TRIM(IFNULL(HCode, "")), 5, "0") <> ?', [myHospCode])
       } else if (mode === 'by_file') {
         if (!fileName) {
           reply.code(400); return { success: false, error: 'กรุณาระบุชื่อไฟล์ที่ต้องการลบ' }
         }
-        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm WHERE FileName = ?', [fileName])
+        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm WHERE FileName = ?', [fileName])
       } else if (mode === 'all') {
-        ;[res] = await hosPool.query('DELETE FROM rcmdb.t1dm')
+        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm')
       } else {
         reply.code(400); return { success: false, error: 'โหมดการลบข้อมูลไม่ถูกต้อง' }
       }
       return { success: true, deletedCount: res?.affectedRows || 0 }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  // ------------------------------------------------------------------
+  // 34. Seamless Claim Rep Import (rcmdb.seamless)
+  // ------------------------------------------------------------------
+  function cleanSeamlessStr(val, maxLen) {
+    if (val === null || val === undefined) return null
+    const s = String(val)
+      .replace(/[\u00A0\u200B-\u200D\uFEFF]/g, ' ')
+      .trim()
+    if (!s) return null
+    return maxLen ? s.slice(0, maxLen) : s
+  }
+
+  function cleanSeamlessDate(val) {
+    if (!val) return null
+    const s = String(val).trim()
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null
+  }
+
+  function cleanSeamlessNum(val) {
+    const n = Number(val)
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
+  }
+
+  fastify.post('/api/v1/clinical/rcm/seamless/import', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'นำเข้าข้อมูล Seamless Claim Rep ลงตาราง rcmdb.seamless (รองรับอัปเดตทับหรือข้ามรายการซ้ำ)',
+      body: {
+        type: 'object',
+        required: ['rows'],
+        properties: {
+          rows: { type: 'array' },
+          duplicateMode: { type: 'string', enum: ['update', 'skip'], default: 'update' },
+          denyCodes: { type: 'array' },
+          summaryUpdate: { type: 'object' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { rows = [], duplicateMode = 'update', denyCodes = [], summaryUpdate = null } = req.body || {}
+    const hasRows = Array.isArray(rows) && rows.length > 0
+    const hasDenyCodes = Array.isArray(denyCodes) && denyCodes.length > 0
+    const hasSummaryUpdate = Boolean(summaryUpdate && summaryUpdate.rep && summaryUpdate.payNo)
+    if (!hasRows && !hasDenyCodes && !hasSummaryUpdate) {
+      return {
+        success: true,
+        totalSubmitted: 0,
+        insertedCount: 0,
+        updatedCount: 0,
+        skippedCount: 0,
+        duplicateCount: 0
+      }
+    }
+
+    try {
+      // 1. Normalize & deduplicate incoming rows by ID (PK of rcmdb.seamless)
+      const dedupMap = new Map()
+      for (const r of rows) {
+        const id = cleanSeamlessStr(r?.id, 50)
+        if (!id) continue
+        dedupMap.set(id, {
+          yymm: cleanSeamlessStr(r.yymm, 4),
+          yearBudget: cleanSeamlessStr(r.yearBudget, 4),
+          id,
+          fund: cleanSeamlessStr(r.fund, 200),
+          period: cleanSeamlessStr(r.period, 20),
+          rep: cleanSeamlessStr(r.rep, 50),
+          vn: cleanSeamlessStr(r.vn, 25),
+          hn: cleanSeamlessStr(r.hn, 9),
+          an: cleanSeamlessStr(r.an, 9),
+          pid: cleanSeamlessStr(r.pid, 50),
+          ptname: cleanSeamlessStr(r.ptname, 60),
+          admDate: cleanSeamlessDate(r.admDate),
+          mainInscl: cleanSeamlessStr(r.mainInscl, 10),
+          department: cleanSeamlessStr(r.department, 20),
+          hcode: cleanSeamlessStr(r.hcode, 5),
+          type: cleanSeamlessStr(r.type, 200),
+          serialNo: cleanSeamlessStr(r.serialNo, 2),
+          regDate: cleanSeamlessDate(r.regDate),
+          sendDate: cleanSeamlessDate(r.sendDate),
+          payNo: cleanSeamlessStr(r.payNo, 100),
+          payDate: cleanSeamlessDate(r.payDate),
+          yymmPay: cleanSeamlessStr(r.yymmPay, 4),
+          yearBudgetPay: cleanSeamlessStr(r.yearBudgetPay, 4),
+          collected: cleanSeamlessNum(r.collected),
+          compensated: cleanSeamlessNum(r.compensated),
+          noCompensated: cleanSeamlessNum(r.noCompensated),
+          payMore: cleanSeamlessNum(r.payMore),
+          recall: cleanSeamlessNum(r.recall),
+          status: cleanSeamlessStr(r.status, 20),
+          note: cleanSeamlessStr(r.note, 250),
+          stmid: cleanSeamlessStr(r.stmid, 250),
+          codeAccount: cleanSeamlessStr(r.codeAccount, 50),
+          equipCode: cleanSeamlessStr(r.equipCode, 9),
+          equipName: cleanSeamlessStr(r.equipName, 250),
+          hsub: cleanSeamlessStr(r.hsub, 5),
+          hsend: cleanSeamlessStr(r.hsend, 5),
+          fileName: cleanSeamlessStr(r.fileName, 100)
+        })
+      }
+
+      const uniqueRows = Array.from(dedupMap.values())
+      let insertedCount = 0
+      let updatedCount = 0
+      let skippedCount = 0
+      let duplicateCount = 0
+
+      if (uniqueRows.length > 0) {
+        // 2. Check existing IDs in rcmdb.seamless in chunks
+        const existingIdSet = new Set()
+        const CHECK_CHUNK = 500
+        const allIds = uniqueRows.map(r => r.id)
+        for (let i = 0; i < allIds.length; i += CHECK_CHUNK) {
+          const chunk = allIds.slice(i, i + CHECK_CHUNK)
+          const placeholders = chunk.map(() => '?').join(',')
+          const [existingRows] = await hosPool.query(
+            `SELECT ID FROM rcmdb.seamless WHERE ID IN (${placeholders})`,
+            chunk
+          )
+          for (const er of existingRows || []) {
+            if (er.ID) existingIdSet.add(String(er.ID).trim())
+          }
+        }
+
+        const toRowTuple = (r) => [
+          r.yymm,
+          r.yearBudget,
+          r.id,
+          r.fund,
+          r.period,
+          r.rep,
+          r.vn,
+          r.hn,
+          r.an,
+          r.pid,
+          r.ptname,
+          r.admDate,
+          r.mainInscl,
+          r.department,
+          r.hcode,
+          r.type,
+          r.serialNo,
+          r.regDate,
+          r.sendDate,
+          r.payNo,
+          r.payDate,
+          r.yymmPay,
+          r.yearBudgetPay,
+          r.collected,
+          r.compensated,
+          r.noCompensated,
+          r.payMore,
+          r.recall,
+          r.status,
+          r.note,
+          r.stmid,
+          r.codeAccount,
+          r.equipCode,
+          r.equipName,
+          r.hsub,
+          r.hsend,
+          r.fileName
+        ]
+
+        const COLUMNS = `
+          YYMM, YearBudget, ID, Fund, Period, Rep, VN, HN, AN, PID, Ptname,
+          AdmDate, MainInscl, Department, HCode, Type, SerialNo, RegDate, SendDate,
+          PayNo, PayDate, YYMM_Pay, YearBudget_Pay,
+          Collected, Compensated, NoCompensated, PayMore, Recall,
+          Status, Note, STMID, CodeAccount, EquipCode, EquipName, HSub, HSend, FileName
+        `
+
+        const BATCH_SIZE = 200
+        duplicateCount = existingIdSet.size
+
+        if (duplicateMode === 'skip') {
+          const newRows = uniqueRows.filter(r => !existingIdSet.has(r.id))
+          skippedCount = uniqueRows.length - newRows.length
+          for (let i = 0; i < newRows.length; i += BATCH_SIZE) {
+            const chunk = newRows.slice(i, i + BATCH_SIZE).map(toRowTuple)
+            const [res] = await rcmWritePool.query(
+              `INSERT IGNORE INTO rcmdb.seamless (${COLUMNS}) VALUES ?`,
+              [chunk]
+            )
+            insertedCount += Number(res?.affectedRows || 0)
+          }
+          skippedCount = uniqueRows.length - insertedCount
+        } else {
+          for (let i = 0; i < uniqueRows.length; i += BATCH_SIZE) {
+            const chunkRows = uniqueRows.slice(i, i + BATCH_SIZE)
+            const chunk = chunkRows.map(toRowTuple)
+            await rcmWritePool.query(
+              `INSERT INTO rcmdb.seamless (${COLUMNS}) VALUES ?
+               ON DUPLICATE KEY UPDATE
+                 YYMM = COALESCE(VALUES(YYMM), YYMM),
+                 YearBudget = COALESCE(VALUES(YearBudget), YearBudget),
+                 Fund = COALESCE(VALUES(Fund), Fund),
+                 Period = COALESCE(VALUES(Period), Period),
+                 Rep = COALESCE(VALUES(Rep), Rep),
+                 VN = COALESCE(VALUES(VN), VN),
+                 HN = COALESCE(VALUES(HN), HN),
+                 AN = COALESCE(VALUES(AN), AN),
+                 PID = COALESCE(VALUES(PID), PID),
+                 Ptname = COALESCE(VALUES(Ptname), Ptname),
+                 AdmDate = COALESCE(VALUES(AdmDate), AdmDate),
+                 MainInscl = COALESCE(VALUES(MainInscl), MainInscl),
+                 Department = COALESCE(VALUES(Department), Department),
+                 HCode = COALESCE(VALUES(HCode), HCode),
+                 Type = COALESCE(VALUES(Type), Type),
+                 SerialNo = COALESCE(VALUES(SerialNo), SerialNo),
+                 RegDate = COALESCE(VALUES(RegDate), RegDate),
+                 SendDate = COALESCE(VALUES(SendDate), SendDate),
+                 PayNo = COALESCE(VALUES(PayNo), PayNo),
+                 PayDate = COALESCE(VALUES(PayDate), PayDate),
+                 YYMM_Pay = COALESCE(VALUES(YYMM_Pay), YYMM_Pay),
+                 YearBudget_Pay = COALESCE(VALUES(YearBudget_Pay), YearBudget_Pay),
+                 Collected = VALUES(Collected),
+                 Compensated = VALUES(Compensated),
+                 NoCompensated = VALUES(NoCompensated),
+                 PayMore = VALUES(PayMore),
+                 Recall = VALUES(Recall),
+                 Status = VALUES(Status),
+                 Note = COALESCE(VALUES(Note), Note),
+                 STMID = COALESCE(VALUES(STMID), STMID),
+                 CodeAccount = COALESCE(VALUES(CodeAccount), CodeAccount),
+                 EquipCode = COALESCE(VALUES(EquipCode), EquipCode),
+                 EquipName = COALESCE(VALUES(EquipName), EquipName),
+                 HSub = COALESCE(VALUES(HSub), HSub),
+                 HSend = COALESCE(VALUES(HSend), HSend),
+                 FileName = COALESCE(VALUES(FileName), FileName)`,
+              [chunk]
+            )
+          }
+          updatedCount = duplicateCount
+          insertedCount = uniqueRows.length - duplicateCount
+        }
+      }
+
+      // 3. Upsert DENY CODE dictionary into rcmdb.seamless_error if provided
+      if (Array.isArray(denyCodes) && denyCodes.length > 0) {
+        const denyTuples = []
+        for (const dc of denyCodes) {
+          const code = cleanSeamlessStr(dc?.code, 30)
+          const name = cleanSeamlessStr(dc?.name, 200)
+          if (code && name) {
+            denyTuples.push([code, name])
+          }
+        }
+        if (denyTuples.length > 0) {
+          try {
+            await rcmWritePool.query(
+              `INSERT INTO rcmdb.seamless_error (Code, Name) VALUES ?
+               ON DUPLICATE KEY UPDATE Name = VALUES(Name)`,
+              [denyTuples]
+            )
+          } catch (_) {
+            // Non-blocking if seamless_error table is absent
+          }
+        }
+      }
+
+      // 4. FoxPro AddPay parity: sync PayNo/PayDate/CodeAccount across all rows of matching Rep
+      if (summaryUpdate && summaryUpdate.rep && summaryUpdate.payNo) {
+        const rep = cleanSeamlessStr(summaryUpdate.rep, 50)
+        const payNo = cleanSeamlessStr(summaryUpdate.payNo, 100)
+        const payDate = cleanSeamlessDate(summaryUpdate.payDate)
+        const yymmPay = cleanSeamlessStr(summaryUpdate.yymmPay, 4)
+        const yearBudgetPay = cleanSeamlessStr(summaryUpdate.yearBudgetPay, 4)
+        const period = cleanSeamlessStr(summaryUpdate.period, 20)
+        const codeAccount = cleanSeamlessStr(summaryUpdate.codeAccount, 50)
+        if (rep && payNo) {
+          await rcmWritePool.query(
+            `UPDATE rcmdb.seamless
+             SET PayNo = ?,
+                 PayDate = COALESCE(?, PayDate),
+                 YYMM_Pay = COALESCE(?, YYMM_Pay),
+                 YearBudget_Pay = COALESCE(?, YearBudget_Pay),
+                 Period = COALESCE(?, Period),
+                 CodeAccount = COALESCE(?, CodeAccount)
+             WHERE Rep = ?`,
+            [payNo, payDate, yymmPay, yearBudgetPay, period, codeAccount, rep]
+          )
+        }
+      }
+
+      return {
+        success: true,
+        totalSubmitted: rows.length,
+        insertedCount,
+        updatedCount,
+        skippedCount,
+        duplicateCount
+      }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  // ------------------------------------------------------------------
+  // 35. Seamless Claim Rep Management (Delete & Payment Sync)
+  // ------------------------------------------------------------------
+  fastify.delete('/api/v1/clinical/rcm/seamless/records', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'ลบข้อมูล Seamless ใน rcmdb.seamless (ตามชื่อไฟล์, หลายไฟล์, ต่างหน่วยบริการ, หรือทั้งหมด)',
+      body: {
+        type: 'object',
+        required: ['mode'],
+        properties: {
+          mode: { type: 'string', enum: ['by_file', 'by_files', 'other_hospitals', 'all'] },
+          fileName: { type: 'string' },
+          fileNames: { type: 'array', items: { type: 'string' } },
+          myHospCode: { type: 'string', default: '11152' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { mode, fileName, fileNames = [], myHospCode = '11152' } = req.body || {}
+    try {
+      let res
+      if (mode === 'other_hospitals') {
+        const cleanHosp = String(myHospCode || '11152').trim().padStart(5, '0')
+        ;[res] = await rcmWritePool.query(
+          'DELETE FROM rcmdb.seamless WHERE LPAD(TRIM(IFNULL(HCode, "")), 5, "0") <> ?',
+          [cleanHosp]
+        )
+      } else if (mode === 'by_file') {
+        const cleanFile = String(fileName || '').trim()
+        if (!cleanFile) {
+          reply.code(400); return { success: false, error: 'กรุณาระบุชื่อไฟล์ที่ต้องการลบ' }
+        }
+        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.seamless WHERE FileName = ?', [cleanFile])
+      } else if (mode === 'by_files') {
+        const cleanFiles = Array.isArray(fileNames)
+          ? Array.from(new Set(fileNames.map((f) => String(f || '').trim()).filter(Boolean)))
+          : []
+        if (cleanFiles.length === 0) {
+          reply.code(400); return { success: false, error: 'กรุณาเลือกอย่างน้อย 1 ไฟล์ที่ต้องการลบ' }
+        }
+        const placeholders = cleanFiles.map(() => '?').join(',')
+        ;[res] = await rcmWritePool.query(
+          `DELETE FROM rcmdb.seamless WHERE FileName IN (${placeholders})`,
+          cleanFiles
+        )
+      } else if (mode === 'all') {
+        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.seamless')
+      } else {
+        reply.code(400); return { success: false, error: 'โหมดการลบข้อมูลไม่ถูกต้อง' }
+      }
+      return { success: true, deletedCount: Number(res?.affectedRows || 0) }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.post('/api/v1/clinical/rcm/seamless/sync-payment', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'ซิงค์วันที่โอนเงิน (PayDate) และ CodeAccount จาก nhso_budget รวมถึงคำนวณ YYMM / YearBudget ให้ครบถ้วน',
+      body: {
+        type: 'object',
+        properties: {
+          rep: { type: 'string' },
+          payNo: { type: 'string' },
+          payDate: { type: 'string' },
+          codeAccount: { type: 'string' },
+          force: { type: 'boolean', default: false }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { rep, payNo, payDate, codeAccount, force = false } = req.body || {}
+    try {
+      let updatedPaymentCount = 0
+      let backfilledDateCount = 0
+
+      // 1. Direct SUMMARY-sheet Rep/PayNo sync (FoxPro AddPay parity)
+      if (rep && payNo) {
+        const cleanRep = cleanSeamlessStr(rep, 50)
+        const cleanPayNo = cleanSeamlessStr(payNo, 100)
+        let resolvedPayDate = cleanSeamlessDate(payDate)
+        let resolvedCodeAccount = cleanSeamlessStr(codeAccount, 50)
+
+        if (cleanPayNo && !resolvedPayDate) {
+          const cleanRegex = cleanPayNo.replace(/[^a-zA-Z0-9_-]/g, '')
+          if (cleanRegex) {
+            const [budgetRows] = await hosPool.query(
+              `SELECT DATE_FORMAT(MAX(paydate), '%Y-%m-%d') AS paydate, MAX(accountcode) AS accountcode
+               FROM rcmdb.nhso_budget
+               WHERE payno REGEXP ?
+               LIMIT 1`,
+              [cleanRegex]
+            )
+            if (budgetRows?.[0]?.paydate) {
+              resolvedPayDate = budgetRows[0].paydate
+              resolvedCodeAccount = budgetRows[0].accountcode || resolvedCodeAccount
+            }
+          }
+        }
+
+        if (cleanRep && cleanPayNo) {
+          const [repRes] = await rcmWritePool.query(
+            `UPDATE rcmdb.seamless
+             SET PayNo = ?,
+                 PayDate = COALESCE(?, PayDate),
+                 CodeAccount = COALESCE(?, CodeAccount),
+                 Period = COALESCE(IF(? IS NOT NULL, CONCAT(RIGHT(YEAR(?) + 543, 2), DATE_FORMAT(?, '%m')), NULL), Period),
+                 YYMM_Pay = COALESCE(IF(? IS NOT NULL, CONCAT(RIGHT(YEAR(?) + 543, 2), DATE_FORMAT(?, '%m')), NULL), YYMM_Pay),
+                 YearBudget_Pay = COALESCE(IF(? IS NOT NULL, CAST(YEAR(?) + 543 + IF(MONTH(?) > 9, 1, 0) AS CHAR(4)), NULL), YearBudget_Pay)
+             WHERE Rep = ?`,
+            [
+              cleanPayNo,
+              resolvedPayDate,
+              resolvedCodeAccount,
+              resolvedPayDate, resolvedPayDate, resolvedPayDate,
+              resolvedPayDate, resolvedPayDate, resolvedPayDate,
+              resolvedPayDate, resolvedPayDate, resolvedPayDate,
+              cleanRep
+            ]
+          )
+          updatedPaymentCount += Number(repRes?.affectedRows || 0)
+        }
+      } else {
+        // 2. Bulk sync PayDate & CodeAccount from rcmdb.nhso_budget for rows matching PayNo
+        const whereCondition = force
+          ? "IFNULL(s.PayNo, '') <> ''"
+          : "IFNULL(s.PayNo, '') <> '' AND (s.PayDate IS NULL OR IFNULL(s.CodeAccount, '') = '')"
+        const [bulkRes] = await rcmWritePool.query(
+          `UPDATE rcmdb.seamless s
+           JOIN (
+             SELECT TRIM(payno) AS payno, MAX(paydate) AS paydate, MAX(accountcode) AS accountcode
+             FROM rcmdb.nhso_budget
+             WHERE IFNULL(payno, '') <> '' AND paydate IS NOT NULL
+             GROUP BY TRIM(payno)
+           ) nb ON TRIM(s.PayNo) = nb.payno
+           SET s.PayDate = COALESCE(nb.paydate, s.PayDate),
+               s.CodeAccount = COALESCE(NULLIF(nb.accountcode, ''), s.CodeAccount),
+               s.Period = COALESCE(CONCAT(RIGHT(YEAR(nb.paydate) + 543, 2), DATE_FORMAT(nb.paydate, '%m')), s.Period),
+               s.YYMM_Pay = COALESCE(CONCAT(RIGHT(YEAR(nb.paydate) + 543, 2), DATE_FORMAT(nb.paydate, '%m')), s.YYMM_Pay),
+               s.YearBudget_Pay = COALESCE(CAST(YEAR(nb.paydate) + 543 + IF(MONTH(nb.paydate) > 9, 1, 0) AS CHAR(4)), s.YearBudget_Pay)
+           WHERE ${whereCondition}`
+        )
+        updatedPaymentCount += Number(bulkRes?.affectedRows || 0)
+      }
+
+      // 3. FoxPro MakeTableService parity: backfill missing YYMM / YearBudget / YYMM_Pay / YearBudget_Pay
+      const [admFillRes] = await rcmWritePool.query(
+        `UPDATE rcmdb.seamless
+         SET YYMM = IF(IFNULL(YYMM, '') = '' AND AdmDate IS NOT NULL, CONCAT(RIGHT(YEAR(AdmDate) + 543, 2), DATE_FORMAT(AdmDate, '%m')), YYMM),
+             YearBudget = IF(IFNULL(YearBudget, '') = '' AND AdmDate IS NOT NULL, CAST(YEAR(AdmDate) + 543 + IF(MONTH(AdmDate) > 9, 1, 0) AS CHAR(4)), YearBudget)
+         WHERE AdmDate IS NOT NULL AND (IFNULL(YYMM, '') = '' OR IFNULL(YearBudget, '') = '')`
+      )
+      backfilledDateCount += Number(admFillRes?.affectedRows || 0)
+
+      const [payFillRes] = await rcmWritePool.query(
+        `UPDATE rcmdb.seamless
+         SET YYMM_Pay = IF(IFNULL(YYMM_Pay, '') = '' AND PayDate IS NOT NULL, CONCAT(RIGHT(YEAR(PayDate) + 543, 2), DATE_FORMAT(PayDate, '%m')), YYMM_Pay),
+             YearBudget_Pay = IF(IFNULL(YearBudget_Pay, '') = '' AND PayDate IS NOT NULL, CAST(YEAR(PayDate) + 543 + IF(MONTH(PayDate) > 9, 1, 0) AS CHAR(4)), YearBudget_Pay)
+         WHERE PayDate IS NOT NULL AND (IFNULL(YYMM_Pay, '') = '' OR IFNULL(YearBudget_Pay, '') = '')`
+      )
+      backfilledDateCount += Number(payFillRes?.affectedRows || 0)
+
+      return {
+        success: true,
+        updatedPaymentCount,
+        backfilledDateCount
+      }
     } catch (err) {
       reply.code(500); return { success: false, error: err.message }
     }

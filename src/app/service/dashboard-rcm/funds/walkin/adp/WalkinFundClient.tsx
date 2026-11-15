@@ -531,7 +531,7 @@ export default function WalkinFundClient({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {[2569, 2570].map((year) => (
+                {yearOptions.map((year) => (
                   <option key={year} value={year}>
                     ปีงบ {year}
                   </option>

@@ -39,6 +39,8 @@ describe('ServicePage', () => {
     expect(screen.getByText('EMR Online')).toBeInTheDocument()
     expect(screen.getByText('รพ.สต. ติดตามผลแลป')).toBeInTheDocument()
     expect(screen.getByText('ติดตามการทำ CXR ผู้ป่วย TB')).toBeInTheDocument()
+    expect(screen.getByText('DM Remission')).toBeInTheDocument()
+    expect(screen.getByText('เยี่ยมบ้านทีม FCT')).toBeInTheDocument()
 
     // Hospital internal services should NOT be visible to subdistrict
     expect(screen.queryByText('สถานะห้องฉุกเฉิน (ER)')).not.toBeInTheDocument()
@@ -66,6 +68,7 @@ describe('ServicePage', () => {
     expect(screen.getByText('ติดตามการทำ CXR ผู้ป่วย TB')).toBeInTheDocument()
     expect(screen.getByText('สถานะห้องฉุกเฉิน (ER)')).toBeInTheDocument()
     expect(screen.getByText('สถานะผู้ป่วยใน (IPD)')).toBeInTheDocument()
+    expect(screen.getByText('เยี่ยมบ้านทีม FCT')).toBeInTheDocument()
     expect(screen.getByText('Dashboard-RCM')).toBeInTheDocument()
   })
 })

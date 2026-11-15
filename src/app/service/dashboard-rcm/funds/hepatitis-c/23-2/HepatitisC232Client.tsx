@@ -603,7 +603,7 @@ export default function HepatitisC232Client({
                 onChange={(e) => handleFiscalYearChange(Number(e.target.value))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {[2569, 2570].map((y) => (
+                {yearOptions.map((y) => (
                   <option key={y} value={y}>
                     ปีงบ {y}
                   </option>

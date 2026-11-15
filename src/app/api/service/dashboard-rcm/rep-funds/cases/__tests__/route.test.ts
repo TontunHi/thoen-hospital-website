@@ -7,11 +7,15 @@ vi.mock('@/lib/memberAuth', () => ({
   verifyMemberSession: vi.fn(),
 }))
 
-vi.mock('@/lib/clinical/rcmRepFundsService', () => ({
-  RcmRepFundsService: {
-    getRepCases: vi.fn(),
-  },
-}))
+vi.mock('@/lib/clinical/rcmRepFundsService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/clinical/rcmRepFundsService')>()
+  return {
+    ...actual,
+    RcmRepFundsService: {
+      getRepCases: vi.fn(),
+    },
+  }
+})
 
 vi.mock('@/lib/audit', () => ({
   logThrottledAudit: vi.fn().mockResolvedValue(true),
@@ -94,7 +98,7 @@ describe('GET /api/service/dashboard-rcm/rep-funds/cases', () => {
 
     vi.mocked(RcmRepFundsService.getRepCases).mockResolvedValueOnce([])
 
-    const req = new Request('http://localhost:3000/api/service/dashboard-rcm/rep-funds/cases?ds1=2026-10-01&ds2=2026-10-31')
+    const req = new Request('http://localhost:3000/api/service/dashboard-rcm/rep-funds/cases?source=repeclaim&ds1=2026-10-01&ds2=2026-10-31')
     const res = await GET(req)
     const json = await res.json()
 
@@ -102,6 +106,7 @@ describe('GET /api/service/dashboard-rcm/rep-funds/cases', () => {
     expect(json.success).toBe(true)
     expect(RcmRepFundsService.getRepCases).toHaveBeenCalledWith(
       expect.objectContaining({
+        source: 'repeclaim',
         ds1: '2026-10-01',
         ds2: '2026-10-31',
       })

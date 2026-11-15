@@ -637,7 +637,7 @@ export default function DentalImplantDensurClient({
                 onChange={(e) => handleFiscalYearChange(parseInt(e.target.value, 10))}
                 aria-label="เลือกปีงบประมาณ"
               >
-                {[2569, 2570].map((y) => (
+                {yearOptions.map((y) => (
                   <option key={y} value={y}>
                     ปีงบ {y}
                   </option>

@@ -707,7 +707,7 @@ export default function ImcEligiblePatientsClient({
                 setCurrentPage(1)
               }}
             >
-              {[2569, 2570].map((y) => (
+              {yearOptions.map((y) => (
                 <option key={y} value={y}>
                   ปีงบ {y}
                 </option>

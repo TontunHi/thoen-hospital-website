@@ -58,6 +58,8 @@ export type MemberPermission =
   | 'view_ltc_registry'
   | 'edit_ltc_registry'
   | 'manage_ltc_registry'
+  | 'manage_dm_remission'
+  | 'manage_fct_home_visit'
 
 export interface MemberDto {
   id: number

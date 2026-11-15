@@ -6,6 +6,7 @@ import {
   maskHn,
   resolveMainInscl,
   formatFundLabel,
+  normalizeRepSource,
 } from '../rcmRepFundsService'
 import { apiGateway } from '@/lib/apiGateway'
 import { clearMemoryCache } from '@/lib/cache'
@@ -19,10 +20,19 @@ vi.mock('@/lib/apiGateway', () => ({
 }))
 
 describe('RcmRepFundsService helpers', () => {
+  it('normalizes rep data sources safely', () => {
+    expect(normalizeRepSource(undefined)).toBe('repdata')
+    expect(normalizeRepSource('REPDATA')).toBe('repdata')
+    expect(normalizeRepSource('repeclaim')).toBe('repeclaim')
+    expect(normalizeRepSource('Seamless')).toBe('seamless')
+    expect(normalizeRepSource('unknown_table')).toBe('repdata')
+  })
+
   it('formats Thai date correctly with Buddhist Era', () => {
     const formatted = formatThaiDate('2026-10-25T12:00:00.000Z')
-    expect(formatted).toContain('2569') // depending on local/UTC date
+    expect(formatted).toContain('2569')
     expect(formatted).toMatch(/\d{1,2} [^\s]+ 2569/)
+    expect(formatDateYMD('2026-10-25T12:00:00.000Z')).toMatch(/2026-10-25/)
   })
 
   it('masks HN protecting PDPA', () => {
@@ -38,6 +48,7 @@ describe('RcmRepFundsService helpers', () => {
     expect(resolveMainInscl('SSS')).toBe('SSS')
     expect(resolveMainInscl('STP')).toBe('STP')
     expect(resolveMainInscl('IP01')).toBe('UCS')
+    expect(resolveMainInscl('WEL')).toBe('UCS')
   })
 
   it('formats fund labels', () => {
@@ -45,34 +56,35 @@ describe('RcmRepFundsService helpers', () => {
     expect(formatFundLabel('OFC')).toBe('ข้าราชการ (OFC)')
     expect(formatFundLabel('OPCS,OTCS')).toContain('ข้าราชการ')
     expect(formatFundLabel('IPLG,OTLG')).toContain('อปท.')
+    expect(formatFundLabel('ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ')).toBe(
+      'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ'
+    )
     expect(formatFundLabel(null)).toBe('ไม่ระบุกองทุน')
   })
 })
 
-describe('RcmRepFundsService queries', () => {
+describe('RcmRepFundsService multi-source queries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     clearMemoryCache()
   })
 
-  it('fetches available fiscal years', async () => {
+  it('fetches available fiscal years scoped to source table', async () => {
     vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
       { YearBudget: '2570' },
       { YearBudget: '2569' },
     ])
 
-    const years = await RcmRepFundsService.getAvailableYears()
+    const years = await RcmRepFundsService.getAvailableYears('repeclaim')
     expect(years).toEqual(['2570', '2569'])
     expect(apiGateway.clinical.query).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT DISTINCT YearBudget')
+      expect.stringContaining('FROM rcmdb.repeclaim')
     )
   })
 
-  it('aggregates summary metrics, fund groups, and rep list', async () => {
+  it('aggregates summary metrics and available funds for repdata', async () => {
     // 1. Available years
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
-      { YearBudget: '2570' },
-    ])
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([{ YearBudget: '2570' }])
     // 2. Metrics
     vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
       {
@@ -85,38 +97,7 @@ describe('RcmRepFundsService queries', () => {
         errorCount: 0,
       },
     ])
-    // 3. Fund groups
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
-      {
-        fundKey: 'IPCS,OTCS',
-        subFundKey: '-',
-        department: 'IP',
-        caseCount: 14,
-        totalIncome: 166938.75,
-        totalCompensated: 146984.16,
-        netDiff: -19954.59,
-        appealCount: 0,
-        errorCount: 0,
-      },
-    ])
-    // 4. Rep list
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
-      {
-        rep: '691000204',
-        yearBudget: '2570',
-        department: 'IP',
-        fund: 'IPCS,OTCS',
-        caseCount: 14,
-        totalIncome: 166938.75,
-        totalCompensated: 146984.16,
-        netDiff: -19954.59,
-        minDate: '2026-10-08T09:40:00.000Z',
-        maxDate: '2026-10-25T12:00:00.000Z',
-        appealCount: 0,
-        errorCount: 0,
-      },
-    ])
-    // 5. Available funds
+    // 3. Available funds
     vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
       {
         fundKey: 'IPCS,OTCS',
@@ -124,24 +105,98 @@ describe('RcmRepFundsService queries', () => {
       },
     ])
 
-    const res = await RcmRepFundsService.getRepFundsSummary({ fiscalYear: '2570' })
+    const res = await RcmRepFundsService.getRepFundsSummary({
+      source: 'repdata',
+      fiscalYear: '2570',
+    })
 
+    expect(res.source).toBe('repdata')
     expect(res.metrics.totalCases).toBe(14)
     expect(res.metrics.totalIncome).toBe(166938.75)
     expect(res.metrics.totalCompensated).toBe(146984.16)
-    expect(res.fundGroups).toHaveLength(1)
-    expect(res.fundGroups[0].fundKey).toBe('IPCS,OTCS')
-    expect(res.repList).toHaveLength(1)
-    expect(res.repList[0].rep).toBe('691000204')
+    expect(res.availableFunds).toHaveLength(1)
+    expect(res.availableFunds[0].key).toBe('IPCS,OTCS')
   })
 
-  it('fetches patient cases by Rep', async () => {
+  it('queries summary and cases from rcmdb.seamless using Collected, Note, and AdmDate', async () => {
+    // 1. Available years for seamless
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([{ YearBudget: '2569' }])
+    // 2. Metrics for seamless
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
+      {
+        totalCases: 20,
+        totalReps: 2,
+        totalIncome: 12000,
+        totalCompensated: 9500,
+        totalDiff: -2500,
+        pendingAppeals: 3,
+        errorCount: 4,
+      },
+    ])
+    // 3. Available funds for seamless
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
+      {
+        fundKey: 'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ',
+        cnt: 20,
+      },
+    ])
+
+    const summary = await RcmRepFundsService.getRepFundsSummary({
+      source: 'seamless',
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+      status: 'has_error',
+    })
+
+    expect(summary.source).toBe('seamless')
+    expect(summary.metrics.totalCases).toBe(20)
+    expect(summary.metrics.errorCount).toBe(4)
+    expect(apiGateway.clinical.query).toHaveBeenCalledWith(
+      expect.stringContaining('FROM rcmdb.seamless'),
+      expect.arrayContaining(['2026-10-01', '2026-10-31'])
+    )
+
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
+      {
+        ID: 'SM_001',
+        Rep: 'DDSA69093000090',
+        HN: '0000001',
+        PtName: 'นาย ทดสอบ ระบบ',
+        AdmDate: '2026-10-15',
+        Department: 'OP',
+        Income: 500,
+        Compensated: 350,
+        Diff: -150,
+        Fund: 'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ',
+        SubFund: 'บริการคนพิการ',
+        ErrorCode: 'DS305',
+        MainInscl: 'WEL',
+        PayNo: 'DDSA6941090041',
+        PayDate: '2026-10-25',
+        SeamlessStatus: 'ชดเชย',
+      },
+    ])
+
+    const cases = await RcmRepFundsService.getRepCases({
+      source: 'seamless',
+      fiscalYear: '2570',
+    })
+
+    expect(cases).toHaveLength(1)
+    expect(cases[0].source).toBe('seamless')
+    expect(cases[0].rep).toBe('DDSA69093000090')
+    expect(cases[0].mainInscl).toBe('UCS')
+    expect(cases[0].payNo).toBe('DDSA6941090041')
+    expect(cases[0].errorCode).toBe('DS305')
+  })
+
+  it('fetches patient cases from rcmdb.repeclaim by Rep and custom date range', async () => {
     vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
       {
         ID: '832703707',
         Rep: '691000204',
-        HN: '0142232',
-        PtName: 'นาย กฤษฎา สาริวงค์',
+        HN: '0000002',
+        PtName: 'นาง ตัวอย่าง ทดสอบ',
         AdmDate: '2026-10-24T22:01:00.000Z',
         DchDate: '2026-10-25T12:00:00.000Z',
         Department: 'IP',
@@ -156,60 +211,20 @@ describe('RcmRepFundsService queries', () => {
       },
     ])
 
-    const cases = await RcmRepFundsService.getRepCases({ rep: '691000204' })
+    const cases = await RcmRepFundsService.getRepCases({
+      source: 'repeclaim',
+      rep: '691000204',
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+    })
 
     expect(cases).toHaveLength(1)
+    expect(cases[0].source).toBe('repeclaim')
     expect(cases[0].rep).toBe('691000204')
-    expect(cases[0].ptName).toBe('นาย กฤษฎา สาริวงค์')
-    expect(cases[0].hn).toBe('0142232')
-    expect(cases[0].income).toBe(3090)
-    expect(cases[0].compensated).toBe(3621.62)
     expect(cases[0].status).toBe('paid')
-  })
-
-  it('queries summary and cases by custom date range (ds1 and ds2)', async () => {
-    // 1. getAvailableYears
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([{ YearBudget: '2570' }])
-    // 2. Metrics
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
-      {
-        totalCases: 5,
-        totalReps: 1,
-        totalIncome: 50000,
-        totalCompensated: 48000,
-        totalDiff: -2000,
-        pendingAppeals: 0,
-        errorCount: 0,
-      },
-    ])
-    // 3. Fund groups
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
-    // 4. Rep list
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
-    // 5. Available funds
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
-
-    const summary = await RcmRepFundsService.getRepFundsSummary({
-      ds1: '2026-10-01',
-      ds2: '2026-10-31',
-    })
-
-    expect(summary.metrics.totalCases).toBe(5)
     expect(apiGateway.clinical.query).toHaveBeenCalledWith(
-      expect.stringContaining('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?'),
-      expect.arrayContaining(['2026-10-01 00:00:00', '2026-10-31 23:59:59'])
-    )
-
-    // Cases query by ds1 and ds2
-    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
-    await RcmRepFundsService.getRepCases({
-      ds1: '2026-10-01',
-      ds2: '2026-10-31',
-    })
-
-    expect(apiGateway.clinical.query).toHaveBeenCalledWith(
-      expect.stringContaining('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?'),
-      expect.arrayContaining(['2026-10-01 00:00:00', '2026-10-31 23:59:59'])
+      expect.stringContaining('FROM rcmdb.repeclaim'),
+      expect.arrayContaining(['691000204', '2026-10-01 00:00:00', '2026-10-31 23:59:59'])
     )
   })
 })

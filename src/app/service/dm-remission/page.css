@@ -1,0 +1,1314 @@
+/* Scoped to DM Remission page — Light-mode locked, aligned with DESIGN.md & tokens.css */
+.dmrPage {
+  color-scheme: light;
+
+  /* Lock semantic DS tokens inside DM Remission strictly to the Light palette (never dark mode) */
+  --ds-color-surface-sunken: var(--ds-color-neutral-light-2);
+  --ds-color-surface-base: var(--ds-color-neutral-light-1);
+  --ds-color-surface-raised: var(--ds-color-white);
+  --ds-color-surface-overlay: var(--ds-color-white);
+  --ds-color-text-primary: var(--ds-color-neutral-light-12);
+  --ds-color-text-secondary: var(--ds-color-neutral-light-11);
+  --ds-color-text-disabled: var(--ds-color-neutral-light-8);
+  --ds-color-text-accent: var(--ds-color-accent-light-11);
+  --ds-color-text-on-action: var(--ds-color-white);
+  --ds-color-text-inverse: var(--ds-color-white);
+  --ds-color-text-success: var(--ds-color-success-light-11);
+  --ds-color-text-warning: var(--ds-color-warning-light-11);
+  --ds-color-text-danger: var(--ds-color-danger-light-11);
+  --ds-color-bg-neutral-subtle: var(--ds-color-neutral-light-3);
+  --ds-color-bg-neutral-subtle-hover: var(--ds-color-neutral-light-4);
+  --ds-color-bg-neutral-subtle-pressed: var(--ds-color-neutral-light-5);
+  --ds-color-bg-accent-subtle: var(--ds-color-accent-light-3);
+  --ds-color-bg-action-primary: var(--ds-color-accent-light-9);
+  --ds-color-bg-action-primary-hover: var(--ds-color-accent-light-10);
+  --ds-color-bg-action-primary-pressed: var(--ds-color-accent-light-solid-pressed);
+  --ds-color-bg-success-subtle: var(--ds-color-success-light-3);
+  --ds-color-bg-success-bold: var(--ds-color-success-light-9);
+  --ds-color-bg-warning-subtle: var(--ds-color-warning-light-3);
+  --ds-color-bg-warning-bold: var(--ds-color-warning-light-9);
+  --ds-color-bg-danger-subtle: var(--ds-color-danger-light-3);
+  --ds-color-bg-danger-bold: var(--ds-color-danger-light-9);
+  --ds-color-bg-inverse: var(--ds-color-neutral-light-12);
+  --ds-color-border-subtle: var(--ds-color-neutral-light-6);
+  --ds-color-border-input: var(--ds-color-neutral-light-8);
+  --ds-color-border-accent: var(--ds-color-accent-light-8);
+  --ds-color-border-separator: var(--ds-color-neutral-light-4);
+  --ds-color-border-danger: var(--ds-color-danger-light-8);
+  --ds-color-overlay-scrim: var(--ds-color-neutral-alpha-light-8);
+  --ds-color-shadow-key: var(--ds-color-neutral-alpha-light-3);
+  --ds-color-shadow-ring: var(--ds-color-neutral-alpha-light-4);
+
+  --dmr-bg-base: var(--ds-color-surface-base);
+  --dmr-bg-sunken: var(--ds-color-surface-sunken);
+  --dmr-bg-raised: var(--ds-color-surface-raised);
+  --dmr-bg-hover: var(--ds-color-bg-accent-subtle);
+  --dmr-bg-subtle-neutral: var(--ds-color-bg-neutral-subtle-pressed);
+  --dmr-bg-subtle-hover: var(--ds-color-bg-neutral-subtle-hover);
+
+  --dmr-text-primary: var(--ds-color-text-primary);
+  --dmr-text-secondary: var(--ds-color-text-secondary);
+  --dmr-text-muted: var(--ds-color-text-disabled);
+  --dmr-text-accent: var(--ds-color-text-accent);
+  --dmr-text-on-accent: var(--ds-color-text-on-action);
+
+  --dmr-accent: var(--ds-color-bg-action-primary);
+  --dmr-accent-hover: var(--ds-color-bg-action-primary-hover);
+  --dmr-accent-pressed: var(--ds-color-bg-action-primary-pressed);
+  --dmr-accent-subtle: var(--ds-color-bg-accent-subtle);
+  --dmr-accent-border: var(--ds-color-border-accent);
+
+  --dmr-success: var(--ds-color-text-success);
+  --dmr-success-dot: var(--ds-color-bg-success-bold);
+  --dmr-success-bg: var(--ds-color-bg-success-subtle);
+
+  --dmr-warning: var(--ds-color-text-warning);
+  --dmr-warning-dot: var(--ds-color-bg-warning-bold);
+  --dmr-warning-bg: var(--ds-color-bg-warning-subtle);
+
+  --dmr-danger: var(--ds-color-text-danger);
+  --dmr-danger-dot: var(--ds-color-bg-danger-bold);
+  --dmr-danger-bg: var(--ds-color-bg-danger-subtle);
+  --dmr-danger-border: var(--ds-color-border-danger);
+
+  --dmr-border-separator: var(--ds-color-border-separator);
+  --dmr-border-subtle: var(--ds-color-border-subtle);
+  --dmr-border-input: var(--ds-color-border-input);
+
+  --dmr-radius-detail: var(--ds-radius-control-sm);
+  --dmr-radius-control: var(--ds-radius-control);
+  --dmr-radius-card: var(--ds-radius-container);
+  --dmr-radius-modal: var(--ds-radius-overlay);
+
+  --dmr-shadow-raised: var(--ds-elevation-raised);
+  --dmr-shadow-overlay: var(--ds-elevation-overlay);
+  --dmr-ease: var(--ds-motion-easing-standard);
+  --dmr-duration: var(--ds-motion-duration-medium);
+
+  min-height: 100vh;
+  min-height: 100svh;
+  background: var(--dmr-bg-base);
+  color: var(--dmr-text-primary);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  padding: 1.25rem 1rem 3rem;
+}
+
+@media (min-width: 48rem) {
+  .dmrPage {
+    padding: 1.5rem 1.5rem 4rem;
+  }
+}
+
+.dmrContainer {
+  max-width: 92.5rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Header */
+.dmrHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 0.0625rem solid var(--dmr-border-separator);
+}
+
+.dmrBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--dmr-text-secondary);
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+  transition: color var(--dmr-duration) var(--dmr-ease);
+}
+
+.dmrBackLink:hover {
+  color: var(--dmr-text-accent);
+}
+
+.dmrTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.dmrTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-24);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-primary);
+}
+
+.dmrFyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--dmr-radius-detail);
+  background: var(--dmr-accent-subtle);
+  border: 0.0625rem solid var(--dmr-accent-border);
+  color: var(--dmr-text-accent);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.dmrFyDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--ds-radius-person);
+  background: var(--dmr-accent);
+}
+
+.dmrViewOnlyBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--dmr-radius-detail);
+  background: var(--dmr-bg-sunken);
+  border: 0.0625rem solid var(--dmr-border-subtle);
+  color: var(--dmr-text-secondary);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-body);
+}
+
+.dmrSubtitle {
+  margin: 0.25rem 0 0;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--dmr-text-secondary);
+}
+
+.dmrHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Controls & Buttons */
+.dmrBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--dmr-radius-control);
+  border: 0.0625rem solid var(--dmr-border-subtle);
+  background: var(--dmr-bg-raised);
+  color: var(--dmr-text-primary);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dmr-duration) var(--dmr-ease),
+    border-color var(--dmr-duration) var(--dmr-ease),
+    color var(--dmr-duration) var(--dmr-ease);
+}
+
+.dmrBtn:hover:not(:disabled) {
+  background: var(--dmr-bg-sunken);
+  border-color: var(--dmr-border-input);
+}
+
+.dmrBtn:active:not(:disabled) {
+  background: var(--dmr-bg-subtle-neutral);
+}
+
+.dmrBtn:focus-visible {
+  outline: 0.125rem solid var(--dmr-accent);
+  outline-offset: 0.125rem;
+}
+
+.dmrBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dmrBtnPrimary {
+  background: var(--dmr-accent);
+  border-color: var(--dmr-accent);
+  color: var(--dmr-text-on-accent);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.dmrBtnPrimary:hover:not(:disabled) {
+  background: var(--dmr-accent-hover);
+  border-color: var(--dmr-accent-hover);
+}
+
+.dmrBtnPrimary:active:not(:disabled) {
+  background: var(--dmr-accent-pressed);
+  border-color: var(--dmr-accent-pressed);
+}
+
+.dmrBtnGhost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--dmr-text-secondary);
+}
+
+.dmrBtnGhost:hover:not(:disabled) {
+  background: var(--dmr-bg-sunken);
+  border-color: transparent;
+  color: var(--dmr-text-primary);
+}
+
+.dmrBtnDanger {
+  color: var(--dmr-danger);
+  border-color: transparent;
+  background: transparent;
+}
+
+.dmrBtnDanger:hover:not(:disabled) {
+  background: var(--dmr-danger-bg);
+  border-color: var(--dmr-danger-border);
+}
+
+.dmrBtnSm {
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  border-radius: var(--dmr-radius-detail);
+}
+
+/* Delete icon button inside spreadsheet action column */
+.dmrDeleteIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: var(--dmr-radius-control);
+  border: 0.0625rem solid var(--dmr-border-separator);
+  background: var(--dmr-bg-raised);
+  color: var(--dmr-danger);
+  cursor: pointer;
+  transition:
+    background-color var(--dmr-duration) var(--dmr-ease),
+    border-color var(--dmr-duration) var(--dmr-ease);
+}
+
+.dmrDeleteIconBtn:hover:not(:disabled) {
+  background: var(--dmr-danger-bg);
+  border-color: var(--dmr-danger-border);
+}
+
+.dmrDeleteIconBtn:focus-visible {
+  outline: 0.125rem solid var(--dmr-danger);
+  outline-offset: 0.125rem;
+}
+
+.dmrDeleteIconBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Control & Filter Bar */
+.dmrControlBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--dmr-bg-raised);
+  border-radius: var(--dmr-radius-card);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--dmr-shadow-raised);
+}
+
+.dmrFilterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1;
+}
+
+.dmrSelect,
+.dmrInput {
+  min-height: 2.25rem;
+  padding: 0.375rem 0.75rem;
+  border: 0.0625rem solid var(--dmr-border-input);
+  border-radius: var(--dmr-radius-control);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--dmr-text-primary);
+  background: var(--dmr-bg-raised);
+  transition: border-color var(--dmr-duration) var(--dmr-ease);
+}
+
+.dmrSelect:focus,
+.dmrInput:focus,
+.dmrTextarea:focus {
+  outline: 0.125rem solid var(--dmr-accent);
+  outline-offset: 0.125rem;
+  border-color: var(--dmr-accent);
+}
+
+.dmrSearchWrap {
+  position: relative;
+  min-width: 13.75rem;
+  flex: 1;
+  max-width: 20rem;
+}
+
+.dmrSearchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dmr-text-muted);
+  pointer-events: none;
+}
+
+.dmrSearchInput {
+  width: 100%;
+  padding-left: 2.25rem;
+}
+
+.dmrTabGroup {
+  display: inline-flex;
+  background: var(--dmr-bg-sunken);
+  padding: 0.25rem;
+  border-radius: var(--dmr-radius-control);
+  gap: 0.25rem;
+  border: 0.0625rem solid var(--dmr-border-separator);
+}
+
+.dmrSettingsTabs {
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.dmrTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--dmr-radius-detail);
+  border: none;
+  background: transparent;
+  color: var(--dmr-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dmr-duration) var(--dmr-ease),
+    color var(--dmr-duration) var(--dmr-ease);
+}
+
+.dmrTabBtn:hover {
+  color: var(--dmr-text-primary);
+}
+
+.dmrTabBtn.active {
+  background: var(--dmr-bg-raised);
+  color: var(--dmr-text-accent);
+  font-weight: var(--ds-font-weight-heading);
+  box-shadow: var(--dmr-shadow-raised);
+}
+
+/* KPI Strip (4 varied clinical cards, no decorative icon boxes) */
+.dmrDashboardSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dmrKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 68.75rem) {
+  .dmrKpiGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 37.5rem) {
+  .dmrKpiGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dmrKpiCard {
+  background: var(--dmr-bg-raised);
+  border-radius: var(--dmr-radius-card);
+  padding: 1rem 1.25rem;
+  box-shadow: var(--dmr-shadow-raised);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dmrKpiCardAccent {
+  border-left: 0.1875rem solid var(--dmr-accent);
+}
+
+.dmrKpiLabel {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--dmr-text-secondary);
+}
+
+.dmrKpiValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dmrKpiValue {
+  font-size: var(--ds-font-size-24);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dmrKpiValueMd {
+  font-size: var(--ds-font-size-20);
+  line-height: 1.4;
+}
+
+.dmrKpiHighlight {
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.dmrKpiSub {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-body);
+  color: var(--dmr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Charts & Analytics Grid (8 : 4 asymmetric layout) */
+.dmrChartsGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dmrCard {
+  background: var(--dmr-bg-raised);
+  border-radius: var(--dmr-radius-card);
+  padding: 1.25rem;
+  box-shadow: var(--dmr-shadow-raised);
+}
+
+.dmrSpan8 {
+  grid-column: span 8;
+}
+
+.dmrSpan4 {
+  grid-column: span 4;
+}
+
+.dmrSpan12 {
+  grid-column: span 12;
+}
+
+@media (max-width: 64rem) {
+  .dmrSpan8,
+  .dmrSpan4 {
+    grid-column: span 12;
+  }
+}
+
+.dmrCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.dmrCardTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-primary);
+}
+
+.dmrCardMeta {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  color: var(--dmr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dmrChartLegend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: var(--ds-font-size-12);
+  color: var(--dmr-text-secondary);
+}
+
+.dmrLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.dmrLegendSwatch {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: var(--ds-radius-detail);
+}
+
+.dmrLegendSwatchAccent {
+  background: var(--dmr-accent);
+}
+
+.dmrLegendSwatchNeutral {
+  background: var(--dmr-border-subtle);
+}
+
+.dmrChartScroll {
+  width: 100%;
+  max-height: 28.75rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+/* Status Share Ranked List */
+.dmrShareBar {
+  display: flex;
+  height: 0.625rem;
+  width: 100%;
+  border-radius: var(--dmr-radius-detail);
+  overflow: hidden;
+  background: var(--dmr-bg-sunken);
+  gap: 0.125rem;
+  margin-bottom: 1rem;
+}
+
+.dmrStatusList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dmrStatusBtn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--dmr-radius-control);
+  border: 0.0625rem solid var(--dmr-border-separator);
+  background: var(--dmr-bg-base);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color var(--dmr-duration) var(--dmr-ease),
+    border-color var(--dmr-duration) var(--dmr-ease);
+}
+
+.dmrStatusBtn:hover {
+  background: var(--dmr-bg-sunken);
+  border-color: var(--dmr-border-subtle);
+}
+
+.dmrStatusBtn.active {
+  background: var(--dmr-accent-subtle);
+  border-color: var(--dmr-accent-border);
+}
+
+.dmrStatusBtnTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+}
+
+.dmrStatusLabelWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--dmr-text-primary);
+  font-weight: var(--ds-font-weight-body);
+}
+
+.dmrStatusDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--ds-radius-person);
+  flex-shrink: 0;
+}
+
+.dmrToneRemission {
+  background: var(--dmr-accent);
+}
+
+.dmrToneNotRemission {
+  background: var(--dmr-danger-dot);
+}
+
+.dmrToneWaiting {
+  background: var(--dmr-warning-dot);
+}
+
+.dmrToneUnknown {
+  background: var(--dmr-border-input);
+}
+
+.dmrToneOther {
+  background: var(--dmr-text-secondary);
+}
+
+.dmrStatusNums {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  color: var(--dmr-text-secondary);
+}
+
+.dmrStatusNums strong {
+  color: var(--dmr-text-primary);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.dmrTrack {
+  width: 100%;
+  height: 0.25rem;
+  border-radius: var(--ds-radius-detail);
+  background: var(--dmr-bg-sunken);
+  overflow: hidden;
+}
+
+.dmrTrackFill {
+  height: 100%;
+  border-radius: var(--ds-radius-detail);
+}
+
+/* Breakdown Grid */
+.dmrBreakdownGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14.375rem, 1fr));
+  gap: 0.75rem;
+}
+
+.dmrBreakdownBox {
+  background: var(--dmr-bg-base);
+  border: 0.0625rem solid var(--dmr-border-separator);
+  border-radius: var(--dmr-radius-control);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dmrBreakdownTitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-primary);
+  padding-bottom: 0.25rem;
+  border-bottom: 0.0625rem solid var(--dmr-border-separator);
+}
+
+.dmrBreakdownList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.dmrBreakdownItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.dmrBreakdownRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.38;
+  color: var(--dmr-text-secondary);
+}
+
+.dmrBreakdownCount {
+  font-weight: var(--ds-font-weight-heading);
+  font-variant-numeric: tabular-nums;
+  color: var(--dmr-text-primary);
+  white-space: nowrap;
+}
+
+.dmrMiniTrack {
+  width: 100%;
+  height: 0.1875rem;
+  background: var(--dmr-bg-sunken);
+  border-radius: var(--ds-radius-detail);
+  overflow: hidden;
+}
+
+.dmrMiniFill {
+  height: 100%;
+  background: var(--dmr-accent-border);
+  border-radius: var(--ds-radius-detail);
+}
+
+/* 29-Column Clinical Spreadsheet Table (Centered Headers & Cells, Strict Fixed Layout) */
+.dmrTableCard {
+  background: var(--dmr-bg-raised);
+  border-radius: var(--dmr-radius-card);
+  box-shadow: var(--dmr-shadow-raised);
+  overflow: hidden;
+}
+
+.dmrTableMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 0.0625rem solid var(--dmr-border-separator);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--dmr-text-secondary);
+}
+
+.dmrTableScroll {
+  width: 100%;
+  max-height: 68vh;
+  overflow: auto;
+  background: var(--dmr-bg-raised);
+}
+
+.dmrTable {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.dmrTable thead {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+.dmrTable th,
+.dmrTable td {
+  box-sizing: border-box;
+  padding: 0.5rem 0.625rem;
+  border-bottom: 0.0625rem solid var(--dmr-border-separator);
+  border-right: 0.0625rem solid var(--dmr-border-separator);
+  text-align: center;
+  vertical-align: middle;
+  background: var(--dmr-bg-raised);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.dmrTable thead tr.dmrGroupRow th {
+  background: var(--dmr-bg-sunken);
+  color: var(--dmr-text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  font-weight: var(--ds-font-weight-heading);
+  padding: 0.375rem 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  border-bottom: 0.0625rem solid var(--dmr-border-subtle);
+}
+
+.dmrTable thead tr.dmrColRow th {
+  background: var(--dmr-bg-sunken);
+  color: var(--dmr-text-primary);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.35;
+  font-weight: var(--ds-font-weight-heading);
+  padding: 0.5rem 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+  white-space: normal;
+  border-bottom: 0.0625rem solid var(--dmr-border-subtle);
+}
+
+.dmrTable tbody tr:hover td {
+  background: var(--dmr-bg-hover);
+}
+
+.dmrGroupStart {
+  border-left: 0.0625rem solid var(--dmr-border-subtle);
+}
+
+.dmrCellNum {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dmrFwSemibold {
+  font-weight: var(--ds-font-weight-heading);
+}
+
+/* Sheet-like Inline Cell Editing */
+.dmrSheetTd {
+  padding: 0.25rem 0.375rem;
+  cursor: cell;
+  transition: background-color var(--dmr-duration) var(--dmr-ease);
+}
+
+.dmrSheetTd:hover:not(.dmrSheetTdEditing) {
+  background: var(--dmr-bg-sunken);
+}
+
+.dmrSheetTd:focus-visible {
+  outline: 0.125rem solid var(--dmr-accent);
+  outline-offset: -0.125rem;
+}
+
+.dmrSheetTdEditing {
+  padding: 0.1875rem 0.25rem;
+}
+
+.dmrSheetDisplay {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.25rem 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.dmrSheetCellSaving {
+  opacity: 0.6;
+}
+
+.dmrSheetCellMuted {
+  color: var(--dmr-text-muted);
+}
+
+.dmrSheetCellInput,
+.dmrSheetCellSelect,
+.dmrSheetCellTextarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.25rem 0.375rem;
+  border: 0.125rem solid var(--dmr-accent);
+  border-radius: var(--dmr-radius-detail);
+  background: var(--dmr-bg-raised);
+  color: var(--dmr-text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-family: inherit;
+  text-align: center;
+  text-align-last: center;
+  outline: none;
+}
+
+.dmrSheetCellInput,
+.dmrSheetCellSelect {
+  min-height: 2rem;
+}
+
+.dmrSheetCellTextarea {
+  min-height: 3.25rem;
+  resize: vertical;
+}
+
+.dmrStickyActions {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  background: var(--dmr-bg-raised);
+  box-shadow: -0.125rem 0 0.375rem var(--ds-color-shadow-key); /* od-ignore */
+}
+
+.dmrTable thead tr.dmrGroupRow th.dmrStickyActions,
+.dmrTable thead tr.dmrColRow th.dmrStickyActions {
+  background: var(--dmr-bg-sunken);
+  z-index: 7;
+}
+
+.dmrTable tbody tr:hover td.dmrStickyActions {
+  background: var(--dmr-bg-hover);
+}
+
+/* Semantic Status Badges & Trend Pills */
+.dmrBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--dmr-radius-detail);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  white-space: nowrap;
+}
+
+.dmrBadgeDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--ds-radius-person);
+  flex-shrink: 0;
+}
+
+.dmrBadgeSuccess {
+  background: var(--dmr-success-bg);
+  color: var(--dmr-success);
+}
+
+.dmrBadgeSuccess .dmrBadgeDot {
+  background: var(--dmr-success-dot);
+}
+
+.dmrBadgeDanger {
+  background: var(--dmr-danger-bg);
+  color: var(--dmr-danger);
+}
+
+.dmrBadgeDanger .dmrBadgeDot {
+  background: var(--dmr-danger-dot);
+}
+
+.dmrBadgeWarning {
+  background: var(--dmr-warning-bg);
+  color: var(--dmr-warning);
+}
+
+.dmrBadgeWarning .dmrBadgeDot {
+  background: var(--dmr-warning-dot);
+}
+
+.dmrBadgeNeutral {
+  background: var(--dmr-bg-sunken);
+  color: var(--dmr-text-secondary);
+}
+
+.dmrBadgeNeutral .dmrBadgeDot {
+  background: var(--dmr-text-muted);
+}
+
+.dmrTrendGood {
+  color: var(--dmr-success);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.dmrTrendUp {
+  color: var(--dmr-danger);
+}
+
+/* Alerts & Empty States */
+.dmrAlert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--dmr-radius-card);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+}
+
+.dmrAlertError {
+  background: var(--dmr-danger-bg);
+  border: 0.0625rem solid var(--dmr-danger-border);
+  color: var(--dmr-danger);
+}
+
+.dmrAlertInfo {
+  background: var(--dmr-accent-subtle);
+  border: 0.0625rem solid var(--dmr-accent-border);
+  color: var(--dmr-text-accent);
+}
+
+.dmrEmpty {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  color: var(--dmr-text-secondary);
+}
+
+.dmrEmptyCompact {
+  padding: 1.5rem 1rem;
+}
+
+/* Modals (Overlay Surface + 12px Radius, sits above site Navbar z-index: 1000) */
+.dmrModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--ds-color-overlay-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1100;
+}
+
+.dmrModal {
+  background: var(--dmr-bg-raised);
+  border-radius: var(--dmr-radius-modal);
+  width: 100%;
+  max-width: 57.5rem;
+  max-height: 90vh;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--dmr-shadow-overlay);
+}
+
+.dmrModalSm {
+  max-width: 37.5rem;
+}
+
+.dmrModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 0.0625rem solid var(--dmr-border-separator);
+}
+
+.dmrModalTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-primary);
+}
+
+.dmrModalBody {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dmrModalDesc {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--dmr-text-secondary);
+}
+
+.dmrCarryoverCopy {
+  margin: 0;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  color: var(--dmr-text-secondary);
+}
+
+.dmrCarryoverCopy strong {
+  color: var(--dmr-text-primary);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.dmrModalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 0.0625rem solid var(--dmr-border-separator);
+  background: var(--dmr-bg-sunken);
+}
+
+.dmrFormContents {
+  display: contents;
+}
+
+.dmrSectionBox {
+  border: 0.0625rem solid var(--dmr-border-separator);
+  border-radius: var(--dmr-radius-card);
+  padding: 1rem;
+  background: var(--dmr-bg-base);
+}
+
+.dmrSectionTitle {
+  margin: 0 0 0.75rem;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-accent);
+}
+
+.dmrFormGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dmrFormGrid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 45rem) {
+  .dmrFormGrid,
+  .dmrFormGrid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dmrField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dmrFieldSpaced {
+  margin-top: 0.75rem;
+}
+
+.dmrFieldLabel {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-secondary);
+}
+
+.dmrTextarea {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--dmr-border-input);
+  border-radius: var(--dmr-radius-control);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-family: inherit;
+  color: var(--dmr-text-primary);
+  background: var(--dmr-bg-raised);
+  resize: vertical;
+}
+
+.dmrHnRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dmrHnRow input {
+  flex: 1;
+}
+
+.dmrFlex1 {
+  flex: 1;
+}
+
+.dmrReadonlyBox {
+  min-height: 2.25rem;
+  display: flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  background: var(--dmr-bg-sunken);
+  border: 0.0625rem solid var(--dmr-border-separator);
+  border-radius: var(--dmr-radius-control);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--dmr-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Settings Modal Option Rows */
+.dmrOptionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dmrOptionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--dmr-border-separator);
+  border-radius: var(--dmr-radius-control);
+  background: var(--dmr-bg-raised);
+}
+
+.dmrOptionRowInactive {
+  background: var(--dmr-bg-sunken);
+}
+
+.dmrOptionLabel {
+  font-weight: var(--ds-font-weight-heading);
+  font-size: var(--ds-font-size-14);
+  color: var(--dmr-text-primary);
+}
+
+.dmrOptionLabelInactive {
+  font-weight: var(--ds-font-weight-body);
+  color: var(--dmr-text-muted);
+  text-decoration: line-through;
+}
+
+.dmrOptionActions {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dmrBackLink,
+  .dmrBtn,
+  .dmrDeleteIconBtn,
+  .dmrSelect,
+  .dmrInput,
+  .dmrTabBtn,
+  .dmrStatusBtn,
+  .dmrSheetTd {
+    transition: none;
+  }
+}

@@ -640,7 +640,7 @@ export default function FamilyPlanning92Client({
                   }}
                   className="fp-select"
                 >
-                  {[2569, 2570].map((y) => (
+                  {yearOptions.map((y) => (
                     <option key={y} value={y}>
                       ปีงบ {y}
                     </option>
