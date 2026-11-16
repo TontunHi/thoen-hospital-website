@@ -157,18 +157,18 @@ export class KpiService {
       return 'PASS'
     }
 
-    if (!operator && (targetValue === null || targetValue === undefined)) {
+    if (targetValue === null || targetValue === undefined) {
+      if (operator === 'MIN') {
+        return resultValue === 0 ? 'PASS' : 'WAITING_TARGET'
+      }
       return 'WAITING_TARGET'
     }
 
     const op = operator || '>='
-    const target = targetValue ?? 0
+    const target = targetValue
 
     if (op === 'MIN') {
-      if (targetValue !== null && targetValue !== undefined) {
-        return resultValue <= target ? 'PASS' : 'FAIL'
-      }
-      return resultValue === 0 ? 'PASS' : 'WAITING_TARGET'
+      return resultValue <= target ? 'PASS' : 'FAIL'
     }
 
     switch (op) {
@@ -767,10 +767,59 @@ export class KpiService {
   /**
    * Update target configuration for an indicator (Admin / Quality Center)
    */
+  private static async reEvaluateEntriesForIndicator(
+    indicatorId: number,
+    targetOperator: string | null | undefined,
+    targetValue: number | null | undefined,
+    indicatorMeta: { title?: string | null; targetUnit?: string | null; numeratorName?: string | null },
+    executor: QueryExecutor
+  ): Promise<void> {
+    const entries = await executor(`
+      SELECT
+        id,
+        numerator_value AS numeratorValue,
+        denominator_value AS denominatorValue,
+        result_value AS resultValue
+      FROM kpi_entries
+      WHERE indicator_id = ?
+    `, [indicatorId])
+
+    const isPct = isPercentageIndicator(indicatorMeta)
+
+    for (const e of entries) {
+      const numVal = e.numeratorValue !== null && e.numeratorValue !== undefined ? parseFloat(e.numeratorValue) : null
+      const denVal = e.denominatorValue !== null && e.denominatorValue !== undefined ? parseFloat(e.denominatorValue) : null
+      let val = e.resultValue !== null && e.resultValue !== undefined ? parseFloat(e.resultValue) : null
+      const isZeroDenominator = numVal === 0 && denVal === 0
+
+      if (val === null && numVal !== null && denVal !== null) {
+        if (denVal > 0) {
+          val = calculateIndicatorResult(numVal, denVal, isPct)
+        } else if (isZeroDenominator) {
+          val = 0
+        }
+      }
+
+      const newStatus = this.evaluateTarget(val, targetOperator, targetValue, { isZeroDenominator })
+      await executor('UPDATE kpi_entries SET status = ? WHERE id = ?', [newStatus, e.id])
+    }
+  }
+
+  /**
+   * Update target configuration for an indicator (Admin / Quality Center)
+   */
   static async updateTarget(
     input: UpdateTargetInput,
     executor: QueryExecutor = queryMemberDb
   ): Promise<void> {
+    const existing = await this.getIndicatorById(input.indicatorId, executor)
+    const effectiveUnit = input.targetUnit !== undefined ? input.targetUnit : (existing?.targetUnit ?? '%')
+    const effectiveRaw = input.targetRaw !== undefined
+      ? input.targetRaw
+      : (input.targetValue !== null && input.targetValue !== undefined
+          ? `${input.targetOperator || '>='} ${input.targetValue}${effectiveUnit || ''}`
+          : (input.targetOperator === 'MIN' ? 'MIN' : null))
+
     await executor(`
       UPDATE kpi_indicators SET
         target_operator = ?,
@@ -782,25 +831,22 @@ export class KpiService {
     `, [
       input.targetOperator,
       input.targetValue,
-      input.targetUnit ?? '%',
-      input.targetRaw ?? (input.targetValue !== null ? `${input.targetOperator || '>='} ${input.targetValue}${input.targetUnit || '%'}` : null),
+      effectiveUnit,
+      effectiveRaw,
       input.indicatorId
     ])
 
-    // Re-evaluate existing entries for this indicator
-    const entries = await executor(`
-      SELECT id, result_value AS resultValue
-      FROM kpi_entries
-      WHERE indicator_id = ?
-    `, [input.indicatorId])
-
-    for (const e of entries) {
-      const val = e.resultValue !== null ? parseFloat(e.resultValue) : null
-      const newStatus = this.evaluateTarget(val, input.targetOperator, input.targetValue)
-      await executor(`
-        UPDATE kpi_entries SET status = ? WHERE id = ?
-      `, [newStatus, e.id])
-    }
+    await this.reEvaluateEntriesForIndicator(
+      input.indicatorId,
+      input.targetOperator,
+      input.targetValue,
+      {
+        title: existing?.title,
+        targetUnit: effectiveUnit,
+        numeratorName: existing?.numeratorName,
+      },
+      executor
+    )
 
     logAudit(
       'UPDATE',
@@ -821,7 +867,12 @@ export class KpiService {
     input: CreateIndicatorInput,
     executor: QueryExecutor = queryMemberDb
   ): Promise<number> {
-    const targetRaw = input.targetRaw || (input.targetValue !== null && input.targetValue !== undefined ? `${input.targetOperator || '>='} ${input.targetValue}${input.targetUnit || '%'}` : null)
+    const resolvedUnit = input.targetUnit !== undefined ? input.targetUnit : '%'
+    const targetRaw = input.targetRaw !== undefined
+      ? input.targetRaw
+      : (input.targetValue !== null && input.targetValue !== undefined
+          ? `${input.targetOperator || '>='} ${input.targetValue}${resolvedUnit || ''}`
+          : null)
 
     const res: any = await executor(`
       INSERT INTO kpi_indicators (
@@ -844,7 +895,7 @@ export class KpiService {
       targetRaw,
       input.targetOperator ?? '>=',
       input.targetValue ?? null,
-      input.targetUnit ?? '%',
+      resolvedUnit,
       input.responsibleName ?? null,
       input.indicatorType ?? null,
       input.displayOrder ?? 999
@@ -877,11 +928,17 @@ export class KpiService {
       throw new Error(`Indicator with ID ${input.id} not found`)
     }
 
-    const targetRaw = input.targetRaw !== undefined 
-      ? input.targetRaw 
-      : (input.targetValue !== null && input.targetValue !== undefined 
-          ? `${input.targetOperator || existing.targetOperator || '>='} ${input.targetValue}${input.targetUnit || existing.targetUnit || '%'}` 
-          : existing.targetRaw)
+    const nextOp = input.targetOperator !== undefined ? input.targetOperator : existing.targetOperator
+    const nextVal = input.targetValue !== undefined ? input.targetValue : existing.targetValue
+    const nextUnit = input.targetUnit !== undefined ? input.targetUnit : existing.targetUnit
+
+    const targetRaw = input.targetRaw !== undefined
+      ? input.targetRaw
+      : (nextVal !== null && nextVal !== undefined
+          ? `${nextOp || '>='} ${nextVal}${nextUnit || ''}`
+          : (input.targetValue === null
+              ? (nextOp === 'MIN' ? 'MIN' : null)
+              : existing.targetRaw))
 
     await executor(`
       UPDATE kpi_indicators SET
@@ -914,9 +971,9 @@ export class KpiService {
       input.numeratorName !== undefined ? input.numeratorName : existing.numeratorName,
       input.denominatorName !== undefined ? input.denominatorName : existing.denominatorName,
       targetRaw,
-      input.targetOperator !== undefined ? input.targetOperator : existing.targetOperator,
-      input.targetValue !== undefined ? input.targetValue : existing.targetValue,
-      input.targetUnit !== undefined ? input.targetUnit : existing.targetUnit,
+      nextOp,
+      nextVal,
+      nextUnit,
       input.responsibleName !== undefined ? input.responsibleName : existing.responsibleName,
       input.indicatorType !== undefined ? input.indicatorType : existing.indicatorType,
       input.displayOrder !== undefined ? input.displayOrder : existing.displayOrder,
@@ -924,19 +981,18 @@ export class KpiService {
     ])
 
     // If target condition changed, re-evaluate existing entries
-    if (input.targetValue !== undefined || input.targetOperator !== undefined) {
-      const newOp = input.targetOperator !== undefined ? input.targetOperator : existing.targetOperator
-      const newVal = input.targetValue !== undefined ? input.targetValue : existing.targetValue
-
-      const entries = await executor(`
-        SELECT id, result_value AS resultValue FROM kpi_entries WHERE indicator_id = ?
-      `, [input.id])
-
-      for (const e of entries) {
-        const val = e.resultValue !== null ? parseFloat(e.resultValue) : null
-        const newStatus = this.evaluateTarget(val, newOp, newVal)
-        await executor('UPDATE kpi_entries SET status = ? WHERE id = ?', [newStatus, e.id])
-      }
+    if (input.targetValue !== undefined || input.targetOperator !== undefined || input.targetUnit !== undefined) {
+      await this.reEvaluateEntriesForIndicator(
+        input.id,
+        nextOp,
+        nextVal,
+        {
+          title: input.title !== undefined ? input.title : existing.title,
+          targetUnit: nextUnit,
+          numeratorName: input.numeratorName !== undefined ? input.numeratorName : existing.numeratorName,
+        },
+        executor
+      )
     }
 
     logAudit(

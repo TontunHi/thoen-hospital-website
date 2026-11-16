@@ -217,6 +217,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [indFormTargetVal, setIndFormTargetVal] = useState<string>('')
   const [indFormTargetUnit, setIndFormTargetUnit] = useState<string>('%')
   const [indFormTargetRaw, setIndFormTargetRaw] = useState<string>('')
+  const [indFormTargetRawDirty, setIndFormTargetRawDirty] = useState<boolean>(false)
   const [indFormResponsible, setIndFormResponsible] = useState<string>('')
   const [indFormType, setIndFormType] = useState<string>('HA')
 
@@ -875,6 +876,19 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     }
   }
 
+  const syncTargetRawIfClean = (nextOp: string, nextVal: string, nextUnit: string) => {
+    if (indFormTargetRawDirty) return
+    const valTrim = nextVal.trim()
+    const unitTrim = nextUnit.trim()
+    if (valTrim !== '') {
+      setIndFormTargetRaw(`${nextOp} ${valTrim}${unitTrim}`)
+    } else if (nextOp === 'MIN') {
+      setIndFormTargetRaw('MIN')
+    } else {
+      setIndFormTargetRaw('')
+    }
+  }
+
   // Open Create Indicator Modal
   const handleOpenCreateIndicator = () => {
     if (!isKpiManager) {
@@ -896,6 +910,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     setIndFormTargetVal('')
     setIndFormTargetUnit('%')
     setIndFormTargetRaw('')
+    setIndFormTargetRawDirty(false)
     setIndFormResponsible(currentUser.name || '')
     setIndFormType('HA')
     setEditIndicatorModalOpen(true)
@@ -907,6 +922,10 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       alert('เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถแก้ไขข้อมูลตัวชี้วัดได้')
       return
     }
+    const opMap: Record<string, string> = { GTE: '>=', LTE: '<=', GT: '>', LT: '<', EQ: '=' }
+    const normalizedOp = ind.targetOperator ? (opMap[ind.targetOperator] || ind.targetOperator) : '>='
+    const defaultUnit = isPercentageIndicator(ind) ? '%' : ''
+
     setIsCreatingNew(false)
     setActiveIndicator(ind)
     setIndFormSequence(ind.sequence || '')
@@ -918,10 +937,11 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     setIndFormTitle(ind.title)
     setIndFormNumeratorName(ind.numeratorName || '')
     setIndFormDenominatorName(ind.denominatorName || '')
-    setIndFormTargetOp(ind.targetOperator || '>=')
-    setIndFormTargetVal(ind.targetValue !== null ? String(ind.targetValue) : '')
-    setIndFormTargetUnit(ind.targetUnit || '%')
+    setIndFormTargetOp(normalizedOp)
+    setIndFormTargetVal(ind.targetValue !== null && ind.targetValue !== undefined ? String(ind.targetValue) : '')
+    setIndFormTargetUnit(ind.targetUnit !== null && ind.targetUnit !== undefined ? ind.targetUnit : defaultUnit)
     setIndFormTargetRaw(ind.targetRaw || '')
+    setIndFormTargetRawDirty(false)
     setIndFormResponsible(ind.responsibleName || '')
     setIndFormType(ind.indicatorType || 'HA')
     setEditIndicatorModalOpen(true)
@@ -938,9 +958,20 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       return
     }
 
+    const rawTargetVal = indFormTargetVal.trim()
+    const targetNum = rawTargetVal !== '' ? parseFloat(rawTargetVal) : null
+    if (rawTargetVal !== '' && (targetNum === null || isNaN(targetNum))) {
+      alert('ค่าเป้าหมายต้องเป็นตัวเลขที่ถูกต้อง')
+      return
+    }
+
     try {
       setSaving(true)
-      const targetNum = indFormTargetVal !== '' ? parseFloat(indFormTargetVal) : null
+      const cleanUnit = indFormTargetUnit.trim()
+      const resolvedTargetRaw = indFormTargetRaw.trim() ||
+        (targetNum !== null
+          ? `${indFormTargetOp} ${targetNum}${cleanUnit}`
+          : (indFormTargetOp === 'MIN' ? 'MIN' : null))
 
       const payload: any = {
         topicId: selectedTopicId,
@@ -955,8 +986,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         denominatorName: indFormDenominatorName.trim() || null,
         targetOperator: indFormTargetOp,
         targetValue: targetNum,
-        targetUnit: indFormTargetUnit.trim() || '%',
-        targetRaw: indFormTargetRaw.trim() || (targetNum !== null ? `${indFormTargetOp} ${targetNum}${indFormTargetUnit}` : null),
+        targetUnit: cleanUnit || null,
+        targetRaw: resolvedTargetRaw,
         responsibleName: indFormResponsible.trim() || null,
         indicatorType: indFormType.trim() || null,
       }
@@ -2184,8 +2215,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   <div className="kpiSummaryMeta">
                     <span>
                       <strong>เป้าหมาย:</strong>{' '}
-                      {activeIndicator.targetValue !== null 
-                        ? `${activeIndicator.targetOperator || '>='} ${activeIndicator.targetValue}${activeIndicator.targetUnit || '%'}`
+                      {activeIndicator.targetValue !== null && activeIndicator.targetValue !== undefined
+                        ? `${activeIndicator.targetOperator || '>='} ${activeIndicator.targetValue}${activeIndicator.targetUnit ?? (isPercentageIndicator(activeIndicator) ? '%' : '')}`
                         : activeIndicator.targetRaw || 'รอระบุเป้าหมาย'}
                     </span>
                     <span className="kpiSummaryMetaDivider">•</span>
@@ -2438,8 +2469,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   <div className="kpiSummaryMeta">
                     <span>
                       <strong>เป้าหมาย:</strong>{' '}
-                      {historyIndicator.targetValue !== null
-                        ? `${historyIndicator.targetOperator || '>='} ${historyIndicator.targetValue}${historyIndicator.targetUnit || '%'}`
+                      {historyIndicator.targetValue !== null && historyIndicator.targetValue !== undefined
+                        ? `${historyIndicator.targetOperator || '>='} ${historyIndicator.targetValue}${historyIndicator.targetUnit ?? (isPercentageIndicator(historyIndicator) ? '%' : '')}`
                         : historyIndicator.targetRaw || 'รอระบุเป้าหมาย'}
                     </span>
                     <span className="kpiSummaryMetaDivider">•</span>
@@ -2876,7 +2907,11 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         <select 
                           className="kpiSelectInput"
                           value={indFormTargetOp}
-                          onChange={(e) => setIndFormTargetOp(e.target.value)}
+                          onChange={(e) => {
+                            const nextOp = e.target.value
+                            setIndFormTargetOp(nextOp)
+                            syncTargetRawIfClean(nextOp, indFormTargetVal, indFormTargetUnit)
+                          }}
                         >
                           <option value=">=">&gt;= (มากกว่าเท่ากับ)</option>
                           <option value="<=">&lt;= (น้อยกว่าเท่ากับ)</option>
@@ -2896,17 +2931,25 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         placeholder="เช่น 40, 0"
                         className="kpiTextInput"
                         value={indFormTargetVal}
-                        onChange={(e) => setIndFormTargetVal(e.target.value)}
+                        onChange={(e) => {
+                          const nextVal = e.target.value
+                          setIndFormTargetVal(nextVal)
+                          syncTargetRawIfClean(indFormTargetOp, nextVal, indFormTargetUnit)
+                        }}
                       />
                     </div>
                     <div className="kpiTargetField">
                       <label className="kpiMiniLabel">หน่วย</label>
                       <input 
                         type="text"
-                        placeholder="เช่น %"
+                        placeholder="เช่น % หรือเว้นว่าง"
                         className="kpiTextInput"
                         value={indFormTargetUnit}
-                        onChange={(e) => setIndFormTargetUnit(e.target.value)}
+                        onChange={(e) => {
+                          const nextUnit = e.target.value
+                          setIndFormTargetUnit(nextUnit)
+                          syncTargetRawIfClean(indFormTargetOp, indFormTargetVal, nextUnit)
+                        }}
                       />
                     </div>
                     <div className="kpiTargetField">
@@ -2916,7 +2959,10 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         placeholder="ข้อความ เช่น ≥ 40%"
                         className="kpiTextInput"
                         value={indFormTargetRaw}
-                        onChange={(e) => setIndFormTargetRaw(e.target.value)}
+                        onChange={(e) => {
+                          setIndFormTargetRaw(e.target.value)
+                          setIndFormTargetRawDirty(true)
+                        }}
                       />
                     </div>
                   </div>
@@ -2925,8 +2971,12 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   <div className="kpiTargetPreview">
                     <span>ตัวอย่างผลลัพธ์เกณฑ์เป้าหมาย:</span>
                     <span className="kpiTargetPreviewBadge">
-                      {indFormTargetOp} {indFormTargetVal || '0'}{indFormTargetUnit || '%'}
-                      {indFormTargetRaw ? ` (${indFormTargetRaw})` : ''}
+                      {indFormTargetVal.trim() !== ''
+                        ? `${indFormTargetOp} ${indFormTargetVal.trim()}${indFormTargetUnit.trim()}`
+                        : (indFormTargetOp === 'MIN' ? 'MIN' : (indFormTargetRaw.trim() || 'รอระบุเป้าหมาย'))}
+                      {indFormTargetVal.trim() !== '' && indFormTargetRaw.trim() && indFormTargetRaw.trim() !== `${indFormTargetOp} ${indFormTargetVal.trim()}${indFormTargetUnit.trim()}`
+                        ? ` (${indFormTargetRaw.trim()})`
+                        : ''}
                     </span>
                   </div>
                 </div>

@@ -156,7 +156,7 @@ export async function PUT(req: NextRequest) {
     const parsed = updateSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: 'ข้อมูลไม่ถูกต้อง' } },
+        { success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message || 'ข้อมูลไม่ถูกต้อง' } },
         { status: 400 }
       )
     }

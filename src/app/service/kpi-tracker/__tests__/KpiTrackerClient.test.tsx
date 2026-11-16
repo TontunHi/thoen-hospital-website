@@ -942,6 +942,167 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
     expect(screen.getAllByText('(18,000/20,000)').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('(8,550/10,000)').length).toBeGreaterThanOrEqual(1)
   })
+
+  it('updates targetRaw and table display when editing and saving an indicator target', async () => {
+    let putPayloads: any[] = []
+    let currentTarget = {
+      targetOperator: '>=',
+      targetValue: 80,
+      targetUnit: '%',
+      targetRaw: '>= 80%',
+    }
+
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/kpi/topics')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              fiscalYears: ['2569'],
+              defaultYear: '2569',
+              topics: [{ id: 1, title: 'ตัวชี้วัด 2569', fiscalYear: '2569', isCurrent: true }],
+            },
+          }),
+        }
+      }
+      if (url.includes('/api/kpi/indicators') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body || '{}'))
+        putPayloads.push(body)
+        currentTarget = {
+          targetOperator: body.targetOperator,
+          targetValue: body.targetValue,
+          targetUnit: body.targetUnit,
+          targetRaw: body.targetRaw,
+        }
+        return { ok: true, json: async () => ({ success: true }) }
+      }
+      if (url.includes('/api/kpi/indicators')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              indicators: [
+                {
+                  id: 101,
+                  topicId: 1,
+                  sequence: '1',
+                  category: 'หมวด 1',
+                  subcategory: null,
+                  code: 'T-01',
+                  oldCode: null,
+                  title: 'ร้อยละความพึงพอใจ',
+                  ...currentTarget,
+                  frequency: 'ราย 6 เดือน',
+                  indicatorType: 'HA',
+                  numeratorName: null,
+                  denominatorName: null,
+                  responsibleName: 'แอดมิน',
+                  displayOrder: 1,
+                  currentEntry: null,
+                  entries: [],
+                },
+                {
+                  id: 102,
+                  topicId: 1,
+                  sequence: '2',
+                  category: 'หมวด 1',
+                  subcategory: null,
+                  code: 'T-02',
+                  oldCode: null,
+                  title: 'อัตราส่วนการใช้เตียง',
+                  targetOperator: '<=',
+                  targetValue: 0.85,
+                  targetUnit: null,
+                  targetRaw: '<= 0.85',
+                  frequency: 'ราย 6 เดือน',
+                  indicatorType: 'HA',
+                  numeratorName: null,
+                  denominatorName: null,
+                  responsibleName: 'แอดมิน',
+                  displayOrder: 2,
+                  currentEntry: null,
+                  entries: [],
+                },
+              ],
+              categories: ['หมวด 1'],
+            },
+          }),
+        }
+      }
+      if (url.includes('/api/kpi/stats')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: { totalIndicators: 2, totalAnswered: 0, totalPending: 2, totalPass: 0, totalFail: 0, totalWaitingTarget: 0, passRatePercentage: 0, categoryBreakdown: [] },
+          }),
+        }
+      }
+      return { ok: true, json: async () => ({ success: true }) }
+    }))
+
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('ร้อยละความพึงพอใจ')).toBeInTheDocument()
+      expect(screen.getAllByText('>= 80%').length).toBeGreaterThanOrEqual(1)
+    })
+
+    // Edit first indicator target from >= 80% to <= 90%
+    const editButtons = screen.getAllByTitle('แก้ไขตัวชี้วัด')
+    fireEvent.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByText('แก้ไขข้อมูลตัวชี้วัด')).toBeInTheDocument()
+    })
+
+    const opSelect = screen.getByDisplayValue('>= (มากกว่าเท่ากับ)')
+    fireEvent.change(opSelect, { target: { value: '<=' } })
+
+    const valInput = screen.getByDisplayValue('80')
+    fireEvent.change(valInput, { target: { value: '90' } })
+
+    const saveBtn = screen.getByRole('button', { name: /บันทึกการแก้ไข/i })
+    fireEvent.click(saveBtn)
+
+    await waitFor(() => {
+      expect(putPayloads).toHaveLength(1)
+      expect(putPayloads[0]).toMatchObject({
+        id: 101,
+        targetOperator: '<=',
+        targetValue: 90,
+        targetUnit: '%',
+        targetRaw: '<= 90%',
+      })
+      expect(screen.getAllByText('<= 90%').length).toBeGreaterThanOrEqual(1)
+    })
+
+    // Edit second (non-percentage) indicator and ensure unit is not forced to '%'
+    const editButtons2 = screen.getAllByTitle('แก้ไขตัวชี้วัด')
+    fireEvent.click(editButtons2[1])
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('0.85')).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByDisplayValue('0.85'), { target: { value: '0.9' } })
+    fireEvent.click(screen.getByRole('button', { name: /บันทึกการแก้ไข/i }))
+
+    await waitFor(() => {
+      expect(putPayloads).toHaveLength(2)
+      expect(putPayloads[1]).toMatchObject({
+        id: 102,
+        targetOperator: '<=',
+        targetValue: 0.9,
+        targetUnit: null,
+        targetRaw: '<= 0.9',
+      })
+    })
+  })
 })
+
 
 

@@ -85,8 +85,10 @@ describe('KpiService - evaluateTarget', () => {
     expect(KpiService.evaluateTarget(2, 'MIN', 3)).toBe('PASS')
   })
 
-  it('returns WAITING_TARGET if target is undefined/null', () => {
+  it('returns WAITING_TARGET if target is undefined/null even when operator is provided', () => {
     expect(KpiService.evaluateTarget(50, null, null)).toBe('WAITING_TARGET')
+    expect(KpiService.evaluateTarget(50, '>=', null)).toBe('WAITING_TARGET')
+    expect(KpiService.evaluateTarget(50, '<=', null)).toBe('WAITING_TARGET')
   })
 
   it('returns PENDING if resultValue is undefined/null', () => {
@@ -531,5 +533,85 @@ describe('KpiService with Mock QueryExecutor', () => {
     expect(entry.resultValue).toBe(135)
     expect(entry.status).toBe('WAITING_TARGET')
   })
+
+  it('updates targetRaw, clears targetRaw when targetValue is null, and preserves 0/0 PASS entries on re-evaluation', async () => {
+    const indicatorUpdateCalls: any[][] = []
+    const entryStatusUpdates: Array<{ id: number; status: string }> = []
+
+    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
+      if (sql.includes('FROM kpi_indicators i') && sql.includes('WHERE i.id = ?')) {
+        return [{
+          id: 301,
+          topicId: 1,
+          sequence: '10',
+          category: 'หมวด 1',
+          subcategory: null,
+          code: 'KPI-301',
+          oldCode: null,
+          frequency: 'รายเดือน',
+          title: 'ร้อยละผู้ป่วยที่ติดเชื้อ',
+          numeratorName: 'ติดเชื้อ',
+          denominatorName: 'ทั้งหมด',
+          targetRaw: '>= 80%',
+          targetOperator: '>=',
+          targetValue: '80.0000',
+          targetUnit: '%',
+          responsibleName: 'นิศานาถ',
+          indicatorType: 'HA',
+          displayOrder: 10,
+          fiscalYear: '2570',
+        }]
+      }
+      if (sql.includes('SELECT') && sql.includes('FROM kpi_entries') && sql.includes('WHERE indicator_id = ?') && sql.includes('ORDER BY')) {
+        return []
+      }
+      if (sql.includes('UPDATE kpi_indicators SET')) {
+        indicatorUpdateCalls.push(params)
+        return { affectedRows: 1 }
+      }
+      if (sql.includes('FROM kpi_entries') && sql.includes('numerator_value AS numeratorValue')) {
+        return [
+          { id: 1, numeratorValue: '0', denominatorValue: '0', resultValue: '0' },
+          { id: 2, numeratorValue: '75', denominatorValue: '100', resultValue: '75' },
+        ]
+      }
+      if (sql.includes('UPDATE kpi_entries SET status = ? WHERE id = ?')) {
+        entryStatusUpdates.push({ status: params[0], id: params[1] })
+        return { affectedRows: 1 }
+      }
+      return []
+    })
+
+    // 1. Update target to >= 70% -> 0/0 stays PASS, 75 becomes PASS, targetRaw updates
+    await KpiService.updateIndicator({
+      id: 301,
+      targetOperator: '>=',
+      targetValue: 70,
+      targetUnit: '%',
+    }, mockExecutor)
+
+    expect(indicatorUpdateCalls[0]).toContain('>= 70%')
+    expect(entryStatusUpdates).toEqual([
+      { id: 1, status: 'PASS' },
+      { id: 2, status: 'PASS' },
+    ])
+
+    // 2. Clear target (targetValue: null) -> targetRaw becomes null, entry 2 becomes WAITING_TARGET
+    entryStatusUpdates.length = 0
+    await KpiService.updateIndicator({
+      id: 301,
+      targetOperator: '>=',
+      targetValue: null,
+      targetUnit: '%',
+    }, mockExecutor)
+
+    // target_raw is index 9 in UPDATE kpi_indicators SET ...
+    expect(indicatorUpdateCalls[1][9]).toBeNull()
+    expect(entryStatusUpdates).toEqual([
+      { id: 1, status: 'PASS' },
+      { id: 2, status: 'WAITING_TARGET' },
+    ])
+  })
 })
+
 
