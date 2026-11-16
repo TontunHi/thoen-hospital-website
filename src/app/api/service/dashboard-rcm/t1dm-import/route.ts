@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
-    const isDryRun = formData.get('dryRun') === 'true'
+    const isDryRun = formData.get('dryRun') !== 'false'
     const filterMyHospOnly = formData.get('filterMyHospOnly') !== 'false'
     const myHospCode = String(formData.get('myHospCode') || '11152').trim()
 

@@ -204,6 +204,18 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
     expect(result.isAlreadyImported).toBe(true)
     expect(result.existingFileRowCount).toBe(15)
   })
+
+  it('defaults isDryRun to true when options.isDryRun is omitted', async () => {
+    const buffer = await createTestT1dmWorkbook()
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    const result = await RcmT1dmImportService.parseAndImportWorkbook(buffer, 'DEFAULT_DRYRUN.xlsx', {
+      executor: mockExecutor,
+    })
+
+    expect(result.isDryRun).toBe(true)
+    expect(apiGateway.clinical.importT1dmRegistries).not.toHaveBeenCalled()
+  })
 })
 
 describe('RcmT1dmImportService Registry Queries & Deletion', () => {

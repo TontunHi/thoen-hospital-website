@@ -207,7 +207,7 @@ export class RcmT1dmImportService {
     myHospCode: string = DEFAULT_MY_HOSPCODE,
     executor: QueryExecutor = queryClinicalDb
   ): Promise<T1dmRegistryItem[]> {
-    const sql = `
+    const buildSql = (hospCol: 'HospMain' | 'HCode', includeFileName: boolean) => `
       SELECT 
         t.ID AS id,
         IFNULL(t.Year, '') AS year,
@@ -217,26 +217,39 @@ export class RcmT1dmImportService {
         DATE_FORMAT(t.Visit_Date, '%Y-%m-%d') AS visitdate,
         IFNULL(t.Type, '') AS type,
         IFNULL(t.Maininscl, '') AS maininscl,
-        LPAD(TRIM(IFNULL(t.HCode, '')), 5, '0') AS hospmain_code,
+        LPAD(TRIM(IFNULL(t.${hospCol}, '')), 5, '0') AS hospmain_code,
         IFNULL(h.name, '') AS hospmain_name,
-        CONCAT_WS(':', LPAD(TRIM(IFNULL(t.HCode, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
-        IFNULL(t.FileName, '') AS filename,
+        CONCAT_WS(':', LPAD(TRIM(IFNULL(t.${hospCol}, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
+        ${includeFileName ? "IFNULL(t.FileName, '')" : "''"} AS filename,
         IFNULL(pt.hn, '') AS hn
       FROM rcmdb.t1dm t
-      LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.HCode), 5, '0')
+      LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.${hospCol}), 5, '0')
       LEFT JOIN patient pt ON pt.cid = t.PID
       ORDER BY t.Register_Date DESC, t.ID ASC
     `
 
     let clinicalRows: any[] = []
     try {
-      clinicalRows = await executor(sql, [])
+      clinicalRows = await executor(buildSql('HospMain', true), [])
     } catch (err: any) {
-      // Fallback if FileName column does not exist yet on rcmdb.t1dm
-      if (err?.message && /FileName/i.test(err.message)) {
+      const msg = String(err?.message || '')
+      if (/HospMain/i.test(msg)) {
         try {
-          const fallbackNoFileSql = sql.replace('IFNULL(t.FileName, \'\') AS filename,', '\'\' AS filename,')
-          clinicalRows = await executor(fallbackNoFileSql, [])
+          clinicalRows = await executor(buildSql('HCode', true), [])
+        } catch (err2: any) {
+          if (/FileName/i.test(String(err2?.message || ''))) {
+            try {
+              clinicalRows = await executor(buildSql('HCode', false), [])
+            } catch {
+              clinicalRows = []
+            }
+          } else {
+            clinicalRows = []
+          }
+        }
+      } else if (/FileName/i.test(msg)) {
+        try {
+          clinicalRows = await executor(buildSql('HospMain', false), [])
         } catch {
           clinicalRows = []
         }
@@ -540,7 +553,7 @@ export class RcmT1dmImportService {
     } = {}
   ): Promise<T1dmImportParseResult> {
     const startTime = Date.now()
-    const isDryRun = Boolean(options.isDryRun)
+    const isDryRun = options.isDryRun !== false
     const filterMyHospOnly = options.filterMyHospOnly !== false // FoxPro default: setHospCode=.T., lHospCode=.T.
     const myHospCode = (options.myHospCode || DEFAULT_MY_HOSPCODE).trim()
     const executor = options.executor || queryClinicalDb

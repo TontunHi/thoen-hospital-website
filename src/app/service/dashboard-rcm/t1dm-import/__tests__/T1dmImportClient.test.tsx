@@ -80,7 +80,7 @@ describe('T1dmImportClient', () => {
     })
   })
 
-  it('renders header, 4 KPI stats cards, and dropzone properly', () => {
+  it('renders header, 4 KPI stats cards, dropzone, and FoxPro myReport registry ledger', () => {
     render(<T1dmImportClient initialData={mockInitialData} canImport={true} canManage={true} />)
 
     // Header & Title
@@ -95,19 +95,39 @@ describe('T1dmImportClient', () => {
     expect(screen.getByText('จำนวนไฟล์ที่นำเข้าแล้ว')).toBeInTheDocument()
 
     // Upload Dropzone
+    expect(screen.getByText(/ลากไฟล์มาวางที่นี่ หรือ/i)).toBeInTheDocument()
+
+    // Registry Ledger Table (FoxPro myReport equivalent)
     expect(
-      screen.getByText(/ลากไฟล์มาวางที่นี่ หรือ/i)
+      screen.getByRole('heading', { level: 2, name: /ทะเบียน T1DM\/GDM\/PDM ในฐานข้อมูล/i })
     ).toBeInTheDocument()
+    expect(screen.getByText('นาง กานดา ใจดี')).toBeInTheDocument()
+    expect(screen.getByText('นาง สุมาลี ปัญญา')).toBeInTheDocument()
+    expect(screen.getByText('10700:รพ.ลำปาง')).toBeInTheDocument()
 
     // Link to Fund 2
-    expect(screen.getByRole('link', { name: /เปิดหน้ารายชื่อผู้รับบริการ \(กองทุน\) →/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /เปิดหน้ารายชื่อผู้รับบริการ \(กองทุน\) →/i })
+    ).toBeInTheDocument()
   })
 
-  it('renders options checkboxes for 11152 filtering and Dry Run mode', () => {
+  it('defaults both 11152 filtering and Dry Run mode checkboxes to checked (true)', () => {
     render(<T1dmImportClient initialData={mockInitialData} canImport={true} />)
 
-    expect(screen.getByText(/นำเข้าเฉพาะหน่วยบริการ รพ.เถิน \(11152\)/i)).toBeInTheDocument()
-    expect(screen.getByText(/โหมดตรวจสอบข้อมูลอย่างเดียว \(Dry Run\)/i)).toBeInTheDocument()
+    const hospFilterCheckbox = screen.getByRole('checkbox', {
+      name: /นำเข้าเฉพาะหน่วยบริการ รพ\.เถิน \(11152\)/i,
+    }) as HTMLInputElement
+    const dryRunCheckbox = screen.getByRole('checkbox', {
+      name: /โหมดตรวจสอบข้อมูลอย่างเดียว \(Dry Run\)/i,
+    }) as HTMLInputElement
+
+    expect(hospFilterCheckbox.checked).toBe(true)
+    expect(dryRunCheckbox.checked).toBe(true)
+
+    // User can uncheck Dry Run manually to switch to Live Import
+    fireEvent.click(dryRunCheckbox)
+    expect(dryRunCheckbox.checked).toBe(false)
+    expect(screen.getByRole('button', { name: /เริ่มนำเข้าข้อมูลจริง/i })).toBeInTheDocument()
   })
 
   it('opens confirmation modal when "ลบรายการต่าง รพ." button is clicked', () => {
