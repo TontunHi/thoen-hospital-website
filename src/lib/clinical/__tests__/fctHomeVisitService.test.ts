@@ -286,6 +286,22 @@ describe('FctHomeVisitService', () => {
       const byFollowUp = await service.listVisits({ fiscalYear: 2570, search: 'ตรวจน้ำตาล' })
       expect(byFollowUp.items.map((r) => r.id)).toEqual([2])
     })
+
+    it('resolves omitted fiscalYear to the latest populated DB year and returns only populated years', async () => {
+      deps.appQuery
+        .mockResolvedValueOnce(makeAllSeededCounts()) // ensureSchema
+        .mockResolvedValueOnce([{ fiscalYear: 2569 }, { fiscalYear: 2565 }]) // yearRows
+        .mockResolvedValueOnce([]) // options
+        .mockResolvedValueOnce([{ pcuName: 'รพ.เถิน' }]) // pcuRows
+        .mockResolvedValueOnce([makeDbVisitRow({ id: 10, fiscalYear: 2569, visitDate: '2026-06-11' })])
+
+      const result = await service.listVisits({})
+
+      expect(result.fiscalYear).toBe(2569)
+      expect(result.availableFiscalYears).toEqual([2569, 2565])
+      expect(result.items).toHaveLength(1)
+      expect(deps.appQuery.mock.calls[4][1]).toEqual([2569])
+    })
   })
 
   describe('createVisit / updateVisit / deleteVisit', () => {
@@ -446,12 +462,14 @@ describe('FctHomeVisitService', () => {
           { visitDate: '2026-10-20', patientName: 'นางไม่มี เอชเอ็นหนึ่ง', hn: null },
           // Row 5: second null HN on same date -> always insert
           { visitDate: '2026-10-20', patientName: 'นางไม่มี เอชเอ็นสอง', hn: '' },
+          // Row 6: null visitDate with explicit fiscalYear -> always insert
+          { visitDate: null, fiscalYear: 2569, patientName: 'นายไม่มี วันที่', hn: '76034' },
         ],
         actor
       )
 
       expect(result).toEqual({
-        insertedCount: 3,
+        insertedCount: 4,
         skippedDuplicateCount: 2,
         errorCount: 0,
         duplicates: [
@@ -463,13 +481,15 @@ describe('FctHomeVisitService', () => {
       expect(deps.appTransaction).toHaveBeenCalledTimes(2)
       const importBatch = deps.appTransaction.mock.calls[1][0]
       expect(importBatch[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(importBatch).toHaveLength(4) // SET NAMES + 3 INSERT statements
+      expect(importBatch).toHaveLength(5) // SET NAMES + 4 INSERT statements
       expect(importBatch[1].params).toContain('ติดเตียง') // adlScore 3 auto-suggested
+      expect(importBatch[4].params?.[0]).toBe(2569)
+      expect(importBatch[4].params).toContain(null)
 
       expect(logAudit).toHaveBeenCalledWith(
         'CREATE',
         'fct_home_visits',
-        'Batch imported FCT home visits: inserted 3, skipped duplicates 2',
+        'Batch imported FCT home visits: inserted 4, skipped duplicates 2',
         actor
       )
     })

@@ -58,10 +58,14 @@ const THAI_SHORT_MONTHS: readonly string[] = [
 
 const RISK_NORMALIZATION_MAP: Record<string, string> = {
   low: 'Low',
+  'low lisk': 'Low',
+  'low risk': 'Low',
   moderate: 'Moderate',
   'moderate lisk': 'Moderate',
   'moderate risk': 'Moderate',
   high: 'High',
+  'high lisk': 'High',
+  'high risk': 'High',
 }
 
 const ADL_GROUP_NORMALIZATION_MAP: Record<string, string> = {
@@ -84,9 +88,51 @@ const PCU_TYPO_MAP: Record<string, string> = {
   'รพ.เถิน': 'รพ.เถิน',
   กุุ่่มเนิ้ง: 'กุ่มเนิ้ง',
   กุุุ่มเนิ้ง: 'กุ่มเนิ้ง',
+  'รพสต.กุ่มเนิ้ง': 'กุ่มเนิ้ง',
   กุ่มเนิ้ง: 'กุ่มเนิ้ง',
   เด่นแก้้ว: 'เด่นแก้ว',
+  'รพสต.บ้านเด่นแก้ว': 'เด่นแก้ว',
+  'รพสต.เด่นแก้ว': 'เด่นแก้ว',
   เด่นแก้ว: 'เด่นแก้ว',
+  'รพสต.บ้านห้วยแก้ว': 'ห้วยแก้ว',
+  'รพสต.ห้วยแก้ว': 'ห้วยแก้ว',
+  ห้วยแก้ว: 'ห้วยแก้ว',
+  'รพสต.แม่มอกกลาง': 'แม่มอกกลาง',
+  แม่มอกกลาง: 'แม่มอกกลาง',
+  'รพสต.บ้านดอนแก้ว': 'ดอนแก้ว',
+  'รพสต.ดอนแก้ว': 'ดอนแก้ว',
+  ดอนแก้ว: 'ดอนแก้ว',
+  'รพสต.บ้านแม่วะหลวง': 'แม่วะหลวง',
+  'รพสต.แม่วะหลวง': 'แม่วะหลวง',
+  แม่วะหลวง: 'แม่วะหลวง',
+  'รพสต.บ้านปางอ้า 5': 'ปางอ้า',
+  'รพสต.บ้านปางอ้า': 'ปางอ้า',
+  'รพสต.ปางอ้า': 'ปางอ้า',
+  ปางอ้า: 'ปางอ้า',
+  'รพสต นาเบี้ย': 'นาเบี้ย',
+  'รพสต.นาเบี้ย': 'นาเบี้ย',
+  นาเบี้ี้ย: 'นาเบี้ย',
+  นาเบี้ย: 'นาเบี้ย',
+  'รพสต.ท่ามะเกว๋น': 'ท่ามะเกว๋น',
+  ท่ามะเกว๋น: 'ท่ามะเกว๋น',
+  'รพสต.แม่ป่ะหลวง20': 'แม่ปะหลวง',
+  'รพสต.แม่ป่ะหลวง': 'แม่ปะหลวง',
+  'รพสต.แม่ปะหลวง': 'แม่ปะหลวง',
+  แม่ป่ะหลวง: 'แม่ปะหลวง',
+  แม่ปะหลวง: 'แม่ปะหลวง',
+  'รพสต.วังหินพัฒนา15': 'วังหิน',
+  'รพสต.วังหินพัฒนา': 'วังหิน',
+  'รพสต.วังหิน': 'วังหิน',
+  วังหินพัฒนา: 'วังหิน',
+  วังหิน: 'วังหิน',
+  'รพสต.นาบ้านไร่': 'นาบ้านไร่',
+  นาบ้านไร่: 'นาบ้านไร่',
+  'รพสต.แม่ถอด': 'แม่ถอด',
+  แม่ถอด: 'แม่ถอด',
+  'รพสต.เด่นชัย': 'เด่นชัย',
+  'รพสต.หอรบ': 'หอรบ',
+  'รพสต.สะเลียมหวาน': 'สะเลียมหวาน',
+  'รพสต.หนองหอย': 'หนองหอย',
 }
 
 const UNSPECIFIED_LABEL = 'ยังไม่ระบุ'
@@ -150,7 +196,8 @@ export function normalizeNutritionStatusValue(val: unknown): string | null {
 export function normalizePcuValue(val: unknown): string | null {
   const text = normalizeOptionalText(val)
   if (!text) return null
-  return PCU_TYPO_MAP[text] ?? text
+  const collapsed = text.replace(/\s+/g, ' ').trim()
+  return PCU_TYPO_MAP[collapsed] ?? PCU_TYPO_MAP[text] ?? collapsed
 }
 
 export function suggestAdlGroup(adlScore: number | null | undefined): string | null {
@@ -162,10 +209,15 @@ export function suggestAdlGroup(adlScore: number | null | undefined): string | n
   return 'ติดสังคม'
 }
 
-export function getThaiFiscalYearFromDate(visitDate: string): number {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(visitDate.trim())
+export function getThaiFiscalYearFromDate(
+  visitDate: string | null | undefined,
+  fallbackFiscalYear?: number | null
+): number {
+  const match = visitDate ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(visitDate.trim()) : null
   if (!match) {
-    return getCurrentThaiFiscalYear()
+    return typeof fallbackFiscalYear === 'number' && Number.isInteger(fallbackFiscalYear)
+      ? fallbackFiscalYear
+      : getCurrentThaiFiscalYear()
   }
   const gregorianYear = Number(match[1])
   const month = Number(match[2])
@@ -206,6 +258,42 @@ export function getAvailableFiscalYears(
   return Array.from(yearSet).sort((a, b) => b - a)
 }
 
+export function getPopulatedFiscalYears(
+  existingYears: number[] = [],
+  referenceDate: Date = new Date()
+): number[] {
+  const yearSet = new Set<number>()
+  for (const year of existingYears) {
+    if (Number.isInteger(year) && year > 2500) {
+      yearSet.add(year)
+    }
+  }
+  if (yearSet.size === 0) {
+    return [getCurrentThaiFiscalYear(referenceDate)]
+  }
+  return Array.from(yearSet).sort((a, b) => b - a)
+}
+
+export function resolveDefaultFiscalYear(
+  existingYears: number[] = [],
+  referenceDate: Date = new Date()
+): number {
+  const current = getCurrentThaiFiscalYear(referenceDate)
+  const populated = getPopulatedFiscalYears(existingYears, referenceDate)
+  if (populated.includes(current)) {
+    return current
+  }
+  return populated[0] ?? current
+}
+
+function normalizeExcelParsedDateYear(gregorianYear: number): number {
+  // Excel on Western-locale machines parses 2-digit Buddhist years (e.g. 11/6/69) as 1969.
+  if (gregorianYear >= 1950 && gregorianYear <= 1999) {
+    return gregorianYear + 57
+  }
+  return gregorianYear
+}
+
 function toIsoDate(year: number, month: number, day: number): string | null {
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
   if (month < 1 || month > 12 || day < 1 || day > 31) return null
@@ -225,14 +313,16 @@ export function parseFlexibleVisitDate(raw: unknown): string | null {
   if (raw === null || raw === undefined || raw === '') return null
 
   if (raw instanceof Date && Number.isFinite(raw.getTime())) {
-    return toIsoDate(raw.getUTCFullYear(), raw.getUTCMonth() + 1, raw.getUTCDate())
+    const year = normalizeExcelParsedDateYear(raw.getUTCFullYear())
+    return toIsoDate(year, raw.getUTCMonth() + 1, raw.getUTCDate())
   }
 
   if (typeof raw === 'number' && Number.isFinite(raw) && raw > 20000 && raw < 90000) {
     // Excel 1900 epoch serial date (with leap-year bug offset 25569 days to Unix epoch).
     const utcMs = Math.round((raw - 25569) * 86400 * 1000)
     const d = new Date(utcMs)
-    return toIsoDate(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate())
+    const year = normalizeExcelParsedDateYear(d.getUTCFullYear())
+    return toIsoDate(year, d.getUTCMonth() + 1, d.getUTCDate())
   }
 
   const cleaned = String(raw)
@@ -245,7 +335,7 @@ export function parseFlexibleVisitDate(raw: unknown): string | null {
     return toIsoDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]))
   }
 
-  const slashMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(cleaned)
+  const slashMatch = /^(\d{1,2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{2,4})$/.exec(cleaned)
   if (slashMatch) {
     let yr = Number(slashMatch[3])
     if (yr < 100) yr += 2500
@@ -268,7 +358,8 @@ export function parseFlexibleVisitDate(raw: unknown): string | null {
   return null
 }
 
-export function formatThaiShortDate(isoDate: string): string {
+export function formatThaiShortDate(isoDate: string | null | undefined): string {
+  if (!isoDate || !isoDate.trim()) return '-'
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim())
   if (!match) return isoDate
   const beYear = Number(match[1]) + 543
@@ -300,19 +391,47 @@ function buildCombinedPatientName(prefixRaw: string, nameRaw: string): string {
   return `${cleanPrefix}${cleanName}`
 }
 
+function normalizeHeaderText(val: unknown): string {
+  return String(val ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function compactHeaderText(val: unknown): string {
+  return String(val ?? '')
+    .replace(/\s+/g, '')
+    .trim()
+}
+
+function isPatientNameHeader(val: unknown): boolean {
+  const compact = compactHeaderText(val)
+  return compact === 'ชื่อสกุล' || compact === 'ชื่อ-สกุล'
+}
+
+function hasDateYearAutoFixWarning(rawVisitDate: unknown): string | null {
+  if (rawVisitDate instanceof Date && Number.isFinite(rawVisitDate.getTime())) {
+    const rawYear = rawVisitDate.getUTCFullYear()
+    if (rawYear >= 1950 && rawYear <= 1999) {
+      return `ปรับปีวันที่เยี่ยมจาก ${rawYear} เป็น พ.ศ. ${rawYear + 600}`
+    }
+  }
+  return null
+}
+
 function parseSingleRowExportMatrix(
   rows: unknown[][],
   headerRowIdx: number
 ): FctImportParseResult {
-  const headers = rows[headerRowIdx].map((c) => String(c ?? '').trim())
+  const headers = rows[headerRowIdx].map(normalizeHeaderText)
   const colIndex = (name: string) => headers.findIndex((h) => h === name)
+  const patientNameCol = headers.findIndex((h) => isPatientNameHeader(h))
 
   const idx = {
-    patientName: colIndex('ชื่อ-สกุล'),
+    patientName: patientNameCol >= 0 ? patientNameCol : colIndex('ชื่อ-สกุล'),
     hn: colIndex('HN'),
     age: colIndex('อายุ'),
     address: colIndex('ที่อยู่'),
-    pcuName: colIndex('รพ.สต.'),
+    pcuName: colIndex('รพ.สต.') >= 0 ? colIndex('รพ.สต.') : colIndex('รพสต'),
     adlScore: colIndex('คะแนน ADL'),
     adlGroup: colIndex('กลุ่ม ADL'),
     diagnosis: colIndex('Dx'),
@@ -344,18 +463,27 @@ function parseSingleRowExportMatrix(
 
     totalScanned += 1
     const rowNumber = i + 1
-    const patientName = idx.patientName >= 0 ? cellText(row, idx.patientName) : ''
+    const patientName =
+      idx.patientName >= 0 ? cellText(row, idx.patientName).replace(/\s+/g, ' ').trim() : ''
     const rawVisitDate = idx.visitDate >= 0 ? row[idx.visitDate] : null
+    const hasRawVisitDate = rawVisitDate !== null && rawVisitDate !== undefined && String(rawVisitDate).trim() !== ''
     const visitDate = parseFlexibleVisitDate(rawVisitDate)
 
     if (!patientName) {
       errors.push({ rowNumber, patientName: '-', reason: 'ไม่พบชื่อ-สกุลผู้ป่วย' })
       continue
     }
-    if (!visitDate) {
-      errors.push({ rowNumber, patientName, reason: 'วันที่เยี่ยมบ้านไม่ถูกต้องหรือว่าง' })
+    if (hasRawVisitDate && !visitDate) {
+      errors.push({ rowNumber, patientName, reason: 'วันที่เยี่ยมบ้านไม่ถูกต้อง' })
       continue
     }
+
+    const warnings: string[] = []
+    if (!visitDate) {
+      warnings.push('ไม่มีวันที่เยี่ยมบ้าน')
+    }
+    const dateWarning = hasDateYearAutoFixWarning(rawVisitDate)
+    if (dateWarning) warnings.push(dateWarning)
 
     const adlScore = idx.adlScore >= 0 ? toNullableNumber(row[idx.adlScore]) : null
     const rawAdlGroup = idx.adlGroup >= 0 ? normalizeAdlGroupValue(row[idx.adlGroup]) : null
@@ -363,7 +491,7 @@ function parseSingleRowExportMatrix(
 
     validRows.push({
       rowNumber,
-      warnings: [],
+      warnings,
       data: {
         visitDate,
         pcuName: idx.pcuName >= 0 ? normalizePcuValue(row[idx.pcuName]) : null,
@@ -403,6 +531,18 @@ function parseSingleRowExportMatrix(
   return { validRows, errors, totalScanned }
 }
 
+const TWO_ROW_SUBHEADER_TOKENS = new Set([
+  'คำนำหน้า',
+  'ประเภทคนไข้',
+  'คะแนน',
+  'ติดเตียง',
+  'ทันตกรรม',
+  'เภสัช',
+  'นักโภช',
+  'กายภาพ',
+  'แผนไทย',
+])
+
 export function parseFctImportMatrix(rows: unknown[][]): FctImportParseResult {
   if (!Array.isArray(rows) || rows.length === 0) {
     return { validRows: [], errors: [], totalScanned: 0 }
@@ -410,8 +550,8 @@ export function parseFctImportMatrix(rows: unknown[][]): FctImportParseResult {
 
   const firstHeaderIdx = rows.findIndex((r) =>
     (r || []).some((cell) => {
-      const t = String(cell ?? '').trim()
-      return t === 'ชื่อ สกุล' || t === 'ชื่อ-สกุล' || t === 'วันที่เยี่ยมบ้าน'
+      const t = normalizeHeaderText(cell)
+      return isPatientNameHeader(t) || t === 'วันที่เยี่ยมบ้าน'
     })
   )
 
@@ -423,18 +563,37 @@ export function parseFctImportMatrix(rows: unknown[][]): FctImportParseResult {
     }
   }
 
-  const firstHeaders = (rows[firstHeaderIdx] || []).map((c) => String(c ?? '').trim())
-  const nextRow = (rows[firstHeaderIdx + 1] || []).map((c) => String(c ?? '').trim())
+  const firstHeaders = (rows[firstHeaderIdx] || []).map(normalizeHeaderText)
+  const nextRow = (rows[firstHeaderIdx + 1] || []).map(normalizeHeaderText)
+  const isExplicitSingleRowExport =
+    firstHeaders.includes('คะแนน ADL') ||
+    firstHeaders.includes('กลุ่ม ADL') ||
+    firstHeaders.includes('ผลลัพธ์การเยี่ยม') ||
+    firstHeaders.includes('รพ.สต.') ||
+    firstHeaders.includes('นักโภช (สถานะ)')
+  const hasSubheaderRow =
+    !isExplicitSingleRowExport &&
+    nextRow.some((token) => TWO_ROW_SUBHEADER_TOKENS.has(token))
   const isTwoRowTemplate =
-    firstHeaders.includes('ชื่อ สกุล') ||
-    nextRow.includes('คำนำหน้า') ||
-    nextRow.includes('ประเภทคนไข้')
+    !isExplicitSingleRowExport &&
+    (hasSubheaderRow ||
+      firstHeaders.some((h) => compactHeaderText(h) === 'ชื่อสกุล') ||
+      firstHeaders.includes('สี/ ADL') ||
+      firstHeaders.includes('รพสต'))
 
-  if (!isTwoRowTemplate && firstHeaders.includes('ชื่อ-สกุล')) {
+  if (!isTwoRowTemplate && firstHeaders.some((h) => isPatientNameHeader(h))) {
     return parseSingleRowExportMatrix(rows, firstHeaderIdx)
   }
 
   const dataStartIdx = isTwoRowTemplate ? firstHeaderIdx + 2 : firstHeaderIdx + 1
+  const hnHeaderIdx = firstHeaders.indexOf('HN')
+  const nameHeaderIdx = firstHeaders.findIndex((h) => isPatientNameHeader(h))
+  const hasPrefixColumn =
+    nextRow.includes('คำนำหน้า') ||
+    hnHeaderIdx === 3 ||
+    (nameHeaderIdx === 2 && hnHeaderIdx !== 2)
+  const colShift = hasPrefixColumn ? 0 : -1
+
   const validRows: FctParsedImportRow[] = []
   const errors: FctImportRowError[] = []
   let totalScanned = 0
@@ -442,13 +601,15 @@ export function parseFctImportMatrix(rows: unknown[][]): FctImportParseResult {
   for (let i = dataStartIdx; i < rows.length; i++) {
     const row = rows[i] || []
     const rowNumber = i + 1
-    const prefix = cellText(row, 1)
-    const rawName = cellText(row, 2)
-    const patientName = buildCombinedPatientName(prefix, rawName)
-    const rawVisitDate = row[12]
+    const patientName = hasPrefixColumn
+      ? buildCombinedPatientName(cellText(row, 1), cellText(row, 2))
+      : cellText(row, 1).replace(/\s+/g, ' ').trim()
+    const hnCol = 3 + colShift
+    const dateCol = 12 + colShift
+    const rawVisitDate = row[dateCol]
 
     // Skip trailing empty/stray-note rows (rows without patient name and visit date and HN).
-    const hasCoreIdentity = Boolean(patientName || cellText(row, 3) || cellText(row, 12))
+    const hasCoreIdentity = Boolean(patientName || cellText(row, hnCol) || cellText(row, dateCol))
     if (!hasCoreIdentity) {
       continue
     }
@@ -459,14 +620,24 @@ export function parseFctImportMatrix(rows: unknown[][]): FctImportParseResult {
       continue
     }
 
+    const hasRawVisitDate =
+      rawVisitDate !== null && rawVisitDate !== undefined && String(rawVisitDate).trim() !== ''
     const visitDate = parseFlexibleVisitDate(rawVisitDate)
-    if (!visitDate) {
-      errors.push({ rowNumber, patientName, reason: 'วันที่เยี่ยมบ้านไม่ถูกต้องหรือว่าง' })
+    if (hasRawVisitDate && !visitDate) {
+      errors.push({ rowNumber, patientName, reason: 'วันที่เยี่ยมบ้านไม่ถูกต้อง' })
       continue
     }
 
     const warnings: string[] = []
-    const rawHn = cellText(row, 3)
+    if (!visitDate) {
+      warnings.push('ไม่มีวันที่เยี่ยมบ้าน')
+    }
+    const dateWarning = hasDateYearAutoFixWarning(rawVisitDate)
+    if (dateWarning) {
+      warnings.push(dateWarning)
+    }
+
+    const rawHn = cellText(row, hnCol)
     const hn = normalizeHn(rawHn)
     if (!hn) {
       warnings.push('ไม่มี HN')
@@ -474,34 +645,34 @@ export function parseFctImportMatrix(rows: unknown[][]): FctImportParseResult {
       warnings.push(`ปรับ HN จาก "${rawHn}" เป็น "${hn}"`)
     }
 
-    const adlScore = toNullableNumber(row[7])
-    const rawAdlGroup = normalizeAdlGroupValue(row[8])
+    const adlScore = toNullableNumber(row[7 + colShift])
+    const rawAdlGroup = normalizeAdlGroupValue(row[8 + colShift])
     const adlGroup = rawAdlGroup ?? suggestAdlGroup(adlScore)
 
     const data: FctHomeVisitCreateInput = {
       patientName,
       hn,
-      age: toNullableNumber(row[4]),
-      address: normalizeOptionalText(row[5]),
-      pcuName: normalizePcuValue(row[6]),
+      age: toNullableNumber(row[4 + colShift]),
+      address: normalizeOptionalText(row[5 + colShift]),
+      pcuName: normalizePcuValue(row[6 + colShift]),
       adlScore: adlScore !== null && adlScore >= 0 && adlScore <= 20 ? Math.trunc(adlScore) : null,
       adlGroup,
-      diagnosis: normalizeOptionalText(row[9]),
-      patientCategory: normalizeOptionalText(row[10]),
-      followUpPlan: normalizeOptionalText(row[11]),
+      diagnosis: normalizeOptionalText(row[9 + colShift]),
+      patientCategory: normalizeOptionalText(row[10 + colShift]),
+      followUpPlan: normalizeOptionalText(row[11 + colShift]),
       visitDate,
-      treatmentFacility: normalizeOptionalText(row[13]),
-      visitOutcome: normalizeOptionalText(row[14]),
-      overallRiskLevel: normalizeRiskValue(row[15]),
+      treatmentFacility: normalizeOptionalText(row[13 + colShift]),
+      visitOutcome: normalizeOptionalText(row[14 + colShift]),
+      overallRiskLevel: normalizeRiskValue(row[15 + colShift]),
       riskLevel: null,
-      dentalNote: normalizeOptionalText(row[16]),
-      pharmacyNote: normalizeOptionalText(row[17]),
-      nutritionStatus: normalizeNutritionStatusValue(row[18]),
-      nutritionNote: normalizeOptionalText(row[19]),
-      ptCategory: normalizeOptionalText(row[20]),
-      ptNote: normalizeOptionalText(row[21]),
-      thaiMedCategory: normalizeOptionalText(row[22]),
-      thaiMedNote: normalizeOptionalText(row[23]),
+      dentalNote: normalizeOptionalText(row[16 + colShift]),
+      pharmacyNote: normalizeOptionalText(row[17 + colShift]),
+      nutritionStatus: normalizeNutritionStatusValue(row[18 + colShift]),
+      nutritionNote: normalizeOptionalText(row[19 + colShift]),
+      ptCategory: normalizeOptionalText(row[20 + colShift]),
+      ptNote: normalizeOptionalText(row[21 + colShift]),
+      thaiMedCategory: normalizeOptionalText(row[22 + colShift]),
+      thaiMedNote: normalizeOptionalText(row[23 + colShift]),
     }
 
     validRows.push({ rowNumber, data, warnings })
@@ -620,8 +791,10 @@ export function aggregateFctDashboardStats(
     const category = r.patientCategory?.trim() || UNSPECIFIED_LABEL
     categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1)
 
-    const monthKey = r.visitDate.slice(0, 7)
-    monthlyCounts.set(monthKey, (monthlyCounts.get(monthKey) ?? 0) + 1)
+    if (r.visitDate && /^\d{4}-\d{2}/.test(r.visitDate)) {
+      const monthKey = r.visitDate.slice(0, 7)
+      monthlyCounts.set(monthKey, (monthlyCounts.get(monthKey) ?? 0) + 1)
+    }
 
     if (r.dentalNote?.trim()) dentalFilled += 1
     if (r.pharmacyNote?.trim()) pharmacyFilled += 1

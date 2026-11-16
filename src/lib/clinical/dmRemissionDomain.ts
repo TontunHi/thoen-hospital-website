@@ -61,6 +61,36 @@ export function getAvailableFiscalYears(
   return Array.from(yearSet).sort((a, b) => b - a)
 }
 
+export function getPopulatedFiscalYears(
+  existingYears: number[] = [],
+  referenceDate: Date = new Date()
+): number[] {
+  const yearSet = new Set<number>()
+  for (const year of existingYears) {
+    if (Number.isInteger(year) && year > 0) {
+      yearSet.add(year)
+    }
+  }
+
+  if (yearSet.size === 0) {
+    return [getCurrentThaiFiscalYear(referenceDate)]
+  }
+
+  return Array.from(yearSet).sort((a, b) => b - a)
+}
+
+export function resolveDefaultFiscalYear(
+  existingYears: number[] = [],
+  referenceDate: Date = new Date()
+): number {
+  const current = getCurrentThaiFiscalYear(referenceDate)
+  const populated = getPopulatedFiscalYears(existingYears, referenceDate)
+  if (populated.includes(current)) {
+    return current
+  }
+  return populated[0] ?? current
+}
+
 export function computeBmi(
   weightKg: number | null | undefined,
   heightCm: number | null | undefined

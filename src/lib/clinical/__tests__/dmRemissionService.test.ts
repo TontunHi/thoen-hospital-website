@@ -220,6 +220,22 @@ describe('DmRemissionService', () => {
       expect(result.items[0].id).toBe(2)
       expect(result.items[0].bmiBefore).toBe(27.34)
     })
+
+    it('resolves omitted fiscalYear to the latest populated DB year and returns only populated years', async () => {
+      deps.appQuery
+        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
+        .mockResolvedValueOnce([{ fiscalYear: 2569 }, { fiscalYear: 2565 }]) // yearRows
+        .mockResolvedValueOnce([]) // options
+        .mockResolvedValueOnce([{ pcuName: 'รพ.สต.ล้อมแรด' }]) // pcuRows
+        .mockResolvedValueOnce([makeDbCohortRow({ id: 20, fiscalYear: 2569 })])
+
+      const result = await service.listCohorts({})
+
+      expect(result.fiscalYear).toBe(2569)
+      expect(result.availableFiscalYears).toEqual([2569, 2565])
+      expect(result.items).toHaveLength(1)
+      expect(deps.appQuery.mock.calls[4][1]).toEqual([2569])
+    })
   })
 
   describe('createCohort / updateCohort / deleteCohort', () => {

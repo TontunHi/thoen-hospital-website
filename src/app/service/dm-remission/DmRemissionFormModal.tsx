@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Search, X } from 'lucide-react'
-import { computeBmi } from '@/lib/clinical/dmRemissionDomain'
+import { computeBmi, getAvailableFiscalYears } from '@/lib/clinical/dmRemissionDomain'
 import {
   DM_A1C_OUTCOMES,
   DM_DEFAULT_REMISSION_STATUS,
@@ -23,7 +23,7 @@ interface DmRemissionFormModalProps {
   availablePcus: string[]
   options: Record<DmOptionCategory, DmRemissionOptionRecord[]>
   onClose: () => void
-  onSaved: () => Promise<void> | void
+  onSaved: (savedFiscalYear?: number) => Promise<void> | void
 }
 
 interface FormState {
@@ -295,7 +295,9 @@ export default function DmRemissionFormModal({
       if (!res.ok || !json.success) {
         throw new Error(json.error || 'บันทึกข้อมูลไม่สำเร็จ')
       }
-      await onSaved()
+      const savedFiscalYear =
+        typeof json.data?.fiscalYear === 'number' ? json.data.fiscalYear : payload.fiscalYear
+      await onSaved(savedFiscalYear)
       onClose()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
@@ -303,6 +305,13 @@ export default function DmRemissionFormModal({
       setSubmitting(false)
     }
   }
+
+  const fiscalYearSuggestions = Array.from(
+    new Set([
+      ...getAvailableFiscalYears(availableFiscalYears),
+      defaultFiscalYear,
+    ])
+  ).sort((a, b) => b - a)
 
   return (
     <div className="dmrModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="dmr-form-title">
@@ -326,19 +335,22 @@ export default function DmRemissionFormModal({
               <div className="dmrFormGrid">
                 <div className="dmrField">
                   <label className="dmrFieldLabel" htmlFor="dmr-fy">ปีงบประมาณ (พ.ศ.)</label>
-                  <select
+                  <input
                     id="dmr-fy"
-                    className="dmrSelect"
+                    type="number"
+                    min={2550}
+                    max={2650}
+                    list="dmr-fy-suggestions"
+                    className="dmrInput"
                     value={form.fiscalYear}
                     onChange={(e) => setField('fiscalYear', e.target.value)}
                     disabled={Boolean(editingRecord)}
-                  >
-                    {availableFiscalYears.map((fy) => (
-                      <option key={fy} value={String(fy)}>
-                        {fy}
-                      </option>
+                  />
+                  <datalist id="dmr-fy-suggestions">
+                    {fiscalYearSuggestions.map((fy) => (
+                      <option key={fy} value={String(fy)} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
 
                 <div className="dmrField">

@@ -291,14 +291,6 @@
   border-radius: var(--fct-radius-detail);
 }
 
-.fctActionBtns {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-}
-
-.fctEditIconBtn,
 .fctDeleteIconBtn {
   display: inline-flex;
   align-items: center;
@@ -309,29 +301,11 @@
   border-radius: var(--fct-radius-control);
   border: 0.0625rem solid var(--fct-border-separator);
   background: var(--fct-bg-raised);
+  color: var(--fct-danger);
   cursor: pointer;
   transition:
     background-color var(--fct-duration) var(--fct-ease),
     border-color var(--fct-duration) var(--fct-ease);
-}
-
-.fctEditIconBtn {
-  color: var(--fct-text-secondary);
-}
-
-.fctEditIconBtn:hover:not(:disabled) {
-  background: var(--fct-accent-subtle);
-  border-color: var(--fct-accent-border);
-  color: var(--fct-text-accent);
-}
-
-.fctEditIconBtn:focus-visible {
-  outline: 0.125rem solid var(--fct-accent);
-  outline-offset: 0.125rem;
-}
-
-.fctDeleteIconBtn {
-  color: var(--fct-danger);
 }
 
 .fctDeleteIconBtn:hover:not(:disabled) {
@@ -344,7 +318,6 @@
   outline-offset: 0.125rem;
 }
 
-.fctEditIconBtn:disabled,
 .fctDeleteIconBtn:disabled {
   opacity: 0.45;
   cursor: not-allowed;

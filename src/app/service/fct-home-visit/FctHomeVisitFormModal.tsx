@@ -14,10 +14,11 @@ import {
 interface FctHomeVisitFormModalProps {
   isOpen: boolean
   editingRecord: FctHomeVisitRecord | null
+  defaultFiscalYear?: number
   availablePcus: string[]
   options: Record<FctOptionCategory, FctHomeVisitOptionRecord[]>
   onClose: () => void
-  onSaved: () => Promise<void> | void
+  onSaved: (savedFiscalYear?: number) => Promise<void> | void
 }
 
 interface FormState {
@@ -106,7 +107,7 @@ function buildInitialState(editingRecord: FctHomeVisitRecord | null): FormState 
   }
 
   return {
-    visitDate: editingRecord.visitDate || getBangkokTodayIso(),
+    visitDate: editingRecord.visitDate ?? '',
     pcuName: toStr(editingRecord.pcuName),
     hn: toStr(editingRecord.hn),
     patientName: toStr(editingRecord.patientName),
@@ -135,6 +136,7 @@ function buildInitialState(editingRecord: FctHomeVisitRecord | null): FormState 
 export default function FctHomeVisitFormModal({
   isOpen,
   editingRecord,
+  defaultFiscalYear,
   availablePcus,
   options,
   onClose,
@@ -256,10 +258,6 @@ export default function FctHomeVisitFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.visitDate.trim()) {
-      setError('กรุณาระบุวันที่เยี่ยมบ้าน')
-      return
-    }
     if (!form.patientName.trim()) {
       setError('กรุณาระบุชื่อ-สกุลผู้ป่วย')
       return
@@ -271,8 +269,10 @@ export default function FctHomeVisitFormModal({
       return
     }
 
+    const visitDateValue = form.visitDate.trim() || null
     const payload: FctHomeVisitCreateInput = {
-      visitDate: form.visitDate.trim(),
+      visitDate: visitDateValue,
+      fiscalYear: visitDateValue ? undefined : defaultFiscalYear,
       pcuName: form.pcuName.trim() || null,
       patientName: form.patientName.trim(),
       hn: form.hn.trim() || null,
@@ -313,7 +313,9 @@ export default function FctHomeVisitFormModal({
       if (!res.ok || !json.success) {
         throw new Error(getApiErrorMessage(json, 'บันทึกข้อมูลไม่สำเร็จ'))
       }
-      await onSaved()
+      const savedFiscalYear =
+        typeof json.data?.fiscalYear === 'number' ? json.data.fiscalYear : undefined
+      await onSaved(savedFiscalYear)
       onClose()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
@@ -363,7 +365,7 @@ export default function FctHomeVisitFormModal({
               <div className="fctFormGrid">
                 <div className="fctField">
                   <label className="fctFieldLabel" htmlFor="fct-visit-date">
-                    วันที่เยี่ยมบ้าน *
+                    วันที่เยี่ยมบ้าน
                   </label>
                   <input
                     id="fct-visit-date"
@@ -371,7 +373,6 @@ export default function FctHomeVisitFormModal({
                     className="fctInput"
                     value={form.visitDate}
                     onChange={(e) => setField('visitDate', e.target.value)}
-                    required
                   />
                 </div>
 

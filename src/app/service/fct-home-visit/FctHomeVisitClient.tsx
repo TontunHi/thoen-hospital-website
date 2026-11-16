@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Search,
   Settings,
-  Pencil,
   Trash2,
   BarChart3,
   Table2,
@@ -35,7 +34,7 @@ import FctHomeVisitSettingsModal from './FctHomeVisitSettingsModal'
 interface FctHomeVisitClientProps {
   userRole: string
   canManage?: boolean
-  initialFiscalYear: number
+  initialFiscalYear?: number
 }
 
 type EditableVisitField =
@@ -307,7 +306,9 @@ export default function FctHomeVisitClient({
   canManage,
   initialFiscalYear,
 }: FctHomeVisitClientProps) {
-  const [fiscalYear, setFiscalYear] = useState<number>(initialFiscalYear)
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<number | null>(
+    initialFiscalYear ?? null
+  )
   const [pcuFilter, setPcuFilter] = useState<string>('')
   const [adlGroupFilter, setAdlGroupFilter] = useState<string>('')
   const [outcomeFilter, setOutcomeFilter] = useState<string>('')
@@ -322,7 +323,6 @@ export default function FctHomeVisitClient({
   const [exporting, setExporting] = useState<boolean>(false)
 
   const [formOpen, setFormOpen] = useState<boolean>(false)
-  const [editingRecord, setEditingRecord] = useState<FctHomeVisitRecord | null>(null)
   const [importOpen, setImportOpen] = useState<boolean>(false)
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -335,6 +335,7 @@ export default function FctHomeVisitClient({
   const [savingCellKey, setSavingCellKey] = useState<string | null>(null)
   const skipBlurRef = useRef<boolean>(false)
 
+  const fiscalYear = selectedFiscalYear ?? data?.fiscalYear ?? null
   const isAdmin = userRole === 'admin'
   const hasManagePermission = isAdmin || (canManage ?? false)
   const hasActiveFilters = Boolean(
@@ -356,15 +357,19 @@ export default function FctHomeVisitClient({
       }
       try {
         const params = new URLSearchParams()
-        params.set('fiscalYear', String(fiscalYear))
+        if (selectedFiscalYear !== null) {
+          params.set('fiscalYear', String(selectedFiscalYear))
+        }
         if (pcuFilter) params.set('pcuName', pcuFilter)
         if (adlGroupFilter) params.set('adlGroup', adlGroupFilter)
         if (outcomeFilter) params.set('visitOutcome', outcomeFilter)
         if (searchQuery) params.set('search', searchQuery)
 
-        const res = await fetch(`/api/service/fct-home-visit?${params.toString()}`, {
-          cache: 'no-store',
-        })
+        const query = params.toString()
+        const res = await fetch(
+          query ? `/api/service/fct-home-visit?${query}` : '/api/service/fct-home-visit',
+          { cache: 'no-store' }
+        )
         const json = await res.json()
         if (!res.ok || !json.success) {
           throw new Error(getApiErrorMessage(json, 'ไม่สามารถโหลดข้อมูลการเยี่ยมบ้านทีม FCT ได้'))
@@ -380,7 +385,7 @@ export default function FctHomeVisitClient({
         }
       }
     },
-    [fiscalYear, pcuFilter, adlGroupFilter, outcomeFilter, searchQuery]
+    [selectedFiscalYear, pcuFilter, adlGroupFilter, outcomeFilter, searchQuery]
   )
 
   useEffect(() => {
@@ -472,7 +477,7 @@ export default function FctHomeVisitClient({
       setError('กรุณาระบุชื่อ-สกุลผู้ป่วย')
       return
     }
-    if (field === 'visitDate' && !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    if (field === 'visitDate' && trimmed !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       setError('กรุณาระบุวันที่เยี่ยมบ้านให้ถูกต้อง')
       return
     }
@@ -547,8 +552,9 @@ export default function FctHomeVisitClient({
   }
 
   const handleDelete = async (record: FctHomeVisitRecord) => {
+    const dateSuffix = record.visitDate ? ` วันที่ ${formatThaiShortDate(record.visitDate)}` : ''
     const confirmed = window.confirm(
-      `ต้องการลบรายการเยี่ยมบ้านของ "${record.patientName}" วันที่ ${formatThaiShortDate(record.visitDate)} ใช่หรือไม่`
+      `ต้องการลบรายการเยี่ยมบ้านของ "${record.patientName}"${dateSuffix} ใช่หรือไม่`
     )
     if (!confirmed) return
 
@@ -578,7 +584,8 @@ export default function FctHomeVisitClient({
       const workbook = new ExcelJS.Workbook()
       workbook.creator = 'โรงพยาบาลเถิน (Thoen Hospital)'
       workbook.created = new Date()
-      const sheet = workbook.addWorksheet(`FCT_Home_Visit_${fiscalYear}`, {
+      const exportFy = data.fiscalYear
+      const sheet = workbook.addWorksheet(`FCT_Home_Visit_${exportFy}`, {
         views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
       })
 
@@ -612,7 +619,7 @@ export default function FctHomeVisitClient({
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = `fct-home-visit-fy${fiscalYear}.xlsx`
+      anchor.download = `fct-home-visit-fy${exportFy}.xlsx`
       anchor.click()
       URL.revokeObjectURL(url)
     } catch (err: unknown) {
@@ -622,12 +629,11 @@ export default function FctHomeVisitClient({
     }
   }
 
-  const availableFiscalYears = data?.availableFiscalYears ?? [
-    initialFiscalYear + 1,
-    initialFiscalYear,
-    initialFiscalYear - 1,
-    initialFiscalYear - 2,
-  ]
+  const populatedFiscalYears = data?.availableFiscalYears ?? []
+  const availableFiscalYears =
+    fiscalYear !== null && !populatedFiscalYears.includes(fiscalYear)
+      ? [...populatedFiscalYears, fiscalYear].sort((a, b) => b - a)
+      : populatedFiscalYears
   const availablePcus = data?.availablePcus ?? []
   const items = data?.items ?? []
   const options: Record<FctOptionCategory, FctHomeVisitOptionRecord[]> =
@@ -823,7 +829,7 @@ export default function FctHomeVisitClient({
               <h1 className="fctTitle">เยี่ยมบ้านทีม FCT</h1>
               <span className="fctFyBadge">
                 <span className="fctFyDot" aria-hidden="true" />
-                ปีงบประมาณ {fiscalYear}
+                {fiscalYear !== null ? `ปีงบประมาณ ${fiscalYear}` : 'กำลังโหลด...'}
               </span>
               {!hasManagePermission && (
                 <span className="fctViewOnlyBadge">สิทธิ์ดูข้อมูลอย่างเดียว</span>
@@ -877,10 +883,7 @@ export default function FctHomeVisitClient({
               <button
                 type="button"
                 className="fctBtn fctBtnPrimary"
-                onClick={() => {
-                  setEditingRecord(null)
-                  setFormOpen(true)
-                }}
+                onClick={() => setFormOpen(true)}
               >
                 <Plus size={16} strokeWidth={1.5} />
                 เพิ่มรายการเยี่ยม
@@ -904,8 +907,9 @@ export default function FctHomeVisitClient({
             <select
               aria-label="เลือกปีงบประมาณ"
               className="fctSelect"
-              value={String(fiscalYear)}
-              onChange={(e) => setFiscalYear(Number(e.target.value))}
+              value={fiscalYear !== null ? String(fiscalYear) : ''}
+              disabled={availableFiscalYears.length === 0}
+              onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
             >
               {availableFiscalYears.map((fy) => (
                 <option key={fy} value={String(fy)}>
@@ -1008,7 +1012,7 @@ export default function FctHomeVisitClient({
               onClick={() => setActiveView('table')}
             >
               <Table2 size={16} strokeWidth={1.5} />
-              ตาราง Sheet ({items.length})
+              ตารางข้อมูล ({items.length})
             </button>
           </div>
         </div>
@@ -1022,7 +1026,7 @@ export default function FctHomeVisitClient({
             {data && (activeView === 'both' || activeView === 'dashboard') && (
               <FctHomeVisitDashboard
                 stats={data.stats}
-                fiscalYear={fiscalYear}
+                fiscalYear={data.fiscalYear}
                 adlGroupFilter={adlGroupFilter}
                 outcomeFilter={outcomeFilter}
                 onSelectAdlGroup={setAdlGroupFilter}
@@ -1052,8 +1056,8 @@ export default function FctHomeVisitClient({
                 {items.length === 0 ? (
                   <div className="fctEmpty">
                     {hasManagePermission
-                      ? `ไม่พบรายการเยี่ยมบ้านในปีงบประมาณ ${fiscalYear} กดปุ่ม "เพิ่มรายการเยี่ยม" หรือ "นำเข้า Excel/CSV" เพื่อเริ่มบันทึก`
-                      : `ไม่พบรายการเยี่ยมบ้านในปีงบประมาณ ${fiscalYear}`}
+                      ? `ไม่พบรายการเยี่ยมบ้าน${fiscalYear !== null ? `ในปีงบประมาณ ${fiscalYear}` : ''} กดปุ่ม "เพิ่มรายการเยี่ยม" หรือ "นำเข้า Excel/CSV" เพื่อเริ่มบันทึก`
+                      : `ไม่พบรายการเยี่ยมบ้าน${fiscalYear !== null ? `ในปีงบประมาณ ${fiscalYear}` : ''}`}
                   </div>
                 ) : (
                   <div className="fctTableScroll">
@@ -1063,7 +1067,7 @@ export default function FctHomeVisitClient({
                           <col key={col.key} style={{ width: col.width }} />
                         ))}
                         {hasManagePermission && (
-                          <col className="fctActionCol" style={{ width: '5.5rem' }} />
+                          <col className="fctActionCol" style={{ width: '3.75rem' }} />
                         )}
                       </colgroup>
                       <thead>
@@ -1079,7 +1083,7 @@ export default function FctHomeVisitClient({
                             ทีมสหวิชาชีพ 5 ด้าน (17–24)
                           </th>
                           {hasManagePermission && (
-                            <th className="fctStickyActions" aria-label="จัดการรายการ"></th>
+                            <th className="fctStickyActions" aria-label="ลบรายการ"></th>
                           )}
                         </tr>
                         <tr className="fctColRow">
@@ -1091,7 +1095,7 @@ export default function FctHomeVisitClient({
                               {col.header}
                             </th>
                           ))}
-                          {hasManagePermission && <th className="fctStickyActions">จัดการ</th>}
+                          {hasManagePermission && <th className="fctStickyActions">ลบ</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -1145,30 +1149,16 @@ export default function FctHomeVisitClient({
                             })}
                             {hasManagePermission && (
                               <td className="fctStickyActions">
-                                <div className="fctActionBtns">
-                                  <button
-                                    type="button"
-                                    className="fctEditIconBtn"
-                                    onClick={() => {
-                                      setEditingRecord(row)
-                                      setFormOpen(true)
-                                    }}
-                                    aria-label={`แก้ไข ${row.patientName}`}
-                                    title={`แก้ไข ${row.patientName}`}
-                                  >
-                                    <Pencil size={15} strokeWidth={1.75} aria-hidden="true" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="fctDeleteIconBtn"
-                                    onClick={() => handleDelete(row)}
-                                    disabled={deletingId === row.id}
-                                    aria-label={`ลบ ${row.patientName}`}
-                                    title={`ลบ ${row.patientName}`}
-                                  >
-                                    <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
-                                  </button>
-                                </div>
+                                <button
+                                  type="button"
+                                  className="fctDeleteIconBtn"
+                                  onClick={() => handleDelete(row)}
+                                  disabled={deletingId === row.id}
+                                  aria-label={`ลบ ${row.patientName}`}
+                                  title={`ลบ ${row.patientName}`}
+                                >
+                                  <Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />
+                                </button>
                               </td>
                             )}
                           </tr>
@@ -1186,19 +1176,20 @@ export default function FctHomeVisitClient({
       {hasManagePermission && (
         <FctHomeVisitFormModal
           isOpen={formOpen}
-          editingRecord={editingRecord}
+          editingRecord={null}
+          defaultFiscalYear={fiscalYear ?? undefined}
           availablePcus={availablePcus}
           options={options}
-          onClose={() => {
-            setFormOpen(false)
-            setEditingRecord(null)
-          }}
-          onSaved={() => {
-            setNotice(
-              editingRecord
-                ? 'แก้ไขข้อมูลการเยี่ยมบ้านเรียบร้อยแล้ว'
-                : 'บันทึกรายการเยี่ยมบ้านเรียบร้อยแล้ว'
-            )
+          onClose={() => setFormOpen(false)}
+          onSaved={(savedFiscalYear) => {
+            if (savedFiscalYear && savedFiscalYear !== fiscalYear) {
+              setNotice(
+                `บันทึกรายการเยี่ยมบ้านเรียบร้อยแล้ว (เปลี่ยนมุมมองเป็นปีงบประมาณ ${savedFiscalYear})`
+              )
+              setSelectedFiscalYear(savedFiscalYear)
+              return
+            }
+            setNotice('บันทึกรายการเยี่ยมบ้านเรียบร้อยแล้ว')
             void fetchData()
           }}
         />
@@ -1207,8 +1198,16 @@ export default function FctHomeVisitClient({
       {hasManagePermission && (
         <FctHomeVisitImportModal
           isOpen={importOpen}
+          currentFiscalYear={fiscalYear ?? undefined}
           onClose={() => setImportOpen(false)}
-          onImported={() => {
+          onImported={(importedFiscalYear) => {
+            if (importedFiscalYear && importedFiscalYear !== fiscalYear) {
+              setNotice(
+                `นำเข้าข้อมูลการเยี่ยมบ้านเรียบร้อยแล้ว (เปลี่ยนมุมมองเป็นปีงบประมาณ ${importedFiscalYear})`
+              )
+              setSelectedFiscalYear(importedFiscalYear)
+              return
+            }
             setNotice('นำเข้าข้อมูลการเยี่ยมบ้านเรียบร้อยแล้ว')
             void fetchData()
           }}

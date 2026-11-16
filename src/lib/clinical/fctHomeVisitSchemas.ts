@@ -78,10 +78,22 @@ function optionalQueryString(maxLength: number, label: string) {
   )
 }
 
-const isoDateSchema = z
-  .string({ message: 'กรุณาระบุวันที่เยี่ยมบ้าน' })
-  .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'รูปแบบวันที่เยี่ยมบ้านต้องเป็น YYYY-MM-DD')
+const nullableIsoDateSchema = z.preprocess(
+  (raw) => {
+    if (raw === undefined) return undefined
+    if (raw === null) return null
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim()
+      return trimmed === '' ? null : trimmed
+    }
+    return raw
+  },
+  z
+    .string({ message: 'รูปแบบวันที่เยี่ยมบ้านไม่ถูกต้อง' })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'รูปแบบวันที่เยี่ยมบ้านต้องเป็น YYYY-MM-DD')
+    .nullable()
+    .optional()
+)
 
 const fiscalYearNumberSchema = z
   .number({ message: 'ปีงบประมาณต้องเป็นตัวเลข' })
@@ -95,7 +107,11 @@ const optionalFiscalYearField = z.preprocess(
 )
 
 export const fctHomeVisitCreateSchema = z.object({
-  visitDate: isoDateSchema,
+  visitDate: nullableIsoDateSchema,
+  fiscalYear: z.preprocess(
+    (raw) => parseNumericInput(raw, null),
+    fiscalYearNumberSchema.nullable().optional()
+  ),
   pcuName: optionalNullableString(150, 'รพ.สต.'),
   patientName: z
     .string({ message: 'กรุณาระบุชื่อ-สกุลผู้ป่วย' })

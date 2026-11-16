@@ -5,10 +5,12 @@ import {
   getAvailableFiscalYears,
   getCurrentThaiFiscalYear,
   getFiscalYearDateBounds,
+  getPopulatedFiscalYears,
   getThaiFiscalYearFromDate,
   normalizeHn,
   parseFctImportMatrix,
   parseFlexibleVisitDate,
+  resolveDefaultFiscalYear,
   suggestAdlGroup,
 } from '../fctHomeVisitDomain'
 import type { FctHomeVisitRecord } from '../fctHomeVisitTypes'
@@ -72,6 +74,17 @@ describe('fctHomeVisitDomain', () => {
       expect(list[0]).toBe(2571)
       expect(list).toContain(2565)
     })
+
+    it('returns only populated years and resolves default fiscal year to current or latest populated', () => {
+      const ref = new Date('2026-11-16T00:00:00+07:00') // FY 2570
+      expect(getPopulatedFiscalYears([2569, 2565, 2569], ref)).toEqual([2569, 2565])
+      expect(getPopulatedFiscalYears([], ref)).toEqual([2570])
+
+      expect(resolveDefaultFiscalYear([2569], ref)).toBe(2569)
+      expect(resolveDefaultFiscalYear([2565], ref)).toBe(2565)
+      expect(resolveDefaultFiscalYear([2569, 2570], ref)).toBe(2570)
+      expect(resolveDefaultFiscalYear([], ref)).toBe(2570)
+    })
   })
 
   describe('normalizeHn & suggestAdlGroup', () => {
@@ -95,15 +108,29 @@ describe('fctHomeVisitDomain', () => {
   })
 
   describe('parseFlexibleVisitDate & formatThaiShortDate', () => {
-    it('parses Thai short dates, stray marks, ISO dates, slash dates, and Excel serials', () => {
+    it('parses Thai short dates, stray marks, spaced slash dates, ISO dates, and Excel 19xx-BE dates including FY 2565', () => {
       expect(parseFlexibleVisitDate('5 ตค 69')).toBe('2026-10-05')
       expect(parseFlexibleVisitDate('ุ6ตค 69')).toBe('2026-10-06')
       expect(parseFlexibleVisitDate('ุึ7ตค 69')).toBe('2026-10-07')
       expect(parseFlexibleVisitDate('8ตค 69')).toBe('2026-10-08')
+      expect(parseFlexibleVisitDate('2/ 10/2568')).toBe('2025-10-02')
+      expect(parseFlexibleVisitDate('ึ7/ 10/2568')).toBe('2025-10-07')
+      expect(parseFlexibleVisitDate('28 /6/69')).toBe('2026-06-28')
+      expect(parseFlexibleVisitDate('18 /6/69')).toBe('2026-06-18')
       expect(parseFlexibleVisitDate('2026-10-15')).toBe('2026-10-15')
       expect(parseFlexibleVisitDate('2569-10-15')).toBe('2026-10-15')
       expect(parseFlexibleVisitDate('15/10/2569')).toBe('2026-10-15')
       expect(parseFlexibleVisitDate(new Date('2026-11-05T00:00:00Z'))).toBe('2026-11-05')
+      expect(parseFlexibleVisitDate(new Date('2568-10-09T00:00:00Z'))).toBe('2025-10-09')
+      expect(parseFlexibleVisitDate(new Date('1969-06-11T00:00:00Z'))).toBe('2026-06-11')
+      // FY 2565 dates
+      expect(parseFlexibleVisitDate('15/06/65')).toBe('2022-06-15')
+      expect(parseFlexibleVisitDate('15/06/2565')).toBe('2022-06-15')
+      expect(parseFlexibleVisitDate('15.06.2565')).toBe('2022-06-15')
+      expect(parseFlexibleVisitDate('5 ตค 64')).toBe('2021-10-05')
+      expect(parseFlexibleVisitDate(new Date('1965-06-15T00:00:00Z'))).toBe('2022-06-15')
+      expect(getThaiFiscalYearFromDate('2021-10-05')).toBe(2565)
+      expect(getThaiFiscalYearFromDate('2022-06-15')).toBe(2565)
       expect(parseFlexibleVisitDate('invalid')).toBeNull()
     })
 
@@ -248,6 +275,148 @@ describe('fctHomeVisitDomain', () => {
       expect(second.data.adlGroup).toBe('ติดเตียง')
       expect(second.data.overallRiskLevel).toBe('High')
       expect(second.warnings).toContain('ไม่มี HN')
+    })
+
+    it('parses FY69 2-row template with combined ชื่อ -สกุล column (no คำนำหน้า column)', () => {
+      const matrix: unknown[][] = [
+        [
+          '',
+          'ชื่อ -สกุล',
+          'HN',
+          'อายุ',
+          'ที่อยู่',
+          'รพสต',
+          'สี/ ADL',
+          '',
+          'Dx',
+          '',
+          'สิ่งที่ต้องตาม',
+          'วันที่เยี่ยมบ้าน',
+          'สถานที่รักษา',
+        ],
+        [
+          '',
+          'ชื่อ -สกุล',
+          'HN',
+          'อายุ',
+          'ที่อยู่',
+          'รพสต',
+          'คะแนน',
+          'ติดเตียง',
+          'Dx',
+          '',
+          'สิ่งที่ต้องตาม',
+          'วันที่เยี่ยมบ้าน',
+          'สถานที่รักษา',
+          'ดีขึ้น',
+          '',
+          'ทันตกรรม',
+          'เภสัช',
+          'นักโภช',
+          'นักโภช',
+          'กายภาพ, ฝึกเดิน, ป้องกันข้อติด',
+          'กายภาพ',
+          'แผนไทย',
+          'แผนไทย',
+        ],
+        [
+          1,
+          'นายประวิทย์  ทดสอบปีหกเก้า',
+          60134,
+          73,
+          '224/3 ม2 ต ล้อมแรด',
+          'รพสต.บ้านเด่นแก้ว',
+          0,
+          'ติดเตียง',
+          'CA lung c palliative care',
+          '',
+          'การใช้ MO แผ่นแปะ',
+          '2/ 10/2568',
+          'รพ.เถิน รพ.มะเร็งลำปาง',
+          'คงเดิม',
+          'Low Lisk',
+          'ฟันมี 9 ซี่',
+          '',
+          'ขาดสารอาหารรุนแรง',
+          'รักษาและให้อาหารเท่าที่ให้ได้',
+          '',
+          '',
+          'จ่ายยาสมุนไพร',
+          'เคลื่อนไหวไม่คล่องตัว',
+        ],
+        [
+          2,
+          'นางผัน ยะปาน',
+          'ุ64681',
+          75,
+          '12 ม.1',
+          'รพสต.แม่ป่ะหลวง20',
+          '',
+          'ติดบ้าน',
+          'HT',
+          '',
+          'ติดตามยา',
+          new Date('1969-06-11T00:00:00.000Z'),
+          'รพ.เถิน',
+          'ดีขึ้น',
+          'LOW',
+          '',
+          '',
+          'ปกติ',
+          'ไม่มีปัญหา',
+        ],
+        [
+          3,
+          'นายปริวัตน์ ไม่มีวันที่',
+          'ึ76034',
+          58,
+          '15 ม.2',
+          'ดอนแก้ว',
+          '',
+          '',
+          'HT',
+          '',
+          '',
+          '',
+          'รพ.เถิน',
+        ],
+        [4, '', '', '', '', '', '', '', '', '', '', '', ''], // trailing sequence-only row skipped
+      ]
+
+      const parsed = parseFctImportMatrix(matrix)
+
+      expect(parsed.totalScanned).toBe(3)
+      expect(parsed.errors).toHaveLength(0)
+      expect(parsed.validRows).toHaveLength(3)
+
+      const first = parsed.validRows[0]
+      expect(first.data.patientName).toBe('นายประวิทย์ ทดสอบปีหกเก้า')
+      expect(first.data.hn).toBe('0060134')
+      expect(first.data.age).toBe(73)
+      expect(first.data.pcuName).toBe('เด่นแก้ว')
+      expect(first.data.adlScore).toBe(0)
+      expect(first.data.adlGroup).toBe('ติดเตียง')
+      expect(first.data.visitDate).toBe('2025-10-02')
+      expect(getThaiFiscalYearFromDate(first.data.visitDate)).toBe(2569)
+      expect(first.data.visitOutcome).toBe('คงเดิม')
+      expect(first.data.overallRiskLevel).toBe('Low')
+      expect(first.data.dentalNote).toBe('ฟันมี 9 ซี่')
+      expect(first.data.nutritionStatus).toBe('ขาดสารอาหารรุนแรง')
+      expect(first.data.thaiMedCategory).toBe('จ่ายยาสมุนไพร')
+      expect(first.data.thaiMedNote).toBe('เคลื่อนไหวไม่คล่องตัว')
+
+      const second = parsed.validRows[1]
+      expect(second.data.hn).toBe('0064681')
+      expect(second.data.pcuName).toBe('แม่ปะหลวง')
+      expect(second.data.visitDate).toBe('2026-06-11')
+      expect(second.warnings).toContain('ปรับปีวันที่เยี่ยมจาก 1969 เป็น พ.ศ. 2569')
+
+      const third = parsed.validRows[2]
+      expect(third.data.patientName).toBe('นายปริวัตน์ ไม่มีวันที่')
+      expect(third.data.hn).toBe('0076034')
+      expect(third.data.visitDate).toBeNull()
+      expect(third.warnings).toContain('ไม่มีวันที่เยี่ยมบ้าน')
+      expect(formatThaiShortDate(third.data.visitDate)).toBe('-')
     })
 
     it('parses single-row exported xlsx headers cleanly', () => {

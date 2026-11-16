@@ -310,7 +310,9 @@ describe('FctHomeVisitClient', () => {
     })
 
     expect(screen.getByRole('button', { name: /นำเข้า Excel\/CSV/i })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /ตารางข้อมูล \(2\)/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /ตั้งค่าตัวเลือก/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^แก้ไข นายสมมติ เยี่ยมบ้าน$/i })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /เพิ่มรายการเยี่ยม/i }))
 
@@ -349,19 +351,6 @@ describe('FctHomeVisitClient', () => {
         '/api/service/fct-home-visit',
         expect.objectContaining({
           method: 'POST',
-        })
-      )
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: /^แก้ไข นายสมมติ เยี่ยมบ้าน$/i }))
-    expect(screen.getByText('แก้ไขข้อมูลการเยี่ยมบ้าน FCT')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /บันทึกการแก้ไข/i }))
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/service/fct-home-visit/1',
-        expect.objectContaining({
-          method: 'PATCH',
         })
       )
     })
@@ -488,5 +477,41 @@ describe('FctHomeVisitClient', () => {
         })
       )
     })
+  })
+
+  it('defaults to populated fiscalYear from API when initialFiscalYear is omitted and shows only populated years', async () => {
+    const baseFetch = global.fetch as typeof fetch
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/service/fct-home-visit') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                ...mockListResponse.data,
+                fiscalYear: 2569,
+                availableFiscalYears: [2569, 2565],
+                items: [{ ...syntheticItems[0], fiscalYear: 2569 }],
+              },
+            }),
+        })
+      }
+      return baseFetch(url, init)
+    }) as typeof fetch
+
+    render(<FctHomeVisitClient userRole="member" canManage={true} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นายสมมติ เยี่ยมบ้าน')).toBeInTheDocument()
+    })
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/service/fct-home-visit', {
+      cache: 'no-store',
+    })
+    const fySelect = screen.getByLabelText('เลือกปีงบประมาณ') as HTMLSelectElement
+    expect(fySelect.value).toBe('2569')
+    expect(Array.from(fySelect.options).map((opt) => opt.value)).toEqual(['2569', '2565'])
   })
 })

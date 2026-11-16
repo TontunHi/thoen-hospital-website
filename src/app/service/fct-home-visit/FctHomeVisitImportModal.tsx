@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs'
 import { FileSpreadsheet, Upload, X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import {
   formatThaiShortDate,
+  getThaiFiscalYearFromDate,
   parseFctImportMatrix,
 } from '@/lib/clinical/fctHomeVisitDomain'
 import type {
@@ -14,8 +15,9 @@ import type {
 
 interface FctHomeVisitImportModalProps {
   isOpen: boolean
+  currentFiscalYear?: number
   onClose: () => void
-  onImported: () => Promise<void> | void
+  onImported: (dominantFiscalYear?: number) => Promise<void> | void
 }
 
 function getApiErrorMessage(json: unknown, fallback: string): string {
@@ -139,10 +141,13 @@ async function readMatrixFromFile(file: File): Promise<unknown[][]> {
         throw new Error('ไม่พบแผ่นงาน (Worksheet) ในไฟล์ Excel')
       }
       const rows: unknown[][] = []
-      sheet.eachRow({ includeEmpty: false }, (row) => {
+      sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         const values = Array.isArray(row.values) ? row.values.slice(1) : []
-        rows.push(values.map(extractExcelCellValue))
+        rows[rowNumber - 1] = values.map(extractExcelCellValue)
       })
+      for (let i = 0; i < rows.length; i++) {
+        if (!rows[i]) rows[i] = []
+      }
       return rows
     } catch {
       if (lowerName.endsWith('.xls')) {
@@ -157,6 +162,7 @@ async function readMatrixFromFile(file: File): Promise<unknown[][]> {
 
 export default function FctHomeVisitImportModal({
   isOpen,
+  currentFiscalYear,
   onClose,
   onImported,
 }: FctHomeVisitImportModalProps) {
@@ -228,6 +234,36 @@ export default function FctHomeVisitImportModal({
     }
   }
 
+  const datedFiscalYearMap = new Map<number, number>()
+  if (parseResult) {
+    for (const row of parseResult.validRows) {
+      if (row.data.visitDate) {
+        const fy = getThaiFiscalYearFromDate(row.data.visitDate)
+        datedFiscalYearMap.set(fy, (datedFiscalYearMap.get(fy) ?? 0) + 1)
+      }
+    }
+  }
+  const datedBreakdown = Array.from(datedFiscalYearMap.entries()).sort(
+    (a, b) => b[1] - a[1] || b[0] - a[0]
+  )
+  const dominantFiscalYear = datedBreakdown[0]?.[0] ?? currentFiscalYear
+
+  const fiscalYearMap = new Map<number, number>()
+  if (parseResult) {
+    for (const row of parseResult.validRows) {
+      const fy = getThaiFiscalYearFromDate(row.data.visitDate, dominantFiscalYear)
+      fiscalYearMap.set(fy, (fiscalYearMap.get(fy) ?? 0) + 1)
+    }
+  }
+  const fiscalYearBreakdown = Array.from(fiscalYearMap.entries()).sort((a, b) => b[1] - a[1] || b[0] - a[0])
+  const todayBangkokIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(
+    new Date()
+  )
+  const futureDateCount = parseResult
+    ? parseResult.validRows.filter((r) => Boolean(r.data.visitDate && r.data.visitDate > todayBangkokIso))
+        .length
+    : 0
+
   const handleConfirmImport = async () => {
     if (!parseResult || parseResult.validRows.length === 0) return
 
@@ -238,7 +274,10 @@ export default function FctHomeVisitImportModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rows: parseResult.validRows.map((r) => r.data),
+          rows: parseResult.validRows.map((r) => ({
+            ...r.data,
+            fiscalYear: r.data.visitDate ? undefined : (r.data.fiscalYear ?? dominantFiscalYear),
+          })),
         }),
       })
       const json = await res.json()
@@ -246,7 +285,7 @@ export default function FctHomeVisitImportModal({
         throw new Error(getApiErrorMessage(json, 'นำเข้าข้อมูลไม่สำเร็จ'))
       }
       setImportResult(json.data as FctBatchImportResult)
-      await onImported()
+      await onImported(dominantFiscalYear)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดระหว่างนำเข้าข้อมูล')
     } finally {
@@ -383,6 +422,33 @@ export default function FctHomeVisitImportModal({
                 </div>
               </div>
 
+              {fiscalYearBreakdown.length > 0 && (
+                <div
+                  className={`fctAlert ${
+                    fiscalYearBreakdown.length > 1 || futureDateCount > 0
+                      ? 'fctAlertWarning'
+                      : 'fctAlertInfo'
+                  }`}
+                >
+                  <div>
+                    <div>
+                      <strong>ปีงบประมาณที่จะบันทึก:</strong>{' '}
+                      {fiscalYearBreakdown
+                        .map(([fy, count]) => `ปีงบ ${fy} (${count.toLocaleString()} รายการ)`)
+                        .join(' · ')}
+                    </div>
+                    {(fiscalYearBreakdown.length > 1 || futureDateCount > 0) && (
+                      <div style={{ marginTop: '0.25rem', fontSize: '0.85em' }}>
+                        {futureDateCount > 0
+                          ? `พบวันที่เยี่ยมบ้านในอนาคต ${futureDateCount.toLocaleString()} แถว — `
+                          : ''}
+                        กรุณาตรวจสอบวันที่เยี่ยมบ้านของแถวที่อยู่คนละปีงบประมาณก่อนยืนยันนำเข้า
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {parseResult.errors.length > 0 && (
                 <div className="fctIssueBox">
                   <h4 className="fctIssueBoxTitle">
@@ -408,6 +474,7 @@ export default function FctHomeVisitImportModal({
                     <thead>
                       <tr>
                         <th>แถว</th>
+                        <th>ปีงบ</th>
                         <th>วันที่เยี่ยม</th>
                         <th>ชื่อ-สกุล</th>
                         <th>HN</th>
@@ -418,28 +485,36 @@ export default function FctHomeVisitImportModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {parseResult.validRows.map((row) => (
-                        <tr key={row.rowNumber}>
-                          <td>{row.rowNumber}</td>
-                          <td>{formatThaiShortDate(row.data.visitDate)}</td>
-                          <td>{row.data.patientName}</td>
-                          <td>{row.data.hn || '-'}</td>
-                          <td>{row.data.pcuName || '-'}</td>
-                          <td>{row.data.adlGroup || '-'}</td>
-                          <td>{row.data.visitOutcome || '-'}</td>
-                          <td>
-                            {row.warnings.length === 0 ? (
-                              '-'
-                            ) : (
-                              row.warnings.map((w, i) => (
-                                <span key={i} className="fctWarnBadge">
-                                  {w}
-                                </span>
-                              ))
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {parseResult.validRows.map((row) => {
+                        const rowFy = getThaiFiscalYearFromDate(row.data.visitDate, dominantFiscalYear)
+                        const isFuture = Boolean(row.data.visitDate && row.data.visitDate > todayBangkokIso)
+                        const rowWarnings = isFuture
+                          ? [...row.warnings, `วันที่ในอนาคต (ปีงบ ${rowFy})`]
+                          : row.warnings
+                        return (
+                          <tr key={row.rowNumber}>
+                            <td>{row.rowNumber}</td>
+                            <td>{rowFy}</td>
+                            <td>{formatThaiShortDate(row.data.visitDate)}</td>
+                            <td>{row.data.patientName}</td>
+                            <td>{row.data.hn || '-'}</td>
+                            <td>{row.data.pcuName || '-'}</td>
+                            <td>{row.data.adlGroup || '-'}</td>
+                            <td>{row.data.visitOutcome || '-'}</td>
+                            <td>
+                              {rowWarnings.length === 0 ? (
+                                '-'
+                              ) : (
+                                rowWarnings.map((w, i) => (
+                                  <span key={i} className="fctWarnBadge">
+                                    {w}
+                                  </span>
+                                ))
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -17,6 +17,9 @@ import {
   X,
 } from 'lucide-react'
 import {
+  getCurrentThaiFiscalYear,
+} from '@/lib/clinical/dmRemissionDomain'
+import {
   DM_A1C_OUTCOMES,
   DM_MEDS_OUTCOMES,
   DM_REMISSION_EXCEL_COLUMNS,
@@ -35,7 +38,7 @@ import DmRemissionCarryoverModal from './DmRemissionCarryoverModal'
 interface DmRemissionClientProps {
   userRole: string
   canManage?: boolean
-  initialFiscalYear: number
+  initialFiscalYear?: number
 }
 
 type EditableCohortField =
@@ -278,7 +281,9 @@ export default function DmRemissionClient({
   canManage,
   initialFiscalYear,
 }: DmRemissionClientProps) {
-  const [fiscalYear, setFiscalYear] = useState<number>(initialFiscalYear)
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<number | null>(
+    initialFiscalYear ?? null
+  )
   const [pcuFilter, setPcuFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchInput, setSearchInput] = useState<string>('')
@@ -305,6 +310,7 @@ export default function DmRemissionClient({
   const [savingCellKey, setSavingCellKey] = useState<string | null>(null)
   const skipBlurRef = useRef<boolean>(false)
 
+  const fiscalYear = selectedFiscalYear ?? data?.fiscalYear ?? null
   const isAdmin = userRole === 'admin'
   const hasManagePermission = isAdmin || (canManage ?? false)
   const hasActiveFilters = Boolean(pcuFilter || statusFilter || searchInput.trim())
@@ -324,14 +330,18 @@ export default function DmRemissionClient({
       }
       try {
         const params = new URLSearchParams()
-        params.set('fiscalYear', String(fiscalYear))
+        if (selectedFiscalYear !== null) {
+          params.set('fiscalYear', String(selectedFiscalYear))
+        }
         if (pcuFilter) params.set('pcuName', pcuFilter)
         if (statusFilter) params.set('remissionStatus', statusFilter)
         if (searchQuery) params.set('search', searchQuery)
 
-        const res = await fetch(`/api/service/dm-remission?${params.toString()}`, {
-          cache: 'no-store',
-        })
+        const query = params.toString()
+        const res = await fetch(
+          query ? `/api/service/dm-remission?${query}` : '/api/service/dm-remission',
+          { cache: 'no-store' }
+        )
         const json = await res.json()
         if (!res.ok || !json.success) {
           throw new Error(json.error || 'ไม่สามารถโหลดข้อมูล DM Remission ได้')
@@ -347,7 +357,7 @@ export default function DmRemissionClient({
         }
       }
     },
-    [fiscalYear, pcuFilter, statusFilter, searchQuery]
+    [selectedFiscalYear, pcuFilter, statusFilter, searchQuery]
   )
 
   useEffect(() => {
@@ -520,7 +530,8 @@ export default function DmRemissionClient({
       const workbook = new ExcelJS.Workbook()
       workbook.creator = 'โรงพยาบาลเถิน (Thoen Hospital)'
       workbook.created = new Date()
-      const sheet = workbook.addWorksheet(`DM_Remission_${fiscalYear}`, {
+      const exportFy = data.fiscalYear
+      const sheet = workbook.addWorksheet(`DM_Remission_${exportFy}`, {
         views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
       })
 
@@ -554,7 +565,7 @@ export default function DmRemissionClient({
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = `dm-remission-fy${fiscalYear}.xlsx`
+      anchor.download = `dm-remission-fy${exportFy}.xlsx`
       anchor.click()
       URL.revokeObjectURL(url)
     } catch (err: unknown) {
@@ -564,12 +575,11 @@ export default function DmRemissionClient({
     }
   }
 
-  const availableFiscalYears = data?.availableFiscalYears ?? [
-    initialFiscalYear + 1,
-    initialFiscalYear,
-    initialFiscalYear - 1,
-    initialFiscalYear - 2,
-  ]
+  const populatedFiscalYears = data?.availableFiscalYears ?? []
+  const availableFiscalYears =
+    fiscalYear !== null && !populatedFiscalYears.includes(fiscalYear)
+      ? [...populatedFiscalYears, fiscalYear].sort((a, b) => b - a)
+      : populatedFiscalYears
   const availablePcus = data?.availablePcus ?? []
   const items = data?.items ?? []
   const options: Record<DmOptionCategory, DmRemissionOptionRecord[]> = data?.options ?? {
@@ -746,7 +756,7 @@ export default function DmRemissionClient({
               <h1 className="dmrTitle">DM Remission</h1>
               <span className="dmrFyBadge">
                 <span className="dmrFyDot" aria-hidden="true" />
-                ปีงบประมาณ {fiscalYear}
+                {fiscalYear !== null ? `ปีงบประมาณ ${fiscalYear}` : 'กำลังโหลด...'}
               </span>
               {!hasManagePermission && (
                 <span className="dmrViewOnlyBadge">สิทธิ์ดูข้อมูลอย่างเดียว</span>
@@ -824,8 +834,9 @@ export default function DmRemissionClient({
             <select
               aria-label="เลือกปีงบประมาณ"
               className="dmrSelect"
-              value={String(fiscalYear)}
-              onChange={(e) => setFiscalYear(Number(e.target.value))}
+              value={fiscalYear !== null ? String(fiscalYear) : ''}
+              disabled={availableFiscalYears.length === 0}
+              onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
             >
               {availableFiscalYears.map((fy) => (
                 <option key={fy} value={String(fy)}>
@@ -928,7 +939,7 @@ export default function DmRemissionClient({
             {data && (activeView === 'both' || activeView === 'dashboard') && (
               <DmRemissionDashboard
                 stats={data.stats}
-                fiscalYear={fiscalYear}
+                fiscalYear={data.fiscalYear}
                 statusFilter={statusFilter}
                 onSelectStatus={setStatusFilter}
               />
@@ -952,8 +963,8 @@ export default function DmRemissionClient({
                 {items.length === 0 ? (
                   <div className="dmrEmpty">
                     {hasManagePermission
-                      ? `ไม่พบข้อมูลผู้ป่วยในปีงบประมาณ ${fiscalYear} กดปุ่ม "เพิ่มผู้ป่วย" เพื่อเริ่มบันทึก`
-                      : `ไม่พบข้อมูลผู้ป่วยในปีงบประมาณ ${fiscalYear}`}
+                      ? `ไม่พบข้อมูลผู้ป่วย${fiscalYear !== null ? `ในปีงบประมาณ ${fiscalYear}` : ''} กดปุ่ม "เพิ่มผู้ป่วย" เพื่อเริ่มบันทึก`
+                      : `ไม่พบข้อมูลผู้ป่วย${fiscalYear !== null ? `ในปีงบประมาณ ${fiscalYear}` : ''}`}
                   </div>
                 ) : (
                   <div className="dmrTableScroll">
@@ -1072,12 +1083,19 @@ export default function DmRemissionClient({
         <DmRemissionFormModal
           isOpen={formOpen}
           editingRecord={null}
-          defaultFiscalYear={fiscalYear}
+          defaultFiscalYear={fiscalYear ?? getCurrentThaiFiscalYear()}
           availableFiscalYears={availableFiscalYears}
           availablePcus={availablePcus}
           options={options}
           onClose={() => setFormOpen(false)}
-          onSaved={() => {
+          onSaved={(savedFiscalYear) => {
+            if (savedFiscalYear && savedFiscalYear !== fiscalYear) {
+              setNotice(
+                `บันทึกข้อมูลผู้ป่วยเรียบร้อยแล้ว (เปลี่ยนมุมมองเป็นปีงบประมาณ ${savedFiscalYear})`
+              )
+              setSelectedFiscalYear(savedFiscalYear)
+              return
+            }
             setNotice('บันทึกข้อมูลผู้ป่วยเรียบร้อยแล้ว')
             void fetchData()
           }}
@@ -1098,11 +1116,15 @@ export default function DmRemissionClient({
       {hasManagePermission && (
         <DmRemissionCarryoverModal
           isOpen={carryoverOpen}
-          targetFiscalYear={fiscalYear}
+          targetFiscalYear={fiscalYear ?? getCurrentThaiFiscalYear()}
           availableFiscalYears={availableFiscalYears}
           onClose={() => setCarryoverOpen(false)}
-          onCompleted={(summaryText) => {
+          onCompleted={(summaryText, targetFy) => {
             setNotice(summaryText)
+            if (targetFy && targetFy !== fiscalYear) {
+              setSelectedFiscalYear(targetFy)
+              return
+            }
             void fetchData()
           }}
         />

@@ -3,10 +3,10 @@ import { logAudit } from '@/lib/audit'
 import {
   aggregateDashboardStats,
   enrichCohortRecord,
-  getAvailableFiscalYears,
-  getCurrentThaiFiscalYear,
+  getPopulatedFiscalYears,
   normalizeCid,
   normalizeHn,
+  resolveDefaultFiscalYear,
   toNullableNumber,
 } from './dmRemissionDomain'
 import {
@@ -416,23 +416,49 @@ export class DmRemissionService {
   async listCohorts(filters: DmRemissionListFilters = {}): Promise<DmRemissionListResult> {
     await this.ensureSchema()
 
-    const targetFiscalYear = filters.fiscalYear ?? getCurrentThaiFiscalYear()
+    let targetFiscalYear: number
+    let optionRows: Record<string, unknown>[]
+    let yearRows: Array<{ fiscalYear: number | string }>
+    let pcuRows: Array<{ pcuName: string }>
+    let cohortRows: DmRemissionCohortRaw[]
 
-    const [optionRows, yearRows, pcuRows, cohortRows] = await Promise.all([
-      this.deps.appQuery<Record<string, unknown>>(
-        `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-      ),
-      this.deps.appQuery<{ fiscalYear: number | string }>(
+    if (filters.fiscalYear !== undefined) {
+      targetFiscalYear = filters.fiscalYear
+      ;[optionRows, yearRows, pcuRows, cohortRows] = await Promise.all([
+        this.deps.appQuery<Record<string, unknown>>(
+          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
+        ),
+        this.deps.appQuery<{ fiscalYear: number | string }>(
+          `SELECT DISTINCT fiscal_year AS fiscalYear FROM dm_remission_cohorts ORDER BY fiscal_year DESC`
+        ),
+        this.deps.appQuery<{ pcuName: string }>(
+          `SELECT DISTINCT pcu_name AS pcuName FROM dm_remission_cohorts WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
+        ),
+        this.deps.appQuery<DmRemissionCohortRaw>(
+          `${COHORT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY id DESC`,
+          [targetFiscalYear]
+        ),
+      ])
+    } else {
+      yearRows = await this.deps.appQuery<{ fiscalYear: number | string }>(
         `SELECT DISTINCT fiscal_year AS fiscalYear FROM dm_remission_cohorts ORDER BY fiscal_year DESC`
-      ),
-      this.deps.appQuery<{ pcuName: string }>(
-        `SELECT DISTINCT pcu_name AS pcuName FROM dm_remission_cohorts WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
-      ),
-      this.deps.appQuery<DmRemissionCohortRaw>(
-        `${COHORT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY id DESC`,
-        [targetFiscalYear]
-      ),
-    ])
+      )
+      targetFiscalYear = resolveDefaultFiscalYear(
+        yearRows.map((r) => Number(r.fiscalYear))
+      )
+      ;[optionRows, pcuRows, cohortRows] = await Promise.all([
+        this.deps.appQuery<Record<string, unknown>>(
+          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
+        ),
+        this.deps.appQuery<{ pcuName: string }>(
+          `SELECT DISTINCT pcu_name AS pcuName FROM dm_remission_cohorts WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
+        ),
+        this.deps.appQuery<DmRemissionCohortRaw>(
+          `${COHORT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY id DESC`,
+          [targetFiscalYear]
+        ),
+      ])
+    }
 
     const options: Record<DmOptionCategory, DmRemissionOptionRecord[]> = {
       remission: [],
@@ -448,7 +474,7 @@ export class DmRemissionService {
       }
     }
 
-    const availableFiscalYears = getAvailableFiscalYears(
+    const availableFiscalYears = getPopulatedFiscalYears(
       yearRows.map((r) => Number(r.fiscalYear))
     )
 

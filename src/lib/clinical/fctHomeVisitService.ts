@@ -2,8 +2,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import {
   aggregateFctDashboardStats,
-  getAvailableFiscalYears,
-  getCurrentThaiFiscalYear,
+  getPopulatedFiscalYears,
   getThaiFiscalYearFromDate,
   normalizeAdlGroupValue,
   normalizeHn,
@@ -12,6 +11,7 @@ import {
   normalizePcuValue,
   normalizeRiskValue,
   parseFlexibleVisitDate,
+  resolveDefaultFiscalYear,
   suggestAdlGroup,
   toNullableNumber,
 } from './fctHomeVisitDomain'
@@ -96,7 +96,7 @@ interface VisitFieldMapping {
 }
 
 const VISIT_FIELD_MAPPINGS: readonly VisitFieldMapping[] = [
-  { key: 'visitDate', column: 'visit_date', transform: (v) => String(v ?? '').trim() },
+  { key: 'visitDate', column: 'visit_date', transform: (v) => (v ? String(v).trim() || null : null) },
   { key: 'pcuName', column: 'pcu_name', transform: normalizePcuValue },
   { key: 'patientName', column: 'patient_name', transform: (v) => String(v ?? '').trim() },
   { key: 'hn', column: 'hn', transform: (v) => normalizeHn(v as string | null | undefined) },
@@ -155,6 +155,7 @@ const VISIT_SELECT_SQL = `
   FROM fct_home_visits
 `
 
+
 const OPTION_SELECT_SQL = `
   SELECT
     id,
@@ -168,11 +169,12 @@ const OPTION_SELECT_SQL = `
   FROM fct_home_visit_options
 `
 
+
 const CREATE_VISITS_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS fct_home_visits (
     id INT NOT NULL AUTO_INCREMENT,
     fiscal_year INT NOT NULL,
-    visit_date DATE NOT NULL,
+    visit_date DATE NULL,
     pcu_name VARCHAR(150) NULL,
     patient_name VARCHAR(255) NOT NULL,
     hn VARCHAR(20) NULL,
@@ -208,6 +210,8 @@ const CREATE_VISITS_TABLE_SQL = `
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `
 
+const ALTER_VISITS_DATE_NULLABLE_SQL = `ALTER TABLE fct_home_visits MODIFY COLUMN visit_date DATE NULL`
+
 const CREATE_OPTIONS_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS fct_home_visit_options (
     id INT NOT NULL AUTO_INCREMENT,
@@ -231,11 +235,15 @@ function serializeTimestamp(val: unknown): string {
   return String(val ?? '')
 }
 
-function serializeIsoDate(val: unknown): string {
+function serializeIsoDate(val: unknown): string | null {
+  if (val === null || val === undefined) {
+    return null
+  }
   if (val instanceof Date && Number.isFinite(val.getTime())) {
     return val.toISOString().slice(0, 10)
   }
-  return String(val ?? '').trim().slice(0, 10)
+  const str = String(val).trim().slice(0, 10)
+  return str || null
 }
 
 function createEmptyOptionGroups(): Record<FctOptionCategory, FctHomeVisitOptionRecord[]> {
@@ -310,8 +318,10 @@ function isDuplicateEntryError(err: unknown): boolean {
   return false
 }
 
-function assertValidIsoVisitDate(raw: unknown): string {
-  const trimmed = String(raw ?? '').trim()
+function assertValidOptionalIsoVisitDate(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null
+  const trimmed = String(raw).trim()
+  if (!trimmed) return null
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || parseFlexibleVisitDate(trimmed) !== trimmed) {
     throw new FctHomeVisitValidationError('วันที่เยี่ยมบ้านไม่ถูกต้อง')
   }
@@ -324,7 +334,7 @@ function buildCreateStatementPayload(
 ): {
   sql: string
   params: unknown[]
-  visitDate: string
+  visitDate: string | null
   fiscalYear: number
   hn: string | null
   patientName: string
@@ -334,8 +344,8 @@ function buildCreateStatementPayload(
     throw new FctHomeVisitValidationError('กรุณาระบุชื่อ-สกุลผู้ป่วย')
   }
 
-  const visitDate = assertValidIsoVisitDate(input.visitDate)
-  const fiscalYear = getThaiFiscalYearFromDate(visitDate)
+  const visitDate = assertValidOptionalIsoVisitDate(input.visitDate)
+  const fiscalYear = getThaiFiscalYearFromDate(visitDate, input.fiscalYear)
   const adlScore = toNullableNumber(input.adlScore)
   const adlGroup = normalizeAdlGroupValue(input.adlGroup) ?? suggestAdlGroup(adlScore)
   const hn = normalizeHn(input.hn)
@@ -411,6 +421,7 @@ export class FctHomeVisitService {
         { sql: 'SET NAMES utf8mb4' },
         { sql: CREATE_VISITS_TABLE_SQL },
         { sql: CREATE_OPTIONS_TABLE_SQL },
+        { sql: ALTER_VISITS_DATE_NULLABLE_SQL },
       ])
 
       const countRows = await this.deps.appQuery<{ category: string; cnt: number | string }>(
@@ -519,23 +530,49 @@ export class FctHomeVisitService {
   async listVisits(filters: FctHomeVisitListFilters = {}): Promise<FctHomeVisitListResult> {
     await this.ensureSchema()
 
-    const targetFiscalYear = filters.fiscalYear ?? getCurrentThaiFiscalYear()
+    let targetFiscalYear: number
+    let optionRows: Record<string, unknown>[]
+    let yearRows: Array<{ fiscalYear: number | string }>
+    let pcuRows: Array<{ pcuName: string }>
+    let visitRows: Record<string, unknown>[]
 
-    const [optionRows, yearRows, pcuRows, visitRows] = await Promise.all([
-      this.deps.appQuery<Record<string, unknown>>(
-        `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-      ),
-      this.deps.appQuery<{ fiscalYear: number | string }>(
+    if (filters.fiscalYear !== undefined) {
+      targetFiscalYear = filters.fiscalYear
+      ;[optionRows, yearRows, pcuRows, visitRows] = await Promise.all([
+        this.deps.appQuery<Record<string, unknown>>(
+          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
+        ),
+        this.deps.appQuery<{ fiscalYear: number | string }>(
+          `SELECT DISTINCT fiscal_year AS fiscalYear FROM fct_home_visits ORDER BY fiscal_year DESC`
+        ),
+        this.deps.appQuery<{ pcuName: string }>(
+          `SELECT DISTINCT pcu_name AS pcuName FROM fct_home_visits WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
+        ),
+        this.deps.appQuery<Record<string, unknown>>(
+          `${VISIT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY visit_date DESC, id DESC`,
+          [targetFiscalYear]
+        ),
+      ])
+    } else {
+      yearRows = await this.deps.appQuery<{ fiscalYear: number | string }>(
         `SELECT DISTINCT fiscal_year AS fiscalYear FROM fct_home_visits ORDER BY fiscal_year DESC`
-      ),
-      this.deps.appQuery<{ pcuName: string }>(
-        `SELECT DISTINCT pcu_name AS pcuName FROM fct_home_visits WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
-      ),
-      this.deps.appQuery<Record<string, unknown>>(
-        `${VISIT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY visit_date DESC, id DESC`,
-        [targetFiscalYear]
-      ),
-    ])
+      )
+      targetFiscalYear = resolveDefaultFiscalYear(
+        yearRows.map((r) => Number(r.fiscalYear))
+      )
+      ;[optionRows, pcuRows, visitRows] = await Promise.all([
+        this.deps.appQuery<Record<string, unknown>>(
+          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
+        ),
+        this.deps.appQuery<{ pcuName: string }>(
+          `SELECT DISTINCT pcu_name AS pcuName FROM fct_home_visits WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
+        ),
+        this.deps.appQuery<Record<string, unknown>>(
+          `${VISIT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY visit_date DESC, id DESC`,
+          [targetFiscalYear]
+        ),
+      ])
+    }
 
     const options = createEmptyOptionGroups()
     for (const row of optionRows) {
@@ -545,7 +582,7 @@ export class FctHomeVisitService {
       }
     }
 
-    const availableFiscalYears = getAvailableFiscalYears(
+    const availableFiscalYears = getPopulatedFiscalYears(
       yearRows.map((r) => Number(r.fiscalYear))
     )
 
@@ -687,10 +724,24 @@ export class FctHomeVisitService {
     const resolvedInput: FctHomeVisitUpdateInput = { ...input }
 
     if (resolvedInput.visitDate !== undefined) {
-      const validVisitDate = assertValidIsoVisitDate(resolvedInput.visitDate)
+      const validVisitDate = assertValidOptionalIsoVisitDate(resolvedInput.visitDate)
       resolvedInput.visitDate = validVisitDate
+      if (validVisitDate) {
+        setClauses.push('fiscal_year = ?')
+        params.push(getThaiFiscalYearFromDate(validVisitDate))
+      } else if (
+        typeof resolvedInput.fiscalYear === 'number' &&
+        Number.isInteger(resolvedInput.fiscalYear)
+      ) {
+        setClauses.push('fiscal_year = ?')
+        params.push(resolvedInput.fiscalYear)
+      }
+    } else if (
+      typeof resolvedInput.fiscalYear === 'number' &&
+      Number.isInteger(resolvedInput.fiscalYear)
+    ) {
       setClauses.push('fiscal_year = ?')
-      params.push(getThaiFiscalYearFromDate(validVisitDate))
+      params.push(resolvedInput.fiscalYear)
     }
 
     const effectiveAdlScore =
@@ -781,7 +832,7 @@ export class FctHomeVisitService {
     const existingPairs = await this.deps.appQuery<{ visitDate: unknown; hn: string | null }>(
       `SELECT DATE_FORMAT(visit_date, '%Y-%m-%d') AS visitDate, hn
        FROM fct_home_visits
-       WHERE hn IS NOT NULL AND hn <> ''`
+       WHERE visit_date IS NOT NULL AND hn IS NOT NULL AND hn <> ''`
     )
 
     const seenKeys = new Set<string>()
@@ -799,7 +850,7 @@ export class FctHomeVisitService {
 
     for (let idx = 0; idx < rows.length; idx++) {
       const payload = buildCreateStatementPayload(rows[idx], actorName)
-      if (payload.hn) {
+      if (payload.hn && payload.visitDate) {
         const key = `${payload.visitDate}|${payload.hn}`
         if (seenKeys.has(key)) {
           duplicates.push({

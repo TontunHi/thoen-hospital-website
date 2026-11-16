@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { checkPositionPermission, verifyMemberSession } from '@/lib/memberAuth'
-import { getCurrentThaiFiscalYear } from '@/lib/clinical/dmRemissionDomain'
 import DmRemissionClient from './DmRemissionClient'
 import '../../../../opendesigner/build/css/tokens.css'
 import './page.css'
@@ -25,7 +24,6 @@ export default async function DmRemissionPage() {
     <DmRemissionClient
       userRole={session.role}
       canManage={canManage}
-      initialFiscalYear={getCurrentThaiFiscalYear()}
     />
   )
 }

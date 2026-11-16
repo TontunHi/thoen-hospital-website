@@ -159,7 +159,7 @@ export interface FctHomeVisitOptionRecord {
 export interface FctHomeVisitRecord {
   id: number
   fiscalYear: number
-  visitDate: string
+  visitDate: string | null
   pcuName: string | null
   patientName: string
   hn: string | null
@@ -189,7 +189,8 @@ export interface FctHomeVisitRecord {
 }
 
 export interface FctHomeVisitCreateInput {
-  visitDate: string
+  visitDate?: string | null
+  fiscalYear?: number | null
   pcuName?: string | null
   patientName: string
   hn?: string | null
@@ -278,7 +279,7 @@ export interface FctBatchImportResult {
   insertedCount: number
   skippedDuplicateCount: number
   errorCount: number
-  duplicates: Array<{ rowNumber: number; visitDate: string; hn: string; patientName: string }>
+  duplicates: Array<{ rowNumber: number; visitDate: string | null; hn: string; patientName: string }>
 }
 
 export interface FctExcelColumnDef {
@@ -300,7 +301,7 @@ export const FCT_EXCEL_COLUMNS: readonly FctExcelColumnDef[] = [
   { key: 'diagnosis', header: 'Dx', width: 28, getValue: (r) => r.diagnosis ?? '' },
   { key: 'patientCategory', header: 'ประเภทคนไข้', width: 18, getValue: (r) => r.patientCategory ?? '' },
   { key: 'followUpPlan', header: 'สิ่งที่ต้องตาม', width: 28, getValue: (r) => r.followUpPlan ?? '' },
-  { key: 'visitDate', header: 'วันที่เยี่ยมบ้าน', width: 16, getValue: (r) => r.visitDate },
+  { key: 'visitDate', header: 'วันที่เยี่ยมบ้าน', width: 16, getValue: (r) => r.visitDate ?? '' },
   { key: 'treatmentFacility', header: 'สถานที่รักษา', width: 22, getValue: (r) => r.treatmentFacility ?? '' },
   { key: 'visitOutcome', header: 'ผลลัพธ์การเยี่ยม', width: 16, getValue: (r) => r.visitOutcome ?? '' },
   {

@@ -356,4 +356,40 @@ describe('DmRemissionClient', () => {
       )
     })
   })
+
+  it('defaults to populated fiscalYear from API when initialFiscalYear is omitted and shows only populated years', async () => {
+    const baseFetch = global.fetch as typeof fetch
+    global.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/service/dm-remission') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                ...mockListResponse.data,
+                fiscalYear: 2569,
+                availableFiscalYears: [2569, 2565],
+                items: [{ ...mockListResponse.data.items[0], fiscalYear: 2569 }],
+              },
+            }),
+        })
+      }
+      return baseFetch(url, init)
+    }) as typeof fetch
+
+    render(<DmRemissionClient userRole="member" canManage={true} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นายทดสอบ สมมติ')).toBeInTheDocument()
+    })
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/service/dm-remission', {
+      cache: 'no-store',
+    })
+    const fySelect = screen.getByLabelText('เลือกปีงบประมาณ') as HTMLSelectElement
+    expect(fySelect.value).toBe('2569')
+    expect(Array.from(fySelect.options).map((opt) => opt.value)).toEqual(['2569', '2565'])
+  })
 })

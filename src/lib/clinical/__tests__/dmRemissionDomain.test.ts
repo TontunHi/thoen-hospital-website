@@ -5,8 +5,10 @@ import {
   enrichCohortRecord,
   getAvailableFiscalYears,
   getCurrentThaiFiscalYear,
+  getPopulatedFiscalYears,
   normalizeCid,
   normalizeHn,
+  resolveDefaultFiscalYear,
 } from '../dmRemissionDomain'
 import {
   carryoverSchema,
@@ -81,6 +83,19 @@ describe('dmRemissionDomain', () => {
       const ref = new Date('2026-11-13T00:00:00.000Z') // FY 2570
       const years = getAvailableFiscalYears([2566, 2570, 2572, -1, NaN], ref)
       expect(years).toEqual([2572, 2571, 2570, 2569, 2568, 2566])
+    })
+  })
+
+  describe('getPopulatedFiscalYears & resolveDefaultFiscalYear', () => {
+    it('returns only populated years descending and falls back to current FY when empty', () => {
+      const ref = new Date('2026-11-16T00:00:00+07:00') // FY 2570
+      expect(getPopulatedFiscalYears([2565, 2569, 2565, -1], ref)).toEqual([2569, 2565])
+      expect(getPopulatedFiscalYears([], ref)).toEqual([2570])
+
+      expect(resolveDefaultFiscalYear([2569], ref)).toBe(2569)
+      expect(resolveDefaultFiscalYear([2565], ref)).toBe(2565)
+      expect(resolveDefaultFiscalYear([2569, 2570], ref)).toBe(2570)
+      expect(resolveDefaultFiscalYear([], ref)).toBe(2570)
     })
   })
 
