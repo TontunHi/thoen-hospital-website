@@ -2328,12 +2328,12 @@ export default async function rcmFundsRoutes(fastify, options) {
           PID VARCHAR(13) NULL,
           PtName VARCHAR(100) NULL,
           Maininscl VARCHAR(20) NULL,
-          HCode VARCHAR(5) NULL,
+          HCode VARCHAR(5) NOT NULL DEFAULT '',
           Type VARCHAR(20) NULL,
           Register_Date DATE NULL,
           Visit_Date DATE NULL,
           FileName VARCHAR(200) NULL,
-          PRIMARY KEY (ID),
+          PRIMARY KEY (ID, HCode),
           KEY pid (PID)
         ) ENGINE=MyISAM DEFAULT CHARSET=tis620
       `)
@@ -2410,13 +2410,37 @@ export default async function rcmFundsRoutes(fastify, options) {
     }
     try {
       await ensureT1dmTable()
-      let insertedCount = 0
+      const tuples = []
       for (const r of rows) {
-        if (!r.id) continue
+        const id = cleanSeamlessStr(r?.id, 20)
+        if (!id) continue
+        const rawHcode = cleanSeamlessStr(r?.hospmainCode, 5)
+        const hcode = rawHcode ? rawHcode.padStart(5, '0').slice(0, 5) : ''
+        tuples.push([
+          id,
+          cleanSeamlessStr(r?.year, 4),
+          cleanSeamlessStr(r?.pid, 13),
+          cleanSeamlessStr(r?.ptname, 60),
+          cleanSeamlessStr(r?.maininscl, 10),
+          hcode,
+          cleanSeamlessStr(r?.type, 10),
+          cleanSeamlessDate(r?.regdate),
+          cleanSeamlessDate(r?.visitdate),
+          cleanSeamlessStr(r?.fileName, 200)
+        ])
+      }
+
+      if (tuples.length === 0) {
+        return { success: true, insertedCount: 0, updatedCount: 0 }
+      }
+
+      const BATCH_SIZE = 100
+      for (let i = 0; i < tuples.length; i += BATCH_SIZE) {
+        const chunk = tuples.slice(i, i + BATCH_SIZE)
         await rcmWritePool.query(`
           INSERT INTO rcmdb.t1dm (
             ID, Year, PID, PtName, Maininscl, HCode, Type, Register_Date, Visit_Date, FileName
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES ?
           ON DUPLICATE KEY UPDATE
             Year = VALUES(Year),
             PID = VALUES(PID),
@@ -2427,21 +2451,10 @@ export default async function rcmFundsRoutes(fastify, options) {
             Register_Date = VALUES(Register_Date),
             Visit_Date = VALUES(Visit_Date),
             FileName = VALUES(FileName)
-        `, [
-          String(r.id).trim(),
-          r.year ? String(r.year).trim() : null,
-          r.pid ? String(r.pid).trim() : null,
-          r.ptname ? String(r.ptname).trim() : null,
-          r.maininscl ? String(r.maininscl).trim() : null,
-          r.hospmainCode ? String(r.hospmainCode).trim().padStart(5, '0') : null,
-          r.type ? String(r.type).trim() : null,
-          r.regdate || null,
-          r.visitdate || null,
-          r.fileName || null
-        ])
-        insertedCount++
+        `, [chunk])
       }
-      return { success: true, insertedCount, updatedCount: 0 }
+
+      return { success: true, insertedCount: tuples.length, updatedCount: 0 }
     } catch (err) {
       reply.code(500); return { success: false, error: err.message }
     }
@@ -2467,12 +2480,14 @@ export default async function rcmFundsRoutes(fastify, options) {
       await ensureT1dmTable()
       let res
       if (mode === 'other_hospitals') {
-        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm WHERE LPAD(TRIM(IFNULL(HCode, "")), 5, "0") <> ?', [myHospCode])
+        const cleanHosp = String(myHospCode || '11152').trim().padStart(5, '0')
+        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm WHERE LPAD(TRIM(IFNULL(HCode, "")), 5, "0") <> ?', [cleanHosp])
       } else if (mode === 'by_file') {
-        if (!fileName) {
+        const cleanFile = String(fileName || '').trim()
+        if (!cleanFile) {
           reply.code(400); return { success: false, error: 'กรุณาระบุชื่อไฟล์ที่ต้องการลบ' }
         }
-        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm WHERE FileName = ?', [fileName])
+        ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm WHERE FileName = ?', [cleanFile])
       } else if (mode === 'all') {
         ;[res] = await rcmWritePool.query('DELETE FROM rcmdb.t1dm')
       } else {
