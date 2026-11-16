@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { KpiService } from '@/lib/kpi/kpiService'
-import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiNumber } from '@/lib/kpi/kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, isPercentageIndicator, isRateIndicator, isDayDenominatorIndicator, shouldDisplayPerThousandDays, calculateIndicatorResult, formatKpiResultValue, formatKpiNumber } from '@/lib/kpi/kpiTimeUtils'
 
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
@@ -477,6 +477,30 @@ describe('KpiService with Mock QueryExecutor', () => {
     expect(formatKpiResultValue(0.000149, { title: 'อัตราการเกิดเหตุการณ์' })).toBe('0.000149')
     expect(calculateIndicatorResult(149, 100000, false)).toBe(0.00149)
     expect(KpiService.evaluateTarget(0.00004, '=', 0)).toBe('FAIL')
+
+    // Small non-zero day-denominator values (< 0.01) convert to ต่อ 1,000 วัน
+    const cautiMeta = {
+      title: 'อัตราการติดเชื้อระบบทางเดินปัสสาวะจากการคาสายสวนปัสสาวะ (ภาพรวม)',
+      denominatorName: 'จำนวนวันรวมที่ผู้ป่วยใช้สายสวนปัสสาวะทั้งหมด ในเดือนเดียวกัน',
+    }
+    const hapMeta = {
+      title: 'อัตราการติดเชื้อปอดอักเสบในโรงพยาบาล (HAP)',
+      denominatorName: 'จำนวนวันผู้ป่วยนอนในโรงพยาบาล (patient days) ในเดือนเดียวกัน',
+    }
+    expect(isDayDenominatorIndicator(cautiMeta)).toBe(true)
+    expect(isDayDenominatorIndicator(hapMeta)).toBe(true)
+    expect(isDayDenominatorIndicator({ title: 'ร้อยละผู้ป่วยนอนนาน', denominatorName: 'จำนวนวันนอนรวม' })).toBe(false)
+    expect(isDayDenominatorIndicator({ title: 'ระยะเวลาเฉลี่ย', targetUnit: 'วัน', denominatorName: 'รายได้เฉลี่ยต่อวัน' })).toBe(false)
+
+    expect(shouldDisplayPerThousandDays(0.00149, cautiMeta)).toBe(true)
+    expect(shouldDisplayPerThousandDays(0.022, cautiMeta)).toBe(false)
+    expect(shouldDisplayPerThousandDays(0, cautiMeta)).toBe(false)
+
+    expect(formatKpiResultValue(0.0014925, cautiMeta)).toBe('1.49 ต่อ 1,000 วัน')
+    expect(formatKpiResultValue(0.0004266, hapMeta)).toBe('0.43 ต่อ 1,000 วัน')
+    expect(formatKpiResultValue(0.001, cautiMeta)).toBe('1.00 ต่อ 1,000 วัน')
+    expect(formatKpiResultValue(0.022, cautiMeta)).toBe('0.02')
+    expect(formatKpiResultValue(0.00149, { title: 'อัตราความผิดพลาด', denominatorName: 'จำนวนผู้ป่วยทั้งหมด' })).toBe('0.00149')
 
     // Number with comma formatting
     expect(formatKpiNumber(15000)).toBe('15,000')

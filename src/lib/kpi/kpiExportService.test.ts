@@ -332,7 +332,7 @@ describe('KpiExportService', () => {
     expect(sheet?.getCell('P7').value).toContain('ผลงาน = 90%')
   })
 
-  it('exports small non-zero results like 0.00149 accurately from numerator/denominator instead of 0.00', async () => {
+  it('exports day-denominator small non-zero results (< 0.01) as ต่อ 1,000 วัน while keeping non-day small values in full decimals', async () => {
     const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
       if (sql.includes('FROM kpi_topics WHERE id = ?')) {
         return [{ id: 6, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด THIP' }]
@@ -366,6 +366,33 @@ describe('KpiExportService', () => {
             entryRecordedByName: 'นิศานาถ',
             entryRecordedAt: '2026-11-01',
           },
+          {
+            id: 32,
+            sequence: '2',
+            category: 'หมวดที่ 1',
+            subcategory: 'ความปลอดภัย',
+            code: 'ERR-01',
+            frequency: 'รายไตรมาส',
+            title: 'อัตราความคลาดเคลื่อนการสั่งใช้ยา',
+            numeratorName: 'จำนวนใบสั่งยาผิดพลาด',
+            denominatorName: 'จำนวนใบสั่งยาทั้งหมด',
+            targetRaw: '<= 0.005',
+            targetOperator: '<=',
+            targetValue: '0.0050',
+            targetUnit: null,
+            responsibleName: 'นิศานาถ',
+            indicatorType: 'HA',
+            displayOrder: 2,
+            entryId: 402,
+            entryPeriodKey: 'Q1',
+            entryPeriodLabel: 'ไตรมาสที่ 1',
+            entryNumeratorValue: '149',
+            entryDenominatorValue: '100000',
+            entryResultValue: '0.0015',
+            entryStatus: 'PASS',
+            entryRecordedByName: 'นิศานาถ',
+            entryRecordedAt: '2026-11-01',
+          },
         ]
       }
       return []
@@ -380,7 +407,9 @@ describe('KpiExportService', () => {
     await wb.xlsx.load(result.buffer as any)
     const sheet = wb.getWorksheet('รายงานตัวชี้วัด')
 
-    expect(sheet?.getCell('N7').value).toBe('0.00149')
-    expect(sheet?.getCell('P7').value).toContain('ผลงาน = 0.00149')
+    expect(sheet?.getCell('N7').value).toBe('1.49 ต่อ 1,000 วัน')
+    expect(sheet?.getCell('P7').value).toContain('ผลงาน = 1.49 ต่อ 1,000 วัน')
+    expect(sheet?.getCell('N8').value).toBe('0.00149')
+    expect(sheet?.getCell('P8').value).toContain('ผลงาน = 0.00149')
   })
 })

@@ -234,6 +234,7 @@ function renderWorksheetData(
       title: ind.title,
       targetUnit: ind.targetUnit,
       numeratorName: ind.numeratorName,
+      denominatorName: ind.denominatorName,
     }
     const isPct = isPercentageIndicator(indMeta)
     const isRate = isRateIndicator(indMeta)

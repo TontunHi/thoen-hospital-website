@@ -455,10 +455,51 @@ export function formatKpiDecimal(
   return trimmed
 }
 
+const NON_PER_DAY_UNITS = new Set(['%', 'วัน', 'นาที', 'ชั่วโมง', 'บาท', 'เท่า', 'คะแนน', 'ครั้ง', 'ราย'])
+
+/**
+ * Determines whether an indicator represents an event rate whose denominator is measured in days
+ * (e.g. patient-days, ventilator-days, catheter-days), so values smaller than 0.01 can be
+ * displayed as "per 1,000 days" (ต่อ 1,000 วัน) for easier reading.
+ */
+export function isDayDenominatorIndicator(ind?: IndicatorMetricMeta | null): boolean {
+  if (!ind) return false
+  if (isPercentageIndicator(ind)) return false
+
+  const unit = (ind.targetUnit ?? ind.target_unit ?? '').trim()
+  if (unit && NON_PER_DAY_UNITS.has(unit)) return false
+
+  const denName = (ind.denominatorName ?? ind.denominator_name ?? '').trim()
+  const title = (ind.title || '').trim()
+
+  return (
+    denName.includes('วัน') ||
+    /\bdays?\b/i.test(denName) ||
+    title.includes('วันนอน') ||
+    title.includes('ต่อวัน')
+  )
+}
+
+/**
+ * Checks whether a non-zero value exceeds 2 decimal places (0 < |val| < 0.01)
+ * on a day-denominator indicator and should be displayed as "ต่อ 1,000 วัน".
+ */
+export function shouldDisplayPerThousandDays(
+  val: number | null | undefined,
+  ind?: IndicatorMetricMeta | null
+): boolean {
+  if (val === null || val === undefined || !isFinite(Number(val))) return false
+  const num = Number(val)
+  const abs = Math.abs(num)
+  if (abs === 0 || abs >= 0.01) return false
+  return isDayDenominatorIndicator(ind)
+}
+
 /**
  * Formats the KPI result display based on indicator type:
  * - Percentage: trimmed decimals (2 places for >= 0.01, adaptive up to 6 places for < 0.01) + '%'
- * - Rate: 2 decimals for >= 0.01, adaptive up to 6 places for < 0.01 (never shows 0.00149 as 0.00)
+ * - Day-denominator rate with 0 < |val| < 0.01 (> 2 decimal places): converts to 'ต่อ 1,000 วัน' (e.g. 0.00149 -> '1.49 ต่อ 1,000 วัน')
+ * - Rate: 2 decimals for >= 0.01, adaptive up to 6 places for < 0.01
  * - Other: trimmed decimals + custom unit (if any)
  */
 export function formatKpiResultValue(
@@ -477,6 +518,11 @@ export function formatKpiResultValue(
 
   if (isPct) {
     return `${formatKpiDecimal(num, { minDecimals: 0, maxDecimals: 6 })}%`
+  }
+
+  if (shouldDisplayPerThousandDays(num, ind)) {
+    const perThousandFmt = formatKpiDecimal(num * 1000, { minDecimals: 2, maxDecimals: 6 })
+    return `${perThousandFmt} ต่อ 1,000 วัน`
   }
 
   if (isRate) {

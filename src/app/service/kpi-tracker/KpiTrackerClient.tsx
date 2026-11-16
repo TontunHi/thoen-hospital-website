@@ -33,7 +33,7 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiDecimal, formatKpiNumber, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
+import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiDecimal, formatKpiNumber, shouldDisplayPerThousandDays, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
 interface CurrentUser {
@@ -94,10 +94,10 @@ function formatAnswerDisplay(
   const isPct = isPercentageIndicator(ind)
 
   let main = ''
+  let rawVal: number | null = null
   if (hasText) {
     main = entry.resultText
   } else {
-    let rawVal: number | null = null
     if (hasNumDen && Number(entry.denominatorValue) > 0) {
       rawVal = calculateIndicatorResult(Number(entry.numeratorValue), Number(entry.denominatorValue), isPct)
     } else if (hasNumDen && Number(entry.denominatorValue) === 0 && Number(entry.numeratorValue) === 0) {
@@ -113,11 +113,20 @@ function formatAnswerDisplay(
 
   let sub: string | undefined = undefined
   let fullSub: string | undefined = undefined
+  const isPerThousandDays = rawVal !== null && shouldDisplayPerThousandDays(rawVal, ind)
+  const rawSuffix = isPerThousandDays && rawVal !== null
+    ? `ค่าดิบ: ${formatKpiDecimal(rawVal, { minDecimals: 2, maxDecimals: 6 })}`
+    : undefined
+
   if (hasNumDen) {
     const numFmt = formatKpiNumber(entry.numeratorValue)
     const denFmt = formatKpiNumber(entry.denominatorValue)
     sub = `(${numFmt}/${denFmt})`
-    fullSub = `ตัวตั้ง: ${numFmt} / ตัวหาร: ${denFmt}`
+    fullSub = rawSuffix
+      ? `${rawSuffix} • ตัวตั้ง: ${numFmt} / ตัวหาร: ${denFmt}`
+      : `ตัวตั้ง: ${numFmt} / ตัวหาร: ${denFmt}`
+  } else if (rawSuffix) {
+    fullSub = rawSuffix
   }
 
   return { main, sub, fullSub }
@@ -2329,7 +2338,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                                     : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = 0.00 (ไม่มีเคสในรอบนี้)`)
                                 : (formCalcMode === 'percentage'
                                     ? `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} × 100 = ${formatKpiDecimal(computedPercentage, { minDecimals: 0, maxDecimals: 6 })}%`
-                                    : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = ${formatKpiDecimal(computedPercentage, { minDecimals: 2, maxDecimals: 6 })}${activeIndicator.targetUnit && activeIndicator.targetUnit !== '%' && activeIndicator.targetUnit !== 'อัตรา' ? ` ${activeIndicator.targetUnit}` : ''}`))
+                                    : shouldDisplayPerThousandDays(computedPercentage, activeIndicator)
+                                      ? `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = ${formatKpiResultValue(computedPercentage, activeIndicator)} (ค่าดิบ ${formatKpiDecimal(computedPercentage, { minDecimals: 2, maxDecimals: 6 })})`
+                                      : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = ${formatKpiDecimal(computedPercentage, { minDecimals: 2, maxDecimals: 6 })}${activeIndicator.targetUnit && activeIndicator.targetUnit !== '%' && activeIndicator.targetUnit !== 'อัตรา' ? ` ${activeIndicator.targetUnit}` : ''}`))
                             : formNumerator.trim() !== '' && formDenominator.trim() === '0'
                               ? 'ตัวหารเป็น 0 ไม่สามารถคำนวณได้'
                               : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณผลลัพธ์'}

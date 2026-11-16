@@ -1103,7 +1103,7 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
     })
   })
 
-  it('displays small non-zero results like 0.00149 in table, answer modal, and history modal instead of 0.00', async () => {
+  it('displays small non-zero day-denominator results (< 0.01) as ต่อ 1,000 วัน in table, history modal, and answer modal', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString()
       if (url.includes('/api/kpi/topics')) {
@@ -1204,25 +1204,25 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
 
     await waitFor(() => {
       expect(screen.getByText('อัตราการติดเชื้อในโรงพยาบาล')).toBeInTheDocument()
-      expect(screen.getAllByText('0.00149').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('1.49 ต่อ 1,000 วัน').length).toBeGreaterThanOrEqual(1)
       expect(screen.getAllByText('<= 0.0015').length).toBeGreaterThanOrEqual(1)
     })
 
-    // Open History Modal and check 0.00149 is displayed
+    // Open History Modal and check 1.49 ต่อ 1,000 วัน is displayed
     const historyBtn = screen.getAllByRole('button', { name: /ประวัติ/i })[0]
     fireEvent.click(historyBtn)
 
     await waitFor(() => {
-      expect(screen.getAllByText('0.00149').length).toBeGreaterThanOrEqual(2)
+      expect(screen.getAllByText('1.49 ต่อ 1,000 วัน').length).toBeGreaterThanOrEqual(2)
     })
 
-    // Close History Modal and open Answer Modal to check live calculation preview shows 0.00149
+    // Close History Modal and open Answer Modal to check live calculation preview shows both 1.49 ต่อ 1,000 วัน and raw 0.00149
     fireEvent.click(screen.getAllByRole('button', { name: /ปิดหน้าต่าง/i })[0])
     const answerBtn = screen.getAllByRole('button', { name: /^บันทึก$/i })[0]
     fireEvent.click(answerBtn)
 
     await waitFor(() => {
-      expect(screen.getByText(/= 0\.00149/)).toBeInTheDocument()
+      expect(screen.getByText(/= 1\.49 ต่อ 1,000 วัน \(ค่าดิบ 0\.00149\)/)).toBeInTheDocument()
     })
   })
 })
