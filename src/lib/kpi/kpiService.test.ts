@@ -464,11 +464,19 @@ describe('KpiService with Mock QueryExecutor', () => {
     expect(formatKpiResultValue(78.25, { title: 'ร้อยละความพึงพอใจ' })).toBe('78.25%')
     expect(formatKpiResultValue(85.5, { title: 'อัตราการรอดชีวิต', targetUnit: '%' })).toBe('85.5%')
 
-    // Rate: fixed 2 decimals
+    // Rate: fixed 2 decimals for >= 0.01
     expect(formatKpiResultValue(0.9, { title: 'อัตราการติดเชื้อ' })).toBe('0.90')
     expect(formatKpiResultValue(1, { title: 'อัตราส่วนการใช้เตียง' })).toBe('1.00')
     expect(formatKpiResultValue(0, { title: 'อัตราความผิดพลาด' })).toBe('0.00')
     expect(formatKpiResultValue(1.234, { title: 'อัตราการเกิดเหตุการณ์' })).toBe('1.23')
+
+    // Small non-zero values (< 0.01) must NOT collapse into 0.00 or 0%
+    expect(formatKpiResultValue(0.00149, { title: 'อัตราการติดเชื้อ' })).toBe('0.00149')
+    expect(formatKpiResultValue(0.0015, { title: 'อัตราการติดเชื้อ' })).toBe('0.0015')
+    expect(formatKpiResultValue(0.00149, { title: 'ร้อยละความคลาดเคลื่อน' })).toBe('0.00149%')
+    expect(formatKpiResultValue(0.000149, { title: 'อัตราการเกิดเหตุการณ์' })).toBe('0.000149')
+    expect(calculateIndicatorResult(149, 100000, false)).toBe(0.00149)
+    expect(KpiService.evaluateTarget(0.00004, '=', 0)).toBe('FAIL')
 
     // Number with comma formatting
     expect(formatKpiNumber(15000)).toBe('15,000')

@@ -33,7 +33,7 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiNumber, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
+import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiDecimal, formatKpiNumber, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
 interface CurrentUser {
@@ -138,7 +138,7 @@ function evaluateTargetClient(
   if (op === '<=') return val <= targetValue ? 'PASS' : 'FAIL'
   if (op === '>') return val > targetValue ? 'PASS' : 'FAIL'
   if (op === '<') return val < targetValue ? 'PASS' : 'FAIL'
-  if (op === '=') return Math.abs(val - targetValue) < 0.0001 ? 'PASS' : 'FAIL'
+  if (op === '=') return Math.abs(val - targetValue) < 1e-6 ? 'PASS' : 'FAIL'
   if (op === 'MIN') return val <= targetValue ? 'PASS' : 'FAIL'
   return 'WAITING_TARGET'
 }
@@ -730,7 +730,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     if (op === '<=') return val <= target ? 'PASS' : 'FAIL'
     if (op === '>') return val > target ? 'PASS' : 'FAIL'
     if (op === '<') return val < target ? 'PASS' : 'FAIL'
-    if (op === '=') return Math.abs(val - target) < 0.0001 ? 'PASS' : 'FAIL'
+    if (op === '=') return Math.abs(val - target) < 1e-6 ? 'PASS' : 'FAIL'
     if (op === 'MIN') return val <= target ? 'PASS' : 'FAIL'
     return 'WAITING_TARGET'
   }, [activeIndicator, computedPercentage, formSingleAnswer, formNumerator, formDenominator])
@@ -1977,7 +1977,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   const isRateInd = isRateIndicator(ind)
                   const defaultTargetUnit = isPctInd ? '%' : ''
                   const formattedTargetVal = ind.targetValue !== null && ind.targetValue !== undefined
-                    ? (isRateInd ? Number(ind.targetValue).toFixed(2) : parseFloat(Number(ind.targetValue).toFixed(2)))
+                    ? formatKpiDecimal(Number(ind.targetValue), { minDecimals: isRateInd ? 2 : 0, maxDecimals: 6, normalDecimals: 4 })
                     : null
                   const targetText = formattedTargetVal !== null
                     ? `${ind.targetOperator || '>='} ${formattedTargetVal}${ind.targetUnit || defaultTargetUnit}`
@@ -2328,8 +2328,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                                     ? `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = 0% (ไม่มีเคสในรอบนี้)`
                                     : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = 0.00 (ไม่มีเคสในรอบนี้)`)
                                 : (formCalcMode === 'percentage'
-                                    ? `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} × 100 = ${parseFloat(computedPercentage.toFixed(2))}%`
-                                    : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = ${computedPercentage.toFixed(2)}${activeIndicator.targetUnit && activeIndicator.targetUnit !== '%' && activeIndicator.targetUnit !== 'อัตรา' ? ` ${activeIndicator.targetUnit}` : ''}`))
+                                    ? `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} × 100 = ${formatKpiDecimal(computedPercentage, { minDecimals: 0, maxDecimals: 6 })}%`
+                                    : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = ${formatKpiDecimal(computedPercentage, { minDecimals: 2, maxDecimals: 6 })}${activeIndicator.targetUnit && activeIndicator.targetUnit !== '%' && activeIndicator.targetUnit !== 'อัตรา' ? ` ${activeIndicator.targetUnit}` : ''}`))
                             : formNumerator.trim() !== '' && formDenominator.trim() === '0'
                               ? 'ตัวหารเป็น 0 ไม่สามารถคำนวณได้'
                               : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณผลลัพธ์'}
@@ -2470,7 +2470,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     <span>
                       <strong>เป้าหมาย:</strong>{' '}
                       {historyIndicator.targetValue !== null && historyIndicator.targetValue !== undefined
-                        ? `${historyIndicator.targetOperator || '>='} ${historyIndicator.targetValue}${historyIndicator.targetUnit ?? (isPercentageIndicator(historyIndicator) ? '%' : '')}`
+                        ? `${historyIndicator.targetOperator || '>='} ${formatKpiDecimal(Number(historyIndicator.targetValue), { minDecimals: isRateIndicator(historyIndicator) ? 2 : 0, maxDecimals: 6, normalDecimals: 4 })}${historyIndicator.targetUnit ?? (isPercentageIndicator(historyIndicator) ? '%' : '')}`
                         : historyIndicator.targetRaw || 'รอระบุเป้าหมาย'}
                     </span>
                     <span className="kpiSummaryMetaDivider">•</span>
@@ -2609,9 +2609,10 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                                     : (isRateIndicator(historyIndicator) ? 'ผลงานคำนวณ (อัตรา):' : 'ผลงานคำนวณ:')}
                                 </span>
                                 <span className="kpiHistoryAnswerVal highlight">
-                                  {entry?.resultValue !== null && entry?.resultValue !== undefined
-                                    ? formatKpiResultValue(entry.resultValue, historyIndicator, entry?.resultText)
-                                    : (entry?.resultText || '-')}
+                                  {(() => {
+                                    const histDisplay = formatAnswerDisplay(entry, historyIndicator.targetUnit, historyIndicator)
+                                    return histDisplay?.main || entry?.resultText || '-'
+                                  })()}
                                 </span>
                               </div>
                             </>

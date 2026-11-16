@@ -331,4 +331,56 @@ describe('KpiExportService', () => {
     expect(sheet?.getCell('P7').value).toContain('ตัวหาร = 100')
     expect(sheet?.getCell('P7').value).toContain('ผลงาน = 90%')
   })
+
+  it('exports small non-zero results like 0.00149 accurately from numerator/denominator instead of 0.00', async () => {
+    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
+        return [{ id: 6, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด THIP' }]
+      }
+      if (sql.includes('FROM kpi_indicators i')) {
+        return [
+          {
+            id: 31,
+            sequence: '1',
+            category: 'หมวดที่ 1',
+            subcategory: 'ความปลอดภัย',
+            code: 'INF-01',
+            frequency: 'รายไตรมาส',
+            title: 'อัตราการติดเชื้อต่อวันนอน',
+            numeratorName: 'จำนวนครั้งที่ติดเชื้อ',
+            denominatorName: 'จำนวนวันนอนรวม',
+            targetRaw: '<= 0.002',
+            targetOperator: '<=',
+            targetValue: '0.0020',
+            targetUnit: null,
+            responsibleName: 'นิศานาถ',
+            indicatorType: 'HA',
+            displayOrder: 1,
+            entryId: 401,
+            entryPeriodKey: 'Q1',
+            entryPeriodLabel: 'ไตรมาสที่ 1',
+            entryNumeratorValue: '149',
+            entryDenominatorValue: '100000',
+            entryResultValue: '0.0015', // Simulated 4-decimal DB storage
+            entryStatus: 'PASS',
+            entryRecordedByName: 'นิศานาถ',
+            entryRecordedAt: '2026-11-01',
+          },
+        ]
+      }
+      return []
+    })
+
+    const result = await KpiExportService.exportToExcel({
+      topicId: 6,
+      fiscalYear: '2570',
+    }, mockExecutor)
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(result.buffer as any)
+    const sheet = wb.getWorksheet('รายงานตัวชี้วัด')
+
+    expect(sheet?.getCell('N7').value).toBe('0.00149')
+    expect(sheet?.getCell('P7').value).toContain('ผลงาน = 0.00149')
+  })
 })

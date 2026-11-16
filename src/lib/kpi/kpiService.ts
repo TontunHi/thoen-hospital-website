@@ -181,7 +181,7 @@ export class KpiService {
       case '<':
         return resultValue < target ? 'PASS' : 'FAIL'
       case '=':
-        return Math.abs(resultValue - target) < 0.0001 ? 'PASS' : 'FAIL'
+        return Math.abs(resultValue - target) < 1e-6 ? 'PASS' : 'FAIL'
       default:
         return 'WAITING_TARGET'
     }

@@ -395,7 +395,7 @@ export function calculateIndicatorResult(
     return null
   }
   const raw = isPercentage ? (num / den) * 100 : (num / den)
-  return parseFloat(raw.toFixed(4))
+  return parseFloat(raw.toFixed(6))
 }
 
 /**
@@ -407,9 +407,58 @@ export function formatKpiNumber(val: number | null | undefined): string {
 }
 
 /**
+ * Formats a KPI decimal number with adaptive precision:
+ * - Zero -> '0' or fixed `minDecimals` (e.g. '0.00')
+ * - Normal values (|val| >= 0.01) -> rounded to `normalDecimals` (default 2); keeps `minDecimals` trailing zeros if requested
+ * - Small non-zero values (0 < |val| < 0.01) -> expands up to `maxDecimals` (default 6) to show up to 3 significant digits so e.g. 0.00149 is never rounded to 0.00
+ */
+export function formatKpiDecimal(
+  val: number,
+  options?: { minDecimals?: number; maxDecimals?: number; normalDecimals?: number }
+): string {
+  const minDecimals = options?.minDecimals ?? 0
+  const maxDecimals = options?.maxDecimals ?? 6
+  const normalDecimals = options?.normalDecimals ?? 2
+
+  if (!isFinite(val)) return '-'
+  if (val === 0) {
+    return minDecimals > 0 ? (0).toFixed(minDecimals) : '0'
+  }
+
+  const abs = Math.abs(val)
+  if (abs >= 0.01) {
+    const fixed = val.toFixed(normalDecimals)
+    if (minDecimals >= normalDecimals) {
+      return fixed
+    }
+    const trimmed = fixed.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '')
+    if (minDecimals > 0) {
+      const dotIdx = trimmed.indexOf('.')
+      if (dotIdx === -1) return `${trimmed}.${'0'.repeat(minDecimals)}`
+      const curDecimals = trimmed.length - dotIdx - 1
+      if (curDecimals < minDecimals) return `${trimmed}${'0'.repeat(minDecimals - curDecimals)}`
+    }
+    return trimmed
+  }
+
+  // Small non-zero value (< 0.01): expand decimals so significant digits remain visible
+  const firstNonZeroPos = Math.max(1, Math.floor(-Math.log10(abs)) + 1)
+  const decimals = Math.min(maxDecimals, Math.max(minDecimals, firstNonZeroPos + 2))
+  const fixed = val.toFixed(decimals)
+  const trimmed = fixed.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '')
+
+  if (trimmed === '0' || trimmed === '-0') {
+    const minUnit = `0.${'0'.repeat(Math.max(0, maxDecimals - 1))}1`
+    return val < 0 ? `> -${minUnit}` : `< ${minUnit}`
+  }
+
+  return trimmed
+}
+
+/**
  * Formats the KPI result display based on indicator type:
- * - Percentage: trimmed decimals (up to 2 places) + '%' e.g. 85%, 92.5%, 78.25%
- * - Rate: fixed 2 decimals e.g. 0.90, 1.00, 2.50
+ * - Percentage: trimmed decimals (2 places for >= 0.01, adaptive up to 6 places for < 0.01) + '%'
+ * - Rate: 2 decimals for >= 0.01, adaptive up to 6 places for < 0.01 (never shows 0.00149 as 0.00)
  * - Other: trimmed decimals + custom unit (if any)
  */
 export function formatKpiResultValue(
@@ -427,17 +476,16 @@ export function formatKpiResultValue(
   const unit = (ind?.targetUnit ?? ind?.target_unit ?? '').trim()
 
   if (isPct) {
-    const trimmed = parseFloat(num.toFixed(2))
-    return `${trimmed}%`
+    return `${formatKpiDecimal(num, { minDecimals: 0, maxDecimals: 6 })}%`
   }
 
   if (isRate) {
-    const rateFmt = num.toFixed(2)
+    const rateFmt = formatKpiDecimal(num, { minDecimals: 2, maxDecimals: 6 })
     const customUnit = unit && unit !== '%' && unit !== 'อัตรา' ? ` ${unit}` : ''
     return `${rateFmt}${customUnit}`
   }
 
-  const trimmed = parseFloat(num.toFixed(2))
+  const trimmed = formatKpiDecimal(num, { minDecimals: 0, maxDecimals: 6 })
   const customUnit = unit ? ` ${unit}` : ''
   return `${trimmed}${customUnit}`
 }

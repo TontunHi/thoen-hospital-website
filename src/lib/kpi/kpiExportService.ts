@@ -310,9 +310,9 @@ function renderWorksheetData(
           if (num === 0 && den === 0) {
             ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${isPct ? '0% (ไม่มีเคส)' : (isRate ? '0.00 (ไม่มีเคส)' : '0 (ไม่มีเคส)')}`
           } else {
-            const calcVal = match.resultValue !== null && match.resultValue !== undefined
-              ? match.resultValue
-              : (den > 0 ? (calculateIndicatorResult(num, den, isPct) ?? 0) : 0)
+            const calcVal = den > 0
+              ? (calculateIndicatorResult(num, den, isPct) ?? match.resultValue ?? 0)
+              : (match.resultValue ?? 0)
             const valDisplay = formatKpiResultValue(calcVal, indMeta)
             ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${valDisplay}`
           }

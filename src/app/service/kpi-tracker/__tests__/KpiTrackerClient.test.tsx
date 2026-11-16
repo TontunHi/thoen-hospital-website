@@ -1102,6 +1102,129 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
       })
     })
   })
+
+  it('displays small non-zero results like 0.00149 in table, answer modal, and history modal instead of 0.00', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/kpi/topics')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              fiscalYears: ['2569'],
+              defaultYear: '2569',
+              topics: [{ id: 1, title: 'ตัวชี้วัด 2569', fiscalYear: '2569', isCurrent: true }],
+            },
+          }),
+        }
+      }
+      if (url.includes('/api/kpi/indicators')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              indicators: [
+                {
+                  id: 201,
+                  topicId: 1,
+                  sequence: '1',
+                  category: 'หมวด 1',
+                  subcategory: null,
+                  code: 'INF-01',
+                  oldCode: null,
+                  title: 'อัตราการติดเชื้อในโรงพยาบาล',
+                  targetOperator: '<=',
+                  targetValue: 0.0015,
+                  targetUnit: null,
+                  targetRaw: '<= 0.0015',
+                  frequency: 'ราย 6 เดือน',
+                  indicatorType: 'HA',
+                  numeratorName: 'จำนวนครั้งติดเชื้อ',
+                  denominatorName: 'จำนวนวันนอนรวม',
+                  responsibleName: 'แอดมิน',
+                  displayOrder: 1,
+                  currentEntry: {
+                    id: 901,
+                    indicatorId: 201,
+                    fiscalYear: '2569',
+                    periodKey: 'H2',
+                    periodLabel: 'รอบ 12 เดือน / สิ้นปีงบประมาณ',
+                    numeratorValue: 149,
+                    denominatorValue: 100000,
+                    resultValue: 0.0015,
+                    resultText: null,
+                    status: 'PASS',
+                    note: null,
+                    recordedById: 1,
+                    recordedByName: 'แอดมิน',
+                    recordedAt: '2026-10-01',
+                    updatedAt: '2026-10-01',
+                  },
+                  entries: [
+                    {
+                      id: 901,
+                      indicatorId: 201,
+                      fiscalYear: '2569',
+                      periodKey: 'H2',
+                      periodLabel: 'รอบ 12 เดือน / สิ้นปีงบประมาณ',
+                      numeratorValue: 149,
+                      denominatorValue: 100000,
+                      resultValue: 0.0015,
+                      resultText: null,
+                      status: 'PASS',
+                      note: null,
+                      recordedById: 1,
+                      recordedByName: 'แอดมิน',
+                      recordedAt: '2026-10-01',
+                      updatedAt: '2026-10-01',
+                    },
+                  ],
+                },
+              ],
+              categories: ['หมวด 1'],
+            },
+          }),
+        }
+      }
+      if (url.includes('/api/kpi/stats')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: { totalIndicators: 1, totalAnswered: 1, totalPending: 0, totalPass: 1, totalFail: 0, totalWaitingTarget: 0, passRatePercentage: 100, categoryBreakdown: [] },
+          }),
+        }
+      }
+      return { ok: true, json: async () => ({ success: true }) }
+    }))
+
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('อัตราการติดเชื้อในโรงพยาบาล')).toBeInTheDocument()
+      expect(screen.getAllByText('0.00149').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('<= 0.0015').length).toBeGreaterThanOrEqual(1)
+    })
+
+    // Open History Modal and check 0.00149 is displayed
+    const historyBtn = screen.getAllByRole('button', { name: /ประวัติ/i })[0]
+    fireEvent.click(historyBtn)
+
+    await waitFor(() => {
+      expect(screen.getAllByText('0.00149').length).toBeGreaterThanOrEqual(2)
+    })
+
+    // Close History Modal and open Answer Modal to check live calculation preview shows 0.00149
+    fireEvent.click(screen.getAllByRole('button', { name: /ปิดหน้าต่าง/i })[0])
+    const answerBtn = screen.getAllByRole('button', { name: /^บันทึก$/i })[0]
+    fireEvent.click(answerBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText(/= 0\.00149/)).toBeInTheDocument()
+    })
+  })
 })
 
 
