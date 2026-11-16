@@ -27,11 +27,18 @@ export async function GET(
 
     try {
       const fullRes = await apiGateway.app.getTaskFullDetails(taskId)
-      if (fullRes?.success && fullRes.data) {
-        task = fullRes.data.task
-        steps = fullRes.data.steps || []
-        auditLogs = fullRes.data.auditLogs || []
-        rawRepairRow = fullRes.data.repairDetail
+      const fullData =
+        fullRes && typeof fullRes === 'object' && 'data' in fullRes && fullRes.data && (fullRes as any).success !== false
+          ? fullRes.data
+          : fullRes && typeof fullRes === 'object' && 'task' in fullRes
+            ? (fullRes as any)
+            : null
+
+      if (fullData?.task) {
+        task = fullData.task
+        steps = fullData.steps || []
+        auditLogs = fullData.auditLogs || []
+        rawRepairRow = fullData.repairDetail
       }
     } catch {
       // Fallback to queryMemberDb

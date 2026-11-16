@@ -160,11 +160,21 @@ export async function POST(request: Request) {
           },
         })
 
-        if (gwRes?.success) {
+        const gwData = (gwRes as any)?.data ?? gwRes
+        const isGatewaySuccess = Boolean(
+          gwRes &&
+            (gwRes as any).success !== false &&
+            ((gwRes as any).success === true || gwData?.taskId || gwData?.taskNo)
+        )
+
+        if (isGatewaySuccess) {
+          const createdTaskId = gwData?.taskId || taskId
+          const createdTaskNo = gwData?.taskNo || taskNo
+
           // Telegram Alert to Assignee (only the designated tech or technicians of that role)
           notifyAssigneeOnTelegram({
-            taskId,
-            taskNo,
+            taskId: createdTaskId,
+            taskNo: createdTaskNo,
             taskType: repairType,
             title: taskTitle,
             requesterName: currentMember.name || session.username,
@@ -182,8 +192,8 @@ export async function POST(request: Request) {
           // Telegram Alert to Requester (confirmation of ticket submission)
           if (techId !== currentMember.id) {
             notifyRepairCreatedRequesterOnTelegram({
-              taskId,
-              taskNo,
+              taskId: createdTaskId,
+              taskNo: createdTaskNo,
               taskType: repairType,
               title: taskTitle,
               requesterId: currentMember.id,
@@ -200,8 +210,8 @@ export async function POST(request: Request) {
             success: true,
             message: 'ยื่นใบแจ้งซ่อมสำเร็จเรียบร้อยแล้ว',
             data: {
-              taskId,
-              taskNo,
+              taskId: createdTaskId,
+              taskNo: createdTaskNo,
             },
           })
         }

@@ -425,5 +425,123 @@ describe('ApiGatewayClient (Ticket 01)', () => {
         expect.objectContaining({ method: 'GET' })
       )
     })
+
+    it('app.getInboxTasks normalizes unwrapped { success: true, data } responses', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            tasks: [{ id: 't-1', task_no: 'IT-2570-11-0001' }],
+            inboxCount: 1,
+            departmentCount: 1,
+            canViewAll: false,
+            userDepartment: 'IT',
+            stats: { pendingCount: 1, departmentCount: 1, allPendingCount: 1, approvedCount: 0, myRequestsCount: 0 }
+          }
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.app.getInboxTasks({ tab: 'inbox', username: 'user1' })
+
+      expect(res.success).toBe(true)
+      expect(res.data.tasks).toHaveLength(1)
+      expect(res.data.inboxCount).toBe(1)
+    })
+
+    it('app.createTask normalizes unwrapped { success: true, data: { taskId, taskNo } } responses', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          message: 'created',
+          data: { taskId: 'uuid-1', taskNo: 'IT-2570-11-0004' }
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.app.createTask({
+        task: {
+          id: 'uuid-1',
+          taskNo: 'IT-2570-11-0004',
+          taskType: 'IT_REPAIR',
+          title: 'แจ้งซ่อม: เครื่องปริ้น',
+          requesterId: 105,
+          requesterName: 'Test User'
+        }
+      })
+
+      expect(res.success).toBe(true)
+      expect(res.data).toEqual({ taskId: 'uuid-1', taskNo: 'IT-2570-11-0004' })
+    })
+
+    it('app.getTaskFullDetails normalizes unwrapped { success: true, data } responses', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            task: { id: 'uuid-1', task_no: 'IT-2570-11-0003' },
+            steps: [{ step_no: 1 }],
+            repairDetail: { repair_type: 'IT_REPAIR' },
+            auditLogs: []
+          }
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.app.getTaskFullDetails('uuid-1')
+
+      expect(res.success).toBe(true)
+      expect(res.data.task.task_no).toBe('IT-2570-11-0003')
+      expect(res.data.steps).toHaveLength(1)
+    })
+
+    it('app.executeWorkflowAction and executeRepairAction handle both direct and data-wrapped responses', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: { message: 'Approved', isFinalStep: false, nextStep: { step_no: 2 } }
+          })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: { message: 'Accepted' }
+          })
+        })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const wfRes = await client.app.executeWorkflowAction({
+        taskId: 'uuid-1',
+        action: 'APPROVE',
+        actor: { id: 1, username: 'admin' }
+      })
+      const repairRes = await client.app.executeRepairAction({
+        taskId: 'uuid-1',
+        action: 'ACCEPT_JOB',
+        performer: { id: 1, username: 'tech' }
+      })
+
+      expect(wfRes).toEqual({
+        success: true,
+        message: 'Approved',
+        isFinalStep: false,
+        nextStep: { step_no: 2 }
+      })
+      expect(repairRes).toEqual({
+        success: true,
+        message: 'Accepted'
+      })
+    })
   })
 })

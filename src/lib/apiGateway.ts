@@ -1209,7 +1209,7 @@ export class ApiGatewayClient {
       return this.get<Array<Record<string, unknown>>>(`/api/v1/app/tasks${qs}`)
     },
 
-    getInboxTasks: (params: {
+    getInboxTasks: async (params: {
       tab?: string
       memberId?: number
       username?: string
@@ -1217,7 +1217,23 @@ export class ApiGatewayClient {
       status?: string
       search?: string
       limit?: number
-    }) => {
+    }): Promise<{
+      success: boolean
+      data: {
+        tasks: Array<any>
+        inboxCount: number
+        departmentCount: number
+        canViewAll: boolean
+        userDepartment: string
+        stats: {
+          pendingCount: number
+          departmentCount: number
+          allPendingCount: number
+          approvedCount: number
+          myRequestsCount: number
+        }
+      }
+    }> => {
       const q = new URLSearchParams()
       if (params.tab) q.set('tab', params.tab)
       if (params.memberId) q.set('memberId', String(params.memberId))
@@ -1227,26 +1243,20 @@ export class ApiGatewayClient {
       if (params.search) q.set('search', params.search)
       if (params.limit) q.set('limit', String(params.limit))
       const qs = q.toString() ? `?${q.toString()}` : ''
-      return this.get<{
-        success: boolean
-        data: {
-          tasks: Array<any>
-          inboxCount: number
-          departmentCount: number
-          canViewAll: boolean
-          userDepartment: string
-          stats: {
-            pendingCount: number
-            departmentCount: number
-            allPendingCount: number
-            approvedCount: number
-            myRequestsCount: number
+      const res = await this.get<any>(`/api/v1/app/tasks/inbox${qs}`)
+      if (res && typeof res === 'object') {
+        const payload = 'data' in res && res.data && typeof res.data === 'object' ? res.data : res
+        if (payload && Array.isArray(payload.tasks)) {
+          return {
+            success: res.success !== false,
+            data: payload,
           }
         }
-      }>(`/api/v1/app/tasks/inbox${qs}`)
+      }
+      return res
     },
 
-    createTask: (data: {
+    createTask: async (data: {
       task: {
         id?: string
         taskNo: string
@@ -1287,36 +1297,77 @@ export class ApiGatewayClient {
         performerName?: string
         details?: any
       } | null
-    }) => {
-      return this.post<{
-        success: boolean
-        message: string
-        data: {
-          taskId: string
-          taskNo: string
+    }): Promise<{
+      success: boolean
+      message: string
+      data: {
+        taskId: string
+        taskNo: string
+      }
+    }> => {
+      const res = await this.post<any>('/api/v1/app/tasks/create', data)
+      if (res && typeof res === 'object') {
+        if ('data' in res && res.data && typeof res.data === 'object') {
+          return {
+            success: res.success !== false,
+            message: res.message || '',
+            data: res.data,
+          }
         }
-      }>('/api/v1/app/tasks/create', data)
+        if ('taskId' in res || 'taskNo' in res) {
+          return {
+            success: res.success !== false,
+            message: res.message || '',
+            data: {
+              taskId: res.taskId,
+              taskNo: res.taskNo,
+            },
+          }
+        }
+      }
+      return res
     },
 
-    generateTaskNo: (ymPrefix: string) => {
-      return this.post<{ success: boolean; count: number; taskNo: string }>('/api/v1/app/tasks/generate-no', {
+    generateTaskNo: async (ymPrefix: string): Promise<{ success: boolean; count: number; taskNo: string }> => {
+      const res = await this.post<any>('/api/v1/app/tasks/generate-no', {
         ymPrefix
       })
-    },
-
-    getTaskFullDetails: (id: string | number) => {
-      return this.get<{
-        success: boolean
-        data: {
-          task: Record<string, any>
-          steps: Array<Record<string, any>>
-          repairDetail: Record<string, any> | null
-          auditLogs: Array<Record<string, any>>
+      if (res && typeof res === 'object') {
+        const inner = 'data' in res && res.data && typeof res.data === 'object' ? res.data : res
+        if (inner && 'taskNo' in inner) {
+          return {
+            success: res.success !== false,
+            count: Number(inner.count ?? 0),
+            taskNo: inner.taskNo,
+          }
         }
-      }>(`/api/v1/app/tasks/${encodeURIComponent(String(id))}/full-details`)
+      }
+      return res
     },
 
-    executeWorkflowAction: (data: {
+    getTaskFullDetails: async (id: string | number): Promise<{
+      success: boolean
+      data: {
+        task: Record<string, any>
+        steps: Array<Record<string, any>>
+        repairDetail: Record<string, any> | null
+        auditLogs: Array<Record<string, any>>
+      }
+    }> => {
+      const res = await this.get<any>(`/api/v1/app/tasks/${encodeURIComponent(String(id))}/full-details`)
+      if (res && typeof res === 'object') {
+        const payload = 'data' in res && res.data && typeof res.data === 'object' ? res.data : res
+        if (payload && 'task' in payload) {
+          return {
+            success: res.success !== false,
+            data: payload,
+          }
+        }
+      }
+      return res
+    },
+
+    executeWorkflowAction: async (data: {
       taskId: string
       action: string
       comment?: string
@@ -1334,16 +1385,34 @@ export class ApiGatewayClient {
         position?: string | null
         role?: string | null
       }
-    }) => {
-      return this.post<{
-        success: boolean
-        message: string
-        isFinalStep: boolean
-        nextStep: Record<string, any> | null
-      }>('/api/v1/app/tasks/workflow-action', data)
+    }): Promise<{
+      success: boolean
+      message: string
+      isFinalStep: boolean
+      nextStep: Record<string, any> | null
+    }> => {
+      const res = await this.post<any>('/api/v1/app/tasks/workflow-action', data)
+      if (res && typeof res === 'object') {
+        if (res.success === false) return res
+        const inner = 'data' in res && res.data && typeof res.data === 'object' ? res.data : res
+        if (
+          res.success === true ||
+          inner?.isFinalStep !== undefined ||
+          (inner && 'nextStep' in inner) ||
+          typeof inner?.message === 'string'
+        ) {
+          return {
+            success: true,
+            message: inner?.message || res.message || '',
+            isFinalStep: Boolean(inner?.isFinalStep),
+            nextStep: inner?.nextStep ?? null,
+          }
+        }
+      }
+      return res
     },
 
-    executeRepairAction: (data: {
+    executeRepairAction: async (data: {
       taskId: string
       action: string
       performer: {
@@ -1354,11 +1423,22 @@ export class ApiGatewayClient {
         role?: string | null
       }
       payload?: Record<string, any>
-    }) => {
-      return this.post<{
-        success: boolean
-        message: string
-      }>('/api/v1/app/tasks/repair-action', data)
+    }): Promise<{
+      success: boolean
+      message: string
+    }> => {
+      const res = await this.post<any>('/api/v1/app/tasks/repair-action', data)
+      if (res && typeof res === 'object') {
+        if (res.success === false) return res
+        const inner = 'data' in res && res.data && typeof res.data === 'object' ? res.data : res
+        if (res.success === true || typeof inner?.message === 'string') {
+          return {
+            success: true,
+            message: inner?.message || res.message || '',
+          }
+        }
+      }
+      return res
     },
 
     updateTaskByManager: (

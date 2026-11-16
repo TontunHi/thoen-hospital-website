@@ -3,7 +3,7 @@ import { POST as handleCreateRepair } from '../route'
 import { POST as handleUploadPhoto } from '../upload/route'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-import { generateTaskNo } from '@/lib/taskInboxService'
+import { generateTaskNo, notifyAssigneeOnTelegram, notifyRepairCreatedRequesterOnTelegram } from '@/lib/taskInboxService'
 import { apiGateway } from '@/lib/apiGateway'
 
 vi.mock('@/lib/apiGateway', () => ({
@@ -185,7 +185,66 @@ describe('Repair Submission APIs', () => {
 
       // Verify Gateway called
       expect(apiGateway.tasks.createTask).toHaveBeenCalledTimes(1)
+      // Verify Telegram notifications triggered
+      expect(notifyAssigneeOnTelegram).toHaveBeenCalledTimes(1)
+      expect(notifyRepairCreatedRequesterOnTelegram).toHaveBeenCalledTimes(1)
       // Only member lookup was executed via queryMemberDb
+      expect(queryMemberDb).toHaveBeenCalledTimes(1)
+    })
+
+    it('handles unwrapped { taskId, taskNo } response from Gateway and dispatches Telegram without SQL duplicate fallback', async () => {
+      vi.mocked(verifyMemberSession).mockResolvedValue({
+        username: 'supattra',
+        email: 'supattra@thoenhospital.go.th',
+        role: 'member',
+      } as any)
+
+      vi.mocked(queryMemberDb).mockResolvedValueOnce([
+        { id: 105, username: 'supattra', name: 'นางสาว สุพัตรา สุวรรณ์', department: 'กลุ่มงานจิตเวชและยาเสพติด', position: 'พยาบาล' }
+      ])
+      vi.mocked(generateTaskNo).mockResolvedValueOnce('IT-2570-11-0004')
+      // Simulate unwrapped payload returned by ApiGatewayClient.request()
+      vi.mocked(apiGateway.tasks.createTask).mockResolvedValueOnce({
+        taskId: 'unwrapped-uuid-5678',
+        taskNo: 'IT-2570-11-0004',
+      } as any)
+
+      const req = new Request('http://localhost:3000/api/member/repairs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repairType: 'IT_REPAIR',
+          itemCategory: 'NON_EQUIPMENT',
+          nonEquipmentItem: 'เครื่องปริ้น',
+          locationFullName: 'อาคารร่มฉัตร ชั้น 1',
+          symptomDetail: 'เครื่องปริ้น ปริ้นงานไม่ได้',
+          urgency: 'VERY_URGENT',
+        }),
+      })
+
+      const res = await handleCreateRepair(req)
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.success).toBe(true)
+      expect(json.data).toEqual({
+        taskId: 'unwrapped-uuid-5678',
+        taskNo: 'IT-2570-11-0004',
+      })
+      expect(notifyAssigneeOnTelegram).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: 'unwrapped-uuid-5678',
+          taskNo: 'IT-2570-11-0004',
+          targetRole: 'นักวิชาการคอมพิวเตอร์',
+        })
+      )
+      expect(notifyRepairCreatedRequesterOnTelegram).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: 'unwrapped-uuid-5678',
+          taskNo: 'IT-2570-11-0004',
+          requesterId: 105,
+        })
+      )
+      // Must NOT fall through to local SQL INSERTs
       expect(queryMemberDb).toHaveBeenCalledTimes(1)
     })
 

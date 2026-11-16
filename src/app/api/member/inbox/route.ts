@@ -29,10 +29,17 @@ export async function GET(request: Request) {
           status: status || undefined,
           search: search || undefined,
         })
-        if (gwRes?.success && gwRes.data) {
+        const inboxData =
+          gwRes && typeof gwRes === 'object' && 'data' in gwRes && gwRes.data && (gwRes as any).success !== false
+            ? gwRes.data
+            : gwRes && typeof gwRes === 'object' && Array.isArray((gwRes as any).tasks)
+              ? gwRes
+              : null
+
+        if (inboxData) {
           return NextResponse.json({
             success: true,
-            data: gwRes.data,
+            data: inboxData,
           })
         }
       } catch {
@@ -353,12 +360,22 @@ export async function POST(request: Request) {
           },
         })
 
-        if (gwRes?.success) {
+        const gwData = (gwRes as any)?.data ?? gwRes
+        const isGatewaySuccess = Boolean(
+          gwRes &&
+            (gwRes as any).success !== false &&
+            ((gwRes as any).success === true || gwData?.taskId || gwData?.taskNo)
+        )
+
+        if (isGatewaySuccess) {
+          const createdTaskId = gwData?.taskId || taskId
+          const createdTaskNo = gwData?.taskNo || taskNo
+
           // Send Telegram Notification to the first assignee if linked
           if (initialAssignee) {
             notifyAssigneeOnTelegram({
-              taskId,
-              taskNo,
+              taskId: createdTaskId,
+              taskNo: createdTaskNo,
               taskType,
               title,
               requesterName: currentMember.name || session.username,
@@ -371,7 +388,7 @@ export async function POST(request: Request) {
           return NextResponse.json({
             success: true,
             message: 'สร้างงานและส่งเข้าสู่กระบวนการเรียบร้อยแล้ว',
-            data: { taskId, taskNo },
+            data: { taskId: createdTaskId, taskNo: createdTaskNo },
           })
         }
       } catch {

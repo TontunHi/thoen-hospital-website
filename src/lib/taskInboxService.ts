@@ -252,7 +252,8 @@ export async function generateTaskNo(
   if (executor === queryMemberDb && !isMock) {
     try {
       const res = await apiGateway.app.generateTaskNo(ymPrefix)
-      if (res && res.taskNo) return res.taskNo
+      const generatedNo = (res as any)?.taskNo || (res as any)?.data?.taskNo
+      if (generatedNo) return generatedNo
     } catch (err) {
       logger.warn({ err }, 'Fallback to raw query for generateTaskNo')
     }
@@ -407,7 +408,13 @@ export async function executeRepairAction(
         performer,
         payload
       })
-      if (res && res.success) {
+      const repairResData = (res as any)?.data ?? res
+      const isRepairGatewayOk = Boolean(
+        res &&
+          (res as any).success !== false &&
+          ((res as any).success === true || typeof repairResData?.message === 'string')
+      )
+      if (isRepairGatewayOk) {
         if (dispatchNotifications) {
           if (action === 'ACCEPT_JOB') {
             notifyRepairAcceptedOnTelegram({
@@ -446,7 +453,10 @@ export async function executeRepairAction(
             }).catch((e) => logger.error({ error: e }, 'Telegram dispatch error on cancel job'))
           }
         }
-        return res
+        return {
+          success: true,
+          message: repairResData?.message || (res as any)?.message || 'ดำเนินการสำเร็จ',
+        }
       }
     } catch (err) {
       logger.warn({ err }, 'Fallback to direct executor for executeRepairAction')
@@ -1212,7 +1222,17 @@ export async function executeWorkflowAction(
         }
       })
 
-      if (res && res.success) {
+      const wfResData = (res as any)?.data ?? res
+      const isWfGatewayOk = Boolean(
+        res &&
+          (res as any).success !== false &&
+          ((res as any).success === true ||
+            wfResData?.isFinalStep !== undefined ||
+            (wfResData && 'nextStep' in wfResData) ||
+            typeof wfResData?.message === 'string')
+      )
+
+      if (isWfGatewayOk) {
         if (action === 'HOLD') {
           notifyTaskHoldOnTelegram({
             taskId,
@@ -1237,7 +1257,7 @@ export async function executeWorkflowAction(
             stepName: currentStep.step_name,
           }).catch((e) => logger.error({ error: e }, 'Telegram task resume notify error'))
         } else if (action === 'APPROVE') {
-          const nextStep = res.nextStep
+          const nextStep = wfResData?.nextStep ?? (res as any)?.nextStep
           if (nextStep && task.task_type === 'MEDIA_REQUEST') {
             notifyMediaRequestStepApprovedOnTelegram({
               taskId,
@@ -1275,7 +1295,10 @@ export async function executeWorkflowAction(
             }
           }
         }
-        return { success: true, message: res.message }
+        return {
+          success: true,
+          message: wfResData?.message || (res as any)?.message || 'ดำเนินการสำเร็จ',
+        }
       }
     } catch (err: any) {
       logger.warn({ err }, 'Fallback to direct executor for executeWorkflowAction')
