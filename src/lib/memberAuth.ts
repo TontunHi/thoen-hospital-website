@@ -60,6 +60,7 @@ export type MemberPermission =
   | 'manage_ltc_registry'
   | 'manage_dm_remission'
   | 'manage_fct_home_visit'
+  | 'manage_project_tracker'
 
 export interface MemberDto {
   id: number
@@ -509,30 +510,32 @@ export async function checkPositionPermission(
     const { apiGateway } = await import('./apiGateway')
     const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey]
 
-    // 1. Try checking via Gateway checkPositionPermission (checks admin role and position_permissions)
-    if (typeof apiGateway.app.checkPositionPermission === 'function') {
-      const res = await apiGateway.app.checkPositionPermission(username, keys).catch(() => null)
-      if (res?.allowed) {
-        return true
-      }
-    }
+    const positionCheckPromise =
+      typeof apiGateway.app.checkPositionPermission === 'function'
+        ? apiGateway.app.checkPositionPermission(username, keys).catch(() => null)
+        : Promise.resolve(null)
 
-    // 2. Direct Member Permission Check:
-    // If the user was granted permission directly by member name in /member/settings,
-    // the permission is stored in `member_permissions` table (linked to members.id).
-    if (typeof apiGateway.app.query === 'function') {
-      const placeholders = keys.map(() => '?').join(', ')
-      const memRows = await apiGateway.app.query<{ count: number }>(
-        `SELECT COUNT(*) as count 
+    const memberCheckPromise =
+      typeof apiGateway.app.query === 'function'
+        ? apiGateway.app
+            .query<{ count: number }>(
+              `SELECT COUNT(*) as count 
          FROM member_permissions mp 
          JOIN members m ON m.id = mp.member_id 
-         WHERE (m.username = ? OR m.username = TRIM(?)) AND mp.permission_key IN (${placeholders})`,
-        [username, username, ...keys]
-      ).catch(() => [])
+         WHERE (m.username = ? OR m.username = TRIM(?)) AND mp.permission_key IN (${keys.map(() => '?').join(', ')})`,
+              [username, username, ...keys]
+            )
+            .catch(() => [])
+        : Promise.resolve([])
 
-      if (Number(memRows?.[0]?.count || 0) > 0) {
-        return true
-      }
+    const [posRes, memRows] = await Promise.all([positionCheckPromise, memberCheckPromise])
+
+    if (posRes?.allowed) {
+      return true
+    }
+
+    if (Number(memRows?.[0]?.count || 0) > 0) {
+      return true
     }
 
     return false

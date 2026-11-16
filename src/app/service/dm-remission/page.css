@@ -217,6 +217,7 @@
   line-height: 1.43;
   font-weight: var(--ds-font-weight-body);
   cursor: pointer;
+  text-decoration: none;
   white-space: nowrap;
   transition:
     background-color var(--dmr-duration) var(--dmr-ease),

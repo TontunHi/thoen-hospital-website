@@ -67,6 +67,14 @@ describe('TaskPermissionService', () => {
       expect(fctTask?.roles[0]?.permissionKey).toBe('manage_fct_home_visit')
     })
 
+    it('defines PROJECT_TRACKER in workflow category with manage_project_tracker role', () => {
+      const ptTask = TASK_DEFINITIONS.find((t) => t.id === 'PROJECT_TRACKER')
+      expect(ptTask).toBeDefined()
+      expect(ptTask?.category).toBe('workflow')
+      expect(ptTask?.categoryLabel).toBe('งานบริการ & กล่องงาน')
+      expect(ptTask?.roles[0]?.permissionKey).toBe('manage_project_tracker')
+    })
+
     it('defines 4 canonical roles for MEDIA_REQUEST task', () => {
       const mediaTask = TASK_DEFINITIONS.find((t) => t.id === 'MEDIA_REQUEST')
       expect(mediaTask).toBeDefined()

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GatewayUnavailableError } from '@/lib/apiGateway'
+import { GatewayTimeoutError, GatewayUnavailableError } from '@/lib/apiGateway'
 import {
   DmRemissionConflictError,
   DmRemissionNotFoundError,
@@ -85,6 +85,12 @@ export async function parseJsonBody(
 }
 
 export function handleDmRemissionRouteError(error: unknown, context: string): NextResponse {
+  if (error instanceof GatewayTimeoutError) {
+    return NextResponse.json(
+      { success: false, error: 'ระบบฐานข้อมูลใช้เวลาประมวลผลนานเกินกำหนด (Timeout) กรุณาลองใหม่อีกครั้ง' },
+      { status: 504 }
+    )
+  }
   if (error instanceof GatewayUnavailableError) {
     return NextResponse.json(
       { success: false, error: 'ไม่สามารถเชื่อมต่อระบบฐานข้อมูลกลาง (API Gateway) ได้ในขณะนี้' },

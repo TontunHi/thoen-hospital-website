@@ -10,11 +10,17 @@ export const metadata = {
   description: 'กำหนดสิทธิ์การเข้าถึงระบบตามภารกิจงานและตำแหน่งหน้าที่ ตรวจสอบสิทธิ์รายบุคคล และควบคุมการเปิด/ปิดโมดูลบริการ',
 }
 
-export default async function AdminSettingsPage() {
+export default async function AdminSettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ task?: string }>
+}) {
   const member = await getAuthenticatedMember({
     requiredRole: 'admin',
     redirectTo: '/unauthorized',
   })
+  const resolvedParams = searchParams ? await searchParams : undefined
+  const initialTaskId = typeof resolvedParams?.task === 'string' ? resolvedParams.task : undefined
 
   return (
     <div className="set-page">
@@ -34,7 +40,7 @@ export default async function AdminSettingsPage() {
           </p>
         </header>
 
-        <SettingsClient initialSettings={member.settings} />
+        <SettingsClient initialSettings={member.settings} initialTaskId={initialTaskId} />
       </div>
     </div>
   )

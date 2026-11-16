@@ -119,6 +119,29 @@ describe('TaskWorkspaceView Component', () => {
     fireEvent.change(searchInput, { target: { value: 'แจ้งซ่อม' } })
     expect(screen.getByText('งานแจ้งซ่อมคอมพิวเตอร์และสารสนเทศ')).toBeDefined()
   })
+
+  it('supports selecting PROJECT_TRACKER directly with manage_project_tracker role', () => {
+    render(
+      <TaskWorkspaceView
+        tasks={TASK_DEFINITIONS}
+        members={mockMembers}
+        positionMappings={mockPositionMappings}
+        availablePositions={['นายแพทย์ชำนาญการ', 'พยาบาลวิชาชีพชำนาญการ']}
+        uniqueDepartments={['กลุ่มงานเวชศาสตร์ฉุกเฉิน', 'กลุ่มงานการพยาบาล']}
+        positionMemberCounts={{ 'นายแพทย์ชำนาญการ': 1, 'พยาบาลวิชาชีพชำนาญการ': 1 }}
+        selectedTaskId="PROJECT_TRACKER"
+        onSelectTaskId={vi.fn()}
+        onGrantMember={vi.fn()}
+        onRevokeMember={vi.fn()}
+        onGrantPosition={vi.fn()}
+        onRevokePosition={vi.fn()}
+        isActionPending={false}
+      />
+    )
+
+    expect(screen.getAllByText('ระบบติดตามการส่งโครงการและงบประมาณ').length).toBeGreaterThan(0)
+    expect(screen.getByText('manage_project_tracker')).toBeDefined()
+  })
 })
 
 describe('MemberInspectorView Component', () => {

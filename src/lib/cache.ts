@@ -9,6 +9,8 @@ export interface SwrCacheOptions {
   staleTtlMs?: number
   /** Maximum time-to-live before data is considered expired and MUST be fetched synchronously (in milliseconds). Default: 60,000ms (1m) */
   maxTtlMs?: number
+  /** Bypass cached entries while still deduplicating concurrent forced refreshes via single-flight. */
+  forceRefresh?: boolean
 }
 
 interface CacheEntry<T> {
@@ -21,6 +23,16 @@ interface CacheEntry<T> {
 const MAX_CACHE_ENTRIES = 500
 const memoryCache = new Map<string, CacheEntry<any>>()
 const inFlightRequests = new Map<string, Promise<any>>()
+const bgInFlightRequests = new Map<string, Promise<void>>()
+const cacheEpochs = new Map<string, number>()
+
+function getEpoch(key: string): number {
+  return cacheEpochs.get(key) ?? 0
+}
+
+function bumpEpoch(key: string): void {
+  cacheEpochs.set(key, getEpoch(key) + 1)
+}
 
 /**
  * Evicts least-recently-used or expired entries when capacity is reached.
@@ -74,7 +86,7 @@ function setCacheEntry<T>(
  * Fetch or retrieve cached data using Stale-While-Revalidate (SWR) semantics.
  * - Fresh (now <= staleAt): Returns cached data immediately.
  * - Stale (staleAt < now <= expiresAt): Returns cached data immediately, triggers background revalidation.
- * - Expired (now > expiresAt): Awaits fresh data with single-flight deduplication.
+ * - Expired (now > expiresAt) or forceRefresh: Awaits fresh data with single-flight deduplication.
  */
 export async function getSwrCachedData<T>(
   key: string,
@@ -83,48 +95,60 @@ export async function getSwrCachedData<T>(
 ): Promise<T> {
   const staleTtlMs = options.staleTtlMs ?? 10_000
   const maxTtlMs = options.maxTtlMs ?? 60_000
+  const forceRefresh = options.forceRefresh ?? false
   const now = Date.now()
 
-  const cached = memoryCache.get(key)
+  if (!forceRefresh) {
+    const cached = memoryCache.get(key)
 
-  if (cached) {
-    cached.lastAccessedAt = now
+    if (cached) {
+      cached.lastAccessedAt = now
 
-    // 1. Fresh Hit
-    if (now <= cached.staleAt) {
-      return cached.data
-    }
-
-    // 2. Stale Hit: Serve cached data, trigger background revalidation if not already in-flight
-    if (now <= cached.expiresAt) {
-      if (!inFlightRequests.has(key)) {
-        const bgPromise = fetcher()
-          .then((freshData) => {
-            setCacheEntry(key, freshData, staleTtlMs, maxTtlMs)
-            return freshData
-          })
-          .catch(() => {
-            // Keep stale cache intact if background refresh fails
-          })
-          .finally(() => {
-            inFlightRequests.delete(key)
-          })
-
-        inFlightRequests.set(key, bgPromise)
+      // 1. Fresh Hit
+      if (now <= cached.staleAt) {
+        return cached.data
       }
-      return cached.data
+
+      // 2. Stale Hit: Serve cached data, trigger background revalidation if not already in-flight
+      if (now <= cached.expiresAt) {
+        if (!bgInFlightRequests.has(key) && !inFlightRequests.has(key)) {
+          const epochAtStart = getEpoch(key)
+          const bgPromise = fetcher()
+            .then((freshData) => {
+              if (getEpoch(key) === epochAtStart) {
+                setCacheEntry(key, freshData, staleTtlMs, maxTtlMs)
+              }
+            })
+            .catch(() => {
+              // Keep stale cache intact if background refresh fails
+            })
+            .finally(() => {
+              bgInFlightRequests.delete(key)
+            })
+
+          bgInFlightRequests.set(key, bgPromise)
+        }
+        return cached.data
+      }
     }
+  } else {
+    memoryCache.delete(key)
+    bgInFlightRequests.delete(key)
+    bumpEpoch(key)
   }
 
-  // 3. Expired or Cache Miss: Execute with single-flight deduplication
+  // 3. Expired, Cache Miss, or Force Refresh: Execute with single-flight deduplication
   const existingFlight = inFlightRequests.get(key)
   if (existingFlight) {
     return existingFlight as Promise<T>
   }
 
+  const epochAtStart = getEpoch(key)
   const flightPromise = fetcher()
     .then((freshData) => {
-      setCacheEntry(key, freshData, staleTtlMs, maxTtlMs)
+      if (getEpoch(key) === epochAtStart) {
+        setCacheEntry(key, freshData, staleTtlMs, maxTtlMs)
+      }
       return freshData
     })
     .finally(() => {
@@ -158,19 +182,33 @@ export async function getCachedData<T>(
  */
 export function invalidateCacheKey(key: string): void {
   memoryCache.delete(key)
+  bgInFlightRequests.delete(key)
   inFlightRequests.delete(key)
+  bumpEpoch(key)
 }
 
 /**
  * Invalidate all cache keys matching a string prefix or RegExp.
  */
 export function invalidateCachePattern(pattern: RegExp | string): void {
+  const keysToDelete = new Set<string>()
   for (const key of memoryCache.keys()) {
-    const match = typeof pattern === 'string' ? key.startsWith(pattern) : pattern.test(key)
-    if (match) {
-      memoryCache.delete(key)
-      inFlightRequests.delete(key)
+    if (typeof pattern === 'string' ? key.startsWith(pattern) : pattern.test(key)) {
+      keysToDelete.add(key)
     }
+  }
+  for (const key of inFlightRequests.keys()) {
+    if (typeof pattern === 'string' ? key.startsWith(pattern) : pattern.test(key)) {
+      keysToDelete.add(key)
+    }
+  }
+  for (const key of bgInFlightRequests.keys()) {
+    if (typeof pattern === 'string' ? key.startsWith(pattern) : pattern.test(key)) {
+      keysToDelete.add(key)
+    }
+  }
+  for (const key of keysToDelete) {
+    invalidateCacheKey(key)
   }
 }
 
@@ -180,4 +218,6 @@ export function invalidateCachePattern(pattern: RegExp | string): void {
 export function clearMemoryCache(): void {
   memoryCache.clear()
   inFlightRequests.clear()
+  bgInFlightRequests.clear()
+  cacheEpochs.clear()
 }

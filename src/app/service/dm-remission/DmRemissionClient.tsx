@@ -15,6 +15,7 @@ import {
   BarChart3,
   Table2,
   X,
+  FlaskConical,
 } from 'lucide-react'
 import {
   getCurrentThaiFiscalYear,
@@ -768,6 +769,13 @@ export default function DmRemissionClient({
           </div>
 
           <div className="dmrHeaderActions">
+            <Link
+              href="/service/dm-remission/lab-tracking"
+              className="dmrBtn"
+            >
+              <FlaskConical size={16} strokeWidth={1.5} />
+              ติดตามการเจาะ
+            </Link>
             <button
               type="button"
               className="dmrBtn"

@@ -13,10 +13,13 @@ export async function GET() {
 
     const data = await TaskPermissionService.getTaskCentricData()
 
-    return NextResponse.json({
-      success: true,
-      data,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        data,
+      },
+      { headers: { 'Cache-Control': 'no-store' } }
+    )
   } catch (error: any) {
     logger.error({ error }, 'Fetch task-centric permissions error')
     return NextResponse.json(

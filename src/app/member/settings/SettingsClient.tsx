@@ -17,9 +17,10 @@ export type { MemberItem, PositionMappingItem }
 
 interface SettingsClientProps {
   initialSettings: Record<string, string>
+  initialTaskId?: string
 }
 
-export default function SettingsClient({ initialSettings }: SettingsClientProps) {
+export default function SettingsClient({ initialSettings, initialTaskId }: SettingsClientProps) {
   // Top Tabs State: 'tasks' | 'inspector' | 'features'
   const [activeTab, setActiveTab] = useState<'tasks' | 'inspector' | 'features'>('tasks')
 
@@ -31,7 +32,12 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [loadingData, setLoadingData] = useState(true)
 
   // Selected Task in Left Sidebar
-  const [selectedTaskId, setSelectedTaskId] = useState<string>('MEDIA_REQUEST')
+  const [selectedTaskId, setSelectedTaskId] = useState<string>(() => {
+    if (initialTaskId && TASK_DEFINITIONS.some((t) => t.id === initialTaskId)) {
+      return initialTaskId
+    }
+    return 'MEDIA_REQUEST'
+  })
   const [isActionPending, setIsActionPending] = useState(false)
 
   // Fine-grained Edit Member Modal
@@ -57,11 +63,22 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const loadTaskData = async () => {
     setLoadingData(true)
     try {
-      const res = await fetch('/api/member/permissions/tasks')
+      const res = await fetch('/api/member/permissions/tasks', { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.data) {
-          if (data.data.tasks) setTasks(data.data.tasks)
+          if (Array.isArray(data.data.tasks)) {
+            const apiById = new Map<string, TaskDefinition>(
+              (data.data.tasks as TaskDefinition[]).map((t) => [t.id, t])
+            )
+            const merged = TASK_DEFINITIONS.map((def) => apiById.get(def.id) ?? def)
+            for (const t of data.data.tasks as TaskDefinition[]) {
+              if (!TASK_DEFINITIONS.some((def) => def.id === t.id)) {
+                merged.push(t)
+              }
+            }
+            setTasks(merged)
+          }
           if (data.data.members) setMembers(data.data.members)
           if (data.data.availablePositions) setAvailablePositions(data.data.availablePositions)
           if (data.data.positionMappings) setPositionMappings(data.data.positionMappings)

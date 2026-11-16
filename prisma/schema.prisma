@@ -930,3 +930,40 @@ model DmRemissionOption {
   @@map("dm_remission_options")
 }
 
+model ProjectTrackingRecord {
+  id               Int      @id @default(autoincrement())
+  fiscalYear       Int      @map("fiscal_year")
+  sequenceNo       Int      @default(1) @map("sequence_no")
+  projectCode      String?  @map("project_code") @db.VarChar(50)
+  strategy         String   @db.VarChar(50)
+  projectName      String   @map("project_name") @db.VarChar(500)
+  responsibleUnit  String?  @map("responsible_unit") @db.VarChar(255)
+  q1Budget         Decimal  @default(0.00) @map("q1_budget") @db.Decimal(14, 2)
+  q2Budget         Decimal  @default(0.00) @map("q2_budget") @db.Decimal(14, 2)
+  q3Budget         Decimal  @default(0.00) @map("q3_budget") @db.Decimal(14, 2)
+  q4Budget         Decimal  @default(0.00) @map("q4_budget") @db.Decimal(14, 2)
+  actualSpent      Decimal  @default(0.00) @map("actual_spent") @db.Decimal(14, 2)
+  submissionStatus String   @default("ยังไม่ส่ง") @map("submission_status") @db.VarChar(50)
+  budgetSource     String   @default("เงินบำรุง") @map("budget_source") @db.VarChar(50)
+  notes            String?  @db.Text
+  createdBy        String?  @map("created_by") @db.VarChar(100)
+  updatedBy        String?  @map("updated_by") @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([fiscalYear], map: "idx_pt_fiscal_year")
+  @@index([strategy], map: "idx_pt_strategy")
+  @@index([submissionStatus], map: "idx_pt_status")
+  @@index([fiscalYear, sequenceNo], map: "idx_pt_seq")
+  @@map("project_tracking_records")
+}
+
+model ProjectTrackingMeta {
+  metaKey   String   @id @map("meta_key") @db.VarChar(100)
+  metaValue String   @map("meta_value") @db.VarChar(255)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@map("project_tracking_meta")
+}
+
+

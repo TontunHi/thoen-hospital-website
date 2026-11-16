@@ -122,4 +122,26 @@ describe('In-Memory Stale-While-Revalidate (SWR) Cache Engine', () => {
     expect(res3).toBe('legacy-2')
     expect(fetcher).toHaveBeenCalledTimes(2)
   })
+
+  it('should single-flight deduplicate concurrent forceRefresh calls and prevent stale writes after invalidation', async () => {
+    let seq = 0
+    const fetcher = vi.fn().mockImplementation(async () => {
+      seq++
+      await new Promise((r) => setTimeout(r, 25))
+      return `val-${seq}`
+    })
+
+    const key = `test-force-${Date.now()}`
+    const initial = await getSwrCachedData(key, fetcher, { staleTtlMs: 10000 })
+    expect(initial).toBe('val-1')
+    expect(fetcher).toHaveBeenCalledTimes(1)
+
+    const [r1, r2] = await Promise.all([
+      getSwrCachedData(key, fetcher, { staleTtlMs: 10000, forceRefresh: true }),
+      getSwrCachedData(key, fetcher, { staleTtlMs: 10000, forceRefresh: true }),
+    ])
+    expect(r1).toBe('val-2')
+    expect(r2).toBe('val-2')
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
 })

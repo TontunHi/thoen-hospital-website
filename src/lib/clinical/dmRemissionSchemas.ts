@@ -188,3 +188,61 @@ export const listQuerySchema = z.object({
   remissionStatus: optionalQueryString(100, 'สถานะ Remission'),
   search: optionalQueryString(120, 'คำค้นหา'),
 })
+
+function optionalBooleanParam() {
+  return z.preprocess((raw) => {
+    if (raw === undefined || raw === null || raw === '') return undefined
+    if (typeof raw === 'boolean') return raw
+    if (typeof raw === 'string') {
+      const normalized = raw.trim().toLowerCase()
+      if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true
+      if (normalized === 'false' || normalized === '0' || normalized === 'no') return false
+    }
+    return raw
+  }, z.boolean().optional())
+}
+
+export const labTrackingQuerySchema = z.object({
+  fiscalYear: optionalFiscalYearField,
+  a1cMax: z.preprocess(
+    (raw) => parseNumericInput(raw, undefined),
+    z
+      .number({ message: 'ค่า HbA1c สูงสุดต้องเป็นตัวเลข' })
+      .min(3, 'ค่า HbA1c สูงสุดต้องไม่น้อยกว่า 3')
+      .max(15, 'ค่า HbA1c สูงสุดต้องไม่เกิน 15')
+      .optional()
+  ),
+  ucScope: z.enum(['visit', 'current', 'either'], { message: 'ขอบเขตสิทธิ์ UC ไม่ถูกต้อง' }).optional(),
+  diagScope: z
+    .enum(['ever', 'in_fy', 'same_vn'], { message: 'ขอบเขตการวินิจฉัย E11 ไม่ถูกต้อง' })
+    .optional(),
+  drugScope: z
+    .enum(['fy', '90d_before_lab', 'visit_only', 'all'], {
+      message: 'ขอบเขตการตรวจสอบยาเบาหวานไม่ถูกต้อง',
+    })
+    .optional(),
+  cohortStatus: z
+    .enum(['all', 'registered', 'unregistered'], { message: 'ตัวกรองสถานะทะเบียนไม่ถูกต้อง' })
+    .optional(),
+  tambon: optionalQueryString(100, 'ตำบล'),
+  search: optionalQueryString(120, 'คำค้นหา'),
+  includeDeceased: optionalBooleanParam(),
+  page: z.preprocess(
+    (raw) => parseNumericInput(raw, undefined),
+    z.number().int().min(1).max(10000).optional()
+  ),
+  pageSize: z.preprocess(
+    (raw) => parseNumericInput(raw, undefined),
+    z.number().int().min(1).max(200).optional()
+  ),
+  exportAll: optionalBooleanParam(),
+  refresh: optionalBooleanParam(),
+})
+
+export const labTrackingHnParamSchema = z
+  .string({ message: 'กรุณาระบุ HN' })
+  .trim()
+  .min(1, 'กรุณาระบุ HN')
+  .max(20, 'รูปแบบ HN ไม่ถูกต้อง')
+  .regex(/^[A-Za-z0-9-]+$/, 'รูปแบบ HN ไม่ถูกต้อง')
+

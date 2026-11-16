@@ -19,7 +19,8 @@ import {
   Target,
   Coins,
   HeartPulse,
-  Home
+  Home,
+  ClipboardList
 } from 'lucide-react'
 import './page.css'
 
@@ -154,6 +155,14 @@ export default async function ServicePage() {
       btnText: 'เข้าสู่ระบบติดตามตัวชี้วัด',
       category: 'admin',
       icon: Target,
+    },
+    {
+      title: 'ระบบติดตามการส่งโครงการ',
+      desc: 'Dashboard สรุปผลและทะเบียนคุมการส่งสรุปโครงการและงบประมาณรายไตรมาส พร้อมนำเข้า/ส่งออก Excel',
+      link: '/service/project-tracker',
+      btnText: 'เข้าสู่ระบบติดตามโครงการ',
+      category: 'admin',
+      icon: ClipboardList,
     },
     {
       title: 'ระบบหนังสือส่งออก Online',

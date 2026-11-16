@@ -3,6 +3,7 @@ import {
   ApiGatewayClient,
   createApiGatewayClient,
   GatewayError,
+  GatewayTimeoutError,
   GatewayUnavailableError,
   GatewayAuthError,
   GatewayNotFoundError
@@ -67,7 +68,7 @@ describe('ApiGatewayClient (Ticket 01)', () => {
     await expect(client.get('/health')).rejects.toThrow(GatewayUnavailableError)
   })
 
-  it('strict fail-closed: throws GatewayUnavailableError when request times out', async () => {
+  it('strict fail-closed: throws GatewayTimeoutError (subclass of GatewayUnavailableError) when request times out', async () => {
     const abortError = new Error('The operation was aborted')
     abortError.name = 'AbortError'
     mockFetch.mockRejectedValueOnce(abortError)
@@ -78,7 +79,10 @@ describe('ApiGatewayClient (Ticket 01)', () => {
       fetchFn: mockFetch as unknown as typeof fetch
     })
 
-    await expect(client.get('/api/v1/clinical/er/status')).rejects.toThrow(GatewayUnavailableError)
+    const err = await client.get('/api/v1/clinical/er/status').catch((e) => e)
+    expect(err).toBeInstanceOf(GatewayTimeoutError)
+    expect(err).toBeInstanceOf(GatewayUnavailableError)
+    expect((err as GatewayTimeoutError).status).toBe(504)
   })
 
   it('throws GatewayAuthError on HTTP 401 and 403', async () => {

@@ -26,9 +26,28 @@ export class GatewayError extends Error {
 }
 
 export class GatewayUnavailableError extends GatewayError {
-  constructor(message = 'Thoen Hospital API Gateway is currently unreachable. Fail-closed: refusing unauthenticated direct database access.', details?: unknown) {
-    super(message, { status: 503, code: 'GATEWAY_UNAVAILABLE', details })
+  constructor(
+    message = 'Thoen Hospital API Gateway is currently unreachable. Fail-closed: refusing unauthenticated direct database access.',
+    details?: unknown,
+    overrides?: { status?: number; code?: string }
+  ) {
+    super(message, {
+      status: overrides?.status ?? 503,
+      code: overrides?.code ?? 'GATEWAY_UNAVAILABLE',
+      details,
+    })
     this.name = 'GatewayUnavailableError'
+    Object.setPrototypeOf(this, new.target.prototype)
+  }
+}
+
+export class GatewayTimeoutError extends GatewayUnavailableError {
+  constructor(
+    message = 'Thoen Hospital API Gateway request timed out.',
+    details?: unknown
+  ) {
+    super(message, details, { status: 504, code: 'GATEWAY_TIMEOUT' })
+    this.name = 'GatewayTimeoutError'
     Object.setPrototypeOf(this, new.target.prototype)
   }
 }
@@ -113,7 +132,11 @@ export class ApiGatewayClient {
     const timeoutMs = options?.timeoutMs ?? this.timeoutMs
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    let timedOut = false
+    const timeoutId = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, timeoutMs)
 
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -159,6 +182,9 @@ export class ApiGatewayClient {
         if (response.status === 503) {
           throw new GatewayUnavailableError(errorMsg, json)
         }
+        if (response.status === 504) {
+          throw new GatewayTimeoutError(errorMsg, json)
+        }
         throw new GatewayError(errorMsg, { status: response.status, details: json })
       }
 
@@ -185,11 +211,16 @@ export class ApiGatewayClient {
       }
 
       const isAbort = (err as Error)?.name === 'AbortError'
+      if (timedOut || (isAbort && !options?.signal?.aborted)) {
+        throw new GatewayTimeoutError(`Gateway request to ${path} timed out after ${timeoutMs}ms.`, err)
+      }
+      if (isAbort) {
+        throw new GatewayUnavailableError(`Gateway request to ${path} was aborted.`, err)
+      }
+
       const cause = (err as Error & { cause?: { code?: string; message?: string } })?.cause
       const causeDetail = cause?.code || cause?.message ? ` (${[cause.code, cause.message].filter(Boolean).join(': ')})` : ''
-      const errorMsg = isAbort
-        ? `Gateway request to ${path} timed out after ${timeoutMs}ms.`
-        : `Connection to API Gateway failed: ${(err as Error)?.message || 'Network error'}${causeDetail}`
+      const errorMsg = `Connection to API Gateway failed: ${(err as Error)?.message || 'Network error'}${causeDetail}`
 
       throw new GatewayUnavailableError(errorMsg, err)
     }
@@ -843,8 +874,12 @@ export class ApiGatewayClient {
     /**
      * Executes a read-only SELECT query against the Website MySQL database.
      */
-    query: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> => {
-      const res = await this.post<{ data: T[]; count: number }>('/api/v1/app/query', { sql, params })
+    query: async <T = Record<string, unknown>>(
+      sql: string,
+      params: unknown[] = [],
+      options?: RequestOptions
+    ): Promise<T[]> => {
+      const res = await this.post<{ data: T[]; count: number }>('/api/v1/app/query', { sql, params }, options)
       return Array.isArray(res) ? res : res.data || []
     },
 
@@ -858,10 +893,11 @@ export class ApiGatewayClient {
     /**
      * Executes an array of statements atomically inside a single interactive transaction.
      */
-    transaction: (statements: Array<{ sql: string; params?: unknown[] }>) => {
+    transaction: (statements: Array<{ sql: string; params?: unknown[] }>, options?: RequestOptions) => {
       return this.post<{ count: number; results: Array<{ affectedRows: number; insertId: number | null }> }>(
         '/api/v1/app/transaction',
-        { statements }
+        { statements },
+        options
       )
     },
 

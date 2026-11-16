@@ -49,6 +49,7 @@ describe('ServicePage', () => {
     expect(screen.queryByText('สถานะการรอรับยา OPD')).not.toBeInTheDocument()
     expect(screen.queryByText('รายการนัดผิดห้องตรวจ')).not.toBeInTheDocument()
     expect(screen.queryByText('ติดตามงบประมาณประจำปี')).not.toBeInTheDocument()
+    expect(screen.queryByText('ระบบติดตามการส่งโครงการ')).not.toBeInTheDocument()
     expect(screen.queryByText('Dashboard-RCM')).not.toBeInTheDocument()
   })
 
@@ -69,6 +70,7 @@ describe('ServicePage', () => {
     expect(screen.getByText('สถานะห้องฉุกเฉิน (ER)')).toBeInTheDocument()
     expect(screen.getByText('สถานะผู้ป่วยใน (IPD)')).toBeInTheDocument()
     expect(screen.getByText('เยี่ยมบ้านทีม FCT')).toBeInTheDocument()
+    expect(screen.getByText('ระบบติดตามการส่งโครงการ')).toBeInTheDocument()
     expect(screen.getByText('Dashboard-RCM')).toBeInTheDocument()
   })
 })
