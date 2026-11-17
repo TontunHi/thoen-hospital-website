@@ -462,14 +462,14 @@
   box-shadow: var(--shadow-card);
 }
 
-.card-header-with-icon {
+.facebook-embed-card .card-header-with-icon {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-2);
 }
 
-.section-sub {
+.facebook-embed-card .section-sub {
   color: var(--gray-500);
   font-size: var(--font-size-sm);
   margin-bottom: var(--space-4);
@@ -477,11 +477,16 @@
 
 .facebook-wrapper {
   width: 100%;
-  max-width: 600px;
+  max-width: 500px;
   margin: 0 auto;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--gray-100);
+}
+
+.facebook-wrapper iframe {
+  display: block;
+  margin: 0 auto;
 }
 
 /* ===== RELATED ORGS ===== */

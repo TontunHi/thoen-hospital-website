@@ -1,96 +1,153 @@
+/* Scoped to ER TV Mode — Light-mode locked clinical wall display, aligned with DESIGN.md & tokens.css */
 .erTvPage {
+  color-scheme: light;
+
+  /* Lock semantic DS tokens strictly to the Light palette */
+  --ds-color-surface-sunken: var(--ds-color-neutral-light-2);
+  --ds-color-surface-base: var(--ds-color-neutral-light-1);
+  --ds-color-surface-raised: var(--ds-color-white);
+  --ds-color-surface-overlay: var(--ds-color-white);
+  --ds-color-text-primary: var(--ds-color-neutral-light-12);
+  --ds-color-text-secondary: var(--ds-color-neutral-light-11);
+  --ds-color-text-disabled: var(--ds-color-neutral-light-8);
+  --ds-color-text-accent: var(--ds-color-accent-light-11);
+  --ds-color-text-on-action: var(--ds-color-white);
+  --ds-color-text-success: var(--ds-color-success-light-11);
+  --ds-color-text-warning: var(--ds-color-warning-light-11);
+  --ds-color-text-danger: var(--ds-color-danger-light-11);
+  --ds-color-text-info: var(--ds-color-info-light-11);
+  --ds-color-bg-neutral-subtle: var(--ds-color-neutral-light-3);
+  --ds-color-bg-neutral-subtle-hover: var(--ds-color-neutral-light-4);
+  --ds-color-bg-neutral-subtle-pressed: var(--ds-color-neutral-light-5);
+  --ds-color-bg-accent-subtle: var(--ds-color-accent-light-3);
+  --ds-color-bg-action-primary: var(--ds-color-accent-light-9);
+  --ds-color-bg-action-primary-hover: var(--ds-color-accent-light-10);
+  --ds-color-bg-action-primary-pressed: var(--ds-color-accent-light-solid-pressed);
+  --ds-color-bg-success-subtle: var(--ds-color-success-light-3);
+  --ds-color-bg-success-bold: var(--ds-color-success-light-9);
+  --ds-color-bg-warning-subtle: var(--ds-color-warning-light-3);
+  --ds-color-bg-warning-bold: var(--ds-color-warning-light-9);
+  --ds-color-bg-danger-subtle: var(--ds-color-danger-light-3);
+  --ds-color-bg-danger-bold: var(--ds-color-danger-light-9);
+  --ds-color-bg-info-subtle: var(--ds-color-info-light-3);
+  --ds-color-border-subtle: var(--ds-color-neutral-light-6);
+  --ds-color-border-default: var(--ds-color-neutral-light-7);
+  --ds-color-border-separator: var(--ds-color-neutral-light-4);
+  --ds-color-border-accent: var(--ds-color-accent-light-8);
+  --ds-color-border-success: var(--ds-color-success-light-8);
+  --ds-color-border-warning: var(--ds-color-warning-light-8);
+  --ds-color-border-danger: var(--ds-color-danger-light-8);
+  --ds-color-border-info: var(--ds-color-info-light-8);
+  --ds-color-border-focus: var(--ds-color-accent-light-9);
+  --ds-color-shadow-key: var(--ds-color-neutral-alpha-light-3);
+  --ds-color-shadow-ring: var(--ds-color-neutral-alpha-light-4);
+
+  /* MOPH ESI Level 2 (Emergency - Pink for TV board) */
+  --tv-emergency-bg: #fce7f3; /* od-ignore */
+  --tv-emergency-border: #f472b6; /* od-ignore */
+  --tv-emergency-dot: #db2777; /* od-ignore */
+  --tv-emergency-text: #9d174d; /* od-ignore */
+
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   width: 100vw;
-  height: 100vh;
-  background-color: #f8fafc;
+  height: 100dvh;
+  background: var(--ds-color-surface-sunken);
   z-index: 999999;
   overflow: hidden;
   box-sizing: border-box;
-  padding: 1rem 1.5rem;
-  font-family: 'Outfit', 'Inter', var(--font-ibm-thai), sans-serif;
-  color: #0f172a;
+  padding: 1rem 1.25rem;
+  font-family: var(--font-sarabun), var(--ds-font-family-text);
+  color: var(--ds-color-text-primary);
   display: flex;
   flex-direction: column;
 }
 
 .erTvContainer {
-  max-width: 100%;
   width: 100%;
   height: 100%;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.75rem;
   flex: 1;
   min-height: 0;
 }
 
-/* Header Bar - Light Medical Theme */
+.erTvTabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Header Bar */
 .erTvHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
-  padding: 0.6rem 1.25rem;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  background: var(--ds-color-surface-raised);
+  padding: 0.625rem 1rem;
+  border-radius: var(--ds-radius-container);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  box-shadow: var(--ds-elevation-raised);
   gap: 0.75rem;
-  flex-wrap: nowrap;
-  white-space: nowrap;
+  flex-wrap: wrap;
 }
 
 .erTvHeaderLeft {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.625rem;
   flex-shrink: 0;
 }
 
 .erTvHospitalTitle {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--primary, #00705a);
+  font-size: var(--ds-font-size-20);
+  line-height: 1.3;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
   margin: 0;
-  letter-spacing: -0.01em;
   white-space: nowrap;
 }
 
 .erLiveBadge {
-  background: #fee2e2;
-  color: #dc2626;
-  font-size: 0.8rem;
-  font-weight: 800;
-  padding: 0.25rem 0.65rem;
-  border-radius: 9999px;
-  animation: pulseBg 1.5s infinite ease-in-out;
-  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--ds-color-bg-danger-subtle);
+  color: var(--ds-color-text-danger);
+  border: 0.0625rem solid var(--ds-color-border-danger);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--ds-radius-control-sm);
+  letter-spacing: 0.04em;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.erLiveDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--ds-radius-person);
+  background: var(--ds-color-bg-danger-bold);
 }
 
 /* Integrated Compact KPI Bar */
 .erKpiBar {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  background: #f1f5f9;
-  padding: 0.35rem 0.85rem;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
+  background: var(--ds-color-surface-sunken);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid var(--ds-color-border-separator);
   flex-shrink: 0;
 }
 
 .kpiItem {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0 0.45rem;
-  border-right: 1px solid #cbd5e1;
+  gap: 0.375rem;
+  padding: 0.125rem 0.75rem;
+  border-right: 0.0625rem solid var(--ds-color-border-separator);
+  white-space: nowrap;
 }
 
 .kpiItem:last-child {
@@ -98,121 +155,182 @@
 }
 
 .kpiDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border-radius: var(--ds-radius-person);
   flex-shrink: 0;
 }
 
-.redDot { background-color: #ef4444; }
-.orangeDot { background-color: #db2777; }
-.yellowDot { background-color: #eab308; }
-.greenDot { background-color: #22c55e; }
+.redDot {
+  background-color: var(--ds-color-bg-danger-bold);
+}
+
+.pinkDot {
+  background-color: var(--tv-emergency-dot);
+}
+
+.yellowDot {
+  background-color: var(--ds-color-bg-warning-bold);
+}
+
+.greenDot {
+  background-color: var(--ds-color-bg-success-bold);
+}
 
 .kpiLabel {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #475569;
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
 }
 
 .kpiVal {
-  font-size: 1.45rem;
-  font-weight: 900;
-  color: #0f172a;
+  font-size: var(--ds-font-size-24);
+  line-height: 1.1;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
-.kpiCritical .kpiVal { color: #dc2626; }
-.kpiEmergency .kpiVal { color: #db2777; }
-.kpiUrgency .kpiVal { color: #ca8a04; }
-.kpiSemiUrgency .kpiVal { color: #16a34a; }
+.kpiCritical .kpiVal {
+  color: var(--ds-color-text-danger);
+}
+
+.kpiEmergency .kpiVal {
+  color: var(--tv-emergency-text);
+}
+
+.kpiUrgency .kpiVal {
+  color: var(--ds-color-text-warning);
+}
+
+.kpiSemiUrgency .kpiVal {
+  color: var(--ds-color-text-success);
+}
 
 .erTvHeaderRight {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-shrink: 0;
 }
 
 .erTvClock {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #1e293b;
-  background: #f8fafc;
-  padding: 0.3rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--ds-font-size-20);
+  line-height: 1.2;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-surface-sunken);
+  padding: 0.4375rem 0.75rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid var(--ds-color-border-separator);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.05em;
   white-space: nowrap;
+}
+
+.erFullscreenBtn,
+.erExitBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: var(--ds-radius-control);
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-heading);
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color var(--ds-motion-duration-micro) var(--ds-motion-easing-hover),
+    border-color var(--ds-motion-duration-micro) var(--ds-motion-easing-hover),
+    color var(--ds-motion-duration-micro) var(--ds-motion-easing-hover),
+    transform var(--ds-motion-duration-micro) var(--ds-motion-easing-hover);
 }
 
 .erFullscreenBtn {
-  background: var(--primary, #00705a);
-  color: #ffffff;
-  border: none;
-  padding: 0.4rem 0.85rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  transition: all 0.2s;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  white-space: nowrap;
+  background: var(--ds-color-bg-action-primary);
+  color: var(--ds-color-text-on-action);
+  border: 0.0625rem solid transparent;
 }
 
 .erFullscreenBtn:hover {
-  background: #005544;
+  background: var(--ds-color-bg-action-primary-hover);
+}
+
+.erFullscreenBtn:active {
+  background: var(--ds-color-bg-action-primary-pressed);
+  transform: scale(var(--ds-motion-scale-press));
 }
 
 .erExitBtn {
-  background: #ffffff;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-  padding: 0.4rem 0.85rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition: all 0.2s;
-  white-space: nowrap;
+  background: var(--ds-color-surface-raised);
+  color: var(--ds-color-text-secondary);
+  border: 0.0625rem solid var(--ds-color-border-default);
 }
 
 .erExitBtn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
+  background: var(--ds-color-bg-danger-subtle);
+  color: var(--ds-color-text-danger);
+  border-color: var(--ds-color-border-danger);
+}
+
+.erExitBtn:active {
+  transform: scale(var(--ds-motion-scale-press));
+}
+
+.erFullscreenBtn:focus-visible,
+.erExitBtn:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
 }
 
 .erTvPage .card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  background: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
 }
 
-/* Critical Alert Banner */
-.erTvPage .erAlertBanner {
-  background: #fef2f2;
-  border: 3px solid #ef4444;
-  border-radius: 10px;
-  padding: 0.6rem 1.25rem;
+/* Error & Critical Alert Banners */
+.erTvErrorBanner {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  animation: pulseBg 1.5s infinite ease-in-out;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  background: var(--ds-color-bg-danger-subtle);
+  border: 0.0625rem solid var(--ds-color-border-danger);
+  border-radius: var(--ds-radius-container);
+  color: var(--ds-color-text-danger);
+  font-size: var(--ds-font-size-17);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.erTvPage .erAlertBanner {
+  background: var(--ds-color-bg-danger-subtle);
+  border: 0.0625rem solid var(--ds-color-border-danger);
+  border-left: 0.375rem solid var(--ds-color-bg-danger-bold);
+  border-radius: var(--ds-radius-container);
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  color: var(--ds-color-text-danger);
 }
 
 .erTvPage .alertIcon {
-  font-size: 1.8rem;
+  color: var(--ds-color-text-danger);
+  flex-shrink: 0;
 }
 
 .erTvPage .alertMsg {
-  color: #b91c1c;
-  font-size: 1.35rem;
-  font-weight: 800;
+  color: var(--ds-color-text-danger);
+  font-size: var(--ds-font-size-20);
+  line-height: 1.35;
+  font-weight: var(--ds-font-weight-heading);
   margin: 0;
   flex: 1;
 }
@@ -226,7 +344,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 12px;
 }
 
 .erTvPage .patientsTableWrapper {
@@ -250,217 +367,301 @@
 
 /* Table Header */
 .erTvPage .patientsTable th {
-  background: #f1f5f9;
-  color: #334155;
-  font-weight: 800;
-  padding: 0.9rem 1.25rem;
-  font-size: 1.35rem;
-  border-bottom: 3px solid #cbd5e1;
+  background: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-secondary);
+  font-weight: var(--ds-font-weight-heading);
+  padding: 0.875rem 1.25rem;
+  font-size: var(--ds-font-size-20);
+  border-bottom: 0.125rem solid var(--ds-color-border-default);
   position: sticky;
   top: 0;
   z-index: 10;
-  letter-spacing: 0.02em;
 }
 
-/* Column Widths & Alignments strictly enforced */
-.erTvPage .patientsTable th.col-time, .erTvPage .patientsTable td.col-time { width: 10% !important; text-align: center !important; }
-.erTvPage .patientsTable th.col-name, .erTvPage .patientsTable td.col-name { width: 28% !important; text-align: left !important; }
-.erTvPage .patientsTable th.col-age, .erTvPage .patientsTable td.col-age { width: 10% !important; text-align: center !important; }
-.erTvPage .patientsTable th.col-level, .erTvPage .patientsTable td.col-level { width: 20% !important; text-align: center !important; }
-.erTvPage .patientsTable th.col-status, .erTvPage .patientsTable td.col-status { width: 18% !important; text-align: center !important; }
-.erTvPage .patientsTable th.col-bed, .erTvPage .patientsTable td.col-bed { width: 14% !important; text-align: center !important; }
+/* Column Widths & Alignments */
+.erTvPage .patientsTable th.col-time,
+.erTvPage .patientsTable td.col-time {
+  width: 10%;
+  text-align: center;
+}
+
+.erTvPage .patientsTable th.col-name,
+.erTvPage .patientsTable td.col-name {
+  width: 28%;
+  text-align: left;
+}
+
+.erTvPage .patientsTable th.col-age,
+.erTvPage .patientsTable td.col-age {
+  width: 10%;
+  text-align: center;
+}
+
+.erTvPage .patientsTable th.col-level,
+.erTvPage .patientsTable td.col-level {
+  width: 20%;
+  text-align: center;
+}
+
+.erTvPage .patientsTable th.col-status,
+.erTvPage .patientsTable td.col-status {
+  width: 18%;
+  text-align: center;
+}
+
+.erTvPage .patientsTable th.col-bed,
+.erTvPage .patientsTable td.col-bed {
+  width: 14%;
+  text-align: center;
+}
 
 /* Table Body Cells - High Visibility for TV */
 .erTvPage .patientsTable td {
-  padding: 1.15rem 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
   vertical-align: middle;
+  color: var(--ds-color-text-primary);
 }
 
 .cell-time {
-  font-size: 1.85rem;
-  font-weight: 800;
-  color: #475569;
-  font-variant-numeric: tabular-nums;
-}
-
-.cell-age {
-  font-size: 1.85rem;
-  font-weight: 800;
-  color: #334155;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.cell-status {
-  text-align: center;
-}
-
-.cell-status .statusText {
-  display: inline-block;
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #1e293b;
-  background: transparent;
-  border: none;
-  padding: 0;
-  white-space: nowrap;
-}
-
-.cell-hn {
-  font-size: 1.9rem;
-  font-weight: 900;
-  color: #0f172a;
-  letter-spacing: 0.04em;
+  font-size: 1.75rem;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
+  font-family: var(--ds-font-family-mono);
   font-variant-numeric: tabular-nums;
 }
 
 .cell-name {
-  font-size: 2.1rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.01em;
+  font-size: 2rem;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.cell-level {
-  text-align: center;
-}
-
-.cell-bed {
-  text-align: center;
+.cell-age {
+  font-size: 1.75rem;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.cell-bed .observeBadge {
-  margin-left: 0.5rem;
+.cell-status .statusText {
+  display: inline-block;
+  font-size: 1.5rem;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
 }
 
-/* Bed Badge */
+.cell-bed {
+  white-space: nowrap;
+}
+
+.bedGroup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .bedBadge {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 2px solid #bfdbfe;
-  padding: 0.4rem 1rem;
-  border-radius: 8px;
-  font-size: 1.45rem;
-  font-weight: 800;
+  background: var(--ds-color-bg-accent-subtle);
+  color: var(--ds-color-text-accent);
+  border: 0.0625rem solid var(--ds-color-border-accent);
+  padding: 0.3125rem 0.75rem;
+  border-radius: var(--ds-radius-control);
+  font-size: 1.375rem;
+  font-weight: var(--ds-font-weight-heading);
   white-space: nowrap;
 }
 
 .noBedBadge {
-  color: #94a3b8;
-  font-size: 1.6rem;
-  font-weight: 700;
+  color: var(--ds-color-text-disabled);
+  font-size: 1.5rem;
+  font-weight: var(--ds-font-weight-heading);
 }
 
 .observeBadge {
-  background: #faf5ff;
-  color: #7e22ce;
-  border: 1.5px solid #d8b4fe;
-  padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  font-size: 1.15rem;
-  font-weight: 800;
+  background: var(--ds-color-bg-info-subtle);
+  color: var(--ds-color-text-info);
+  border: 0.0625rem solid var(--ds-color-border-info);
+  padding: 0.3125rem 0.625rem;
+  border-radius: var(--ds-radius-control);
+  font-size: 1.125rem;
+  font-weight: var(--ds-font-weight-heading);
   white-space: nowrap;
 }
 
-/* Severity Row Accent and Pills - Clean Light Backgrounds */
-.erTvPage .patientsTable tr.level-1 { background-color: #fef2f2; }
-.erTvPage .patientsTable tr.level-2 { background-color: #fdf2f8; }
-.erTvPage .patientsTable tr.level-3 { background-color: #fefce8; }
-.erTvPage .patientsTable tr.level-4 { background-color: #f0fdf4; }
-.erTvPage .patientsTable tr.level-5 { background-color: #ffffff; }
-
-.erTvPage .patientsTable tr:hover {
-  background-color: #f8fafc;
+/* Row Triage Indicator (calm clinical paper + crisp left accent bar) */
+.erTvPage .patientsTable tbody tr {
+  background: var(--ds-color-surface-raised);
 }
 
+.erTvPage .patientsTable tr.level-1 {
+  background: var(--ds-color-danger-light-1);
+}
+
+.erTvPage .patientsTable tr.level-1 td:first-child {
+  box-shadow: inset 0.3125rem 0 0 var(--ds-color-bg-danger-bold); /* od-ignore */
+}
+
+.erTvPage .patientsTable tr.level-2 td:first-child {
+  box-shadow: inset 0.3125rem 0 0 var(--tv-emergency-dot); /* od-ignore */
+}
+
+.erTvPage .patientsTable tr.level-3 td:first-child {
+  box-shadow: inset 0.3125rem 0 0 var(--ds-color-bg-warning-bold); /* od-ignore */
+}
+
+.erTvPage .patientsTable tr.level-4 td:first-child {
+  box-shadow: inset 0.3125rem 0 0 var(--ds-color-bg-success-bold); /* od-ignore */
+}
+
+.erTvPage .patientsTable tr.level-5 td:first-child {
+  box-shadow: inset 0.3125rem 0 0 var(--ds-color-border-default); /* od-ignore */
+}
+
+/* Severity Badges (high-contrast, no glowing shadows, no blinking) */
 .erTvPage .severityPill {
-  display: inline-block;
-  padding: 0.5rem 1.15rem;
-  border-radius: 9999px;
-  font-size: 1.35rem;
-  font-weight: 800;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.875rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid transparent;
+  font-size: 1.25rem;
+  font-weight: var(--ds-font-weight-heading);
   white-space: nowrap;
-  letter-spacing: 0.02em;
 }
 
-.erTvPage .severityPill.pill-1 { 
-  background: #dc2626; 
-  color: #ffffff; 
-  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.4); 
-  animation: blinkAlert 1.5s infinite; 
-}
-.erTvPage .severityPill.pill-2 { 
-  background: #db2777; 
-  color: #ffffff; 
-  box-shadow: 0 2px 8px rgba(219, 39, 119, 0.3); 
-}
-.erTvPage .severityPill.pill-3 { 
-  background: #facc15; 
-  color: #713f12; 
-}
-.erTvPage .severityPill.pill-4 { 
-  background: #16a34a; 
-  color: #ffffff; 
-}
-.erTvPage .severityPill.pill-5 { 
-  background: #e2e8f0; 
-  color: #334155; 
+.severityDot {
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border-radius: var(--ds-radius-person);
+  background: currentColor;
+  flex-shrink: 0;
 }
 
-/* Loading Panel */
+.erTvPage .severityPill.pill-1 {
+  background: var(--ds-color-bg-danger-bold);
+  color: var(--ds-color-text-on-danger);
+  border-color: var(--ds-color-bg-danger-bold);
+}
+
+.erTvPage .severityPill.pill-2 {
+  background: var(--tv-emergency-bg);
+  color: var(--tv-emergency-text);
+  border-color: var(--tv-emergency-border);
+}
+
+.erTvPage .severityPill.pill-3 {
+  background: var(--ds-color-bg-warning-subtle);
+  color: var(--ds-color-text-warning);
+  border-color: var(--ds-color-border-warning);
+}
+
+.erTvPage .severityPill.pill-4 {
+  background: var(--ds-color-bg-success-subtle);
+  color: var(--ds-color-text-success);
+  border-color: var(--ds-color-border-success);
+}
+
+.erTvPage .severityPill.pill-5 {
+  background: var(--ds-color-bg-neutral-subtle);
+  color: var(--ds-color-text-secondary);
+  border-color: var(--ds-color-border-subtle);
+}
+
+/* Loading & Empty States */
 .erTvPage .erLoadingPanel {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 3rem;
-  gap: 1.5rem;
-  background: #ffffff;
-  border-radius: 12px;
+  gap: 1.25rem;
+  background: var(--ds-color-surface-raised);
+  border-radius: var(--ds-radius-container);
   margin: auto;
-  border: 1px solid #e2e8f0;
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  box-shadow: var(--ds-elevation-raised);
+}
+
+.erTvPage .erLoadingText {
+  margin: 0;
+  font-size: var(--ds-font-size-20);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
 }
 
 .erTvPage .spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border-left-color: var(--primary, #00705a);
-  animation: spin 1s linear infinite;
+  border: 0.25rem solid var(--ds-color-border-separator);
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--ds-radius-person);
+  border-left-color: var(--ds-color-bg-action-primary);
+  animation: erTvSpin 1s var(--ds-motion-easing-linear) infinite;
 }
 
 .erTvPage .emptyPatientsMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex: 1;
   text-align: center;
-  padding: 4rem;
-  color: #94a3b8;
-  font-size: 1.6rem;
-  font-weight: 600;
+  padding: 4rem 2rem;
+  color: var(--ds-color-text-secondary);
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.erTvPage .emptyPatientsMessage p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
 }
 
-@keyframes pulseBg {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+@keyframes erTvSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
-@keyframes blinkAlert {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
+@media (max-width: 75rem) {
+  .erTvHospitalTitle {
+    font-size: var(--ds-font-size-17);
+  }
+
+  .erTvPage .patientsTable th {
+    font-size: var(--ds-font-size-17);
+  }
+
+  .cell-name {
+    font-size: 1.5rem;
+  }
+
+  .cell-time,
+  .cell-age {
+    font-size: 1.375rem;
+  }
+
+  .cell-status .statusText,
+  .erTvPage .severityPill,
+  .bedBadge {
+    font-size: 1.125rem;
+  }
 }
 
-
-
+@media (prefers-reduced-motion: reduce) {
+  .erTvPage .spinner {
+    animation: none;
+  }
+}

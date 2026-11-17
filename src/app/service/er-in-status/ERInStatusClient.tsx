@@ -4,7 +4,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { SkeletonCard, SkeletonTable } from '@/components/common/Skeleton'
 import { usePolling } from '@/hooks/usePolling'
-import { RefreshCw, Clock, ArrowLeft, Tv, AlertTriangle } from 'lucide-react'
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  Clock,
+  RefreshCw,
+  Tv,
+} from 'lucide-react'
 import './page.css'
 
 interface Patient {
@@ -53,6 +60,23 @@ interface ERData {
   }
 }
 
+function getLevelMeta(levelId: number, fallbackName: string): { label: string; tone: string } {
+  switch (levelId) {
+    case 1:
+      return { label: 'กู้ชีพทันที (Resuscitate)', tone: 'level-1' }
+    case 2:
+      return { label: 'ฉุกเฉินวิกฤต (Emergency)', tone: 'level-2' }
+    case 3:
+      return { label: 'ด่วนมาก (Urgency)', tone: 'level-3' }
+    case 4:
+      return { label: 'ด่วน (Semi Urgency)', tone: 'level-4' }
+    case 5:
+      return { label: 'ทั่วไป (Non Urgency)', tone: 'level-5' }
+    default:
+      return { label: fallbackName || 'ทั่วไป', tone: 'level-5' }
+  }
+}
+
 export default function ERInStatusClient() {
   const [data, setData] = useState<ERData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,22 +108,22 @@ export default function ERInStatusClient() {
 
   if (loading && !data) {
     return (
-      <div className="erStatusPage">
-        <div className="container erContainer">
-          <div style={{ marginBottom: '1.5rem' }}>
-            <Link href="/service" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
-              ← กลับไปหน้าระบบงานภายใน
+      <div className="erPage">
+        <div className="erContainer">
+          <div className="erTopBar">
+            <Link href="/service" className="erBackLink">
+              <ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span>กลับสู่ระบบงานภายใน</span>
             </Link>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-            <SkeletonCard height="130px" />
-            <SkeletonCard height="130px" />
-            <SkeletonCard height="130px" />
-            <SkeletonCard height="130px" />
-            <SkeletonCard height="130px" />
-            <SkeletonCard height="130px" />
+          <div className="erSummaryGrid">
+            <SkeletonCard height="104px" />
+            <SkeletonCard height="104px" />
+            <SkeletonCard height="104px" />
+            <SkeletonCard height="104px" />
+            <SkeletonCard height="104px" />
           </div>
-          <div className="card" style={{ padding: '1.5rem', background: '#fff' }}>
+          <div className="erPanel erPanelPadded">
             <SkeletonTable rows={6} cols={7} />
           </div>
         </div>
@@ -109,147 +133,208 @@ export default function ERInStatusClient() {
 
   const hasCritical = (data?.summary.critical || 0) > 0
   const activePatients = data?.activePatients || []
+  const ptTypes = data?.stats.ptTypes || []
+  const emergencyLevels = data?.stats.emergencyLevels || []
+  const dischargeTypes = data?.stats.dischargeTypes || []
+
+  const maxPtType = Math.max(...ptTypes.map((item) => item.v), 1)
+  const maxEmergencyLevel = Math.max(...emergencyLevels.map((item) => item.v), 1)
+  const maxDischargeType = Math.max(...dischargeTypes.map((item) => item.v), 1)
 
   return (
-    <div className="erStatusPage">
-      <div className="container erContainer">
-        
-        {/* Navigation back */}
-        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <Link href="/service" className="btn btn-outline btn-sm touch-target">
-            <ArrowLeft size={16} />
+    <div className="erPage">
+      <div className="erContainer">
+        {/* Top utility bar */}
+        <div className="erTopBar">
+          <Link href="/service" className="erBackLink">
+            <ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" />
             <span>กลับสู่ระบบงานภายใน</span>
           </Link>
 
           {/* Last Updated Status Indicator (S2) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <Clock size={14} />
-              <span>
-                อัปเดตล่าสุด: {lastUpdated ? lastUpdated.toLocaleTimeString('th-TH') : 'กำลังโหลด...'}
-              </span>
+          <span className="erLastUpdated">
+            <span className="erLiveDot" aria-hidden="true" />
+            <Clock size={14} strokeWidth={1.5} aria-hidden="true" />
+            <span>
+              อัปเดตล่าสุด:{' '}
+              <strong className="erTabular">
+                {lastUpdated ? lastUpdated.toLocaleTimeString('th-TH') : 'กำลังโหลด...'}
+              </strong>
             </span>
+          </span>
+        </div>
 
+        {/* Page Header */}
+        <header className="erHeader">
+          <div className="erTitleBlock">
+            <h1 className="erTitle">ระบบแสดงผลสถานะห้องฉุกเฉิน (ER Live Status)</h1>
+            <p className="erSubtitle">
+              ข้อมูลอัปเดตเรียลไทม์เพื่อบริหารจัดการผู้ป่วย ณ จุดบริการฉุกเฉิน
+            </p>
+          </div>
+          <div className="erHeaderActions">
             <button
               type="button"
               onClick={refresh}
               disabled={isRefreshing}
-              className="btn btn-sm btn-outline touch-target"
+              className="erBtn"
               aria-label="รีเฟรชข้อมูล"
               title="รีเฟรชข้อมูลทันที"
             >
-              <RefreshCw size={13} className={isRefreshing ? 'spinner' : ''} />
+              <RefreshCw
+                size={15}
+                strokeWidth={1.5}
+                className={isRefreshing ? 'erSpin' : ''}
+                aria-hidden="true"
+              />
               <span>{isRefreshing ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
             </button>
-          </div>
-        </div>
-
-        {/* Dashboard Header */}
-        <header className="erHeaderCard card animate-fadeInUp">
-          <div className="erTitleSection">
-            <h1>ระบบแสดงผลสถานะห้องฉุกเฉิน (ER Live Status)</h1>
-            <p className="erSubtitle">ข้อมูลอัปเดตเรียลไทม์เพื่อบริหารจัดการผู้ป่วย ณ จุดบริการฉุกเฉิน</p>
-          </div>
-          <div className="erControls">
-            <Link href="/service/er-in-status/tv-mode" target="_blank" className="btn btn-primary touch-target">
-              <Tv size={16} />
+            <Link
+              href="/service/er-in-status/tv-mode"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="erBtn erBtnPrimary"
+            >
+              <Tv size={16} strokeWidth={1.75} aria-hidden="true" />
               <span>เปิดจอโหมดทีวี (TV Mode)</span>
             </Link>
           </div>
         </header>
 
-        {/* Critical Alert Warning Alert */}
+        {/* Connection / API Error Banner */}
+        {error && (
+          <div className="erErrorBanner" role="alert">
+            <AlertCircle size={18} strokeWidth={1.75} aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Critical Alert Warning Banner */}
         {hasCritical && (
-          <section className="erAlertBanner animate-pulse">
-            <AlertTriangle size={24} style={{ color: '#ffffff', flexShrink: 0 }} />
-            <div className="alertMsg">
-              คำเตือน: ขณะนี้มีผู้ป่วยวิกฤตฉุกเฉินกู้ชีพ (Resuscitate Red Level) จำนวน {data?.summary.critical} ราย กำลังรับการช่วยเหลือ!
-              <br />
-              <span style={{ fontSize: '0.9375rem', fontWeight: 'normal', opacity: 0.95 }}>
+          <section className="erAlertBanner" role="status" aria-live="polite">
+            <div className="erAlertIconWrap" aria-hidden="true">
+              <AlertTriangle size={20} strokeWidth={1.75} />
+            </div>
+            <div className="erAlertContent">
+              <p className="erAlertTitle">
+                คำเตือน: ขณะนี้มีผู้ป่วยวิกฤตฉุกเฉินกู้ชีพ (Resuscitate Red Level) จำนวน{' '}
+                <span className="erTabular">{data?.summary.critical}</span> ราย กำลังรับการช่วยเหลือ
+              </p>
+              <p className="erAlertDesc">
                 ทีมแพทย์และพยาบาลกำลังระดมกำลังให้การกู้ชีพอย่างเร่งด่วนที่สุด
-              </span>
+              </p>
             </div>
           </section>
         )}
 
         {/* Real-time Summary Cards */}
-        <section className="erSummaryGrid animate-fadeInUp">
-          <div className="erStatCard card">
-            <div className="statVal">{data?.summary.totalActive}</div>
-            <div className="statLabel">ผู้ป่วยในห้องฉุกเฉินทั้งหมด</div>
+        <section className="erSummaryGrid" aria-label="สรุปจำนวนผู้ป่วยห้องฉุกเฉิน">
+          <div className="erStatCard erStatTotal">
+            <div className="erStatHeader">
+              <span className="erStatLabel">ผู้ป่วยในห้องฉุกเฉินทั้งหมด</span>
+            </div>
+            <div className="erStatValue erTabular">{data?.summary.totalActive ?? 0}</div>
           </div>
-          
-          <div className="erStatCard card criticalCard">
-            <div className="statVal">{data?.summary.critical}</div>
-            <div className="statLabel">🔴 กู้ชีพทันที (Resuscitate)</div>
+
+          <div className="erStatCard erStatCritical">
+            <div className="erStatHeader">
+              <span className="erTriageDot erDotCritical" aria-hidden="true" />
+              <span className="erStatLabel">กู้ชีพทันที (Resuscitate)</span>
+            </div>
+            <div className="erStatValue erTabular">{data?.summary.critical ?? 0}</div>
           </div>
-          
-          <div className="erStatCard card emergencyCard">
-            <div className="statVal">{data?.summary.emergency}</div>
-            <div className="statLabel">🟠 ฉุกเฉินวิกฤต (Emergency)</div>
+
+          <div className="erStatCard erStatEmergency">
+            <div className="erStatHeader">
+              <span className="erTriageDot erDotEmergency" aria-hidden="true" />
+              <span className="erStatLabel">ฉุกเฉินวิกฤต (Emergency)</span>
+            </div>
+            <div className="erStatValue erTabular">{data?.summary.emergency ?? 0}</div>
           </div>
-          
-          <div className="erStatCard card urgencyCard">
-            <div className="statVal">{data?.summary.urgency}</div>
-            <div className="statLabel">🟡 ฉุกเฉินเร่งด่วน (Urgency)</div>
+
+          <div className="erStatCard erStatUrgency">
+            <div className="erStatHeader">
+              <span className="erTriageDot erDotUrgency" aria-hidden="true" />
+              <span className="erStatLabel">ฉุกเฉินเร่งด่วน (Urgency)</span>
+            </div>
+            <div className="erStatValue erTabular">{data?.summary.urgency ?? 0}</div>
           </div>
-          
-          <div className="erStatCard card semiUrgencyCard">
-            <div className="statVal">{data?.summary.semiUrgency}</div>
-            <div className="statLabel">🟢 ฉุกเฉินไม่รุนแรง (Semi Urgency)</div>
+
+          <div className="erStatCard erStatSemi">
+            <div className="erStatHeader">
+              <span className="erTriageDot erDotSemi" aria-hidden="true" />
+              <span className="erStatLabel">ฉุกเฉินไม่รุนแรง (Semi Urgency)</span>
+            </div>
+            <div className="erStatValue erTabular">{data?.summary.semiUrgency ?? 0}</div>
           </div>
         </section>
 
         {/* Active Patients Live Queue */}
-        <section className="patientsListCard card animate-fadeInUp">
-          <h2 style={{ fontSize: '1.3rem', borderBottom: '2px solid var(--primary-light)', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
-            รายชื่อผู้ป่วยที่กำลังตรวจรักษาในห้องฉุกเฉิน ({activePatients.length} ราย)
-          </h2>
-          
+        <section className="erPanel">
+          <div className="erPanelHeader">
+            <h2 className="erPanelTitle">รายชื่อผู้ป่วยที่กำลังตรวจรักษาในห้องฉุกเฉิน</h2>
+            <span className="erCountMeta erTabular">{activePatients.length} ราย</span>
+          </div>
+
           {activePatients.length === 0 ? (
-            <p className="emptyPatientsMessage">ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</p>
+            <div className="erEmptyState">
+              <p>ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</p>
+            </div>
           ) : (
-            <div className="table-responsive">
-              <table className="data-table patientsTable">
+            <div className="erTableScroll">
+              <table className="erTable">
                 <thead>
                   <tr>
-                    <th>เวลาที่เข้า</th>
-                    <th>HN</th>
-                    <th>ชื่อผู้ป่วย</th>
-                    <th>อายุ</th>
-                    <th>เตียงสังเกตอาการ</th>
-                    <th>ระดับความเร่งด่วน</th>
-                    <th>เตียงสังเกต (Observe)</th>
+                    <th className="colTime">เวลาที่เข้า</th>
+                    <th className="colHn">HN</th>
+                    <th className="colName">ชื่อผู้ป่วย</th>
+                    <th className="colAge">อายุ</th>
+                    <th className="colBed">เตียงสังเกตอาการ</th>
+                    <th className="colLevel">ระดับความเร่งด่วน</th>
+                    <th className="colObserve">เตียงสังเกต (Observe)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activePatients.map((patient: Patient, idx) => {
                     const levelId = Number(patient.er_emergency_level_id)
-                    let displayLevel = patient.er_emergency_level_name || 'ทั่วไป'
-                    if (levelId === 1) displayLevel = '🔴 กู้ชีพทันที (Resuscitate)'
-                    else if (levelId === 2) displayLevel = '🟠 ฉุกเฉินวิกฤต (Emergency)'
-                    else if (levelId === 3) displayLevel = '🟡 ด่วนมาก (Urgency)'
-                    else if (levelId === 4) displayLevel = '🟢 ด่วน (Semi Urgency)'
-                    else if (levelId === 5) displayLevel = '⚪ ทั่วไป (Non Urgency)'
+                    const { label, tone } = getLevelMeta(
+                      levelId,
+                      patient.er_emergency_level_name
+                    )
 
                     return (
-                      <tr key={patient.vn || idx} className={`level-${levelId}`}>
-                        <td data-label="เวลาเข้า" style={{ fontWeight: 'bold' }}>{patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}</td>
-                        <td data-label="HN" style={{ fontWeight: 600 }}>{patient.hn}</td>
-                        <td data-label="ชื่อ-สกุล" style={{ fontWeight: 600 }}>{patient.ptname}</td>
-                        <td data-label="อายุ">{patient.age} ปี</td>
-                        <td data-label="เตียง" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
-                          {patient.bedno ? `เตียง ${patient.bedno}` : '-'}
+                      <tr key={patient.vn || idx} className={`erRow ${tone}`}>
+                        <td data-label="เวลาเข้า" className="colTime erCellMono">
+                          {patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}
                         </td>
-                        <td data-label="ระดับความรุนแรง">
-                          <span className={`severityPill pill-${levelId}`}>
-                            {displayLevel}
+                        <td data-label="HN" className="colHn erCellMono">
+                          {patient.hn}
+                        </td>
+                        <td data-label="ชื่อ-สกุล" className="colName erCellName">
+                          {patient.ptname}
+                        </td>
+                        <td data-label="อายุ" className="colAge erTabular">
+                          {patient.age} ปี
+                        </td>
+                        <td data-label="เตียง" className="colBed">
+                          {patient.bedno ? (
+                            <span className="erBedTag">เตียง {patient.bedno}</span>
+                          ) : (
+                            <span className="erMutedDash">-</span>
+                          )}
+                        </td>
+                        <td data-label="ระดับความรุนแรง" className="colLevel">
+                          <span className={`erSeverityBadge pill-${levelId}`}>
+                            <span className="erBadgeDot" aria-hidden="true" />
+                            <span>{label}</span>
                           </span>
                         </td>
-                        <td data-label="สถานะ Observe">
+                        <td data-label="สถานะ Observe" className="colObserve">
                           {patient.observe === 'Y' ? (
-                            <span className="observeBadge">Observe ON</span>
-                          ) : '-'}
+                            <span className="erObserveBadge">Observe ON</span>
+                          ) : (
+                            <span className="erMutedDash">-</span>
+                          )}
                         </td>
                       </tr>
                     )
@@ -262,23 +347,26 @@ export default function ERInStatusClient() {
 
         {/* Error Status Warning & Table Section */}
         {data?.errorStatusList && (
-          <section className="errorStatusCard card animate-fadeInUp">
-            <div className="errorStatusBanner">
-              <span className="errorStatusIcon">⚠️</span>
-              <span className="errorStatusTitle">
-                แสดงสถานะไม่ถูกต้อง จำนวน {data.errorStatusList.total} ราย
-              </span>
+          <section className="erPanel erErrorPanel">
+            <div className="erErrorPanelHeader">
+              <div className="erErrorPanelTitleGroup">
+                <AlertTriangle size={18} strokeWidth={1.75} aria-hidden="true" />
+                <h2 className="erErrorPanelTitle">
+                  แสดงสถานะไม่ถูกต้อง จำนวน{' '}
+                  <span className="erTabular">{data.errorStatusList.total}</span> ราย
+                </h2>
+              </div>
             </div>
 
             {data.errorStatusList.total > 0 && (
-              <div className="table-responsive" style={{ marginTop: '1rem' }}>
-                <table className="data-table patientsTable errorStatusTable">
+              <div className="erTableScroll">
+                <table className="erTable erErrorTable">
                   <thead>
                     <tr>
-                      <th style={{ width: '22%' }}>วันที่มารับบริการ</th>
-                      <th style={{ width: '18%', textAlign: 'center' }}>HN</th>
-                      <th style={{ width: '25%' }}>สถานะ</th>
-                      <th style={{ width: '35%' }}>พยาบาลเวร / เจ้าหน้าที่เวร</th>
+                      <th className="colErrDate">วันที่มารับบริการ</th>
+                      <th className="colErrHn">HN</th>
+                      <th className="colErrStatus">สถานะ</th>
+                      <th className="colErrStaff">พยาบาลเวร / เจ้าหน้าที่เวร</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -293,19 +381,19 @@ export default function ERInStatusClient() {
                         : '-'
 
                       return (
-                        <tr key={item.vn || idx} className="errorRow">
-                          <td data-label="วันที่มารับบริการ" style={{ fontWeight: 600 }}>
+                        <tr key={item.vn || idx}>
+                          <td data-label="วันที่มารับบริการ" className="colErrDate erTabular">
                             {formattedDate}
                           </td>
-                          <td data-label="HN" style={{ textAlign: 'center', fontWeight: 700 }}>
+                          <td data-label="HN" className="colErrHn erCellMono">
                             {item.hn}
                           </td>
-                          <td data-label="สถานะ">
-                            <span className="errorStatusBadge">
+                          <td data-label="สถานะ" className="colErrStatus">
+                            <span className="erErrorStatusBadge">
                               {item.status_name || '-'}
                             </span>
                           </td>
-                          <td data-label="พยาบาลเวร / เจ้าหน้าที่เวร" style={{ color: 'var(--gray-700)' }}>
+                          <td data-label="พยาบาลเวร / เจ้าหน้าที่เวร" className="colErrStaff">
                             {item.nname || '-'}
                           </td>
                         </tr>
@@ -319,56 +407,94 @@ export default function ERInStatusClient() {
         )}
 
         {/* Monthly statistics */}
-        <section className="erMonthlyStatsGrid animate-fadeInUp">
+        <section className="erMonthlyStatsGrid" aria-label="สถิติห้องฉุกเฉินประจำเดือน">
           {/* 1. Monthly Pt Types */}
-          <div className="statsTableCard card cardTypeGreen">
-            <h3>ประเภทผู้ป่วย (ประจำเดือนนี้)</h3>
-            <ul className="statsList">
-              {data?.stats.ptTypes.map((pt, idx) => (
-                <li key={idx}>
-                  <span className="statsItemName">{pt.name || 'ไม่ระบุประเภท'}</span>
-                  <span className="statsCount">{pt.v} ราย</span>
-                </li>
-              ))}
-              {data?.stats.ptTypes.length === 0 && (
-                <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
-              )}
-            </ul>
+          <div className="erStatsCard">
+            <div className="erStatsCardHeader">
+              <h3>ประเภทผู้ป่วย (ประจำเดือนนี้)</h3>
+            </div>
+            {ptTypes.length === 0 ? (
+              <p className="erNoStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+            ) : (
+              <ul className="erStatsList">
+                {ptTypes.map((pt, idx) => (
+                  <li key={idx} className="erStatsRow">
+                    <div className="erStatsRowTop">
+                      <span className="erStatsName">{pt.name || 'ไม่ระบุประเภท'}</span>
+                      <span className="erStatsCount erTabular">{pt.v} ราย</span>
+                    </div>
+                    <div className="erStatsTrack" aria-hidden="true">
+                      <div
+                        className="erStatsFill erFillAccent"
+                        style={{ width: `${Math.max(4, (pt.v / maxPtType) * 100)}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* 2. Monthly Emergency Levels */}
-          <div className="statsTableCard card cardTypeRed">
-            <h3>สัดส่วนความรุนแรงผู้ป่วย (ประจำเดือนนี้)</h3>
-            <ul className="statsList">
-              {data?.stats.emergencyLevels.map((el, idx) => (
-                <li key={idx}>
-                  <span className="statsItemName">{el.er_emergency_level_name || 'ไม่ระบุความรุนแรง'}</span>
-                  <span className="statsCount statusLevelCount">{el.v} ราย</span>
-                </li>
-              ))}
-              {data?.stats.emergencyLevels.length === 0 && (
-                <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
-              )}
-            </ul>
+          <div className="erStatsCard">
+            <div className="erStatsCardHeader">
+              <h3>สัดส่วนความรุนแรงผู้ป่วย (ประจำเดือนนี้)</h3>
+            </div>
+            {emergencyLevels.length === 0 ? (
+              <p className="erNoStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+            ) : (
+              <ul className="erStatsList">
+                {emergencyLevels.map((el, idx) => (
+                  <li key={idx} className="erStatsRow">
+                    <div className="erStatsRowTop">
+                      <span className="erStatsName">
+                        {el.er_emergency_level_name || 'ไม่ระบุความรุนแรง'}
+                      </span>
+                      <span className="erStatsCount erTabular">{el.v} ราย</span>
+                    </div>
+                    <div className="erStatsTrack" aria-hidden="true">
+                      <div
+                        className="erStatsFill erFillDanger"
+                        style={{
+                          width: `${Math.max(4, (el.v / maxEmergencyLevel) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* 3. Monthly Discharge Types */}
-          <div className="statsTableCard card cardTypeTeal">
-            <h3>สถานะหลังออกจากห้องฉุกเฉิน (ประจำเดือนนี้)</h3>
-            <ul className="statsList">
-              {data?.stats.dischargeTypes.map((dt, idx) => (
-                <li key={idx}>
-                  <span className="statsItemName">{dt.name || 'ไม่ระบุการจำหน่าย'}</span>
-                  <span className="statsCount statusDchCount">{dt.v} ราย</span>
-                </li>
-              ))}
-              {data?.stats.dischargeTypes.length === 0 && (
-                <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
-              )}
-            </ul>
+          <div className="erStatsCard">
+            <div className="erStatsCardHeader">
+              <h3>สถานะหลังออกจากห้องฉุกเฉิน (ประจำเดือนนี้)</h3>
+            </div>
+            {dischargeTypes.length === 0 ? (
+              <p className="erNoStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+            ) : (
+              <ul className="erStatsList">
+                {dischargeTypes.map((dt, idx) => (
+                  <li key={idx} className="erStatsRow">
+                    <div className="erStatsRowTop">
+                      <span className="erStatsName">{dt.name || 'ไม่ระบุการจำหน่าย'}</span>
+                      <span className="erStatsCount erTabular">{dt.v} ราย</span>
+                    </div>
+                    <div className="erStatsTrack" aria-hidden="true">
+                      <div
+                        className="erStatsFill erFillInfo"
+                        style={{
+                          width: `${Math.max(4, (dt.v / maxDischargeType) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
-
       </div>
     </div>
   )

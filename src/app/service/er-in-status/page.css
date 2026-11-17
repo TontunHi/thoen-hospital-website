@@ -1,309 +1,743 @@
-.erStatusPage {
-  padding-top: calc(var(--navbar-height) + 2rem);
-  padding-bottom: 4rem;
-  background-color: var(--gray-50);
-  transition: all 0.3s ease;
-  min-height: 100vh;
+/* Scoped to ER Live Status — Light-mode locked, aligned with DESIGN.md & OpenDesigner tokens.css */
+.erPage {
+  color-scheme: light;
+
+  /* Lock semantic DS tokens strictly to the Light palette */
+  --ds-color-surface-sunken: var(--ds-color-neutral-light-2);
+  --ds-color-surface-base: var(--ds-color-neutral-light-1);
+  --ds-color-surface-raised: var(--ds-color-white);
+  --ds-color-surface-overlay: var(--ds-color-white);
+  --ds-color-text-primary: var(--ds-color-neutral-light-12);
+  --ds-color-text-secondary: var(--ds-color-neutral-light-11);
+  --ds-color-text-disabled: var(--ds-color-neutral-light-8);
+  --ds-color-text-accent: var(--ds-color-accent-light-11);
+  --ds-color-text-on-action: var(--ds-color-white);
+  --ds-color-text-inverse: var(--ds-color-white);
+  --ds-color-text-success: var(--ds-color-success-light-11);
+  --ds-color-text-warning: var(--ds-color-warning-light-11);
+  --ds-color-text-danger: var(--ds-color-danger-light-11);
+  --ds-color-text-info: var(--ds-color-info-light-11);
+  --ds-color-bg-neutral-subtle: var(--ds-color-neutral-light-3);
+  --ds-color-bg-neutral-subtle-hover: var(--ds-color-neutral-light-4);
+  --ds-color-bg-neutral-subtle-pressed: var(--ds-color-neutral-light-5);
+  --ds-color-bg-accent-subtle: var(--ds-color-accent-light-3);
+  --ds-color-bg-action-primary: var(--ds-color-accent-light-9);
+  --ds-color-bg-action-primary-hover: var(--ds-color-accent-light-10);
+  --ds-color-bg-action-primary-pressed: var(--ds-color-accent-light-solid-pressed);
+  --ds-color-bg-success-subtle: var(--ds-color-success-light-3);
+  --ds-color-bg-success-bold: var(--ds-color-success-light-9);
+  --ds-color-bg-warning-subtle: var(--ds-color-warning-light-3);
+  --ds-color-bg-warning-bold: var(--ds-color-warning-light-9);
+  --ds-color-bg-danger-subtle: var(--ds-color-danger-light-3);
+  --ds-color-bg-danger-bold: var(--ds-color-danger-light-9);
+  --ds-color-bg-info-subtle: var(--ds-color-info-light-3);
+  --ds-color-bg-info-bold: var(--ds-color-info-light-9);
+  --ds-color-border-subtle: var(--ds-color-neutral-light-6);
+  --ds-color-border-default: var(--ds-color-neutral-light-7);
+  --ds-color-border-separator: var(--ds-color-neutral-light-4);
+  --ds-color-border-accent: var(--ds-color-accent-light-8);
+  --ds-color-border-success: var(--ds-color-success-light-8);
+  --ds-color-border-warning: var(--ds-color-warning-light-8);
+  --ds-color-border-danger: var(--ds-color-danger-light-8);
+  --ds-color-border-info: var(--ds-color-info-light-8);
+  --ds-color-border-focus: var(--ds-color-accent-light-9);
+  --ds-color-shadow-key: var(--ds-color-neutral-alpha-light-3);
+  --ds-color-shadow-ring: var(--ds-color-neutral-alpha-light-4);
+
+  /* Clinical ESI Level 2 (Emergency - Orange) not present in 4-status ramp */
+  --er-emergency-bg: #fff7ed; /* od-ignore */
+  --er-emergency-border: #fdba74; /* od-ignore */
+  --er-emergency-dot: #ea580c; /* od-ignore */
+  --er-emergency-text: #9a3412; /* od-ignore */
+
+  min-height: 100svh;
+  background: var(--ds-color-surface-base);
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  padding: 1.25rem 1rem 3rem;
+}
+
+@media (min-width: 48rem) {
+  .erPage {
+    padding: 1.5rem 1.5rem 4rem;
+  }
 }
 
 .erContainer {
-  max-width: 1400px;
+  max-width: var(--ds-layout-container-max);
   margin: 0 auto;
-  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-/* Header & Controls */
-.erHeaderCard {
+.erTabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Top Utility Bar */
+.erTopBar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.erBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--ds-size-target-min);
+  padding: 0 0.25rem;
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-body);
+  color: var(--ds-color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--ds-radius-control);
+  transition: color var(--ds-motion-duration-micro) var(--ds-motion-easing-hover);
+}
+
+.erBackLink:hover {
+  color: var(--ds-color-text-accent);
+}
+
+.erLastUpdated {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text-secondary);
+}
+
+.erLiveDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--ds-radius-person);
+  background: var(--ds-color-bg-success-bold);
+  flex-shrink: 0;
+}
+
+/* Header */
+.erHeader {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding: 1.5rem 2rem;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
 }
 
-.erTitleSection h1 {
-  font-size: 2rem;
-  color: var(--gray-900);
-  margin-bottom: 0.25rem;
+.erTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.erTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-24);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
 }
 
 .erSubtitle {
-  color: var(--gray-600);
-  font-size: 0.95rem;
-}
-
-.erControls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.tvToggleBtn {
-  background: var(--primary);
-  color: var(--white);
-  border: none;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: background 0.2s, transform 0.2s;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-}
-
-.tvToggleBtn:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-}
-
-.lastUpdateText {
-  font-size: 0.9rem;
-  color: var(--gray-500);
-}
-
-/* Alert Banner */
-.erAlertBanner {
-  background: #ffebee;
-  border: 2px solid #ef5350;
-  border-radius: 12px;
-  padding: 1.25rem 2rem;
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  animation: pulseBg 2s infinite ease-in-out;
-}
-
-.alertIcon {
-  font-size: 2.5rem;
-  animation: bounceAlert 1s infinite alternate;
-}
-
-.alertMsg {
-  color: #c62828;
-  font-size: 1.25rem;
-  font-weight: 800;
   margin: 0;
-  flex: 1;
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-secondary);
 }
 
-/* Summary Grid */
-.erSummaryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+.erHeaderActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.erStatCard {
-  text-align: center;
-  padding: 1.5rem;
-  border-radius: 12px;
-  background: var(--white);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
-  transition: transform 0.2s;
+/* Buttons */
+.erBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid var(--ds-color-border-default);
+  background: var(--ds-color-surface-raised);
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: var(--ds-elevation-raised);
+  transition:
+    background-color var(--ds-motion-duration-micro) var(--ds-motion-easing-hover),
+    border-color var(--ds-motion-duration-micro) var(--ds-motion-easing-hover),
+    color var(--ds-motion-duration-micro) var(--ds-motion-easing-hover),
+    transform var(--ds-motion-duration-micro) var(--ds-motion-easing-hover);
 }
 
-.erStatCard:hover {
-  transform: translateY(-2px);
+.erBtn svg {
+  flex-shrink: 0;
 }
 
-.statVal {
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: var(--gray-900);
-  margin-bottom: 0.25rem;
+.erBtn:hover:not(:disabled) {
+  background: var(--ds-color-surface-sunken);
+  border-color: var(--ds-color-border-input, var(--ds-color-border-default));
+  color: var(--ds-color-text-primary);
 }
 
-.statLabel {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--gray-600);
+.erBtn:active:not(:disabled) {
+  background: var(--ds-color-bg-neutral-subtle-pressed);
+  transform: scale(var(--ds-motion-scale-press));
 }
 
-/* Severity specific counters */
-.erStatCard.criticalCard { border-left: 5px solid #d32f2f; }
-.erStatCard.criticalCard .statVal { color: #d32f2f; }
-
-.erStatCard.emergencyCard { border-left: 5px solid #f57c00; }
-.erStatCard.emergencyCard .statVal { color: #f57c00; }
-
-.erStatCard.urgencyCard { border-left: 5px solid #fbc02d; }
-.erStatCard.urgencyCard .statVal { color: #fbc02d; }
-
-.erStatCard.semiUrgencyCard { border-left: 5px solid #388e3c; }
-.erStatCard.semiUrgencyCard .statVal { color: #388e3c; }
-
-/* Patient List Table */
-.patientsListCard {
-  padding: 2rem;
-  margin-bottom: 2.5rem;
+.erBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.patientsTableWrapper {
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--gray-200);
+.erHeaderActions .erBtnPrimary,
+.erBtn.erBtnPrimary {
+  padding: 0.5rem 1rem;
+  background: var(--ds-color-bg-action-primary);
+  border-color: var(--ds-color-bg-action-primary);
+  color: var(--ds-color-text-on-action);
+  font-weight: var(--ds-font-weight-heading);
 }
 
-.patientsTable {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+.erHeaderActions .erBtnPrimary:hover:not(:disabled),
+.erBtn.erBtnPrimary:hover:not(:disabled) {
+  background: var(--ds-color-bg-action-primary-hover);
+  border-color: var(--ds-color-bg-action-primary-hover);
+  color: var(--ds-color-text-on-action);
 }
 
-.patientsTable th {
-  background: var(--gray-100);
-  color: var(--gray-800);
-  font-weight: 700;
-  padding: 1rem 1.25rem;
-  font-size: 0.95rem;
-  border-bottom: 2px solid var(--gray-200);
+.erHeaderActions .erBtnPrimary:active:not(:disabled),
+.erBtn.erBtnPrimary:active:not(:disabled) {
+  background: var(--ds-color-bg-action-primary-pressed);
+  border-color: var(--ds-color-bg-action-primary-pressed);
+  color: var(--ds-color-text-on-action);
+  transform: scale(var(--ds-motion-scale-press));
 }
 
-.patientsTable td {
-  padding: 1.1rem 1.25rem;
-  font-size: 1rem;
-  color: var(--gray-900);
-  border-bottom: 1px solid var(--gray-200);
-  vertical-align: middle;
+.erBtn:focus-visible,
+.erBackLink:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
 }
 
-/* Patient table column widths optimization */
-.erStatusPage .patientsTable th:nth-child(1), .erStatusPage .patientsTable td:nth-child(1) { width: 90px; text-align: center; } /* เวลาที่เข้า */
-.erStatusPage .patientsTable th:nth-child(2), .erStatusPage .patientsTable td:nth-child(2) { width: 100px; text-align: center; } /* HN */
-.erStatusPage .patientsTable th:nth-child(3), .erStatusPage .patientsTable td:nth-child(3) { width: 220px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* ชื่อผู้ป่วย */
-.erStatusPage .patientsTable th:nth-child(4), .erStatusPage .patientsTable td:nth-child(4) { width: 80px; text-align: center; } /* อายุ */
-.erStatusPage .patientsTable th:nth-child(5), .erStatusPage .patientsTable td:nth-child(5) { width: 140px; text-align: center; } /* เตียงสังเกตอาการ */
-.erStatusPage .patientsTable th:nth-child(6), .erStatusPage .patientsTable td:nth-child(6) { width: 220px; text-align: center; } /* ระดับความเร่งด่วน */
-.erStatusPage .patientsTable th:nth-child(7), .erStatusPage .patientsTable td:nth-child(7) { width: 160px; text-align: center; } /* เตียงสังเกต (Observe) */
-
-/* Severity background styling */
-.patientsTable tr.level-1 { background-color: #ffebee; } /* Resuscitate */
-.patientsTable tr.level-2 { background-color: #fff3e0; } /* Emergency */
-.patientsTable tr.level-3 { background-color: #fffde7; } /* Urgency */
-.patientsTable tr.level-4 { background-color: #e8f5e9; } /* Semi Urgency */
-.patientsTable tr.level-5 { background-color: var(--white); } /* Non Urgency */
-
-.severityPill {
-  display: inline-block;
-  padding: 0.4rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 800;
-  text-align: center;
+.erSpin {
+  animation: erSpinAnim 0.9s var(--ds-motion-easing-linear) infinite;
 }
 
-.severityPill.pill-1 { background: #d32f2f; color: var(--white); animation: blinkAlert 1.5s infinite; }
-.severityPill.pill-2 { background: #f57c00; color: var(--white); }
-.severityPill.pill-3 { background: #fbc02d; color: var(--gray-900); }
-.severityPill.pill-4 { background: #388e3c; color: var(--white); }
-.severityPill.pill-5 { background: var(--gray-200); color: var(--gray-800); }
-
-/* Observe badge */
-.observeBadge {
-  background: #e0f2f1;
-  color: #00796b;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 700;
+@keyframes erSpinAnim {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* Error Status Card */
-.errorStatusCard {
-  padding: 1.75rem 2rem;
-  margin-bottom: 2.5rem;
-  border-left: 6px solid #f59e0b;
-  background: #fffbeb;
-}
-
-.errorStatusBanner {
+/* Error & Critical Banners */
+.erErrorBanner {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--ds-color-bg-danger-subtle);
+  border: 0.0625rem solid var(--ds-color-border-danger);
+  border-radius: var(--ds-radius-container);
+  color: var(--ds-color-text-danger);
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-heading);
 }
 
-.errorStatusIcon {
-  font-size: 1.6rem;
+.erAlertBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--ds-color-bg-danger-subtle);
+  border: 0.0625rem solid var(--ds-color-border-danger);
+  border-left: 0.25rem solid var(--ds-color-bg-danger-bold);
+  border-radius: var(--ds-radius-container);
+  color: var(--ds-color-text-danger);
 }
 
-.errorStatusTitle {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #92400e;
+.erAlertIconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-color-text-danger);
+  margin-top: 0.125rem;
+  flex-shrink: 0;
 }
 
-.errorTableWrapper {
-  background: var(--white);
-  border: 1px solid #fde68a;
+.erAlertContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.errorStatusTable th {
-  background: #fef3c7;
-  color: #78350f;
-  font-weight: 800;
+.erAlertTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-danger);
 }
 
-.errorRow:hover {
-  background: #fffdf5;
+.erAlertDesc {
+  margin: 0;
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-danger);
 }
 
-.errorStatusBadge {
-  display: inline-block;
-  background: #fee2e2;
-  color: #b91c1c;
-  font-weight: 700;
-  padding: 0.25rem 0.65rem;
-  border-radius: 6px;
-  font-size: 0.88rem;
-  border: 1px solid #fecaca;
+/* Summary Strip */
+.erSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
-/* Monthly Stats Grid */
+@media (min-width: 64rem) {
+  .erSummaryGrid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+.erStatCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
+}
+
+@media (max-width: 63.9375rem) {
+  .erStatTotal {
+    grid-column: span 2;
+  }
+}
+
+.erStatHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.erTriageDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--ds-radius-person);
+  flex-shrink: 0;
+}
+
+.erDotCritical {
+  background: var(--ds-color-bg-danger-bold);
+}
+
+.erDotEmergency {
+  background: var(--er-emergency-dot);
+}
+
+.erDotUrgency {
+  background: var(--ds-color-bg-warning-bold);
+}
+
+.erDotSemi {
+  background: var(--ds-color-bg-success-bold);
+}
+
+.erStatLabel {
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
+}
+
+.erStatValue {
+  font-size: var(--ds-font-size-29);
+  line-height: 1.2;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.erStatCritical .erStatValue {
+  color: var(--ds-color-text-danger);
+}
+
+.erStatEmergency .erStatValue {
+  color: var(--er-emergency-text);
+}
+
+.erStatUrgency .erStatValue {
+  color: var(--ds-color-text-warning);
+}
+
+.erStatSemi .erStatValue {
+  color: var(--ds-color-text-success);
+}
+
+/* Panels & Tables */
+.erPanel {
+  background: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
+  overflow: hidden;
+}
+
+.erPanelPadded {
+  padding: 1.25rem;
+}
+
+.erPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
+}
+
+.erPanelTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.erCountMeta {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-surface-sunken);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
+}
+
+.erEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  color: var(--ds-color-text-secondary);
+  text-align: center;
+}
+
+.erEmptyState p {
+  margin: 0;
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-secondary);
+}
+
+.erTableScroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.erTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--ds-font-size-14);
+}
+
+.erTable th {
+  padding: 0.75rem 1rem;
+  background: var(--ds-color-surface-sunken);
+  border-bottom: 0.0625rem solid var(--ds-color-border-subtle);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
+  white-space: nowrap;
+}
+
+.erTable td {
+  padding: 0.875rem 1rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
+  color: var(--ds-color-text-primary);
+  vertical-align: middle;
+}
+
+.erTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.erTable tbody tr:hover td {
+  background: var(--ds-color-surface-sunken);
+}
+
+/* Column alignments & widths */
+.erTable .colTime {
+  width: 5.5rem;
+  text-align: center;
+}
+
+.erTable .colHn {
+  width: 6.5rem;
+  text-align: center;
+}
+
+.erTable .colName {
+  min-width: 12rem;
+  text-align: left;
+}
+
+.erTable .colAge {
+  width: 5rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.erTable .colBed {
+  width: 9rem;
+  text-align: center;
+}
+
+.erTable .colLevel {
+  width: 14rem;
+  text-align: left;
+}
+
+.erTable .colObserve {
+  width: 9rem;
+  text-align: center;
+}
+
+.erCellMono {
+  font-family: var(--ds-font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.erCellName {
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.erMutedDash {
+  color: var(--ds-color-text-disabled);
+}
+
+/* Quiet triage row indicator (left bar only; critical level-1 gets subtle warm paper tint) */
+.erRow.level-1 td {
+  background: var(--ds-color-danger-light-1);
+}
+
+.erRow.level-1 td:first-child {
+  box-shadow: inset 0.1875rem 0 0 var(--ds-color-bg-danger-bold); /* od-ignore */
+}
+
+.erRow.level-2 td:first-child {
+  box-shadow: inset 0.1875rem 0 0 var(--er-emergency-dot); /* od-ignore */
+}
+
+.erRow.level-3 td:first-child {
+  box-shadow: inset 0.1875rem 0 0 var(--ds-color-bg-warning-bold); /* od-ignore */
+}
+
+.erRow.level-4 td:first-child {
+  box-shadow: inset 0.1875rem 0 0 var(--ds-color-bg-success-bold); /* od-ignore */
+}
+
+/* Severity Badges (no emojis, no blinking, >= 4.5:1 contrast) */
+.erSeverityBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--ds-radius-control-sm);
+  font-size: var(--ds-font-size-12);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  white-space: nowrap;
+  border: 0.0625rem solid transparent;
+}
+
+.erBadgeDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--ds-radius-person);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.erSeverityBadge.pill-1 {
+  background: var(--ds-color-bg-danger-bold);
+  color: var(--ds-color-text-on-danger);
+  border-color: var(--ds-color-bg-danger-bold);
+}
+
+.erSeverityBadge.pill-2 {
+  background: var(--er-emergency-bg);
+  color: var(--er-emergency-text);
+  border-color: var(--er-emergency-border);
+}
+
+.erSeverityBadge.pill-3 {
+  background: var(--ds-color-bg-warning-subtle);
+  color: var(--ds-color-text-warning);
+  border-color: var(--ds-color-border-warning);
+}
+
+.erSeverityBadge.pill-4 {
+  background: var(--ds-color-bg-success-subtle);
+  color: var(--ds-color-text-success);
+  border-color: var(--ds-color-border-success);
+}
+
+.erSeverityBadge.pill-5 {
+  background: var(--ds-color-bg-neutral-subtle);
+  color: var(--ds-color-text-secondary);
+  border-color: var(--ds-color-border-subtle);
+}
+
+.erBedTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-accent-subtle);
+  color: var(--ds-color-text-accent);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  white-space: nowrap;
+}
+
+.erObserveBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-info-subtle);
+  color: var(--ds-color-text-info);
+  border: 0.0625rem solid var(--ds-color-border-info);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  white-space: nowrap;
+}
+
+/* Error Status Panel */
+.erErrorPanel {
+  border-left: 0.25rem solid var(--ds-color-bg-warning-bold);
+}
+
+.erErrorPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: var(--ds-color-bg-warning-subtle);
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
+}
+
+.erErrorPanelTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--ds-color-text-warning);
+}
+
+.erErrorPanelTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-warning);
+}
+
+.erErrorTable .colErrDate {
+  width: 22%;
+}
+
+.erErrorTable .colErrHn {
+  width: 18%;
+  text-align: center;
+}
+
+.erErrorTable .colErrStatus {
+  width: 25%;
+}
+
+.erErrorTable .colErrStaff {
+  width: 35%;
+  color: var(--ds-color-text-secondary);
+}
+
+.erErrorStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--ds-radius-control-sm);
+  background: var(--ds-color-bg-danger-subtle);
+  color: var(--ds-color-text-danger);
+  border: 0.0625rem solid var(--ds-color-border-danger);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+/* Monthly Statistics Grid */
 .erMonthlyStatsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2.5rem;
+  grid-template-columns: 1fr;
+  gap: 1rem;
 }
 
-.statsTableCard {
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  position: relative;
-  overflow: hidden;
-  padding: 2.25rem 2.5rem !important;
+@media (min-width: 64rem) {
+  .erMonthlyStatsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
 }
 
-.statsTableCard:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+.erStatsCard {
+  background: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.statsTableCard h3 {
-  font-size: 1.25rem;
-  margin-bottom: 1.75rem;
-  padding-bottom: 0.875rem;
-  border-bottom: 1px solid var(--gray-200);
-  font-weight: 700;
-  color: var(--gray-900);
+.erStatsCardHeader {
+  padding-bottom: 0.75rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
 }
 
-/* Card specific top borders */
-.cardTypeGreen::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary);
-}
-.cardTypeRed::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #e53e3e;
-}
-.cardTypeTeal::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #008080;
+.erStatsCardHeader h3 {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.41;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
 }
 
-.statsList {
+.erStatsList {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -312,142 +746,160 @@
   gap: 0.75rem;
 }
 
-.statsList li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.875rem 0.5rem;
-  border-bottom: 1px solid var(--gray-100);
-  font-size: 1rem;
-}
-
-.statsList li:last-child {
-  border-bottom: none;
-}
-
-.statsItemName {
-  font-weight: 600;
-  color: var(--gray-800);
-}
-
-.statsCount {
-  font-weight: 700;
-  color: var(--primary);
-  background: var(--primary-light);
-  padding: 0.35rem 0.85rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-}
-
-.statusLevelCount {
-  background: #ffebee;
-  color: #c62828;
-}
-
-.statusDchCount {
-  background: #e0f2f1;
-  color: #00695c;
-}
-
-.noStatsText {
-  color: var(--gray-400);
-  font-size: 0.95rem;
-  text-align: center;
-  padding: 2rem 0;
-}
-
-/* Loading display styling */
-.erLoadingPanel {
+.erStatsRow {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 5rem;
-  gap: 1.5rem;
-  background: var(--white);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  gap: 0.375rem;
 }
 
-.erLoadingPanel .spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border-left-color: var(--primary);
-  animation: spin 1s linear infinite;
+.erStatsRowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
 }
 
-.emptyPatientsMessage {
+.erStatsName {
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-body);
+  color: var(--ds-color-text-primary);
+}
+
+.erStatsCount {
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
+}
+
+.erStatsTrack {
+  width: 100%;
+  height: 0.375rem;
+  border-radius: var(--ds-radius-person);
+  background: var(--ds-color-surface-sunken);
+  overflow: hidden;
+}
+
+.erStatsFill {
+  height: 100%;
+  border-radius: var(--ds-radius-person);
+}
+
+.erFillAccent {
+  background: var(--ds-color-bg-action-primary);
+}
+
+.erFillDanger {
+  background: var(--ds-color-bg-danger-bold);
+}
+
+.erFillInfo {
+  background: var(--ds-color-bg-info-bold);
+}
+
+.erNoStatsText {
+  margin: 0;
+  padding: 2rem 0;
   text-align: center;
-  padding: 3rem;
-  color: var(--gray-500);
-  font-size: 1.1rem;
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-secondary);
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
+/* Mobile Responsive Table Stack */
+@media (max-width: 48rem) {
+  .erTitle {
+    font-size: var(--ds-font-size-20);
+  }
 
-/* Responsiveness adjustments for smaller devices */
-@media (max-width: 768px) {
-  .erHeaderCard {
-    flex-direction: column;
+  .erHeader {
     align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem 1.5rem;
   }
-  .erTitleSection h1 {
-    font-size: 1.5rem;
-  }
-  .erControls {
+
+  .erHeaderActions {
     width: 100%;
-    justify-content: space-between;
   }
-  .erSummaryGrid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+
+  .erHeaderActions .erBtnPrimary {
+    flex: 1;
   }
-  .summaryCard {
-    padding: 1rem;
-  }
-  .erTable {
+
+  .erTable,
+  .erTable tbody {
     display: block;
     width: 100%;
   }
+
   .erTable thead {
     display: none;
   }
+
   .erTable tbody {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
+    padding: 0.75rem;
   }
+
   .erTable tr {
     display: flex;
     flex-direction: column;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    background: var(--ds-color-surface-raised);
+    border: 0.0625rem solid var(--ds-color-border-separator);
+    border-radius: var(--ds-radius-container);
+    padding: 0.75rem 1rem;
   }
+
   .erTable td {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.4rem 0;
-    border-bottom: 1px dashed #f1f5f9;
+    gap: 0.75rem;
+    width: 100% !important;
+    min-width: 0 !important;
+    text-align: right !important;
+    padding: 0.375rem 0;
+    border-bottom: 0.0625rem solid var(--ds-color-border-separator);
   }
+
   .erTable td:last-child {
     border-bottom: none;
   }
+
   .erTable td::before {
     content: attr(data-label);
-    font-weight: 600;
-    color: var(--gray-600);
-    font-size: 0.85rem;
+    font-size: var(--ds-font-size-12);
+    font-weight: var(--ds-font-weight-heading);
+    color: var(--ds-color-text-secondary);
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  .erRow.level-1 td:first-child,
+  .erRow.level-2 td:first-child,
+  .erRow.level-3 td:first-child,
+  .erRow.level-4 td:first-child {
+    box-shadow: none;
+  }
+
+  .erRow.level-1 {
+    border-left: 0.25rem solid var(--ds-color-bg-danger-bold);
+  }
+
+  .erRow.level-2 {
+    border-left: 0.25rem solid var(--er-emergency-dot);
+  }
+
+  .erRow.level-3 {
+    border-left: 0.25rem solid var(--ds-color-bg-warning-bold);
+  }
+
+  .erRow.level-4 {
+    border-left: 0.25rem solid var(--ds-color-bg-success-bold);
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .erSpin {
+    animation: none;
+  }
+}

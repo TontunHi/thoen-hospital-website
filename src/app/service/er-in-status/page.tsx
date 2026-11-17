@@ -1,5 +1,6 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import '../../../../opendesigner/build/css/tokens.css'
 import ERInStatusClient from './ERInStatusClient'
 
 export const metadata = {

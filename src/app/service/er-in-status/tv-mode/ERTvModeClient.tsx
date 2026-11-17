@@ -2,6 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import {
+  AlertCircle,
+  AlertTriangle,
+  Clock,
+  Maximize2,
+  Minimize2,
+  X,
+} from 'lucide-react'
 import './page.css'
 
 interface Patient {
@@ -30,11 +38,27 @@ interface ERData {
   }
 }
 
+function getTvLevelLabel(levelId: number, fallbackName: string): string {
+  switch (levelId) {
+    case 1:
+      return 'กู้ชีพทันที (Resuscitate)'
+    case 2:
+      return 'ฉุกเฉินวิกฤต (Emergency)'
+    case 3:
+      return 'ด่วนมาก (Urgency)'
+    case 4:
+      return 'ด่วน (Semi Urgency)'
+    case 5:
+      return 'ทั่วไป (Non Urgency)'
+    default:
+      return fallbackName || 'ทั่วไป'
+  }
+}
+
 export default function ERTvModeClient() {
   const [data, setData] = useState<ERData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [authenticated, setAuthenticated] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [currentTime, setCurrentTime] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -213,8 +237,8 @@ export default function ERTvModeClient() {
     return (
       <div className="erTvPage">
         <div className="erLoadingPanel">
-          <div className="spinner"></div>
-          <h3>กำลังเชื่อมต่อฐานข้อมูลห้องฉุกเฉิน...</h3>
+          <div className="spinner" aria-hidden="true" />
+          <p className="erLoadingText">กำลังเชื่อมต่อฐานข้อมูลห้องฉุกเฉิน...</p>
         </div>
       </div>
     )
@@ -235,64 +259,86 @@ export default function ERTvModeClient() {
   return (
     <div className="erTvPage" ref={containerRef}>
       <div className="erTvContainer">
-        
         {/* TV Header Bar with Integrated KPI Badges */}
         <header className="erTvHeader">
           <div className="erTvHeaderLeft">
-            <h1 className="erTvHospitalTitle">โรงพยาบาลเถิน • จอแสดงสถานะห้องฉุกเฉิน</h1>
-            <span className="erLiveBadge">● LIVE</span>
+            <h1 className="erTvHospitalTitle">โรงพยาบาลเถิน · จอแสดงสถานะห้องฉุกเฉิน</h1>
+            <span className="erLiveBadge">
+              <span className="erLiveDot" aria-hidden="true" />
+              <span>LIVE</span>
+            </span>
           </div>
 
           {/* Integrated Compact KPI Bar */}
-          <div className="erKpiBar">
+          <div className="erKpiBar" aria-label="สรุปจำนวนผู้ป่วยตามระดับความเร่งด่วน">
             <div className="kpiItem kpiTotal">
               <span className="kpiLabel">ทั้งหมด</span>
-              <span className="kpiVal">{data?.summary.totalActive}</span>
+              <span className="kpiVal">{data?.summary.totalActive ?? 0}</span>
             </div>
             <div className="kpiItem kpiCritical">
-              <span className="kpiDot redDot"></span>
+              <span className="kpiDot redDot" aria-hidden="true" />
               <span className="kpiLabel">กู้ชีพ</span>
-              <span className="kpiVal">{data?.summary.critical}</span>
+              <span className="kpiVal">{data?.summary.critical ?? 0}</span>
             </div>
             <div className="kpiItem kpiEmergency">
-              <span className="kpiDot orangeDot"></span>
+              <span className="kpiDot pinkDot" aria-hidden="true" />
               <span className="kpiLabel">วิกฤต</span>
-              <span className="kpiVal">{data?.summary.emergency}</span>
+              <span className="kpiVal">{data?.summary.emergency ?? 0}</span>
             </div>
             <div className="kpiItem kpiUrgency">
-              <span className="kpiDot yellowDot"></span>
+              <span className="kpiDot yellowDot" aria-hidden="true" />
               <span className="kpiLabel">ด่วนมาก</span>
-              <span className="kpiVal">{data?.summary.urgency}</span>
+              <span className="kpiVal">{data?.summary.urgency ?? 0}</span>
             </div>
             <div className="kpiItem kpiSemiUrgency">
-              <span className="kpiDot greenDot"></span>
+              <span className="kpiDot greenDot" aria-hidden="true" />
               <span className="kpiLabel">ด่วน/ทั่วไป</span>
-              <span className="kpiVal">{(data?.summary.semiUrgency || 0) + (data?.summary.nonUrgency || 0)}</span>
+              <span className="kpiVal">
+                {(data?.summary.semiUrgency || 0) + (data?.summary.nonUrgency || 0)}
+              </span>
             </div>
           </div>
 
           <div className="erTvHeaderRight">
-            <span className="erTvClock">🕒 {currentTime}</span>
-            <button 
-              type="button" 
+            <span className="erTvClock" aria-label="เวลาปัจจุบัน">
+              <Clock size={18} strokeWidth={1.75} aria-hidden="true" />
+              <span>{currentTime || '--:--:--'}</span>
+            </span>
+            <button
+              type="button"
               onClick={toggleFullScreen}
               className="erFullscreenBtn"
               title={isFullscreen ? 'ออกจาก Fullscreen' : 'เข้าสู่ Fullscreen (เต็มจอ)'}
             >
-              {isFullscreen ? '⤢ ย่อจอ' : '⛶ เต็มจอ'}
+              {isFullscreen ? (
+                <Minimize2 size={16} strokeWidth={1.75} aria-hidden="true" />
+              ) : (
+                <Maximize2 size={16} strokeWidth={1.75} aria-hidden="true" />
+              )}
+              <span>{isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}</span>
             </button>
             <Link href="/service/er-in-status" className="erExitBtn" title="กลับหน้าระบบปกติ">
-              ✕ ปิด
+              <X size={16} strokeWidth={1.75} aria-hidden="true" />
+              <span>ปิด</span>
             </Link>
           </div>
         </header>
 
+        {/* Connection Error Banner */}
+        {error && (
+          <div className="erTvErrorBanner" role="alert">
+            <AlertCircle size={20} strokeWidth={1.75} aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Critical Alert Warning Banner */}
         {hasCritical && (
-          <section className="erAlertBanner">
-            <span className="alertIcon">🚨</span>
+          <section className="erAlertBanner" role="status" aria-live="polite">
+            <AlertTriangle size={24} strokeWidth={2} className="alertIcon" aria-hidden="true" />
             <div className="alertMsg">
-              คำเตือน: ขณะนี้มีผู้ป่วยวิกฤตฉุกเฉินกู้ชีพ (Resuscitate Red Level) จำนวน {data?.summary.critical} ราย กำลังรับการช่วยเหลือ!
+              คำเตือน: ขณะนี้มีผู้ป่วยวิกฤตฉุกเฉินกู้ชีพ (Resuscitate Red Level) จำนวน{' '}
+              <span className="erTvTabular">{data?.summary.critical}</span> ราย กำลังรับการช่วยเหลือ
             </div>
           </section>
         )}
@@ -300,7 +346,9 @@ export default function ERTvModeClient() {
         {/* Main Patients Table Card - Large High-Visibility TV Layout */}
         <section className="patientsListCard card">
           {activePatients.length === 0 ? (
-            <div className="emptyPatientsMessage">ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</div>
+            <div className="emptyPatientsMessage">
+              <p>ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</p>
+            </div>
           ) : (
             <div className="patientsTableWrapper" ref={tableWrapperRef}>
               <table className="patientsTable">
@@ -317,31 +365,31 @@ export default function ERTvModeClient() {
                 <tbody>
                   {activePatients.map((patient: Patient, idx) => {
                     const levelId = Number(patient.er_emergency_level_id)
-                    let displayLevel = patient.er_emergency_level_name || 'ทั่วไป'
-                    if (levelId === 1) displayLevel = 'กู้ชีพทันที (Resuscitate)'
-                    else if (levelId === 2) displayLevel = 'ฉุกเฉินวิกฤต (Emergency)'
-                    else if (levelId === 3) displayLevel = 'ด่วนมาก (Urgency)'
-                    else if (levelId === 4) displayLevel = 'ด่วน (Semi Urgency)'
-                    else if (levelId === 5) displayLevel = 'ทั่วไป (Non Urgency)'
+                    const displayLevel = getTvLevelLabel(
+                      levelId,
+                      patient.er_emergency_level_name
+                    )
 
                     // ตัดนามสกุลออก แสดงเฉพาะ คำนำหน้า + ชื่อ
                     const nameParts = (patient.ptname || '').trim().split(/\s+/)
-                    const shortName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : patient.ptname
+                    const shortName =
+                      nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : patient.ptname
 
                     return (
                       <tr key={patient.vn || idx} className={`level-${levelId}`}>
                         <td className="col-time cell-time">
                           {patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}
                         </td>
-                        <td className="col-name cell-name">
-                          {shortName}
-                        </td>
+                        <td className="col-name cell-name">{shortName}</td>
                         <td className="col-age cell-age">
-                          {patient.age !== undefined && patient.age !== null ? `${patient.age} ปี` : '-'}
+                          {patient.age !== undefined && patient.age !== null
+                            ? `${patient.age} ปี`
+                            : '-'}
                         </td>
                         <td className="col-level cell-level">
                           <span className={`severityPill pill-${levelId}`}>
-                            {displayLevel}
+                            <span className="severityDot" aria-hidden="true" />
+                            <span>{displayLevel}</span>
                           </span>
                         </td>
                         <td className="col-status cell-status">
@@ -351,14 +399,12 @@ export default function ERTvModeClient() {
                         </td>
                         <td className="col-bed cell-bed">
                           {patient.bedno ? (
-                            <>
-                              <span className="bedBadge">
-                                เตียง {patient.bedno}
-                              </span>
+                            <span className="bedGroup">
+                              <span className="bedBadge">เตียง {patient.bedno}</span>
                               {patient.observe === 'Y' && (
                                 <span className="observeBadge">Observe</span>
                               )}
-                            </>
+                            </span>
                           ) : patient.observe === 'Y' ? (
                             <span className="observeBadge">Observe</span>
                           ) : (
@@ -373,10 +419,7 @@ export default function ERTvModeClient() {
             </div>
           )}
         </section>
-
       </div>
     </div>
   )
 }
-
-

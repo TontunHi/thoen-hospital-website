@@ -311,7 +311,7 @@ export default async function HomePage() {
               <p className="section-sub">เกาะติดข่าวสารและกิจกรรมผ่าน Facebook Fanpage โรงพยาบาลเถิน</p>
               <div className="facebook-wrapper">
                 <iframe
-                  src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FThoenHospital1669&tabs=timeline&width=500&height=550&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
+                  src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FThoenHospital1669&show_posts=true&width=500&height=550&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
                   width="100%"
                   height="550"
                   style={{ border: 'none', overflow: 'hidden', borderRadius: '8px' }}
