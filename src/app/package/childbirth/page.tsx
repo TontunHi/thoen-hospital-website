@@ -52,7 +52,7 @@ export default function ChildbirthPackagePage() {
   ]
 
   const supportedRights = [
-    { name: 'จ่ายเงินเอง', desc: 'ชำระค่าบริการตามจริงของราคาแพ็กเกจ' },
+    { name: 'จ่ายเงินเอง', desc: 'ชำระค่าบริการตามจริง' },
     { name: 'สิทธิประกันสังคม', desc: 'ใช้สิทธิคลอดบุตรประกันสังคม เบิกจ่ายตามเกณฑ์' },
     { name: 'สิทธิบัตรทอง (30 บาท)', desc: 'ใช้สิทธิได้ตามเงื่อนไข (ยกเว้นค่าห้องพิเศษส่วนเกิน)' },
     { name: 'สิทธิข้าราชการ (จ่ายตรง)', desc: 'เบิกได้ตามสิทธิราชการ (ยกเว้นค่าห้องพิเศษส่วนเกิน)' },
@@ -94,8 +94,7 @@ export default function ChildbirthPackagePage() {
 
             {/* Pricing Section */}
             <section className="childbirthSection card">
-              <h2 className="sectionTitle">1. อัตราค่าบริการคลอดบุตร</h2>
-              <p className="sectionSubtitle">*ราคารวมครอบคลุมระยะเวลาพักฟื้นตามมาตรฐานทางการแพทย์</p>
+              <h2 className="sectionTitle sectionTitle--noSubtitle">1. อัตราค่าบริการคลอดบุตร (ค่าใช้จ่ายโดยประมาณ)</h2>
               
               {/* Responsive Desktop Table */}
               <div className="tableResponsive">
@@ -153,7 +152,7 @@ export default function ChildbirthPackagePage() {
                 <div className="conditionCard inclusions">
                   <div className="conditionHeader text-teal">
                     <Check size={20} />
-                    <h3>รายการที่รวมในแพ็กเกจ</h3>
+                    <h3>ค่าใช้จ่ายที่รวมอยู่ในรายการ</h3>
                   </div>
                   <ul className="conditionList">
                     {inclusions.map((item, idx) => (
@@ -169,7 +168,7 @@ export default function ChildbirthPackagePage() {
                 <div className="conditionCard exclusions">
                   <div className="conditionHeader text-rose">
                     <X size={20} />
-                    <h3>รายการที่ไม่รวมในแพ็กเกจ</h3>
+                    <h3>ค่าใช้จ่ายที่ไม่รวมในรายการ</h3>
                   </div>
                   <ul className="conditionList">
                     {exclusions.map((item, idx) => (
@@ -248,8 +247,8 @@ export default function ChildbirthPackagePage() {
                 <Image
                   src="/images/package/childbirth/childbirth.webp"
                   alt="ตารางและรายละเอียดแพ็กเกจคลอดบุตร โรงพยาบาลเถิน"
-                  width={720}
-                  height={720}
+                  width={1040}
+                  height={1040}
                   style={{ width: '100%', height: 'auto', display: 'block' }}
                 />
               </div>

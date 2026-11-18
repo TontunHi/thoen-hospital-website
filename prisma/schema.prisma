@@ -7,6 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =============================================================================
+// THOROUGH TABLE OF CONTENTS — Thoen Hospital Website Database (45 Prisma Models)
+// เอกสารแผนผังฉบับเต็ม (รวมตารางนอก Prisma เช่น FCT / RCM / HOSxP / Salary):
+//   -> docs/database-map.md
+//   -> docs/database-map.html (เปิดดูแบบ Interactive ค้นหา/กรองตามระบบได้)
+//
+// หมวดหมู่ตามระบบบนเว็บ:
+//   1. Public CMS & Website Content      (news, attachments, hero_slides, contact_messages)
+//   2. Member Auth, RBAC & Audit         (members, member_registrations, *_permissions, *_telegram_*, audit_logs)
+//   3. Organization & Departments        (department_groups, department_members, department_roles)
+//   4. Official Documents & Quality      (ita_blogs, rdu_*, outgoing_documents, ethics_*)
+//   5. Central Inbox & Repair / Media    (inbox_tasks, inbox_task_steps, inbox_task_audit_logs, repair_details)
+//   6. Locations, Assets & Borrowing     (hospital_locations, hospital_assets, hospital_materials, equipment_borrow_*)
+//   7. Hospital Events & ThaID Check-in  (hospital_events, event_organizers, event_registrations, event_attendances, event_attachments)
+//   8. Screening Queue (Smart Card)      (screening_queues)
+//   9. KPI & Project/Budget Tracking     (kpi_topics, kpi_indicators, kpi_entries, project_tracking_*)
+//  10. Clinical Registries               (palliative_care_registries, palliative_care_registry_visits, dm_remission_*)
+// =============================================================================
+
+// =============================================================================
+// 1. PUBLIC CMS & WEBSITE CONTENT (ข่าวสาร, สไลด์หน้าแรก, เนื้อหาสาธารณะ)
+// =============================================================================
+
+/// ระบบ: ข่าวสารและประกาศประชาสัมพันธ์
+/// หน้าเว็บ: /news, /news/[slug], /member/news/news
+/// หน้าที่: เก็บหัวข้อข่าว หมวดหมู่ ช่วงวันที่เผยแพร่ และยอดเข้าชม
 model News {
   id          Int          @id @default(autoincrement())
   title       String       @db.VarChar(500)
@@ -25,6 +51,9 @@ model News {
   @@map("news")
 }
 
+/// ระบบ: ข่าวสารและประกาศประชาสัมพันธ์
+/// หน้าเว็บ: /news/[slug], /member/news/news
+/// หน้าที่: เก็บไฟล์แนบ/รูปภาพของข่าวแต่ละรายการ (เชื่อมกับ news)
 model Attachment {
   id           Int      @id @default(autoincrement())
   newsId       Int      @map("news_id")
@@ -38,6 +67,9 @@ model Attachment {
   @@map("attachments")
 }
 
+/// ระบบ: สไลด์ประชาสัมพันธ์หน้าแรก
+/// หน้าเว็บ: /, /member/news/slides
+/// หน้าที่: เก็บรูปภาพ/วิดีโอ MP4, ลิงก์, ลำดับ และระยะเวลาแสดงผลบน Hero Banner
 model HeroSlide {
   id           Int      @id @default(autoincrement())
   imagePath    String   @map("image_path") @db.VarChar(255)
@@ -53,23 +85,9 @@ model HeroSlide {
   @@map("hero_slides")
 }
 
-model AuditLog {
-  id            Int      @id @default(autoincrement())
-  timestamp     DateTime @default(now()) @db.Timestamp(0)
-  username      String?  @db.VarChar(100)
-  email         String?  @db.VarChar(100)
-  actionType    String   @map("action_type") @db.VarChar(50)
-  targetTable   String?  @map("target_table") @db.VarChar(100)
-  actionDetails String?  @map("action_details") @db.Text
-  ipAddress     String?  @map("ip_address") @db.VarChar(45)
-  userAgent     String?  @map("user_agent") @db.VarChar(255)
-
-  @@index([username], map: "idx_username")
-  @@index([actionType], map: "idx_action_type")
-  @@index([timestamp], map: "idx_timestamp")
-  @@map("audit_logs")
-}
-
+/// [DEPRECATED] ระบบ: ข้อความติดต่อ/ร้องเรียนเดิม (ลบฟีเจอร์ออกจาก UI และ API ถาวรแล้วตาม AGENTS.md)
+/// หน้าเว็บ: /contact (เดิม)
+/// หน้าที่: ตารางคงค้างจากระบบส่งข้อความติดต่อสอบถามในอดีต
 model ContactMessage {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(200)
@@ -83,6 +101,13 @@ model ContactMessage {
   @@map("contact_messages")
 }
 
+// =============================================================================
+// 2. MEMBER ACCOUNTS, AUTH, RBAC, TELEGRAM & AUDIT (สมาชิก, สิทธิ์, ความปลอดภัย)
+// =============================================================================
+
+/// ระบบ: บัญชีบุคลากรและผู้ใช้งานระบบ (/member)
+/// หน้าเว็บ: /member, /member/login, /member/member, /member/signature
+/// หน้าที่: ตารางหลักของสมาชิก (เลขบัตรประชาชน/username, ข้อมูลพื้นฐาน, OTP, รูปโปรไฟล์, ลายเซ็น)
 model Member {
   id                       Int                        @id @default(autoincrement())
   username                 String                     @unique(map: "username") @db.VarChar(100)
@@ -113,6 +138,53 @@ model Member {
   @@map("members")
 }
 
+/// ระบบ: ลงทะเบียนบุคลากรใหม่
+/// หน้าเว็บ: /register, /member/registrations
+/// หน้าที่: คำขอสมัครสมาชิกที่บุคลากรส่งผ่าน /register เพื่อรอ Admin อนุมัติ (แยกจาก members ที่ล็อกอินได้แล้ว)
+model MemberRegistration {
+  id                  Int       @id @default(autoincrement())
+  citizenId           String    @map("citizen_id") @db.VarChar(13)
+  title               String    @db.VarChar(50)
+  firstNameTh         String    @map("first_name_th") @db.VarChar(100)
+  lastNameTh          String    @map("last_name_th") @db.VarChar(100)
+  firstNameEn         String    @map("first_name_en") @db.VarChar(100)
+  lastNameEn          String    @map("last_name_en") @db.VarChar(100)
+  nickname            String    @db.VarChar(50)
+  licenseNo           String?   @map("license_no") @db.VarChar(100)
+  birthDate           String    @map("birth_date") @db.VarChar(50)
+  startDate           String    @map("start_date") @db.VarChar(50)
+  containDate         String?   @map("contain_date") @db.VarChar(50)
+  department          String    @db.VarChar(150)
+  position            String    @db.VarChar(150)
+  level               String    @db.VarChar(100)
+  personnelGroup      String    @map("personnel_group") @db.VarChar(100)
+  personnelGroupOther String?   @map("personnel_group_other") @db.VarChar(150)
+  hasHosxp            Boolean   @default(false) @map("has_hosxp")
+  hosxpUser           String?   @map("hosxp_user") @db.VarChar(100)
+  hosxpPass           String?   @map("hosxp_pass") @db.VarChar(255)
+  email               String    @db.VarChar(100)
+  phone               String    @db.VarChar(50)
+  lineId              String?   @map("line_id") @db.VarChar(100)
+  inHospitalHousing   Boolean   @default(false) @map("in_hospital_housing")
+  housingLocation     String?   @map("housing_location") @db.VarChar(100)
+  hasVehicle          Boolean   @default(false) @map("has_vehicle")
+  vehicles            Json?
+  status              String    @default("pending") @db.VarChar(20)
+  rejectReason        String?   @map("reject_reason") @db.Text
+  approvedAt          DateTime? @map("approved_at") @db.Timestamp(0)
+  approvedBy          String?   @map("approved_by") @db.VarChar(100)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([citizenId], map: "idx_registration_citizen")
+  @@index([status], map: "idx_registration_status")
+  @@index([email], map: "idx_registration_email")
+  @@map("member_registrations")
+}
+
+/// ระบบ: ตั้งค่าระบบสมาชิก (Key-Value Config)
+/// หน้าเว็บ: /member/settings
+/// หน้าที่: เก็บค่าตั้งค่าทั่วไปของระบบสมาชิก (เช่น ค่าเริ่มต้นหรือ flag การทำงาน)
 model MemberSystemSetting {
   configKey   String @id @map("config_key") @db.VarChar(100)
   configValue String @map("config_value") @db.VarChar(255)
@@ -120,6 +192,9 @@ model MemberSystemSetting {
   @@map("member_system_settings")
 }
 
+/// ระบบ: กำหนดสิทธิ์ตามตำแหน่ง (Position-based RBAC)
+/// หน้าเว็บ: /member/settings
+/// หน้าที่: ผูก permission_key เข้ากับชื่อตำแหน่ง (ทุกคนที่ครองตำแหน่งนั้นจะได้สิทธิ์อัตโนมัติ)
 model PositionPermission {
   id            Int      @id @default(autoincrement())
   permissionKey String   @map("permission_key") @db.VarChar(100)
@@ -130,6 +205,9 @@ model PositionPermission {
   @@map("position_permissions")
 }
 
+/// ระบบ: กำหนดสิทธิ์รายบุคคล (Member-based RBAC)
+/// หน้าเว็บ: /member/settings
+/// หน้าที่: มอบ permission_key เจาะจงให้สมาชิกรายคน (View / Edit / Approve / Manage)
 model MemberPermission {
   id            Int      @id @default(autoincrement())
   memberId      Int      @map("member_id")
@@ -145,21 +223,9 @@ model MemberPermission {
   @@map("member_permissions")
 }
 
-model ita_blogs {
-  id              Int      @id @default(autoincrement())
-  title           String   @db.VarChar(500)
-  slug            String?  @db.VarChar(500)
-  content         String   @db.LongText
-  author_id       Int
-  author_name     String?  @db.VarChar(255)
-  author_position String?  @db.VarChar(255)
-  created_at      DateTime @default(now()) @db.Timestamp(0)
-  updated_at      DateTime @default(now()) @db.Timestamp(0)
-  members         Member   @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "ita_blogs_ibfk_1")
-
-  @@index([author_id], map: "author_id")
-}
-
+/// ระบบ: แจ้งเตือน Telegram บุคลากร
+/// หน้าเว็บ: /member (เมนูเชื่อมต่อ Telegram)
+/// หน้าที่: เก็บการจับคู่ระหว่างบัญชี Member กับ telegram_chat_id เพื่อรับแจ้งเตือนงานซ่อม/อนุมัติ
 model member_telegram_links {
   id                BigInt   @id @default(autoincrement())
   member_id         Int      @unique(map: "member_id")
@@ -175,6 +241,144 @@ model member_telegram_links {
   @@index([member_id], map: "idx_member_id")
 }
 
+/// ระบบ: แจ้งเตือน Telegram บุคลากร
+/// หน้าเว็บ: /member (ขั้นตอนยืนยันเชื่อมบัญชี Telegram)
+/// หน้าที่: เก็บ One-time Token (Hash) ชั่วคราวสำหรับยืนยันการผูก Telegram Bot
+model telegram_link_challenges {
+  id         BigInt    @id @default(autoincrement())
+  member_id  Int
+  token_hash String    @unique(map: "token_hash") @db.VarChar(64)
+  expires_at DateTime  @db.DateTime(0)
+  used_at    DateTime? @db.DateTime(0)
+  created_at DateTime  @default(now()) @db.DateTime(0)
+  members    Member    @relation(fields: [member_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "telegram_link_challenges_ibfk_1")
+
+  @@index([token_hash, expires_at], map: "idx_token_lookup")
+  @@index([member_id], map: "member_id")
+}
+
+/// ระบบ: ตรวจสอบความปลอดภัยและ PDPA (Tier 1 Audit Log)
+/// หน้าเว็บ: /member/audit-logs (และทุก Route ที่เรียก logAudit())
+/// หน้าที่: บันทึกประวัติการเข้าถึง/แก้ไขข้อมูลผู้ป่วย (PHI), สลิปเงินเดือน, การล็อกอิน และการตั้งค่าแอดมิน
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  timestamp     DateTime @default(now()) @db.Timestamp(0)
+  username      String?  @db.VarChar(100)
+  email         String?  @db.VarChar(100)
+  actionType    String   @map("action_type") @db.VarChar(50)
+  targetTable   String?  @map("target_table") @db.VarChar(100)
+  actionDetails String?  @map("action_details") @db.Text
+  ipAddress     String?  @map("ip_address") @db.VarChar(45)
+  userAgent     String?  @map("user_agent") @db.VarChar(255)
+
+  @@index([username], map: "idx_username")
+  @@index([actionType], map: "idx_action_type")
+  @@index([timestamp], map: "idx_timestamp")
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// 3. ORGANIZATION & DEPARTMENTS (โครงสร้างองค์กรและกลุ่มงาน)
+// =============================================================================
+
+/// ระบบ: โครงสร้างองค์กรและกลุ่มงาน
+/// หน้าเว็บ: /about/organization, /member/organization
+/// หน้าที่: เก็บโครงสร้างกลุ่มงาน/ฝ่ายแบบลำดับชั้น (Self-referencing parent_id)
+model DepartmentGroup {
+  id          Int                 @id @default(autoincrement())
+  name        String              @db.VarChar(200)
+  parentId    Int?                @map("parent_id")
+  orderIndex  Int                 @default(0) @map("order_index")
+  isActive    Boolean             @default(true) @map("is_active")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  parent      DepartmentGroup?    @relation("DepartmentGroupHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    DepartmentGroup[]   @relation("DepartmentGroupHierarchy")
+  members     DepartmentMember[]
+
+  @@index([parentId], map: "idx_dept_group_parent")
+  @@index([orderIndex], map: "idx_dept_group_order")
+  @@map("department_groups")
+}
+
+/// ระบบ: โครงสร้างองค์กรและกลุ่มงาน
+/// หน้าเว็บ: /about/organization, /member/organization
+/// หน้าที่: เก็บรายชื่อบุคลากร ตำแหน่ง รูปภาพ และบทบาทภายในแต่ละกลุ่มงาน
+model DepartmentMember {
+  id          Int              @id @default(autoincrement())
+  groupId     Int              @map("group_id")
+  name        String           @db.VarChar(255)
+  position    String           @db.VarChar(200)
+  role        String           @default("member") @db.VarChar(50)
+  orderIndex  Int              @default(0) @map("order_index")
+  imagePath   String?          @map("image_path") @db.VarChar(255)
+  phone       String?          @db.VarChar(50)
+  memberId    Int?             @map("member_id")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  group       DepartmentGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId], map: "idx_dept_member_group")
+  @@index([orderIndex], map: "idx_dept_member_order")
+  @@index([role], map: "idx_dept_member_role")
+  @@map("department_members")
+}
+
+/// ระบบ: โครงสร้างองค์กรและกลุ่มงาน
+/// หน้าเว็บ: /member/organization
+/// หน้าที่: เก็บตัวเลือกบทบาทมาตรฐานในกลุ่มงาน (เช่น หัวหน้ากลุ่มงาน, รองหัวหน้า, ผู้ปฏิบัติงาน)
+model DepartmentRole {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(100)
+  orderIndex Int      @default(0) @map("order_index")
+  isDefault  Boolean  @default(false) @map("is_default")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([orderIndex], map: "idx_dept_role_order")
+  @@map("department_roles")
+}
+
+// =============================================================================
+// 4. OFFICIAL DOCUMENTS & QUALITY (ITA, RDU, หนังสือส่งออก, ชมรมจริยธรรม)
+// =============================================================================
+
+/// ระบบ: ข้อมูลคุณธรรมและความโปร่งใส (ITA)
+/// หน้าเว็บ: /ita, /ita/[slug], /member/ita
+/// หน้าที่: เก็บบทความ/รายงานข้อมูล ITA พร้อมเนื้อหา HTML/LongText และข้อมูลผู้เขียน
+model ita_blogs {
+  id              Int      @id @default(autoincrement())
+  title           String   @db.VarChar(500)
+  slug            String?  @db.VarChar(500)
+  content         String   @db.LongText
+  author_id       Int
+  author_name     String?  @db.VarChar(255)
+  author_position String?  @db.VarChar(255)
+  created_at      DateTime @default(now()) @db.Timestamp(0)
+  updated_at      DateTime @default(now()) @db.Timestamp(0)
+  members         Member   @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "ita_blogs_ibfk_1")
+
+  @@index([author_id], map: "author_id")
+}
+
+/// ระบบ: คลังเอกสารการใช้ยาอย่างสมเหตุผล (RDU)
+/// หน้าเว็บ: /rdu, /member/rdu
+/// หน้าที่: เก็บโฟลเดอร์หมวดหมู่เอกสาร RDU และลำดับการแสดงผล
+model rdu_folders {
+  id            Int         @id @default(autoincrement())
+  folder_name   String      @unique(map: "folder_name") @db.VarChar(255)
+  display_order Int         @default(0)
+  is_active     Boolean     @default(true)
+  created_at    DateTime    @default(now()) @db.Timestamp(0)
+  updated_at    DateTime    @default(now()) @db.Timestamp(0)
+  rdu_files     rdu_files[]
+}
+
+/// ระบบ: คลังเอกสารการใช้ยาอย่างสมเหตุผล (RDU)
+/// หน้าเว็บ: /rdu, /member/rdu
+/// หน้าที่: เก็บไฟล์ PDF/เอกสารภายในแต่ละโฟลเดอร์ RDU
 model rdu_files {
   id            Int         @id @default(autoincrement())
   folder_id     Int
@@ -190,30 +394,9 @@ model rdu_files {
   @@index([folder_id], map: "folder_id")
 }
 
-model rdu_folders {
-  id            Int         @id @default(autoincrement())
-  folder_name   String      @unique(map: "folder_name") @db.VarChar(255)
-  display_order Int         @default(0)
-  is_active     Boolean     @default(true)
-  created_at    DateTime    @default(now()) @db.Timestamp(0)
-  updated_at    DateTime    @default(now()) @db.Timestamp(0)
-  rdu_files     rdu_files[]
-}
-
-model telegram_link_challenges {
-  id         BigInt    @id @default(autoincrement())
-  member_id  Int
-  token_hash String    @unique(map: "token_hash") @db.VarChar(64)
-  expires_at DateTime  @db.DateTime(0)
-  used_at    DateTime? @db.DateTime(0)
-  created_at DateTime  @default(now()) @db.DateTime(0)
-  members    Member    @relation(fields: [member_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "telegram_link_challenges_ibfk_1")
-
-  @@index([token_hash, expires_at], map: "idx_token_lookup")
-  @@index([member_id], map: "member_id")
-}
-
-
+/// ระบบ: ทะเบียนหนังสือส่งออก
+/// หน้าเว็บ: /service/outgoing-document, /member/outgoing-document
+/// หน้าที่: เก็บลิงก์ Google Sheets ทะเบียนหนังสือส่งออกแยกตามปีงบประมาณ พ.ศ. และสถานะการใช้งาน
 model OutgoingDocument {
   id           Int      @id @default(autoincrement())
   year         String   @db.VarChar(10)
@@ -233,6 +416,9 @@ model OutgoingDocument {
   @@map("outgoing_documents")
 }
 
+/// ระบบ: งานชมรมจริยธรรม
+/// หน้าเว็บ: /ethics, /member/ethics
+/// หน้าที่: เก็บปีงบประมาณหลักสำหรับจัดกลุ่มเอกสารชมรมจริยธรรม
 model EthicsYear {
   id           Int              @id @default(autoincrement())
   year         String           @unique(map: "uq_ethics_year") @db.VarChar(10)
@@ -246,6 +432,9 @@ model EthicsYear {
   @@map("ethics_years")
 }
 
+/// ระบบ: งานชมรมจริยธรรม
+/// หน้าเว็บ: /ethics, /member/ethics
+/// หน้าที่: เก็บโครงสร้างเอกสารแบบ Tree (โฟลเดอร์ย่อย/ไฟล์) ภายใต้ปีของชมรมจริยธรรม
 model EthicsDocument {
   id           Int              @id @default(autoincrement())
   yearId       Int              @map("year_id")
@@ -267,6 +456,13 @@ model EthicsDocument {
   @@map("ethics_documents")
 }
 
+// =============================================================================
+// 5. CENTRAL INBOX & REPAIR / MEDIA WORKFLOW (กล่องงานกลาง, แจ้งซ่อม, ขอสื่อ)
+// =============================================================================
+
+/// ระบบ: กล่องงานกลาง (ขอผลิตสื่อ + แจ้งซ่อม IT/ทั่วไป/เครื่องมือแพทย์)
+/// หน้าเว็บ: /member/inbox, /member/inbox/[id], /member/media-requests, /member/repairs/new
+/// หน้าที่: เก็บใบคำร้องงานหลัก เลขที่งาน สถานะปัจจุบัน ผู้ขอ และข้อมูล JSON เฉพาะสายงาน
 model Task {
   id              String         @id @default(uuid()) @db.VarChar(36)
   taskNo          String         @unique(map: "uq_task_no") @map("task_no") @db.VarChar(50)
@@ -300,6 +496,9 @@ model Task {
   @@map("inbox_tasks")
 }
 
+/// ระบบ: กล่องงานกลาง (Workflow ขั้นตอนอนุมัติและดำเนินการ)
+/// หน้าเว็บ: /member/inbox/[id], /member/inbox/[id]/print, /member/media-requests/[id]/print
+/// หน้าที่: เก็บแต่ละขั้นตอน (Step 1..N) ผู้รับผิดชอบ ผลการอนุมัติ และลายมือชื่ออิเล็กทรอนิกส์ (Hash)
 model TaskStep {
   id             String         @id @default(uuid()) @db.VarChar(36)
   taskId         String         @map("task_id") @db.VarChar(36)
@@ -328,6 +527,9 @@ model TaskStep {
   @@map("inbox_task_steps")
 }
 
+/// ระบบ: กล่องงานกลาง (Tier 2 Workflow Audit Log)
+/// หน้าเว็บ: /member/inbox/[id]
+/// หน้าที่: เก็บประวัติการเปลี่ยนสถานะและ Diff การแก้ไขโดยผู้จัดการระบบ (MANAGER_EDIT_TASK)
 model TaskAuditLog {
   id          String   @id @default(uuid()) @db.VarChar(36)
   taskId      String   @map("task_id") @db.VarChar(36)
@@ -345,23 +547,9 @@ model TaskAuditLog {
   @@map("inbox_task_audit_logs")
 }
 
-model HospitalLocation {
-  id           Int      @id @map("id") // LEVEL_ROOM_ID from Gotowin
-  roomName     String   @map("room_name") @db.VarChar(200)
-  floorId      Int      @map("floor_id")
-  floorName    String   @map("floor_name") @db.VarChar(50)
-  buildingId   Int      @map("building_id")
-  buildingName String   @map("building_name") @db.VarChar(200)
-  fullName     String   @map("full_name") @db.VarChar(500)
-  isActive     Boolean  @default(true) @map("is_active")
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-  hospital_assets HospitalAsset[]
-
-  @@index([buildingId, floorId], map: "idx_loc_building_floor")
-  @@index([roomName], map: "idx_loc_room_name")
-  @@map("hospital_locations")
-}
-
+/// ระบบ: แจ้งซ่อม 3 สายงาน (IT / ทั่วไป / เครื่องมือแพทย์)
+/// หน้าเว็บ: /member/repairs/new, /member/inbox/[id]
+/// หน้าที่: เก็บรายละเอียดงานซ่อม (เลขครุภัณฑ์ สถานที่ อาการ ช่างผู้รับผิดชอบ ส่งซ่อมภายนอก ค่าใช้จ่าย รูปถ่าย)
 model RepairDetail {
   id                    String   @id @default(uuid()) @db.VarChar(36)
   taskId                String   @unique(map: "uq_repair_task_id") @map("task_id") @db.VarChar(36)
@@ -396,6 +584,33 @@ model RepairDetail {
   @@map("repair_details")
 }
 
+// =============================================================================
+// 6. LOCATIONS, ASSETS & EQUIPMENT BORROWING (สถานที่, ครุภัณฑ์, ระบบยืม-คืน)
+// =============================================================================
+
+/// ระบบ: จัดการสถานที่/ห้องในโรงพยาบาล (อ้างอิง LEVEL_ROOM_ID จาก Gotowin)
+/// หน้าเว็บ: /member/locations (และใช้เลือกห้องในแจ้งซ่อม/ทะเบียนครุภัณฑ์)
+/// หน้าที่: เก็บข้อมูลอาคาร ชั้น ห้อง และชื่อเต็มสำหรับผูกกับครุภัณฑ์และงานแจ้งซ่อม
+model HospitalLocation {
+  id           Int      @id @map("id") // LEVEL_ROOM_ID from Gotowin
+  roomName     String   @map("room_name") @db.VarChar(200)
+  floorId      Int      @map("floor_id")
+  floorName    String   @map("floor_name") @db.VarChar(50)
+  buildingId   Int      @map("building_id")
+  buildingName String   @map("building_name") @db.VarChar(200)
+  fullName     String   @map("full_name") @db.VarChar(500)
+  isActive     Boolean  @default(true) @map("is_active")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  hospital_assets HospitalAsset[]
+
+  @@index([buildingId, floorId], map: "idx_loc_building_floor")
+  @@index([roomName], map: "idx_loc_room_name")
+  @@map("hospital_locations")
+}
+
+/// ระบบ: ทะเบียนครุภัณฑ์โรงพยาบาล (ซิงก์จาก Gotowin)
+/// หน้าเว็บ: /member/assets, /member/equipment-borrow
+/// หน้าที่: เก็บเลขครุภัณฑ์ รหัส FSN หมวดหมู่ (IT/Medical/General) ประกัน ผู้ดูแล และแฟล็ก is_loanable
 model HospitalAsset {
   id                Int               @id @default(autoincrement())
   articleNum        String            @unique(map: "uq_asset_article_num") @map("article_num") @db.VarChar(100)
@@ -444,50 +659,9 @@ model HospitalAsset {
   @@map("hospital_assets")
 }
 
-
-/// คำขอสมัคร (Registration): ข้อมูลที่บุคลากรส่งผ่าน /register รอ admin อนุมัติ
-/// แยกจาก members เพราะ members คือบัญชีที่ล็อกอินได้แล้ว
-model MemberRegistration {
-  id                  Int       @id @default(autoincrement())
-  citizenId           String    @map("citizen_id") @db.VarChar(13)
-  title               String    @db.VarChar(50)
-  firstNameTh         String    @map("first_name_th") @db.VarChar(100)
-  lastNameTh          String    @map("last_name_th") @db.VarChar(100)
-  firstNameEn         String    @map("first_name_en") @db.VarChar(100)
-  lastNameEn          String    @map("last_name_en") @db.VarChar(100)
-  nickname            String    @db.VarChar(50)
-  licenseNo           String?   @map("license_no") @db.VarChar(100)
-  birthDate           String    @map("birth_date") @db.VarChar(50)
-  startDate           String    @map("start_date") @db.VarChar(50)
-  containDate         String?   @map("contain_date") @db.VarChar(50)
-  department          String    @db.VarChar(150)
-  position            String    @db.VarChar(150)
-  level               String    @db.VarChar(100)
-  personnelGroup      String    @map("personnel_group") @db.VarChar(100)
-  personnelGroupOther String?   @map("personnel_group_other") @db.VarChar(150)
-  hasHosxp            Boolean   @default(false) @map("has_hosxp")
-  hosxpUser           String?   @map("hosxp_user") @db.VarChar(100)
-  hosxpPass           String?   @map("hosxp_pass") @db.VarChar(255)
-  email               String    @db.VarChar(100)
-  phone               String    @db.VarChar(50)
-  lineId              String?   @map("line_id") @db.VarChar(100)
-  inHospitalHousing   Boolean   @default(false) @map("in_hospital_housing")
-  housingLocation     String?   @map("housing_location") @db.VarChar(100)
-  hasVehicle          Boolean   @default(false) @map("has_vehicle")
-  vehicles            Json?
-  status              String    @default("pending") @db.VarChar(20)
-  rejectReason        String?   @map("reject_reason") @db.Text
-  approvedAt          DateTime? @map("approved_at") @db.Timestamp(0)
-  approvedBy          String?   @map("approved_by") @db.VarChar(100)
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-
-  @@index([citizenId], map: "idx_registration_citizen")
-  @@index([status], map: "idx_registration_status")
-  @@index([email], map: "idx_registration_email")
-  @@map("member_registrations")
-}
-
+/// ระบบ: ยืม-คืนอุปกรณ์และเบิกวัสดุ
+/// หน้าเว็บ: /member/equipment-borrow
+/// หน้าที่: เก็บคลังวัสดุ (ทั้งแบบหมุนเวียน REUSABLE และสิ้นเปลือง CONSUMABLE) พร้อมสต็อกคงเหลือ
 model HospitalMaterial {
   id           Int                   @id @default(autoincrement())
   name         String                @db.VarChar(255)
@@ -511,6 +685,9 @@ model HospitalMaterial {
   @@map("hospital_materials")
 }
 
+/// ระบบ: ยืม-คืนอุปกรณ์และเบิกวัสดุ
+/// หน้าเว็บ: /member/equipment-borrow
+/// หน้าที่: เก็บใบคำขอยืม-เบิกวัสดุ (หัวเอกสาร) วันที่ยืม-คืน กำหนดส่ง และสถานะการอนุมัติ
 model EquipmentBorrowRequest {
   id                 Int                   @id @default(autoincrement())
   requestNo          String                @unique(map: "uq_borrow_request_no") @map("request_no") @db.VarChar(50)
@@ -542,6 +719,9 @@ model EquipmentBorrowRequest {
   @@map("equipment_borrow_requests")
 }
 
+/// ระบบ: ยืม-คืนอุปกรณ์และเบิกวัสดุ
+/// หน้าเว็บ: /member/equipment-borrow
+/// หน้าที่: เก็บรายการอุปกรณ์/วัสดุย่อยในใบขอยืม (Multi-item) พร้อมผลการตรวจรับคืน
 model EquipmentBorrowItem {
   id              Int                    @id @default(autoincrement())
   requestId       Int                    @map("request_id")
@@ -572,6 +752,13 @@ model EquipmentBorrowItem {
   @@map("equipment_borrow_items")
 }
 
+// =============================================================================
+// 7. HOSPITAL EVENTS & THAID QR CHECK-IN (ระบบกิจกรรม, ลงทะเบียน, เช็คอิน, คะแนน)
+// =============================================================================
+
+/// ระบบ: กิจกรรมโรงพยาบาลและเช็คอินด้วย ThaID
+/// หน้าเว็บ: /member/events, /member/events/create, /member/events/[id]
+/// หน้าที่: เก็บข้อมูลกิจกรรม ช่วงเวลาจัดงาน/สแกน QR Token, ผู้รับผิดชอบหลัก และใบยืมอุปกรณ์ที่ผูกไว้
 model HospitalEvent {
   id               Int                   @id @default(autoincrement())
   title            String                @db.VarChar(500)
@@ -606,6 +793,9 @@ model HospitalEvent {
   @@map("hospital_events")
 }
 
+/// ระบบ: กิจกรรมโรงพยาบาลและเช็คอินด้วย ThaID
+/// หน้าเว็บ: /member/events/[id]
+/// หน้าที่: เก็บผู้รับผิดชอบร่วม (Co-organizers) ของแต่ละกิจกรรม
 model EventOrganizer {
   id        Int           @id @default(autoincrement())
   eventId   Int           @map("event_id")
@@ -621,6 +811,9 @@ model EventOrganizer {
   @@map("event_organizers")
 }
 
+/// ระบบ: กิจกรรมโรงพยาบาลและเช็คอินด้วย ThaID
+/// หน้าเว็บ: /member/events/[id]
+/// หน้าที่: เก็บรายชื่อบุคลากรที่กดลงทะเบียนเข้าร่วมกิจกรรมล่วงหน้า
 model EventRegistration {
   id           Int           @id @default(autoincrement())
   eventId      Int           @map("event_id")
@@ -635,6 +828,9 @@ model EventRegistration {
   @@map("event_registrations")
 }
 
+/// ระบบ: กิจกรรมโรงพยาบาลและเช็คอินด้วย ThaID
+/// หน้าเว็บ: /member/events/checkin-status, /member/events/leaderboard
+/// หน้าที่: เก็บประวัติการเช็คอินสำเร็จผ่าน ThaID QR (1 คน/1 งาน) และคะแนนเข้าร่วมกิจกรรม
 model EventAttendance {
   id            Int           @id @default(autoincrement())
   eventId       Int           @map("event_id")
@@ -652,6 +848,9 @@ model EventAttendance {
   @@map("event_attendances")
 }
 
+/// ระบบ: กิจกรรมโรงพยาบาลและเช็คอินด้วย ThaID
+/// หน้าเว็บ: /member/events/[id]
+/// หน้าที่: เก็บเอกสารแนบ รูปภาพ และบันทึกข้อความประกอบกิจกรรม
 model EventAttachment {
   id                 Int           @id @default(autoincrement())
   eventId            Int           @map("event_id")
@@ -675,6 +874,13 @@ model EventAttachment {
   @@map("event_attachments")
 }
 
+// =============================================================================
+// 8. PROACTIVE SCREENING QUEUE (ระบบคิวคัดกรองบัตรประชาชน Smart Card)
+// =============================================================================
+
+/// ระบบ: คิวคัดกรองสุขภาพ Smart Card Reader
+/// หน้าเว็บ: /service/screening, /service/screening/scan
+/// หน้าที่: เก็บข้อมูลผู้รับบริการที่อ่านจากบัตรประชาชน (WAITING / VISIT_OPENED / CANCELLED)
 model ScreeningQueue {
   id          Int      @id @default(autoincrement())
   cid         String   @db.VarChar(13)
@@ -699,6 +905,13 @@ model ScreeningQueue {
   @@map("screening_queues")
 }
 
+// =============================================================================
+// 9. KPI & PROJECT / BUDGET TRACKING (ตัวชี้วัด KPI และติดตามโครงการ/งบประมาณ)
+// =============================================================================
+
+/// ระบบ: ติดตามตัวชี้วัด KPI โรงพยาบาล
+/// หน้าเว็บ: /service/kpi-tracker
+/// หน้าที่: เก็บหมวดหมู่/หัวข้อหลักของตัวชี้วัด KPI แยกตามปีงบประมาณ
 model KpiTopic {
   id          Int            @id @default(autoincrement())
   fiscalYear  String         @map("fiscal_year") @db.VarChar(10)
@@ -716,6 +929,9 @@ model KpiTopic {
   @@map("kpi_topics")
 }
 
+/// ระบบ: ติดตามตัวชี้วัด KPI โรงพยาบาล
+/// หน้าเว็บ: /service/kpi-tracker
+/// หน้าที่: เก็บนิยามตัวชี้วัดย่อย เป้าหมาย (Target) ความถี่การเก็บ และผู้รับผิดชอบ
 model KpiIndicator {
   id              Int        @id @default(autoincrement())
   topicId         Int        @map("topic_id")
@@ -748,6 +964,9 @@ model KpiIndicator {
   @@map("kpi_indicators")
 }
 
+/// ระบบ: ติดตามตัวชี้วัด KPI โรงพยาบาล
+/// หน้าเว็บ: /service/kpi-tracker
+/// หน้าที่: เก็บผลลัพธ์ตัวเลขที่บันทึกรายงวด/รายเดือนของแต่ละตัวชี้วัด (ตัวตั้ง ตัวหาร ผลลัพธ์)
 model KpiEntry {
   id               Int          @id @default(autoincrement())
   indicatorId      Int          @map("indicator_id")
@@ -774,60 +993,57 @@ model KpiEntry {
   @@map("kpi_entries")
 }
 
+/// ระบบ: ติดตามแผนงานโครงการและงบประมาณรายไตรมาส
+/// หน้าเว็บ: /service/project-tracker
+/// หน้าที่: เก็บรายการโครงการ แผนงบประมาณ Q1-Q4 ยอดใช้จ่ายจริง และสถานะการส่งงาน
+model ProjectTrackingRecord {
+  id               Int      @id @default(autoincrement())
+  fiscalYear       Int      @map("fiscal_year")
+  sequenceNo       Int      @default(1) @map("sequence_no")
+  projectCode      String?  @map("project_code") @db.VarChar(50)
+  strategy         String   @db.VarChar(50)
+  projectName      String   @map("project_name") @db.VarChar(500)
+  responsibleUnit  String?  @map("responsible_unit") @db.VarChar(255)
+  q1Budget         Decimal  @default(0.00) @map("q1_budget") @db.Decimal(14, 2)
+  q2Budget         Decimal  @default(0.00) @map("q2_budget") @db.Decimal(14, 2)
+  q3Budget         Decimal  @default(0.00) @map("q3_budget") @db.Decimal(14, 2)
+  q4Budget         Decimal  @default(0.00) @map("q4_budget") @db.Decimal(14, 2)
+  actualSpent      Decimal  @default(0.00) @map("actual_spent") @db.Decimal(14, 2)
+  submissionStatus String   @default("ยังไม่ส่ง") @map("submission_status") @db.VarChar(50)
+  budgetSource     String   @default("เงินบำรุง") @map("budget_source") @db.VarChar(50)
+  notes            String?  @db.Text
+  createdBy        String?  @map("created_by") @db.VarChar(100)
+  updatedBy        String?  @map("updated_by") @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
 
-
-
-model DepartmentGroup {
-  id          Int                 @id @default(autoincrement())
-  name        String              @db.VarChar(200)
-  parentId    Int?                @map("parent_id")
-  orderIndex  Int                 @default(0) @map("order_index")
-  isActive    Boolean             @default(true) @map("is_active")
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-
-  parent      DepartmentGroup?    @relation("DepartmentGroupHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    DepartmentGroup[]   @relation("DepartmentGroupHierarchy")
-  members     DepartmentMember[]
-
-  @@index([parentId], map: "idx_dept_group_parent")
-  @@index([orderIndex], map: "idx_dept_group_order")
-  @@map("department_groups")
+  @@index([fiscalYear], map: "idx_pt_fiscal_year")
+  @@index([strategy], map: "idx_pt_strategy")
+  @@index([submissionStatus], map: "idx_pt_status")
+  @@index([fiscalYear, sequenceNo], map: "idx_pt_seq")
+  @@map("project_tracking_records")
 }
 
-model DepartmentMember {
-  id          Int              @id @default(autoincrement())
-  groupId     Int              @map("group_id")
-  name        String           @db.VarChar(255)
-  position    String           @db.VarChar(200)
-  role        String           @default("member") @db.VarChar(50)
-  orderIndex  Int              @default(0) @map("order_index")
-  imagePath   String?          @map("image_path") @db.VarChar(255)
-  phone       String?          @db.VarChar(50)
-  memberId    Int?             @map("member_id")
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+/// ระบบ: ติดตามแผนงานโครงการและงบประมาณรายไตรมาส
+/// หน้าเว็บ: /service/project-tracker
+/// หน้าที่: เก็บค่า Meta/Config เสริมของระบบ Project Tracker (Key-Value)
+model ProjectTrackingMeta {
+  metaKey   String   @id @map("meta_key") @db.VarChar(100)
+  metaValue String   @map("meta_value") @db.VarChar(255)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
 
-  group       DepartmentGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@index([groupId], map: "idx_dept_member_group")
-  @@index([orderIndex], map: "idx_dept_member_order")
-  @@index([role], map: "idx_dept_member_role")
-  @@map("department_members")
+  @@map("project_tracking_meta")
 }
 
-model DepartmentRole {
-  id         Int      @id @default(autoincrement())
-  name       String   @db.VarChar(100)
-  orderIndex Int      @default(0) @map("order_index")
-  isDefault  Boolean  @default(false) @map("is_default")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+// =============================================================================
+// 10. CLINICAL REGISTRIES (ทะเบียนผู้ป่วยเฉพาะทาง: Palliative Care & DM Remission)
+// หมายเหตุ: ระบบเยี่ยมบ้าน FCT (/service/fct-home-visit) ใช้ตาราง fct_home_visits และ
+//          fct_home_visit_options ซึ่งสร้างผ่าน SQL ใน fctHomeVisitService.ts
+// =============================================================================
 
-  @@index([orderIndex], map: "idx_dept_role_order")
-  @@map("department_roles")
-}
-
+/// ระบบ: ทะเบียนผู้ป่วยประคับประคอง (Palliative Care / PC.1 / PC.3)
+/// หน้าเว็บ: /service/dashboard-rcm/palliative-care, /service/dashboard-rcm/palliative-care/registry
+/// หน้าที่: เก็บทะเบียนรายชื่อผู้ป่วยประคับประคอง รหัส ICD-10 วันที่ขึ้นทะเบียน และวันเสียชีวิต
 model PalliativeCareRegistry {
   id                 Int       @id @default(autoincrement())
   hn                 String    @db.VarChar(20)
@@ -857,6 +1073,9 @@ model PalliativeCareRegistry {
   @@map("palliative_care_registries")
 }
 
+/// ระบบ: ทะเบียนผู้ป่วยประคับประคอง (Palliative Care)
+/// หน้าเว็บ: /service/dashboard-rcm/palliative-care/registry
+/// หน้าที่: เก็บบันทึกวันที่ติดตามเยี่ยมแต่ละครั้ง (Visit No. 1..N) แบบ Normalized
 model PalliativeCareRegistryVisit {
   id         Int                    @id @default(autoincrement())
   registryId Int                    @map("registry_id")
@@ -873,6 +1092,9 @@ model PalliativeCareRegistryVisit {
   @@map("palliative_care_registry_visits")
 }
 
+/// ระบบ: ทะเบียนเบาหวานเข้าสู่ระยะสงบ (DM Remission)
+/// หน้าเว็บ: /service/dm-remission, /service/dm-remission/lab-tracking
+/// หน้าที่: เก็บข้อมูล Cohort ผู้ป่วยเบาหวาน (1 คน ต่อ 1 ปีงบประมาณ) ค่า Lab A1c/FPG ก่อน-หลัง และผลสรุป Remission
 model DmRemissionCohort {
   id                 Int       @id @default(autoincrement())
   fiscalYear         Int       @map("fiscal_year")
@@ -915,6 +1137,9 @@ model DmRemissionCohort {
   @@map("dm_remission_cohorts")
 }
 
+/// ระบบ: ทะเบียนเบาหวานเข้าสู่ระยะสงบ (DM Remission)
+/// หน้าเว็บ: /service/dm-remission
+/// หน้าที่: เก็บตัวเลือก Dropdown ที่ Admin เพิ่ม/แก้ไขได้เอง (พฤติกรรมปรับอาหาร, ออกกำลังกาย, IF, สรุป Remission)
 model DmRemissionOption {
   id        Int      @id @default(autoincrement())
   category  String   @db.VarChar(50)
@@ -929,41 +1154,3 @@ model DmRemissionOption {
   @@index([category, isActive, sortOrder], map: "idx_dm_remission_opt_lookup")
   @@map("dm_remission_options")
 }
-
-model ProjectTrackingRecord {
-  id               Int      @id @default(autoincrement())
-  fiscalYear       Int      @map("fiscal_year")
-  sequenceNo       Int      @default(1) @map("sequence_no")
-  projectCode      String?  @map("project_code") @db.VarChar(50)
-  strategy         String   @db.VarChar(50)
-  projectName      String   @map("project_name") @db.VarChar(500)
-  responsibleUnit  String?  @map("responsible_unit") @db.VarChar(255)
-  q1Budget         Decimal  @default(0.00) @map("q1_budget") @db.Decimal(14, 2)
-  q2Budget         Decimal  @default(0.00) @map("q2_budget") @db.Decimal(14, 2)
-  q3Budget         Decimal  @default(0.00) @map("q3_budget") @db.Decimal(14, 2)
-  q4Budget         Decimal  @default(0.00) @map("q4_budget") @db.Decimal(14, 2)
-  actualSpent      Decimal  @default(0.00) @map("actual_spent") @db.Decimal(14, 2)
-  submissionStatus String   @default("ยังไม่ส่ง") @map("submission_status") @db.VarChar(50)
-  budgetSource     String   @default("เงินบำรุง") @map("budget_source") @db.VarChar(50)
-  notes            String?  @db.Text
-  createdBy        String?  @map("created_by") @db.VarChar(100)
-  updatedBy        String?  @map("updated_by") @db.VarChar(100)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-
-  @@index([fiscalYear], map: "idx_pt_fiscal_year")
-  @@index([strategy], map: "idx_pt_strategy")
-  @@index([submissionStatus], map: "idx_pt_status")
-  @@index([fiscalYear, sequenceNo], map: "idx_pt_seq")
-  @@map("project_tracking_records")
-}
-
-model ProjectTrackingMeta {
-  metaKey   String   @id @map("meta_key") @db.VarChar(100)
-  metaValue String   @map("meta_value") @db.VarChar(255)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-
-  @@map("project_tracking_meta")
-}
-
-

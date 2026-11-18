@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thoen Hospital — Interactive Database Map</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+      color: var(--foreground, #1e293b);
+    }
+    @media (prefers-color-scheme: dark) {
+      html, body {
+        color: var(--foreground, #e2e8f0);
+      }
+    }
+    .wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .card-box {
+      background: var(--card, rgba(148, 163, 184, 0.08));
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+      border-radius: var(--radius, 10px);
+      padding: 16px;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    @media (max-width: 560px) {
+      .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    .stat {
+      background: var(--card, rgba(148, 163, 184, 0.08));
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+      border-radius: var(--radius, 10px);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .stat:hover, .stat.active {
+      border-color: var(--primary, #10b981);
+      background: var(--secondary, rgba(16, 185, 129, 0.1));
+    }
+    .stat-num {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--primary, #10b981);
+    }
+    .stat-label {
+      font-size: 11.5px;
+      color: var(--muted-foreground, #64748b);
+      margin-top: 2px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .search-input {
+      flex: 1 1 240px;
+      padding: 8px 12px;
+      border-radius: var(--radius, 8px);
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.3));
+      background: var(--background, transparent);
+      color: var(--foreground, inherit);
+      font-size: 13px;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--ring, var(--primary, #10b981));
+    }
+    .btn-ghost {
+      padding: 7px 11px;
+      border-radius: var(--radius, 8px);
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.3));
+      background: var(--secondary, rgba(148, 163, 184, 0.08));
+      color: var(--foreground, inherit);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-ghost:hover {
+      border-color: var(--primary, #10b981);
+    }
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
+      background: transparent;
+      color: var(--muted-foreground, #64748b);
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .pill:hover {
+      color: var(--foreground, inherit);
+      border-color: var(--primary, #10b981);
+    }
+    .pill.active {
+      background: var(--primary, #10b981);
+      color: var(--primary-foreground, #ffffff);
+      border-color: var(--primary, #10b981);
+      font-weight: 600;
+    }
+    .groups {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .group-card {
+      background: var(--card, rgba(148, 163, 184, 0.06));
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+      border-radius: var(--radius, 10px);
+      overflow: hidden;
+    }
+    .group-header {
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .group-header:hover {
+      background: var(--secondary, rgba(148, 163, 184, 0.08));
+    }
+    .group-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .group-title {
+      font-weight: 650;
+      font-size: 13.5px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--secondary, rgba(148, 163, 184, 0.15));
+      color: var(--foreground, inherit);
+    }
+    .badge-prisma { background: rgba(16, 185, 129, 0.16); color: var(--success, #10b981); }
+    .badge-sql { background: rgba(245, 158, 11, 0.18); color: var(--warning, #d97706); }
+    .badge-ext { background: rgba(59, 130, 246, 0.16); color: var(--info, #3b82f6); }
+    .badge-dep { background: rgba(239, 68, 68, 0.16); color: var(--destructive, #ef4444); }
+    .group-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 0 14px 10px;
+    }
+    .mini-chip {
+      font-family: var(--font-mono, ui-monospace, monospace);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: var(--code-background, rgba(15, 23, 42, 0.12));
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.2));
+      color: var(--foreground, inherit);
+      cursor: pointer;
+    }
+    .mini-chip:hover {
+      border-color: var(--primary, #10b981);
+    }
+    .group-body {
+      border-top: 1px solid var(--border, rgba(148, 163, 184, 0.2));
+      padding: 10px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .tbl-row {
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.2));
+      border-radius: 8px;
+      padding: 9px 11px;
+      background: var(--background, transparent);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .tbl-row:hover, .tbl-row.selected {
+      border-color: var(--primary, #10b981);
+    }
+    .tbl-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tbl-names {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tbl-name {
+      font-family: var(--font-mono, ui-monospace, monospace);
+      font-weight: 700;
+      font-size: 12.5px;
+      color: var(--primary, #10b981);
+    }
+    .model-name {
+      font-family: var(--font-mono, ui-monospace, monospace);
+      font-size: 11px;
+      color: var(--muted-foreground, #64748b);
+    }
+    .tbl-purpose {
+      margin-top: 4px;
+      font-size: 12.5px;
+    }
+    .tbl-meta {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border, rgba(148, 163, 184, 0.22));
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11.5px;
+      color: var(--muted-foreground, #64748b);
+    }
+    .code-inline {
+      font-family: var(--font-mono, ui-monospace, monospace);
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--code-background, rgba(15, 23, 42, 0.12));
+      color: var(--foreground, inherit);
+    }
+    .chevron {
+      font-size: 11px;
+      color: var(--muted-foreground, #64748b);
+      flex-shrink: 0;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 24px 12px;
+      color: var(--muted-foreground, #64748b);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="card-box" style="display:flex;flex-direction:column;gap:10px;">
+      <div class="controls">
+        <input
+          id="searchInput"
+          class="search-input"
+          type="search"
+          placeholder="ค้นหาชื่อ table, model, หน้าเว็บ (/service/...), หรือชื่อระบบ..."
+        />
+        <button id="toggleAllBtn" class="btn-ghost" type="button">ขยายทั้งหมด</button>
+        <button id="resetBtn" class="btn-ghost" type="button">ล้างตัวกรอง</button>
+      </div>
+      <div class="pills" id="categoryPills"></div>
+    </div>
+
+    <div class="groups" id="groupsContainer"></div>
+  </div>
+
+  <script>
+    const GROUPS = [
+      {
+        id: 'cms',
+        title: '1. ข่าวสาร & หน้าแรกเว็บ (Public CMS)',
+        source: 'prisma',
+        tables: [
+          { table: 'news', model: 'News', routes: ['/news', '/news/[slug]', '/member/news/news'], service: 'src/app/api/news/**', fk: '1:N -> attachments', purpose: 'หัวข้อข่าว หมวดหมู่ ช่วงวันที่เผยแพร่ และยอดเข้าชม' },
+          { table: 'attachments', model: 'Attachment', routes: ['/news/[slug]', '/member/news/news'], service: '@/lib/storage/documentStorage', fk: 'news_id -> news.id', purpose: 'ไฟล์แนบและรูปภาพประกอบข่าวแต่ละรายการ' },
+          { table: 'hero_slides', model: 'HeroSlide', routes: ['/', '/member/news/slides'], service: 'src/app/api/slides/**', fk: '-', purpose: 'รูปภาพ/วิดีโอ MP4, ลิงก์, ลำดับ และระยะเวลาแสดงสไลด์หน้าแรก' },
+          { table: 'contact_messages', model: 'ContactMessage', routes: ['/contact (ปิดแล้ว)'], service: 'Deprecated (AGENTS.md)', fk: '-', deprecated: true, purpose: 'ตารางคงค้างจากระบบส่งข้อความติดต่อเดิม (ถอด UI/API ออกถาวรแล้ว)' }
+        ]
+      },
+      {
+        id: 'auth',
+        title: '2. สมาชิก, สิทธิ์ (RBAC), Telegram & Audit',
+        source: 'prisma',
+        tables: [
+          { table: 'members', model: 'Member', routes: ['/member', '/member/login', '/member/member', '/member/signature'], service: '@/lib/auth/MemberAuthService', fk: 'เชื่อมกับ permissions, telegram, assets, events, ita_blogs', purpose: 'บัญชีบุคลากรที่ล็อกอินได้แล้ว, OTP, รูปโปรไฟล์ และลายเซ็นอิเล็กทรอนิกส์' },
+          { table: 'member_registrations', model: 'MemberRegistration', routes: ['/register', '/member/registrations'], service: '@/lib/registration/RegistrationService', fk: '-', purpose: 'คำขอสมัครบุคลากรใหม่ที่รออนุมัติก่อนสร้างบัญชีเข้า members' },
+          { table: 'member_system_settings', model: 'MemberSystemSetting', routes: ['/member/settings'], service: 'src/app/api/member/settings/**', fk: '-', purpose: 'ค่าตั้งค่าระบบสมาชิกแบบ Key-Value' },
+          { table: 'position_permissions', model: 'PositionPermission', routes: ['/member/settings'], service: '@/lib/permissions/taskPermissionService', fk: 'UQ(permission_key, position_name)', purpose: 'สิทธิ์ตามตำแหน่งงาน (Position-based RBAC)' },
+          { table: 'member_permissions', model: 'MemberPermission', routes: ['/member/settings'], service: '@/lib/permissions/taskPermissionService', fk: 'member_id -> members.id', purpose: 'สิทธิ์เจาะจงรายบุคคล (Member-based RBAC)' },
+          { table: 'member_telegram_links', model: 'member_telegram_links', routes: ['/member'], service: '@/lib/telegram/telegramCore', fk: 'member_id -> members.id', purpose: 'จับคู่บัญชีบุคลากรกับ telegram_chat_id เพื่อรับแจ้งเตือนงานซ่อม/อนุมัติ' },
+          { table: 'telegram_link_challenges', model: 'telegram_link_challenges', routes: ['/member'], service: '@/lib/telegram/telegramCore', fk: 'member_id -> members.id', purpose: 'One-time Token Hash ชั่วคราวสำหรับยืนยันการเชื่อม Telegram Bot' },
+          { table: 'audit_logs', model: 'AuditLog', routes: ['/member/audit-logs'], service: '@/lib/audit', fk: '-', purpose: 'Tier 1 Audit: บันทึกการเข้าถึง PHI, สลิปเงินเดือน, Auth และ Admin Settings' }
+        ]
+      },
+      {
+        id: 'org',
+        title: '3. โครงสร้างองค์กร & กลุ่มงาน',
+        source: 'prisma',
+        tables: [
+          { table: 'department_groups', model: 'DepartmentGroup', routes: ['/about/organization', '/member/organization'], service: '@/lib/departments/departmentService', fk: 'parent_id -> department_groups.id', purpose: 'โครงสร้างกลุ่มงาน/ฝ่ายแบบลำดับชั้น (Tree)' },
+          { table: 'department_members', model: 'DepartmentMember', routes: ['/about/organization', '/member/organization'], service: '@/lib/departments/departmentService', fk: 'group_id -> department_groups.id', purpose: 'รายชื่อบุคลากร ตำแหน่ง รูปภาพ และบทบาทภายในกลุ่มงาน' },
+          { table: 'department_roles', model: 'DepartmentRole', routes: ['/member/organization'], service: '@/lib/departments/departmentService', fk: '-', purpose: 'ตัวเลือกบทบาทมาตรฐานในกลุ่มงาน (หัวหน้า, รองหัวหน้า, ผู้ปฏิบัติงาน)' }
+        ]
+      },
+      {
+        id: 'docs',
+        title: '4. เอกสารราชการ & งานคุณภาพ (ITA / RDU / ส่งออก / จริยธรรม)',
+        source: 'prisma',
+        tables: [
+          { table: 'ita_blogs', model: 'ita_blogs', routes: ['/ita', '/ita/[slug]', '/member/ita'], service: 'src/app/api/ita/**', fk: 'author_id -> members.id', purpose: 'บทความ/รายงานข้อมูลคุณธรรมและความโปร่งใส (ITA)' },
+          { table: 'rdu_folders', model: 'rdu_folders', routes: ['/rdu', '/member/rdu'], service: 'src/app/api/rdu/**', fk: '1:N -> rdu_files', purpose: 'โฟลเดอร์หมวดหมู่เอกสารการใช้ยาอย่างสมเหตุผล (RDU)' },
+          { table: 'rdu_files', model: 'rdu_files', routes: ['/rdu', '/member/rdu'], service: 'src/app/api/rdu/**', fk: 'folder_id -> rdu_folders.id', purpose: 'รายการไฟล์ PDF/เอกสารภายในแต่ละโฟลเดอร์ RDU' },
+          { table: 'outgoing_documents', model: 'OutgoingDocument', routes: ['/service/outgoing-document', '/member/outgoing-document'], service: 'src/app/api/outgoing-documents/**', fk: '-', purpose: 'ทะเบียนลิงก์ Google Sheets หนังสือส่งออกแยกตามปีงบประมาณ' },
+          { table: 'ethics_years', model: 'EthicsYear', routes: ['/ethics', '/member/ethics'], service: '@/lib/cms/EthicsDocumentService', fk: '1:N -> ethics_documents', purpose: 'ปีงบประมาณสำหรับจัดหมวดเอกสารชมรมจริยธรรม' },
+          { table: 'ethics_documents', model: 'EthicsDocument', routes: ['/ethics', '/member/ethics'], service: '@/lib/cms/EthicsDocumentService', fk: 'year_id -> ethics_years.id, parent_id -> self', purpose: 'โครงสร้างเอกสารแบบ Tree (โฟลเดอร์ย่อย/ไฟล์) ของชมรมจริยธรรม' }
+        ]
+      },
+      {
+        id: 'inbox',
+        title: '5. กล่องงานกลาง, แจ้งซ่อม 3 สายงาน & ขอสื่อ',
+        source: 'prisma',
+        tables: [
+          { table: 'inbox_tasks', model: 'Task', routes: ['/member/inbox', '/member/media-requests', '/member/repairs/new'], service: '@/lib/taskInboxService', fk: '1:N steps/audit_logs, 1:1 repair_details', purpose: 'ใบคำร้องงานหลัก (MEDIA_REQUEST, IT_REPAIR, GENERAL_REPAIR, MEDICAL_REPAIR)' },
+          { table: 'inbox_task_steps', model: 'TaskStep', routes: ['/member/inbox/[id]', '/member/inbox/[id]/print'], service: '@/lib/taskInboxService', fk: 'task_id -> inbox_tasks.id', purpose: 'ขั้นตอนอนุมัติ/รับงานแต่ละ Step พร้อมลายมือชื่ออิเล็กทรอนิกส์ (HMAC Hash)' },
+          { table: 'inbox_task_audit_logs', model: 'TaskAuditLog', routes: ['/member/inbox/[id]'], service: '@/lib/taskInboxService', fk: 'task_id -> inbox_tasks.id', purpose: 'Tier 2 Audit: ประวัติเปลี่ยนสถานะและ Diff การแก้ไขโดยผู้จัดการระบบ' },
+          { table: 'repair_details', model: 'RepairDetail', routes: ['/member/repairs/new', '/member/inbox/[id]'], service: '@/lib/taskInboxService', fk: 'task_id -> inbox_tasks.id', purpose: 'รายละเอียดงานซ่อม (เลขครุภัณฑ์ สถานที่ อาการ ช่าง ส่งซ่อมภายนอก ค่าใช้จ่าย รูปถ่าย)' }
+        ]
+      },
+      {
+        id: 'assets',
+        title: '6. สถานที่, ครุภัณฑ์ & ระบบยืม-คืนอุปกรณ์',
+        source: 'prisma',
+        tables: [
+          { table: 'hospital_locations', model: 'HospitalLocation', routes: ['/member/locations'], service: '@/lib/assets/assetService', fk: '1:N -> hospital_assets (ID จาก Gotowin)', purpose: 'อาคาร ชั้น ห้อง และชื่อเต็มสำหรับผูกกับครุภัณฑ์และงานแจ้งซ่อม' },
+          { table: 'hospital_assets', model: 'HospitalAsset', routes: ['/member/assets', '/member/equipment-borrow'], service: '@/lib/assets/assetService', fk: 'location_id -> hospital_locations.id, custodian_id -> members.id', purpose: 'ทะเบียนครุภัณฑ์ รหัส FSN หมวดหมู่ (IT/Medical/General) ประกัน และแฟล็ก is_loanable' },
+          { table: 'hospital_materials', model: 'HospitalMaterial', routes: ['/member/equipment-borrow'], service: '@/lib/equipment/equipmentBorrowService', fk: '1:N -> equipment_borrow_items', purpose: 'คลังวัสดุยืม-คืน (REUSABLE) และวัสดุสิ้นเปลือง (CONSUMABLE) พร้อมสต็อกคงเหลือ' },
+          { table: 'equipment_borrow_requests', model: 'EquipmentBorrowRequest', routes: ['/member/equipment-borrow'], service: '@/lib/equipment/equipmentBorrowService', fk: '1:N -> equipment_borrow_items, hospital_events', purpose: 'ใบคำขอยืม-เบิกวัสดุ (หัวเอกสาร กำหนดคืน สถานะอนุมัติ)' },
+          { table: 'equipment_borrow_items', model: 'EquipmentBorrowItem', routes: ['/member/equipment-borrow'], service: '@/lib/equipment/equipmentBorrowService', fk: 'request_id, asset_id, material_id', purpose: 'รายการอุปกรณ์/วัสดุย่อยในใบคำขอยืม พร้อมผลการตรวจรับสภาพเมื่อคืน' }
+        ]
+      },
+      {
+        id: 'events',
+        title: '7. กิจกรรมโรงพยาบาล & เช็คอิน ThaID',
+        source: 'prisma',
+        tables: [
+          { table: 'hospital_events', model: 'HospitalEvent', routes: ['/member/events', '/member/events/create', '/member/events/[id]'], service: '@/lib/events/hospitalEventService', fk: 'head_organizer_id -> members.id, borrow_request_id -> equipment_borrow_requests.id', purpose: 'ข้อมูลกิจกรรม ช่วงเวลาเปิด-ปิดสแกน QR Token และใบยืมอุปกรณ์ที่ผูกไว้' },
+          { table: 'event_organizers', model: 'EventOrganizer', routes: ['/member/events/[id]'], service: '@/lib/events/hospitalEventService', fk: 'event_id -> hospital_events.id, member_id -> members.id', purpose: 'ผู้รับผิดชอบร่วม (Co-organizers) ของแต่ละกิจกรรม' },
+          { table: 'event_registrations', model: 'EventRegistration', routes: ['/member/events/[id]'], service: '@/lib/events/hospitalEventService', fk: 'event_id -> hospital_events.id, member_id -> members.id', purpose: 'รายชื่อบุคลากรที่ลงทะเบียนเข้าร่วมกิจกรรมล่วงหน้า' },
+          { table: 'event_attendances', model: 'EventAttendance', routes: ['/member/events/checkin-status', '/member/events/leaderboard'], service: '@/lib/events/hospitalEventService', fk: 'event_id -> hospital_events.id, member_id -> members.id', purpose: 'ประวัติการสแกน ThaID เช็คอินสำเร็จ (1 คน/งาน) และคะแนนเข้าร่วมกิจกรรม' },
+          { table: 'event_attachments', model: 'EventAttachment', routes: ['/member/events/[id]'], service: '@/lib/events/hospitalEventService', fk: 'event_id -> hospital_events.id, uploaded_by_member_id -> members.id', purpose: 'ไฟล์เอกสาร รูปภาพ และบันทึกข้อความประกอบกิจกรรม' }
+        ]
+      },
+      {
+        id: 'screening',
+        title: '8. คิวคัดกรอง Smart Card',
+        source: 'prisma',
+        tables: [
+          { table: 'screening_queues', model: 'ScreeningQueue', routes: ['/service/screening', '/service/screening/scan'], service: '@/lib/screening/screeningService', fk: '-', purpose: 'คิวผู้รับบริการที่อ่านจากบัตรประชาชน Smart Card (WAITING / VISIT_OPENED / CANCELLED)' }
+        ]
+      },
+      {
+        id: 'kpi_proj',
+        title: '9. ตัวชี้วัด KPI & ติดตามโครงการ/งบประมาณ',
+        source: 'prisma',
+        tables: [
+          { table: 'kpi_topics', model: 'KpiTopic', routes: ['/service/kpi-tracker'], service: '@/lib/kpi/kpiService', fk: '1:N -> kpi_indicators', purpose: 'หมวดหมู่/หัวข้อตัวชี้วัด KPI แยกตามปีงบประมาณ' },
+          { table: 'kpi_indicators', model: 'KpiIndicator', routes: ['/service/kpi-tracker'], service: '@/lib/kpi/kpiService', fk: 'topic_id -> kpi_topics.id', purpose: 'นิยามตัวชี้วัด เป้าหมาย (Target) ความถี่ และผู้รับผิดชอบ' },
+          { table: 'kpi_entries', model: 'KpiEntry', routes: ['/service/kpi-tracker'], service: '@/lib/kpi/kpiService', fk: 'indicator_id -> kpi_indicators.id', purpose: 'ค่าตัวตั้ง ตัวหาร และผลลัพธ์รายงวดของแต่ละตัวชี้วัด' },
+          { table: 'project_tracking_records', model: 'ProjectTrackingRecord', routes: ['/service/project-tracker'], service: '@/lib/projects/projectTrackerService', fk: '-', purpose: 'ทะเบียนโครงการ แผนงบประมาณ Q1–Q4 ยอดเบิกจ่ายจริง และสถานะการส่งงาน' },
+          { table: 'project_tracking_meta', model: 'ProjectTrackingMeta', routes: ['/service/project-tracker'], service: '@/lib/projects/projectTrackerService', fk: '-', purpose: 'ค่าตั้งค่า/Meta เสริมของระบบ Project Tracker (Key-Value)' }
+        ]
+      },
+      {
+        id: 'clinical_reg',
+        title: '10. ทะเบียนคลินิกเฉพาะทาง (Palliative / DM Remission / FCT)',
+        source: 'mixed',
+        tables: [
+          { table: 'palliative_care_registries', model: 'PalliativeCareRegistry', routes: ['/service/dashboard-rcm/palliative-care/*'], service: 'docs/gateway/routes/palliative.js', fk: '1:N -> palliative_care_registry_visits', purpose: 'ทะเบียนผู้ป่วยประคับประคอง ICD-10 หลัก/Z51.5 และวันที่ติดตาม' },
+          { table: 'palliative_care_registry_visits', model: 'PalliativeCareRegistryVisit', routes: ['/service/dashboard-rcm/palliative-care/registry'], service: 'docs/gateway/routes/palliative.js', fk: 'registry_id -> palliative_care_registries.id', purpose: 'บันทึกวันที่ติดตามเยี่ยมแต่ละครั้ง (Visit 1..N)' },
+          { table: 'dm_remission_cohorts', model: 'DmRemissionCohort', routes: ['/service/dm-remission', '/service/dm-remission/lab-tracking'], service: '@/lib/clinical/dmRemissionService', fk: 'UQ(fiscal_year, hn), UQ(fiscal_year, cid)', purpose: 'ทะเบียนผู้ป่วยเบาหวานเข้าสู่ระยะสงบ (1 คน/ปีงบประมาณ) + Lab A1c/FPG ก่อน-หลัง' },
+          { table: 'dm_remission_options', model: 'DmRemissionOption', routes: ['/service/dm-remission'], service: '@/lib/clinical/dmRemissionService', fk: 'UQ(category, label)', purpose: 'ตัวเลือก Dropdown ที่ Admin เพิ่มเอง (พฤติกรรม/ผลสรุป Remission)' },
+          { table: 'fct_home_visits', model: 'SQL Runtime (นอก Prisma)', routes: ['/service/fct-home-visit'], service: '@/lib/clinical/fctHomeVisitService', fk: 'INDEX(visit_date, hn)', isSql: true, purpose: 'บันทึกการออกเยี่ยมบ้าน 1 ครั้งของทีมสหวิชาชีพ FCT (5 วิชาชีพ)' },
+          { table: 'fct_home_visit_options', model: 'SQL Runtime (นอก Prisma)', routes: ['/service/fct-home-visit'], service: '@/lib/clinical/fctHomeVisitService', fk: 'UQ(category, label)', isSql: true, purpose: 'ตัวเลือก Dropdown ของระบบเยี่ยมบ้าน FCT (ระดับความเสี่ยง, กายภาพ, แผนไทย)' }
+        ]
+      },
+      {
+        id: 'rcm_ext',
+        title: '11. ฐานข้อมูล Gateway & ภายนอก (RCM / HOSxP / Salary / Gotowin)',
+        source: 'external',
+        tables: [
+          { table: 'rcmdb.* / eclaimdb.*', model: 'RCM & e-Claim DB', routes: ['/service/dashboard-rcm/**', '/service/budget-tracker/**'], service: '@/lib/clinical/rcmDashboardService, rcmFunds.js', fk: 't1dm, repdata, repeclaim, neweclaim, eclaimstatus, authencode, nhso_budget, seamless', isExt: true, purpose: 'กระทบยอดเงินชดเชย สปสช. (Rep-Funds), e-Claim, 28 กองทุน และงบประมาณ' },
+          { table: 'ovst / ipt / patient / lab_*', model: 'HOSxP Clinical DB (Read-Only)', routes: ['/check-date', '/service/lab*', '/service/er-in-status', '/service/ward-status', '/service/mok', '/systems/**'], service: '@/lib/clinicalDb, erDb, appointmentDb', fk: 'Read-only SELECT ผ่าน API Gateway', isExt: true, purpose: 'ข้อมูลบริการผู้ป่วย OPD/IPD, นัดหมาย, ผลแล็บ, ER, Ward และคลินิกเรื้อรัง' },
+          { table: 'salary / ot / datein / username', model: 'Salary DB (192.168.1.4)', routes: ['/salary', '/member/all-salary', '/member/upload-salary'], service: '@/lib/salaryDb, salary.js', fk: 'c2 = เลขบัตรประชาชน 13 หลัก', isExt: true, purpose: 'ข้อมูลสลิปเงินเดือน ค่าล่วงเวลา (OT) รอบจ่ายเงิน และหนังสือรับรองเงินได้' },
+          { table: 'asset_article / supplies', model: 'Gotowin DB (GTW)', routes: ['/member/assets'], service: '@/lib/gtwDb, gtw.js', fk: 'ซิงก์เข้า hospital_assets', isExt: true, purpose: 'ฐานข้อมูลพัสดุเดิม Gotowin สำหรับดึงข้อมูลครุภัณฑ์และรหัส FSN เข้าเว็บ' }
+        ]
+      }
+    ];
+
+    let activeSource = 'all';
+    let activeGroup = 'all';
+    let searchQuery = '';
+    const expandedGroups = new Set();
+    const expandedTables = new Set();
+
+    function getBadgeHtml(t) {
+      if (t.deprecated) return '<span class="badge badge-dep">Deprecated</span>';
+      if (t.isSql) return '<span class="badge badge-sql">SQL Runtime</span>';
+      if (t.isExt) return '<span class="badge badge-ext">External / Gateway</span>';
+      return '<span class="badge badge-prisma">Prisma</span>';
+    }
+
+    function matchesFilters(g, t) {
+      if (activeGroup !== 'all' && g.id !== activeGroup) return false;
+      if (activeSource === 'prisma' && (t.isSql || t.isExt)) return false;
+      if (activeSource === 'sql' && !t.isSql) return false;
+      if (activeSource === 'external' && !t.isExt) return false;
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        g.title.toLowerCase().includes(q) ||
+        t.table.toLowerCase().includes(q) ||
+        t.model.toLowerCase().includes(q) ||
+        t.purpose.toLowerCase().includes(q) ||
+        t.service.toLowerCase().includes(q) ||
+        t.routes.some(r => r.toLowerCase().includes(q))
+      );
+    }
+
+    function renderStats() {
+      const stats = [
+        { key: 'all', num: 51, label: 'ทั้งหมดในแผนผัง' },
+        { key: 'prisma', num: 45, label: 'Prisma App DB' },
+        { key: 'sql', num: 2, label: 'FCT Runtime SQL' },
+        { key: 'external', num: 4, label: 'Gateway & External DB' }
+      ];
+      document.getElementById('statsRow').innerHTML = stats.map(s => `
+        <div class="stat ${activeSource === s.key ? 'active' : ''}" data-source="${s.key}">
+          <div class="stat-num">${s.num}</div>
+          <div class="stat-label">${s.label}</div>
+        </div>
+      `).join('');
+      document.querySelectorAll('.stat').forEach(el => {
+        el.addEventListener('click', () => {
+          activeSource = el.dataset.source;
+          render();
+        });
+      });
+    }
+
+    function renderPills() {
+      const pills = [{ id: 'all', label: 'ทุกหมวด (11)' }].concat(
+        GROUPS.map(g => ({
+          id: g.id,
+          label: g.title.split('(')[0].trim()
+        }))
+      );
+      document.getElementById('categoryPills').innerHTML = pills.map(p => `
+        <button type="button" class="pill ${activeGroup === p.id ? 'active' : ''}" data-group="${p.id}">
+          ${p.label}
+        </button>
+      `).join('');
+      document.querySelectorAll('.pill').forEach(el => {
+        el.addEventListener('click', () => {
+          activeGroup = el.dataset.group;
+          if (activeGroup !== 'all') expandedGroups.add(activeGroup);
+          render();
+        });
+      });
+    }
+
+    function renderGroups() {
+      const container = document.getElementById('groupsContainer');
+      const filteredGroups = GROUPS.map(g => ({
+        ...g,
+        filteredTables: g.tables.filter(t => matchesFilters(g, t))
+      })).filter(g => g.filteredTables.length > 0);
+
+      if (filteredGroups.length === 0) {
+        container.innerHTML = '<div class="card-box empty-state">ไม่พบตารางหรือระบบที่ตรงกับคำค้นหา</div>';
+        return;
+      }
+
+      const forceExpand = Boolean(searchQuery) || activeGroup !== 'all' || activeSource !== 'all';
+
+      container.innerHTML = filteredGroups.map(g => {
+        const isOpen = forceExpand || expandedGroups.has(g.id);
+        const chipsHtml = g.filteredTables.map(t => `
+          <span class="mini-chip" data-open-group="${g.id}" data-open-table="${t.table}">${t.table}</span>
+        `).join('');
+
+        const bodyHtml = !isOpen ? '' : `
+          <div class="group-body">
+            ${g.filteredTables.map(t => {
+              const tKey = g.id + ':' + t.table;
+              const isTblOpen = Boolean(searchQuery) || expandedTables.has(tKey);
+              return `
+                <div class="tbl-row ${isTblOpen ? 'selected' : ''}" data-table-key="${tKey}">
+                  <div class="tbl-top">
+                    <div class="tbl-names">
+                      <span class="tbl-name">${t.table}</span>
+                      <span class="model-name">(${t.model})</span>
+                      ${getBadgeHtml(t)}
+                    </div>
+                    <span class="chevron">${isTblOpen ? '▲ ซ่อน' : '▼ รายละเอียด'}</span>
+                  </div>
+                  <div class="tbl-purpose">${t.purpose}</div>
+                  ${isTblOpen ? `
+                    <div class="tbl-meta">
+                      <div><strong>หน้าเว็บ:</strong> ${t.routes.map(r => `<span class="code-inline">${r}</span>`).join(' ')}</div>
+                      <div><strong>Service / API:</strong> <span class="code-inline">${t.service}</span></div>
+                      <div><strong>ความสัมพันธ์ / Index:</strong> ${t.fk}</div>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+
+        return `
+          <div class="group-card">
+            <div class="group-header" data-toggle-group="${g.id}">
+              <div class="group-title-wrap">
+                <span class="group-title">${g.title}</span>
+                <span class="badge">${g.filteredTables.length} รายการ</span>
+              </div>
+              <span class="chevron">${isOpen ? '▲ ย่อ' : '▼ ดูตาราง'}</span>
+            </div>
+            ${!isOpen ? `<div class="group-preview">${chipsHtml}</div>` : ''}
+            ${bodyHtml}
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('[data-toggle-group]').forEach(el => {
+        el.addEventListener('click', () => {
+          const gid = el.dataset.toggleGroup;
+          if (expandedGroups.has(gid)) expandedGroups.delete(gid);
+          else expandedGroups.add(gid);
+          renderGroups();
+        });
+      });
+
+      document.querySelectorAll('[data-open-table]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const gid = el.dataset.openGroup;
+          const tbl = el.dataset.openTable;
+          expandedGroups.add(gid);
+          expandedTables.add(gid + ':' + tbl);
+          renderGroups();
+        });
+      });
+
+      document.querySelectorAll('[data-table-key]').forEach(el => {
+        el.addEventListener('click', () => {
+          const key = el.dataset.tableKey;
+          if (expandedTables.has(key)) expandedTables.delete(key);
+          else expandedTables.add(key);
+          renderGroups();
+        });
+      });
+    }
+
+    function render() {
+      renderStats();
+      renderPills();
+      renderGroups();
+    }
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      renderGroups();
+    });
+
+    document.getElementById('toggleAllBtn').addEventListener('click', () => {
+      if (expandedGroups.size === GROUPS.length) {
+        expandedGroups.clear();
+        document.getElementById('toggleAllBtn').textContent = 'ขยายทั้งหมด';
+      } else {
+        GROUPS.forEach(g => expandedGroups.add(g.id));
+        document.getElementById('toggleAllBtn').textContent = 'ย่อทั้งหมด';
+      }
+      renderGroups();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      activeSource = 'all';
+      activeGroup = 'all';
+      searchQuery = '';
+      expandedGroups.clear();
+      expandedTables.clear();
+      document.getElementById('searchInput').value = '';
+      document.getElementById('toggleAllBtn').textContent = 'ขยายทั้งหมด';
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

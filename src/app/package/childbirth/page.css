@@ -248,6 +248,10 @@
   margin: 0 0 6px 0;
 }
 
+.sectionTitle--noSubtitle {
+  margin-bottom: 2rem;
+}
+
 .sectionSubtitle {
   font-size: 0.95rem;
   color: #64748b;
