@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import SssDentalClient from '../SssDentalClient'
 
@@ -50,78 +50,78 @@ describe('SssDentalClient Component', () => {
     vi.clearAllMocks()
     global.fetch = vi.fn().mockResolvedValue({
       json: vi.fn().mockResolvedValue(mockApiResponse),
-    } as any)
+    } as unknown as Response)
   })
 
-  it('renders command bar and title correctly', async () => {
-    render(<SssDentalClient />)
+  it('renders command header and standardized date tabs correctly', async () => {
+    render(<SssDentalClient initialData={mockApiResponse} />)
 
     expect(screen.getByText('2.1.1.1')).toBeInTheDocument()
     expect(
       screen.getByText('รายงานการให้บริการทันตกรรม สิทธิ์ประกันสังคม')
     ).toBeInTheDocument()
-    expect(screen.getByText('กำหนดเอง (วันถึงวัน)')).toBeInTheDocument()
-    expect(screen.getByText('รายเดือน')).toBeInTheDocument()
-    expect(screen.getByText('รายปีงบประมาณ')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'กำหนดเอง' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'เดือน' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'ปีงบประมาณ' })).toBeInTheDocument()
     expect(screen.getByPlaceholderText('ค้นหาชื่อทันตแพทย์...')).toBeInTheDocument()
     expect(screen.getByText('ส่งออก Excel')).toBeInTheDocument()
+    // Double-fetch guard: should not call fetch on initial mount when initialData is provided
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
-  it('renders KPI metrics and quarterly grouped ledger table after data load', async () => {
+  it('fetches with AbortController signal when no initialData and renders known totals', async () => {
     render(<SssDentalClient />)
 
     await waitFor(() => {
-      // KPI checks
-      expect(screen.getAllByText('320').length).toBeGreaterThan(0) // Visits
-      expect(screen.getAllByText('฿430,000').length).toBeGreaterThan(0) // Income
-      expect(screen.getAllByText('฿320,000').length).toBeGreaterThan(0) // UC
-      expect(screen.getAllByText('฿100,000').length).toBeGreaterThan(0) // Cash
-      expect(screen.getAllByText('฿10,000').length).toBeGreaterThan(0) // Debit
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/service/dashboard-rcm/sss-dental'),
+        expect.anything()
+      )
+      expect(screen.getAllByText('320').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('฿430,000').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('฿320,000').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('฿100,000').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('฿10,000').length).toBeGreaterThan(0)
     })
 
-    // Check Quarter Headers
     expect(screen.getByText('ไตรมาส 1 (Q1)')).toBeInTheDocument()
     expect(screen.getByText('ไตรมาส 2 (Q2)')).toBeInTheDocument()
     expect(screen.getByText('ไตรมาส 3 (Q3)')).toBeInTheDocument()
     expect(screen.getByText('ไตรมาส 4 (Q4)')).toBeInTheDocument()
-
-    // Check Doctor rows
-    expect(screen.getByText('ทพ.สมชาย ใจดี')).toBeInTheDocument()
-    expect(screen.getByText('ทพญ.สมศรี รักฟัน')).toBeInTheDocument()
+    expect(screen.getAllByText('ทพ.สมชาย ใจดี').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('ทพญ.สมศรี รักฟัน').length).toBeGreaterThan(0)
   })
 
-  it('filters doctors by search input', async () => {
-    render(<SssDentalClient />)
+  it('switches chart metric when clicking KPI tiles and filters debit doctors', () => {
+    render(<SssDentalClient initialData={mockApiResponse} />)
 
-    await waitFor(() => {
-      expect(screen.getByText('ทพ.สมชาย ใจดี')).toBeInTheDocument()
-      expect(screen.getByText('ทพญ.สมศรี รักฟัน')).toBeInTheDocument()
-    })
+    // Switch chart from income to visits
+    const visitsTile = screen.getByRole('button', { name: /จำนวนครั้งรับบริการ/ })
+    fireEvent.click(visitsTile)
+    expect(screen.getByText('แนวโน้มจำนวนครั้งบริการรายเดือน')).toBeInTheDocument()
 
-    const searchInput = screen.getByPlaceholderText('ค้นหาชื่อทันตแพทย์...')
-    fireEvent.change(searchInput, { target: { value: 'สมศรี' } })
-
-    expect(screen.getByText('ทพญ.สมศรี รักฟัน')).toBeInTheDocument()
+    // Filter only doctors with outstanding debit (> 0)
+    const debitFilterBtn = screen.getByRole('button', { name: /มีลูกหนี้ค้าง \(1\)/ })
+    fireEvent.click(debitFilterBtn)
+    expect(screen.getAllByText('ทพญ.สมศรี รักฟัน').length).toBeGreaterThan(0)
     expect(screen.queryByText('ทพ.สมชาย ใจดี')).not.toBeInTheDocument()
   })
 
-  it('sorts doctors when clicking sortable header', async () => {
-    render(<SssDentalClient />)
+  it('filters doctors by search input and sorts by income header', () => {
+    render(<SssDentalClient initialData={mockApiResponse} />)
 
-    await waitFor(() => {
-      expect(screen.getByText('ทพ.สมชาย ใจดี')).toBeInTheDocument()
-    })
+    const table = screen.getByRole('table')
+    const searchInput = screen.getByPlaceholderText('ค้นหาชื่อทันตแพทย์...')
+    fireEvent.change(searchInput, { target: { value: 'สมศรี' } })
+    expect(within(table).getByText('ทพญ.สมศรี รักฟัน')).toBeInTheDocument()
+    expect(within(table).queryByText('ทพ.สมชาย ใจดี')).not.toBeInTheDocument()
 
-    // Default is total_income desc: D02 (280,000) should appear before D01 (150,000)
-    const doctorNamesBefore = screen.getAllByText(/ทพ/).map((el) => el.textContent)
-    expect(doctorNamesBefore[0]).toContain('สมศรี')
+    fireEvent.change(searchInput, { target: { value: '' } })
 
-    // Click total_income header to sort ascending
     const incomeHeader = screen.getByTitle('คลิกเพื่อเรียงตามค่ารักษาพยาบาลรวม')
     fireEvent.click(incomeHeader)
 
-    // Now D01 (150,000) should appear first
-    const doctorNamesAfter = screen.getAllByText(/ทพ/).map((el) => el.textContent)
-    expect(doctorNamesAfter[0]).toContain('สมชาย')
+    const rows = table.querySelectorAll('tbody tr')
+    expect(rows[0].textContent).toContain('ทพ.สมชาย ใจดี')
   })
 })

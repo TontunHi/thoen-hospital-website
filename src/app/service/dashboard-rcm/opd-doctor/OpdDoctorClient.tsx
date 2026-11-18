@@ -1,139 +1,100 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import {
-  Users,
-  DollarSign,
-  Receipt,
-  Download,
-  RefreshCw,
-  Search,
-  Filter,
-  Check,
-  X,
-  ChevronDown,
-  AlertCircle,
-  FileSpreadsheet,
-} from 'lucide-react'
+import { Users, Filter, ChevronDown, Check, X } from 'lucide-react'
 import {
   DoctorSummaryItem,
   PttypeOption,
   OpdDoctorSummaryResult,
 } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
-import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
-import '../sss-dental/page.css'
-import './page.css'
-
-const THAI_MONTH_NAMES = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-]
+import {
+  RcmCommandHeader,
+  RcmErrorBanner,
+} from '../_components/RcmDashboardPrimitives'
+import { RcmDoctorFinanceBody } from '../_components/RcmDoctorFinanceBody'
+import {
+  buildFiscalQuarters,
+  getAvailableFiscalYears,
+  getCurrentFiscalYearCe,
+  getFiscalYearDateBounds,
+  getMonthDateBounds,
+} from '../_components/rcmDateRangeUtils'
+import '../_components/dashboard-design.css'
 
 export interface OpdDoctorClientProps {
   initialData?: OpdDoctorSummaryResult | null
   initialRange?: { startDate: string; endDate: string }
 }
 
+const DEFAULT_GRAND_TOTAL: OpdDoctorSummaryResult['grandTotal'] = {
+  visits: 0,
+  income: 0,
+  uc_money: 0,
+  rcpt_money: 0,
+  discount: 0,
+  debit: 0,
+}
+
+/**
+ * 2.1.1.2 OPD Doctor & 37 e-Claim Pttype Dashboard Client.
+ * Follows dashboard-design Monitor hierarchy & rcm-data-flow 5 pillars.
+ */
 export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctorClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const currentCalYear = today.getFullYear()
-  const defaultFiscalYear = today.getMonth() + 1 >= 10 ? currentCalYear + 1 : currentCalYear
+  const defaultFiscalYear = useMemo(() => getCurrentFiscalYearCe(today), [today])
 
   // Date controls
   const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('year')
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState<number>(defaultFiscalYear)
-  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(
+    initialRange?.startDate || getFiscalYearDateBounds(defaultFiscalYear).startDate
+  )
+  const [ds2, setDs2] = useState<string>(
+    initialRange?.endDate || getFiscalYearDateBounds(defaultFiscalYear).endDate
+  )
 
   // 37 Pttype Multi-select
   const [allPttypes, setAllPttypes] = useState<PttypeOption[]>(initialData?.allPttypeOptions || [])
-  const [selectedPttypes, setSelectedPttypes] = useState<string[]>([]) // Empty means "All 37 สิทธิ์"
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>([])
   const [pttypeDropdownOpen, setPttypeDropdownOpen] = useState<boolean>(false)
   const [pttypeSearch, setPttypeSearch] = useState<string>('')
-
-  // Doctor search & Filter
-  const [searchDoctor, setSearchDoctor] = useState<string>('')
+  const popoverRef = useRef<HTMLDivElement | null>(null)
 
   // Data States
   const [loading, setLoading] = useState<boolean>(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(Boolean(initialData))
   const [error, setError] = useState<string | null>(null)
   const [doctors, setDoctors] = useState<DoctorSummaryItem[]>(initialData?.doctors || [])
   const [months, setMonths] = useState<string[]>(initialData?.months || [])
   const [grandTotal, setGrandTotal] = useState<OpdDoctorSummaryResult['grandTotal']>(
-    initialData?.grandTotal || {
-      visits: 0,
-      income: 0,
-      uc_money: 0,
-      rcpt_money: 0,
-      discount: 0,
-      debit: 0,
-    }
+    initialData?.grandTotal || DEFAULT_GRAND_TOTAL
   )
   const [monthlyTotals, setMonthlyTotals] = useState<Record<string, { income: number; visits: number }>>(
     initialData?.monthlyTotals || {}
   )
 
-  // 12 Fiscal Month columns
-  const fiscalMonthColumns = useMemo(() => {
-    if (dateMode !== 'year') return []
-    const prevYear = selectedYear - 1
-    const curYear = selectedYear
-    return [
-      { key: `${prevYear}-10`, label: 'ต.ค.' },
-      { key: `${prevYear}-11`, label: 'พ.ย.' },
-      { key: `${prevYear}-12`, label: 'ธ.ค.' },
-      { key: `${curYear}-01`, label: 'ม.ค.' },
-      { key: `${curYear}-02`, label: 'ก.พ.' },
-      { key: `${curYear}-03`, label: 'มี.ค.' },
-      { key: `${curYear}-04`, label: 'เม.ย.' },
-      { key: `${curYear}-05`, label: 'พ.ค.' },
-      { key: `${curYear}-06`, label: 'มิ.ย.' },
-      { key: `${curYear}-07`, label: 'ก.ค.' },
-      { key: `${curYear}-08`, label: 'ส.ค.' },
-      { key: `${curYear}-09`, label: 'ก.ย.' },
-    ]
-  }, [dateMode, selectedYear])
-
-  const availableYears = useMemo(() => {
-    const list = []
-    for (let y = defaultFiscalYear; y >= defaultFiscalYear - 6; y--) {
-      list.push(y)
-    }
-    return list
-  }, [defaultFiscalYear])
-
-  const handleSelectMonth = (month: number) => {
-    setSelectedMonth(month)
-    const mStr = String(month).padStart(2, '0')
-    const lastDay = new Date(currentCalYear, month, 0).getDate()
-    setDs1(`${currentCalYear}-${mStr}-01`)
-    setDs2(`${currentCalYear}-${mStr}-${String(lastDay).padStart(2, '0')}`)
-  }
-
-  const handleSelectFiscalYear = (fiscalYear: number) => {
-    setSelectedYear(fiscalYear)
-    setDs1(`${fiscalYear - 1}-10-01`)
-    setDs2(`${fiscalYear}-09-30`)
-  }
+  const availableYears = useMemo(
+    () => getAvailableFiscalYears(defaultFiscalYear),
+    [defaultFiscalYear]
+  )
 
   const abortDoctorRef = useRef<AbortController | null>(null)
   const isFirstMount = useRef(true)
 
   const fetchData = useCallback(
     async (start = ds1, end = ds2, pttypes = selectedPttypes) => {
-      if (abortDoctorRef.current) {
-        abortDoctorRef.current.abort()
-      }
+      abortDoctorRef.current?.abort()
       const controller = new AbortController()
       abortDoctorRef.current = controller
 
       setLoading(true)
       setError(null)
       try {
-        let url = `/api/service/dashboard-rcm/opd-doctor-summary?ds1=${start}&ds2=${end}`
+        let url = `/api/service/dashboard-rcm/opd-doctor-summary?ds1=${encodeURIComponent(start)}&ds2=${encodeURIComponent(end)}`
         if (pttypes.length > 0) {
           url += `&eclaims=${encodeURIComponent(pttypes.join(','))}`
         }
@@ -143,25 +104,17 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
           setDoctors(json.doctors || [])
           setMonths(json.months || [])
           setMonthlyTotals(json.monthlyTotals || {})
-          setGrandTotal(
-            json.grandTotal || {
-              visits: 0,
-              income: 0,
-              uc_money: 0,
-              rcpt_money: 0,
-              discount: 0,
-              debit: 0,
-            }
-          )
+          setGrandTotal(json.grandTotal || DEFAULT_GRAND_TOTAL)
+          setHasLoadedOnce(true)
           if (json.allPttypeOptions && allPttypes.length === 0) {
             setAllPttypes(json.allPttypeOptions)
           }
         } else {
-          setError(json.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+          setError(json.error?.message || json.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
         }
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return
-        setError(err?.message || 'ไม่สามารถเชื่อมต่อ API ได้')
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') return
+        setError(err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อ API ได้')
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false)
@@ -182,17 +135,49 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
     }
   }, [ds1, ds2, selectedPttypes, fetchData, initialData])
 
-  // Pttype Selection Toggles
-  const togglePttype = (code: string) => {
-    if (selectedPttypes.includes(code)) {
-      setSelectedPttypes(selectedPttypes.filter((c) => c !== code))
-    } else {
-      setSelectedPttypes([...selectedPttypes, code])
+  // Close popover on outside click or Escape
+  useEffect(() => {
+    if (!pttypeDropdownOpen) return
+    const onPointerDown = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPttypeDropdownOpen(false)
+      }
     }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPttypeDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [pttypeDropdownOpen])
+
+  const handleSelectMonth = (month: number) => {
+    setSelectedMonth(month)
+    const bounds = getMonthDateBounds(currentCalYear, month)
+    setDs1(bounds.startDate)
+    setDs2(bounds.endDate)
   }
 
-  const selectAllPttypes = () => {
-    setSelectedPttypes([]) // Empty represents "All 37 สิทธิ์"
+  const handleSelectFiscalYear = (fiscalYear: number) => {
+    setSelectedYear(fiscalYear)
+    const bounds = getFiscalYearDateBounds(fiscalYear)
+    setDs1(bounds.startDate)
+    setDs2(bounds.endDate)
+  }
+
+  const handleDateModeChange = (mode: 'custom' | 'month' | 'year') => {
+    setDateMode(mode)
+    if (mode === 'month') handleSelectMonth(selectedMonth)
+    else if (mode === 'year') handleSelectFiscalYear(selectedYear)
+  }
+
+  const togglePttype = (code: string) => {
+    setSelectedPttypes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    )
   }
 
   const filteredPttypeOptions = useMemo(() => {
@@ -203,18 +188,9 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
     )
   }, [allPttypes, pttypeSearch])
 
-  const filteredDoctors = useMemo(() => {
-    if (!searchDoctor.trim()) return doctors
-    const q = searchDoctor.toLowerCase()
-    return doctors.filter(
-      (d) =>
-        d.doctor_name.toLowerCase().includes(q) ||
-        d.doctor_code.toLowerCase().includes(q)
-    )
-  }, [doctors, searchDoctor])
-
   const exportExcel = async () => {
     const isYearMode = dateMode === 'year'
+    const fiscalCols = isYearMode ? buildFiscalQuarters(selectedYear).flatMap((q) => q.months) : []
     const headers = [
       'ลำดับ',
       'รหัสแพทย์',
@@ -225,29 +201,29 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
       'ส่วนลด (บาท)',
       'ลูกหนี้คงค้าง (บาท)',
       'ค่ารักษาทั้งหมด (บาท)',
-      ...(isYearMode
-        ? fiscalMonthColumns.map((m) => `ยอด ${m.label}`)
-        : []),
+      ...(isYearMode ? fiscalCols.map((m) => `ยอด ${m.label}`) : []),
     ]
 
-    const rows = filteredDoctors.map((doc, idx) => {
-      const monthValues = isYearMode
-        ? fiscalMonthColumns.map((m) => doc.monthly_income[m.key] || 0)
-        : []
+    const rows = [...doctors]
+      .sort((a, b) => (b.total_income ?? 0) - (a.total_income ?? 0))
+      .map((doc, idx) => {
+        const monthValues = isYearMode
+          ? fiscalCols.map((m) => doc.monthly_income[m.key] || 0)
+          : []
 
-      return [
-        idx + 1,
-        doc.doctor_code,
-        doc.doctor_name,
-        doc.total_visits,
-        doc.total_uc_money,
-        doc.total_rcpt_money,
-        doc.total_discount,
-        doc.total_debit,
-        doc.total_income,
-        ...monthValues,
-      ]
-    })
+        return [
+          idx + 1,
+          doc.doctor_code,
+          doc.doctor_name,
+          doc.total_visits,
+          doc.total_uc_money,
+          doc.total_rcpt_money,
+          doc.total_discount,
+          doc.total_debit,
+          doc.total_income,
+          ...monthValues,
+        ]
+      })
 
     await exportRcmExcel({
       filename: `opd_doctor_summary_${ds1}_to_${ds2}.xlsx`,
@@ -258,525 +234,164 @@ export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctor
     })
   }
 
-  const formatNumber = (num: number) => num.toLocaleString('th-TH')
-  const formatCurrency = (num: number) =>
-    '฿' + num.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  const pttypeFilterTrigger = (
+    <div className="dd-popover-wrap" ref={popoverRef}>
+      <button
+        type="button"
+        aria-expanded={pttypeDropdownOpen}
+        onClick={() => setPttypeDropdownOpen((prev) => !prev)}
+        className="dd-btn"
+        style={{
+          borderColor: selectedPttypes.length > 0 ? 'var(--dd-money)' : undefined,
+        }}
+        title="กรองกลุ่มสิทธิ e-Claim (37 กลุ่มสิทธิ)"
+      >
+        <Filter size={13} />
+        <span>
+          {selectedPttypes.length === 0
+            ? 'ทุกสิทธิ (37)'
+            : `เลือก ${selectedPttypes.length} สิทธิ`}
+        </span>
+        <ChevronDown size={13} />
+      </button>
 
-  return (
-    <div className="rcm-content-container">
-      {/* Page Header */}
-      <div className="rcm-page-header">
-        <div className="rcm-page-header-title">
-          <div className="rcm-icon-badge" style={{ backgroundColor: '#f0fdfa', color: '#0d9488' }}>
-            <Users size={24} />
-          </div>
-          <div>
-            <h2 className="rcm-header-h2">
-              2.1.1.2 สรุปค่าบริการผู้ป่วยนอก OPD ตามสิทธิ์การรักษา
-            </h2>
-            <p className="rcm-header-desc">
-              สรุปรายได้ผู้ป่วยนอกจำแนกรายแพทย์ พร้อมการกระจายยอดรายเดือนตลอดปีงบประมาณ และตัวกรอง 37 สิทธิ e-Claim
-            </p>
-          </div>
-        </div>
-        <div className="rcm-actions-row">
-          <button
-            type="button"
-            onClick={() => fetchData()}
-            disabled={loading}
-            className="rcm-btn rcm-btn-secondary"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            <span>รีเฟรช</span>
-          </button>
-          <button
-            type="button"
-            onClick={exportExcel}
-            disabled={loading || filteredDoctors.length === 0}
-            className="rcm-btn rcm-btn-primary"
-            style={{ backgroundColor: '#0d9488' }}
-            title="ส่งออกรายงานเป็นไฟล์ Excel (.xlsx)"
-          >
-            <Download size={14} />
-            <span>ส่งออก Excel</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Controls Bar */}
-      <div className="rcm-controls-card">
-        <div className="rcm-controls-row">
-          {/* Mode Selector */}
-          <div className="rcm-button-group">
-            <button
-              type="button"
-              onClick={() => setDateMode('custom')}
-              className={`rcm-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
-            >
-              กำหนดเอง (วันถึงวัน)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDateMode('month')
-                handleSelectMonth(selectedMonth)
-              }}
-              className={`rcm-mode-btn ${dateMode === 'month' ? 'active' : ''}`}
-            >
-              รายเดือน
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDateMode('year')
-                handleSelectFiscalYear(selectedYear)
-              }}
-              className={`rcm-mode-btn ${dateMode === 'year' ? 'active' : ''}`}
-            >
-              รายปีงบประมาณ
-            </button>
-          </div>
-
-          {/* Date Mode Inputs */}
-          {dateMode === 'custom' && (
-            <div className="rcm-date-inputs">
-              <span>ตั้งแต่:</span>
-              <ThaiDatePicker
-                value={ds1}
-                onChange={setDs1}
-                maxDate={ds2}
-                aria-label="ตั้งแต่วันที่"
-              />
-              <span>ถึง:</span>
-              <ThaiDatePicker
-                value={ds2}
-                onChange={setDs2}
-                minDate={ds1}
-                aria-label="ถึงวันที่"
-              />
-            </div>
-          )}
-
-          {dateMode === 'month' && (
-            <div className="rcm-date-inputs">
-              <span>เลือกเดือน:</span>
-              <select
-                value={selectedMonth}
-                onChange={(e) => handleSelectMonth(Number(e.target.value))}
-                className="rcm-select"
-              >
-                {THAI_MONTH_NAMES.map((name, idx) => (
-                  <option key={idx + 1} value={idx + 1}>
-                    {name} {currentCalYear + 543}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {dateMode === 'year' && (
-            <div className="rcm-date-inputs">
-              <span>เลือกปีงบประมาณ:</span>
-              <select
-                value={selectedYear}
-                onChange={(e) => handleSelectFiscalYear(Number(e.target.value))}
-                className="rcm-select"
-              >
-                {availableYears.map((y) => (
-                  <option key={y} value={y}>
-                    ปีงบประมาณ {y + 543}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {/* 37 e-Claim Pttype Filter & Search */}
-        <div className="rcm-controls-row">
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Multi-Select Dropdown */}
-            <div className="rcm-dropdown-wrapper">
-              <button
-                type="button"
-                onClick={() => setPttypeDropdownOpen(!pttypeDropdownOpen)}
-                className="rcm-dropdown-btn"
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Filter size={14} style={{ color: '#0d9488' }} />
-                  <span>
-                    {selectedPttypes.length === 0
-                      ? '✓ เลือกทุกสิทธิ (37 สิทธิ)'
-                      : `เลือก ${selectedPttypes.length} สิทธิ`}
-                  </span>
-                </div>
-                <ChevronDown size={14} />
-              </button>
-
-              {pttypeDropdownOpen && (
-                <div className="rcm-dropdown-panel">
-                  <div className="rcm-dropdown-search">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
-                        กลุ่มสิทธิ e-Claim (มาตรฐาน 37 กลุ่ม)
-                      </span>
-                      <button
-                        type="button"
-                        onClick={selectAllPttypes}
-                        style={{ fontSize: '0.75rem', color: '#059669', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
-                      >
-                        ✓ เลือกทุกสิทธิ
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="พิมพ์ค้นหารหัสหรือชื่อสิทธิ..."
-                      value={pttypeSearch}
-                      onChange={(e) => setPttypeSearch(e.target.value)}
-                      className="rcm-input"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div className="rcm-dropdown-items">
-                    {filteredPttypeOptions.map((opt) => {
-                      const isSelected = selectedPttypes.includes(opt.code)
-                      return (
-                        <div
-                          key={opt.code}
-                          onClick={() => togglePttype(opt.code)}
-                          className={`rcm-dropdown-item ${isSelected ? 'selected' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            readOnly
-                            style={{ cursor: 'pointer' }}
-                          />
-                          <span>
-                            <b>{opt.code}</b> : {opt.name}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  <div style={{ padding: '0.5rem', borderTop: '1px solid #f1f5f9', textAlign: 'right' }}>
-                    <button
-                      type="button"
-                      onClick={() => setPttypeDropdownOpen(false)}
-                      className="rcm-btn rcm-btn-primary"
-                      style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-                    >
-                      ปิดหน้าต่าง
-                    </button>
-                  </div>
-                </div>
+      {pttypeDropdownOpen && (
+        <div className="dd-popover-panel" role="dialog" aria-label="ตัวกรองสิทธิ e-Claim">
+          <div className="dd-popover-head">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600 }}>กลุ่มสิทธิ e-Claim (37 สิทธิ)</span>
+              {selectedPttypes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedPttypes([])}
+                  className="dd-chip-clear"
+                >
+                  เลือกทุกสิทธิ
+                </button>
               )}
             </div>
-
-            {/* Doctor Search */}
-            <div style={{ position: 'relative', width: '260px' }}>
-              <input
-                type="text"
-                placeholder="ค้นหาชื่อแพทย์..."
-                value={searchDoctor}
-                onChange={(e) => setSearchDoctor(e.target.value)}
-                className="rcm-input"
-                style={{ width: '100%', paddingLeft: '2rem' }}
-              />
-              <Search
-                size={14}
-                style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="ค้นหารหัสหรือชื่อสิทธิ..."
+              value={pttypeSearch}
+              onChange={(e) => setPttypeSearch(e.target.value)}
+              className="dd-input"
+              style={{ width: '100%' }}
+            />
           </div>
 
-          <div style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>
-            พบข้อมูลแพทย์: <b style={{ color: '#0f172a' }}>{filteredDoctors.length}</b> ท่าน
-          </div>
-        </div>
-
-        {/* Selected Badges */}
-        {selectedPttypes.length > 0 && (
-          <div className="rcm-badge-list">
-            <span style={{ fontSize: '0.78rem', color: '#1e293b', fontWeight: 700, alignSelf: 'center' }}>สิทธิที่เลือก:</span>
-            {selectedPttypes.map((code) => {
-              const opt = allPttypes.find((p) => p.code === code)
+          <div className="dd-popover-list">
+            {filteredPttypeOptions.map((opt) => {
+              const isSelected = selectedPttypes.includes(opt.code)
               return (
-                <span key={code} className="rcm-filter-tag">
-                  <span>{code}: {opt?.name || code}</span>
-                  <button
-                    type="button"
-                    onClick={() => togglePttype(code)}
-                    className="rcm-tag-remove"
+                <button
+                  key={opt.code}
+                  type="button"
+                  onClick={() => togglePttype(opt.code)}
+                  className={`dd-popover-item ${isSelected ? 'is-selected' : ''}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 4,
+                      border: `1px solid ${isSelected ? 'var(--dd-money)' : 'var(--dd-line-strong)'}`,
+                      background: isSelected ? 'var(--dd-money)' : 'transparent',
+                      color: '#fff',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
                   >
-                    <X size={12} />
-                  </button>
-                </span>
+                    {isSelected && <Check size={11} />}
+                  </span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <b>{opt.code}</b> · {opt.name}
+                  </span>
+                </button>
               )
             })}
-            <button
-              type="button"
-              onClick={selectAllPttypes}
-              style={{ fontSize: '0.75rem', color: '#e11d48', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-            >
-              ล้างตัวกรองสิทธิ์
-            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
+  )
 
-      {error && (
-        <div style={{ padding: '1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', color: '#991b1b', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <AlertCircle size={18} />
-          <span>{error}</span>
+  return (
+    <div className="dd-page">
+      <RcmCommandHeader
+        code="2.1.1.2"
+        title="สรุปค่าบริการผู้ป่วยนอก OPD ตามสิทธิ์การรักษา"
+        icon={<Users size={17} strokeWidth={1.5} />}
+        dateMode={dateMode}
+        onDateModeChange={handleDateModeChange}
+        ds1={ds1}
+        ds2={ds2}
+        onDs1Change={setDs1}
+        onDs2Change={setDs2}
+        selectedMonth={selectedMonth}
+        onSelectMonth={handleSelectMonth}
+        monthYearBe={currentCalYear + 543}
+        selectedYear={selectedYear}
+        availableYears={availableYears}
+        onSelectFiscalYear={handleSelectFiscalYear}
+        loading={loading}
+        exportDisabled={doctors.length === 0}
+        onRefresh={() => fetchData(ds1, ds2, selectedPttypes)}
+        onExport={exportExcel}
+        extraToolbarSlot={pttypeFilterTrigger}
+      />
+
+      {selectedPttypes.length > 0 && (
+        <div className="dd-filter-chips" aria-label="ตัวกรองสิทธิที่ใช้งาน">
+          {selectedPttypes.map((code) => {
+            const opt = allPttypes.find((p) => p.code === code)
+            return (
+              <span key={code} className="dd-chip">
+                <span>
+                  {code}: {opt?.name || code}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => togglePttype(code)}
+                  className="dd-chip-remove"
+                  aria-label={`ลบสิทธิ ${code}`}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => setSelectedPttypes([])}
+            className="dd-chip-clear"
+          >
+            ล้างตัวกรอง
+          </button>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="rcm-kpi-grid">
-        <div className="rcm-kpi-card">
-          <div className="rcm-kpi-icon" style={{ backgroundColor: '#f0fdfa', color: '#0d9488' }}>
-            <Users size={24} />
-          </div>
-          <div>
-            <p className="rcm-kpi-title">ผู้ป่วยนอกทั้งหมด</p>
-            <p className="rcm-kpi-val">
-              {formatNumber(grandTotal.visits)}
-              <span className="rcm-kpi-unit">ครั้ง</span>
-            </p>
-          </div>
-        </div>
+      <RcmErrorBanner error={error} onRetry={() => fetchData(ds1, ds2, selectedPttypes)} />
 
-        <div className="rcm-kpi-card">
-          <div className="rcm-kpi-icon" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
-            <DollarSign size={24} />
-          </div>
-          <div>
-            <p className="rcm-kpi-title">ค่ารักษาพยาบาลรวม</p>
-            <p className="rcm-kpi-val" style={{ color: '#1d4ed8' }}>
-              {formatCurrency(grandTotal.income)}
-            </p>
-          </div>
-        </div>
-
-        <div className="rcm-kpi-card">
-          <div className="rcm-kpi-icon" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-            <Receipt size={24} />
-          </div>
-          <div>
-            <p className="rcm-kpi-title">สิทธิเบิกชดเชย (UC)</p>
-            <p className="rcm-kpi-val" style={{ color: '#15803d' }}>
-              {formatCurrency(grandTotal.uc_money)}
-            </p>
-          </div>
-        </div>
-
-        <div className="rcm-kpi-card">
-          <div className="rcm-kpi-icon" style={{ backgroundColor: '#faf5ff', color: '#9333ea' }}>
-            <DollarSign size={24} />
-          </div>
-          <div>
-            <p className="rcm-kpi-title">ชำระเงินสด / ใบเสร็จ</p>
-            <p className="rcm-kpi-val" style={{ color: '#7e22ce' }}>
-              {formatCurrency(grandTotal.rcpt_money)}
-            </p>
-          </div>
-        </div>
-
-        <div className="rcm-kpi-card">
-          <div className="rcm-kpi-icon" style={{ backgroundColor: '#fff1f2', color: '#e11d48' }}>
-            <AlertCircle size={24} />
-          </div>
-          <div>
-            <p className="rcm-kpi-title">ลูกหนี้คงค้าง</p>
-            <p className="rcm-kpi-val" style={{ color: '#be123c' }}>
-              {formatCurrency(grandTotal.debit)}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Table */}
-      <div className="rcm-table-card">
-        <div className="rcm-table-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FileSpreadsheet size={18} style={{ color: '#0d9488' }} />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-              ตารางสรุปค่าบริการผู้ป่วยนอก จำแนกรายแพทย์
-            </h3>
-          </div>
-          <span style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 600 }}>
-            ช่วงเวลา: {formatThaiDate(ds1)} ถึง {formatThaiDate(ds2)}
-          </span>
-        </div>
-
-        <div className="rcm-table-responsive">
-          <table className="rcm-table">
-            <thead>
-              <tr>
-                <th className="rcm-sticky-col rcm-sticky-col-1">ลำดับ</th>
-                <th className="rcm-sticky-col rcm-sticky-col-2" style={{ textAlign: 'center' }}>ชื่อ-สกุล แพทย์</th>
-                <th className="rcm-text-center" style={{ minWidth: '95px' }}>ตรวจ (ครั้ง)</th>
-                <th className="rcm-text-right" style={{ minWidth: '110px' }}>สิทธิเบิก</th>
-                <th className="rcm-text-right" style={{ minWidth: '100px' }}>ชำระเอง</th>
-                <th className="rcm-text-right" style={{ minWidth: '110px' }}>ลูกหนี้คงค้าง</th>
-                <th className="rcm-text-right" style={{ minWidth: '130px', backgroundColor: '#d1fae5', color: '#064e3b', fontWeight: 800 }}>ค่ารักษาทั้งหมด (บาท)</th>
-                {dateMode === 'year' &&
-                  fiscalMonthColumns.map((m) => (
-                    <th key={m.key} className="rcm-month-col">
-                      {m.label}
-                    </th>
-                  ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : 0)}
-                    style={{ textAlign: 'center', padding: '3rem' }}
-                  >
-                    <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#0d9488' }} />
-                    <p style={{ color: '#334155', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>กำลังดึงข้อมูลรายงานผู้ป่วยนอก...</p>
-                  </td>
-                </tr>
-              ) : filteredDoctors.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : 0)}
-                    style={{ textAlign: 'center', padding: '3rem', color: '#475569', fontWeight: 600 }}
-                  >
-                    ไม่พบข้อมูลการตรวจรักษาตามเงื่อนไขที่เลือก
-                  </td>
-                </tr>
-              ) : (
-                <>
-                  {filteredDoctors.map((doc, idx) => (
-                    <tr key={doc.doctor_code}>
-                      <td className="rcm-sticky-col rcm-sticky-col-1 font-mono" style={{ color: '#475569', fontWeight: 600 }}>
-                        {idx + 1}
-                      </td>
-                      <td className="rcm-sticky-col rcm-sticky-col-2">
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={doc.doctor_name}
-                        >
-                          {doc.doctor_name}
-                        </div>
-                      </td>
-                      <td className="rcm-text-center font-mono" style={{ fontWeight: 500 }}>
-                        {formatNumber(doc.total_visits)}
-                      </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#047857', fontWeight: 600 }}>
-                        {formatCurrency(doc.total_uc_money)}
-                      </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#b45309', fontWeight: 600 }}>
-                        {formatCurrency(doc.total_rcpt_money)}
-                      </td>
-                      <td className="rcm-text-right font-mono">
-                        {doc.total_debit > 0 ? (
-                          <span className="rcm-badge-debit">{formatCurrency(doc.total_debit)}</span>
-                        ) : (
-                          <span style={{ color: '#64748b', fontWeight: 500 }}>฿0</span>
-                        )}
-                      </td>
-                      <td
-                        className="rcm-text-right font-mono"
-                        style={{
-                          backgroundColor: '#ecfdf5',
-                          color: '#064e3b',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {formatCurrency(doc.total_income)}
-                      </td>
-                      {dateMode === 'year' &&
-                        fiscalMonthColumns.map((m) => {
-                          const val = doc.monthly_income[m.key] || 0
-                          return (
-                            <td
-                              key={m.key}
-                              className="rcm-month-col font-mono"
-                              style={{
-                                color: val > 0 ? '#0f172a' : '#64748b',
-                                fontWeight: val > 0 ? 600 : 400,
-                              }}
-                            >
-                              {val > 0 ? formatCurrency(val) : '-'}
-                            </td>
-                          )
-                        })}
-                    </tr>
-                  ))}
-
-                  {/* Total Row */}
-                  <tr className="total-row">
-                    <td className="rcm-sticky-col rcm-sticky-col-1 font-bold">
-                      รวม
-                    </td>
-                    <td className="rcm-sticky-col rcm-sticky-col-2" style={{ fontWeight: 700 }}>
-                      <div
-                        style={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        ทั้งหมด ({filteredDoctors.length} ท่าน)
-                      </div>
-                    </td>
-                    <td className="rcm-text-center font-mono" style={{ fontWeight: 700 }}>
-                      {formatNumber(grandTotal.visits)}
-                    </td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#064e3b', fontWeight: 700 }}>
-                      {formatCurrency(grandTotal.uc_money)}
-                    </td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#92400e', fontWeight: 700 }}>
-                      {formatCurrency(grandTotal.rcpt_money)}
-                    </td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#991b1b', fontWeight: 700 }}>
-                      {formatCurrency(grandTotal.debit)}
-                    </td>
-                    <td
-                      className="rcm-text-right font-mono"
-                      style={{
-                        backgroundColor: '#d1fae5',
-                        color: '#064e3b',
-                        fontWeight: 800,
-                      }}
-                    >
-                      {formatCurrency(grandTotal.income)}
-                    </td>
-                    {dateMode === 'year' &&
-                      fiscalMonthColumns.map((m) => {
-                        const totalVal = monthlyTotals[m.key]?.income || 0
-                        return (
-                          <td
-                            key={m.key}
-                            className="rcm-month-col font-mono"
-                            style={{
-                              fontWeight: 700,
-                              color: totalVal > 0 ? '#064e3b' : '#64748b',
-                            }}
-                          >
-                            {totalVal > 0 ? formatCurrency(totalVal) : '-'}
-                          </td>
-                        )
-                      })}
-                  </tr>
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <RcmDoctorFinanceBody
+        doctors={doctors}
+        months={months}
+        monthlyTotals={monthlyTotals}
+        grandTotal={grandTotal}
+        dateMode={dateMode}
+        selectedYear={selectedYear}
+        loading={loading}
+        hasLoadedOnce={hasLoadedOnce}
+        entityLabel="แพทย์"
+        visitLabel="ผู้ป่วยนอกทั้งหมด"
+        searchPlaceholder="ค้นหาชื่อแพทย์..."
+        emptyTitle="ไม่พบข้อมูลการตรวจรักษาตามเงื่อนไขที่เลือก"
+        emptyDesc="ลองปรับช่วงเวลาหรือกลุ่มสิทธิ e-Claim อีกครั้ง"
+        showDynamicMonthsOutsideYear
+      />
     </div>
   )
 }
