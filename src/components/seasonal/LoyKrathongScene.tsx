@@ -80,6 +80,56 @@ function createRadialGlowTexture(innerColor: string, midColor: string, outerColo
   return texture
 }
 
+/**
+ * Creates a procedural Full Moon texture with soft lunar maria & warm golden limb glow
+ */
+function createFullMoonTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  // Warm luminous full-moon gradient across equirectangular UV
+  const bg = ctx.createLinearGradient(0, 0, 0, 256)
+  bg.addColorStop(0, '#fef9c3')
+  bg.addColorStop(0.5, '#fffdf4')
+  bg.addColorStop(1, '#fde68a')
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, 256, 256)
+
+  // Subtle lunar maria patches (visible on front-facing hemisphere around u=0.5, v=0.5)
+  const maria: Array<{ x: number; y: number; rx: number; ry: number; rot: number; alpha: number }> = [
+    { x: 112, y: 108, rx: 28, ry: 22, rot: -0.3, alpha: 0.14 },
+    { x: 146, y: 98, rx: 22, ry: 18, rot: 0.4, alpha: 0.12 },
+    { x: 128, y: 142, rx: 24, ry: 16, rot: 0.2, alpha: 0.1 },
+    { x: 94, y: 136, rx: 16, ry: 13, rot: -0.5, alpha: 0.11 },
+    { x: 158, y: 132, rx: 18, ry: 24, rot: 0.15, alpha: 0.13 },
+    { x: 122, y: 76, rx: 14, ry: 10, rot: 0.1, alpha: 0.09 },
+  ]
+
+  maria.forEach((m) => {
+    ctx.save()
+    ctx.translate(m.x, m.y)
+    ctx.rotate(m.rot)
+    const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, Math.max(m.rx, m.ry))
+    grad.addColorStop(0, `rgba(180, 145, 92, ${m.alpha})`)
+    grad.addColorStop(0.7, `rgba(202, 168, 112, ${m.alpha * 0.55})`)
+    grad.addColorStop(1, 'rgba(202, 168, 112, 0)')
+    ctx.fillStyle = grad
+    ctx.scale(1, m.ry / m.rx)
+    ctx.beginPath()
+    ctx.arc(0, 0, m.rx, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  })
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  return texture
+}
+
 type KrathongHue = 'rose' | 'gold' | 'emerald'
 
 interface SharedKrathongAssets {
@@ -532,26 +582,32 @@ export default function LoyKrathongScene() {
         'rgba(234, 179, 8, 0)'
       )
 
-      // Helper to position the 3D moon cleanly in the top-right sky across any viewport aspect
+      // Helper to position the 3D full moon cleanly inside the top-right sky without viewport clipping
       const computeTopRightMoonPos = (aspect: number): THREE.Vector3 => {
         const distToMoon = 38.2 // camera z (13.2) - moon z (-25)
         const halfH = Math.tan(THREE.MathUtils.degToRad(24)) * distToMoon
         const halfW = halfH * Math.max(aspect, 0.5)
-        const moonX = Math.max(5.8, halfW * 0.76)
-        const moonY = 10.6
+        const moonX = Math.max(5.5, halfW * 0.68)
+        const moonY = 8.4
         return new THREE.Vector3(moonX, moonY, -25)
       }
 
       const initialMoonPos = computeTopRightMoonPos(width / height)
+      const moonSurfaceTex = createFullMoonTexture()
 
       // 3. 3D Full Moon & Volumetric Corona
       const moonGroup = new THREE.Group()
       moonGroup.position.copy(initialMoonPos)
       moonDirLight.position.set(initialMoonPos.x, initialMoonPos.y + 2, -20)
 
-      const moonGeo = new THREE.SphereGeometry(2.15, 24, 24)
-      const moonMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb })
-      moonGroup.add(new THREE.Mesh(moonGeo, moonMat))
+      const moonGeo = new THREE.SphereGeometry(2.45, 32, 32)
+      const moonMat = new THREE.MeshBasicMaterial({
+        color: 0xfffdf2,
+        map: moonSurfaceTex || undefined,
+      })
+      const moonMesh = new THREE.Mesh(moonGeo, moonMat)
+      moonMesh.rotation.y = -Math.PI / 2
+      moonGroup.add(moonMesh)
 
       let moonOuterHalo: THREE.Sprite | null = null
       if (moonGlowTex) {
@@ -559,24 +615,24 @@ export default function LoyKrathongScene() {
           map: moonGlowTex,
           color: 0xfef08a,
           transparent: true,
-          opacity: 0.82,
+          opacity: 0.45,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         })
         const innerHalo = new THREE.Sprite(innerHaloMat)
-        innerHalo.scale.set(12, 12, 1)
+        innerHalo.scale.set(9.5, 9.5, 1)
         moonGroup.add(innerHalo)
 
         const outerHaloMat = new THREE.SpriteMaterial({
           map: moonGlowTex,
           color: 0xf59e0b,
           transparent: true,
-          opacity: 0.44,
+          opacity: 0.26,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         })
         moonOuterHalo = new THREE.Sprite(outerHaloMat)
-        moonOuterHalo.scale.set(24, 24, 1)
+        moonOuterHalo.scale.set(19, 19, 1)
         moonGroup.add(moonOuterHalo)
       }
       scene.add(moonGroup)
@@ -962,7 +1018,7 @@ export default function LoyKrathongScene() {
         camera.lookAt(cameraLookTarget)
 
         if (moonOuterHalo) {
-          const haloPulse = 23 + Math.sin(elapsed * 1.4) * 2.2
+          const haloPulse = 18.5 + Math.sin(elapsed * 1.4) * 1.6
           moonOuterHalo.scale.set(haloPulse, haloPulse, 1)
         }
 
@@ -1130,6 +1186,7 @@ export default function LoyKrathongScene() {
         materials.forEach((m) => m.dispose())
         goldGlowTex?.dispose()
         moonGlowTex?.dispose()
+        moonSurfaceTex?.dispose()
         renderer?.dispose()
       }
     } catch {
