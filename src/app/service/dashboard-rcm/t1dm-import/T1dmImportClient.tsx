@@ -237,7 +237,7 @@ export default function T1dmImportClient({
   const addFilesToQueue = (filesList: FileList | File[]) => {
     const valid: QueuedImportFile[] = []
     Array.from(filesList).forEach((f) => {
-      if (/\.(xlsx|xls)$/i.test(f.name)) {
+      if (/\.(xlsx|xls|csv)$/i.test(f.name)) {
         const isDuplicate = importedFiles.some(
           (imp) => imp.fileName.toLowerCase() === f.name.toLowerCase()
         )
@@ -840,7 +840,7 @@ export default function T1dmImportClient({
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.csv"
             onChange={handleFileInputChange}
             style={{ display: 'none' }}
           />
@@ -852,7 +852,7 @@ export default function T1dmImportClient({
               ลากไฟล์มาวางที่นี่ หรือ <span className="t1dm-import-dropzone-highlight">คลิกเพื่อเลือกไฟล์</span>
             </span>
             <div className="t1dm-import-dropzone-sub">
-              รองรับ .xlsx, .xls ตรวจสอบหัวชีท T1DM และแถวคอลัมน์ RUN | ปีงบประมาณ | PID | ชนิดการลงทะเบียน
+              รองรับ .xlsx, .xls, .csv ตรวจสอบหัวชีท T1DM และแถวคอลัมน์ RUN | ปีงบประมาณ | PID | ชนิดการลงทะเบียน
             </div>
           </div>
         </div>

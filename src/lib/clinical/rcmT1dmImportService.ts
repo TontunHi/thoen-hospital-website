@@ -1,9 +1,8 @@
-import ExcelJS from 'exceljs'
 import { apiGateway } from '@/lib/apiGateway'
 import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { logger } from '@/lib/logger'
-import { cleanCellString, normalizeDate } from './rcmSeamlessImportService'
+import { cleanCellString, loadWorkbookFromBuffer, normalizeDate } from './rcmSeamlessImportService'
 import type { QueryExecutor } from './rcmDashboardService'
 
 export const DEFAULT_MY_HOSPCODE = '11152'
@@ -558,8 +557,7 @@ export class RcmT1dmImportService {
     const myHospCode = (options.myHospCode || DEFAULT_MY_HOSPCODE).trim()
     const executor = options.executor || queryClinicalDb
 
-    const workbook = new ExcelJS.Workbook()
-    await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0])
+    const workbook = await loadWorkbookFromBuffer(buffer, fileName)
 
     const matchedSheets: string[] = []
     const allParsedRows: ParsedT1dmExcelRow[] = []
@@ -573,20 +571,23 @@ export class RcmT1dmImportService {
       const a1Text = cleanCellString(sheet.getCell('A1').value).toUpperCase()
       const a2Text = cleanCellString(sheet.getCell('A2').value).toUpperCase()
 
-      // Search rows 1..30 for header row where column 1 is 'RUN' (or contains 'RUN')
+      // Search rows 1..30 for header row where column 1 is 'RUN' / 'RUN NUMBER' (or row contains RUN + PID)
+      const isRunHeaderCell = (val: string) =>
+        /^(?:RUN(?:\s*NUMBER|\s*NO\.?|\s*ID)?|ลำดับ|ID)$/i.test(val.trim())
+
       let headerRowIndex = -1
       for (let r = 1; r <= Math.min(30, sheet.rowCount); r++) {
-        const firstCell = cleanCellString(sheet.getRow(r).getCell(1).value).toUpperCase()
-        if (firstCell === 'RUN' || firstCell === 'ลำดับ' || firstCell === 'ID') {
+        const firstCell = cleanCellString(sheet.getRow(r).getCell(1).value)
+        if (isRunHeaderCell(firstCell)) {
           headerRowIndex = r
           break
         }
-        // Also scan any cell in row r for 'RUN' and 'PID'
+        // Also scan any cell in row r for 'RUN' / 'RUN NUMBER' and 'PID'
         let hasRun = false
         let hasPid = false
         sheet.getRow(r).eachCell((cell) => {
           const val = cleanCellString(cell.value).toUpperCase()
-          if (val === 'RUN') hasRun = true
+          if (isRunHeaderCell(val)) hasRun = true
           if (val.includes('PID') || val.includes('เลขบัตร')) hasPid = true
         })
         if (hasRun && hasPid) {
@@ -617,7 +618,7 @@ export class RcmT1dmImportService {
         const upper = text.toUpperCase()
         if (!text) return
 
-        if (upper === 'RUN' || upper === 'ID' || text === 'ลำดับ') {
+        if (upper === 'RUN' || upper === 'RUNNUMBER' || upper === 'RUNNO' || upper === 'RUNID' || upper === 'ID' || text === 'ลำดับ') {
           if (!colMap.id) colMap.id = colNumber
         } else if (text.includes('ปีงบประมาณ') || upper === 'YEAR') {
           colMap.year = colNumber
@@ -662,7 +663,7 @@ export class RcmT1dmImportService {
         if (!rawId && !rawPid && !rawPtname) continue
 
         // Skip repeated header rows
-        if (rawId.toUpperCase() === 'RUN' || rawPid.toUpperCase() === 'PID') continue
+        if (isRunHeaderCell(rawId) || rawPid.toUpperCase() === 'PID') continue
 
         totalRowsScanned++
 

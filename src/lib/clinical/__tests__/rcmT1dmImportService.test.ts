@@ -216,6 +216,212 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
     expect(result.isDryRun).toBe(true)
     expect(apiGateway.clinical.importT1dmRegistries).not.toHaveBeenCalled()
   })
+
+  it('parses HTML table .xls export (NHSO portal style) without JSZip error', async () => {
+    const htmlXls = `<html><head><meta charset="utf-8"></head><body>
+      <table>
+        <tr><td colspan="9">รายงานทะเบียน T1DM/GDM/PDM</td></tr>
+        <tr><th>RUN</th><th>ปีงบประมาณ</th><th>PID</th><th>ชื่อ-นามสกุล</th><th>สิทธิ</th><th>หน่วยบริการลงทะเบียน</th><th>ชนิดการลงทะเบียน</th><th>วันที่ลงทะเบียน</th><th>วันที่เข้ารับบริการ</th></tr>
+        <tr><td>1</td><td>2570</td><td>1529900011111</td><td>นาง กานดา ใจดี</td><td>UCS</td><td>11152:รพ.เถิน</td><td>GDM</td><td>2026-10-15</td><td>2026-10-20</td></tr>
+      </table>
+    </body></html>`
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    const result = await RcmT1dmImportService.parseAndImportWorkbook(
+      Buffer.from(htmlXls, 'utf8'),
+      'T1DM_EXPORT.xls',
+      { isDryRun: true, executor: mockExecutor }
+    )
+
+    expect(result.importedCount).toBe(1)
+    expect(result.previewRows[0].pid).toBe('1529900011111')
+    expect(result.previewRows[0].type).toBe('GDM')
+  })
+
+  it('parses SpreadsheetML 2003 XML .xls export without JSZip error', async () => {
+    const xmlXls = `<?xml version="1.0"?>
+      <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+        <Worksheet ss:Name="T1DM">
+          <Table>
+            <Row><Cell><Data>RUN</Data></Cell><Cell><Data>ปีงบประมาณ</Data></Cell><Cell><Data>PID</Data></Cell><Cell><Data>ชื่อ-นามสกุล</Data></Cell><Cell><Data>สิทธิ</Data></Cell><Cell><Data>หน่วยบริการลงทะเบียน</Data></Cell><Cell><Data>ชนิดการลงทะเบียน</Data></Cell><Cell><Data>วันที่ลงทะเบียน</Data></Cell><Cell><Data>วันที่เข้ารับบริการ</Data></Cell></Row>
+            <Row><Cell><Data>1</Data></Cell><Cell><Data>2570</Data></Cell><Cell><Data>1529900033333</Data></Cell><Cell><Data>นางสาว อารีย์ สมบูรณ์</Data></Cell><Cell><Data>SSS</Data></Cell><Cell><Data>11152</Data></Cell><Cell><Data>T1DM</Data></Cell><Cell><Data>2026-10-18</Data></Cell><Cell><Data>2026-10-25</Data></Cell></Row>
+          </Table>
+        </Worksheet>
+      </Workbook>`
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    const result = await RcmT1dmImportService.parseAndImportWorkbook(
+      Buffer.from(xmlXls, 'utf8'),
+      'T1DM_XML.xls',
+      { isDryRun: true, executor: mockExecutor }
+    )
+
+    expect(result.importedCount).toBe(1)
+    expect(result.previewRows[0].pid).toBe('1529900033333')
+    expect(result.previewRows[0].type).toBe('T1DM')
+  })
+
+  it('parses CSV file and throws clear Thai error for OLE2 binary .xls', async () => {
+    const csv = [
+      'RUN,ปีงบประมาณ,PID,ชื่อ-นามสกุล,สิทธิ,หน่วยบริการลงทะเบียน,ชนิดการลงทะเบียน,วันที่ลงทะเบียน,วันที่เข้ารับบริการ',
+      '1,2570,1529900011111,นาง กานดา ใจดี,UCS,11152:รพ.เถิน,PDM,2026-10-15,2026-10-20',
+    ].join('\n')
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    const csvResult = await RcmT1dmImportService.parseAndImportWorkbook(
+      Buffer.from(csv, 'utf8'),
+      'T1DM.csv',
+      { isDryRun: true, executor: mockExecutor }
+    )
+    expect(csvResult.importedCount).toBe(1)
+    expect(csvResult.previewRows[0].type).toBe('PDM')
+
+    const ole2Buffer = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])
+    await expect(
+      RcmT1dmImportService.parseAndImportWorkbook(ole2Buffer, 'legacy_t1dm.xls', {
+        isDryRun: true,
+        executor: mockExecutor,
+      })
+    ).rejects.toThrow('Save As เป็น .xlsx หรือ .csv')
+  })
+
+  it('parses real binary BIFF8 .xls (OLE2) workbook end-to-end', async () => {
+    const biffRec = (type: number, payload: Buffer) => {
+      const h = Buffer.alloc(4)
+      h.writeUInt16LE(type, 0)
+      h.writeUInt16LE(payload.length, 2)
+      return Buffer.concat([h, payload])
+    }
+    const biffStr16 = (text: string, shortLen = false) => {
+      const utf16 = Buffer.from(text, 'utf16le')
+      const hdr = Buffer.alloc(shortLen ? 2 : 3)
+      if (shortLen) {
+        hdr.writeUInt8(text.length, 0)
+        hdr.writeUInt8(1, 1) // fHighByte = 1 (UTF-16LE)
+      } else {
+        hdr.writeUInt16LE(text.length, 0)
+        hdr.writeUInt8(1, 2)
+      }
+      return Buffer.concat([hdr, utf16])
+    }
+
+    const strings = [
+      'RUN', 'ปีงบประมาณ', 'PID', 'ชื่อ-นามสกุล', 'สิทธิ', 'หน่วยบริการลงทะเบียน', 'ชนิดการลงทะเบียน', 'วันที่ลงทะเบียน', 'วันที่เข้ารับบริการ',
+      '1', '2570', '1529900011111', 'นาง กานดา ใจดี', 'UCS', '11152:รพ.เถิน', 'GDM', '2026-10-15', '2026-10-20',
+    ]
+    const bofGlobals = biffRec(0x0809, Buffer.from([0x00, 0x06, 0x05, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+    const sstHdr = Buffer.alloc(8)
+    sstHdr.writeUInt32LE(strings.length, 0)
+    sstHdr.writeUInt32LE(strings.length, 4)
+    const sstRec = biffRec(0x00fc, Buffer.concat([sstHdr, ...strings.map((s) => biffStr16(s, false))]))
+    const eofRec = biffRec(0x000a, Buffer.alloc(0))
+
+    // Sheet substream starts after globals + dummy boundsheet
+    const sheetNameBuf = biffStr16('T1DM', true)
+    const bsPlaceholder = Buffer.alloc(6 + sheetNameBuf.length)
+    const bsRecSize = 4 + bsPlaceholder.length
+    const sheetOffset = bofGlobals.length + bsRecSize + sstRec.length + eofRec.length
+    bsPlaceholder.writeUInt32LE(sheetOffset, 0)
+    sheetNameBuf.copy(bsPlaceholder, 6)
+    const bsRec = biffRec(0x0085, bsPlaceholder)
+
+    const bofSheet = biffRec(0x0809, Buffer.from([0x00, 0x06, 0x10, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+    const labelCells = strings.map((_, idx) => {
+      const p = Buffer.alloc(10)
+      p.writeUInt16LE(idx < 9 ? 0 : 1, 0)
+      p.writeUInt16LE(idx % 9, 2)
+      p.writeUInt32LE(idx, 6)
+      return biffRec(0x00fd, p) // LABELSST
+    })
+
+    const wbRaw = Buffer.concat([bofGlobals, bsRec, sstRec, eofRec, bofSheet, ...labelCells, eofRec])
+    const wbSize = Math.max(4096, Math.ceil(wbRaw.length / 512) * 512)
+    const wbStream = Buffer.alloc(wbSize)
+    wbRaw.copy(wbStream)
+    const wbSectors = wbSize / 512
+
+    // OLE2 Header (sector size 512): FAT at sector 0, Dir at sector 1, Workbook at sectors 2..2+wbSectors-1
+    const hdr = Buffer.alloc(512, 0xff)
+    Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]).copy(hdr, 0)
+    hdr.writeUInt16LE(0x003e, 24)
+    hdr.writeUInt16LE(0x0003, 26)
+    hdr.writeUInt16LE(0xfffe, 28)
+    hdr.writeUInt16LE(9, 30) // 512B sectors
+    hdr.writeUInt16LE(6, 32)
+    hdr.writeUInt32LE(1, 44) // 1 FAT sector
+    hdr.writeUInt32LE(1, 48) // Dir start sector 1
+    hdr.writeUInt32LE(4096, 56) // Mini cutoff
+    hdr.writeUInt32LE(0xfffffffe, 60) // No mini FAT
+    hdr.writeUInt32LE(0xfffffffe, 68) // No DIFAT
+    hdr.writeUInt32LE(0, 76) // DIFAT[0] = sector 0
+
+    const fat = Buffer.alloc(512, 0xff)
+    fat.writeUInt32LE(0xfffffffd, 0) // sector 0 = FATSECT
+    fat.writeUInt32LE(0xfffffffe, 4) // sector 1 = ENDOFCHAIN
+    for (let s = 0; s < wbSectors; s++) {
+      fat.writeUInt32LE(s === wbSectors - 1 ? 0xfffffffe : 2 + s + 1, (2 + s) * 4)
+    }
+
+    const dir = Buffer.alloc(512)
+    const writeDirEntry = (slot: number, name: string, type: number, startSec: number, size: number) => {
+      const off = slot * 128
+      const nm = Buffer.from(`${name}\0`, 'utf16le')
+      nm.copy(dir, off)
+      dir.writeUInt16LE(nm.length, off + 64)
+      dir.writeUInt8(type, off + 66)
+      dir.writeUInt8(1, off + 67) // black
+      dir.writeUInt32LE(0xffffffff, off + 68)
+      dir.writeUInt32LE(0xffffffff, off + 72)
+      dir.writeUInt32LE(type === 5 ? 1 : 0xffffffff, off + 76) // Root child = slot 1
+      dir.writeUInt32LE(startSec, off + 116)
+      dir.writeUInt32LE(size, off + 120)
+    }
+    writeDirEntry(0, 'Root Entry', 5, 0xfffffffe, 0)
+    writeDirEntry(1, 'Workbook', 2, 2, wbSize)
+
+    const realBiff8Xls = Buffer.concat([hdr, fat, dir, wbStream])
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    const result = await RcmT1dmImportService.parseAndImportWorkbook(realBiff8Xls, 'NHSO_T1DM.xls', {
+      isDryRun: true,
+      executor: mockExecutor,
+    })
+
+    expect(result.importedCount).toBe(1)
+    expect(result.previewRows[0].pid).toBe('1529900011111')
+    expect(result.previewRows[0].ptname).toBe('นาง กานดา ใจดี')
+    expect(result.previewRows[0].type).toBe('GDM')
+  })
+
+  it('parses 14-column NHSO report with "RUN NUMBER" header, blank rows, hyphen hospmain, and DD/MM/YYYY dates', async () => {
+    const csv14Cols = [
+      '   รายงาน การลงทะเบียนผู้ป่วย T1DM รายใหม่/GDM/PDM  ออกรายงานวันที่ 18/11/2026 14:30:06,,,,,,,,,,,,,',
+      ',,,,,,,,,,,,,',
+      ',,,,,,,,,,,,,',
+      'RUN NUMBER,ปีงบประมาณ,PID,ชื่อ-นามสกุล,สิทธิ,เขต,จังหวัด,หน่วยบริการลงทะเบียน,ชนิดการลงทะเบียน,วันที่ลงทะเบียน,วันที่เข้ารับบริการ,สถานะ,วัน expire date,เหตุผล',
+      '2027-16683,2026,1529900011111,นาง สมมติ ทดสอบ,UCS,เขต 1 เชียงใหม่,ลำปาง,11152-รพ.เถิน,GDM,28/08/2026,28/08/2026,Y,,',
+      '2026-97222,2026,1529900022222,นาย ตัวอย่าง ทดสอบ,WEL,เขต 1 เชียงใหม่,ลำปาง,11152-รพ.เถิน,T2DM,01/04/2026,07/10/2025,Y,,',
+    ].join('\n')
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    const result = await RcmT1dmImportService.parseAndImportWorkbook(
+      Buffer.from(csv14Cols, 'utf8'),
+      't1dm_report_14col.csv',
+      { isDryRun: true, executor: mockExecutor }
+    )
+
+    expect(result.importedCount).toBe(2)
+    expect(result.previewRows[0].id).toBe('2027-16683')
+    expect(result.previewRows[0].year).toBe('2026')
+    expect(result.previewRows[0].pid).toBe('1529900011111')
+    expect(result.previewRows[0].hospmainCode).toBe('11152')
+    expect(result.previewRows[0].type).toBe('GDM')
+    expect(result.previewRows[0].regdate).toBe('2026-08-28')
+    expect(result.previewRows[0].visitdate).toBe('2026-08-28')
+    expect(result.previewRows[1].type).toBe('T2DM')
+    expect(result.previewRows[1].regdate).toBe('2026-04-01')
+    expect(result.previewRows[1].visitdate).toBe('2025-10-07')
+  })
 })
 
 describe('RcmT1dmImportService Registry Queries & Deletion', () => {

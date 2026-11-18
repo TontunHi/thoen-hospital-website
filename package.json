@@ -44,6 +44,7 @@
     "read-excel-file": "^9.3.12",
     "recharts": "^3.10.1",
     "three": "^0.187.0",
+    "xls-reader": "^0.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

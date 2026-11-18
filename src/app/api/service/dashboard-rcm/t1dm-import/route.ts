@@ -152,15 +152,15 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return NextResponse.json(
-        { success: false, error: 'ไม่พบไฟล์ที่ต้องการนำเข้า กรุณาเลือกไฟล์ Excel (.xlsx, .xls)' },
+        { success: false, error: 'ไม่พบไฟล์ที่ต้องการนำเข้า กรุณาเลือกไฟล์ Excel (.xlsx, .xls, .csv)' },
         { status: 400 }
       )
     }
 
     const fileName = file.name
-    if (!/\.(xlsx|xls)$/i.test(fileName)) {
+    if (!/\.(xlsx|xls|csv)$/i.test(fileName)) {
       return NextResponse.json(
-        { success: false, error: 'ไฟล์ที่อัปโหลดไม่ใช่ไฟล์ Excel (.xlsx, .xls)' },
+        { success: false, error: 'ไฟล์ที่อัปโหลดไม่ใช่ไฟล์ Excel หรือ CSV (.xlsx, .xls, .csv)' },
         { status: 400 }
       )
     }

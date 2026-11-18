@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { CellError, readXls } from 'xls-reader'
 import { apiGateway, GatewayNotFoundError, GatewayUnavailableError } from '@/lib/apiGateway'
 import { logger } from '@/lib/logger'
 import { queryClinicalDb } from '@/lib/clinicalDb'
@@ -587,9 +588,9 @@ function decodeTextBuffer(buffer: Buffer): string {
 }
 
 /**
- * Parse RFC-4180 CSV text into rows of cell strings (handles quoted commas like "VCTID,NAPNumber,PID")
+ * Parse RFC-4180 CSV/TSV text into rows of cell strings (handles quoted commas like "VCTID,NAPNumber,PID")
  */
-export function parseCsvRows(text: string): string[][] {
+export function parseCsvRows(text: string, delimiter = ','): string[][] {
   const rows: string[][] = []
   let currentRow: string[] = []
   let currentField = ''
@@ -610,7 +611,7 @@ export function parseCsvRows(text: string): string[][] {
       }
     } else if (ch === '"') {
       inQuotes = true
-    } else if (ch === ',') {
+    } else if (ch === delimiter) {
       currentRow.push(currentField)
       currentField = ''
     } else if (ch === '\r') {
@@ -637,10 +638,104 @@ export function parseCsvRows(text: string): string[][] {
   return rows
 }
 
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+}
+
+function parseHtmlTableRows(html: string): string[][] {
+  const rows: string[][] = []
+  const trRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi
+  let trMatch: RegExpExecArray | null
+
+  while ((trMatch = trRegex.exec(html)) !== null) {
+    const row: string[] = []
+    const tdRegex = /<t[dh]\b([^>]*)>([\s\S]*?)<\/t[dh]>/gi
+    let tdMatch: RegExpExecArray | null
+
+    while ((tdMatch = tdRegex.exec(trMatch[1])) !== null) {
+      const attrs = tdMatch[1] || ''
+      const rawCell = tdMatch[2].replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
+      row.push(decodeHtmlEntities(rawCell).replace(/\s+/g, ' ').trim())
+
+      const colspanMatch = /\bcolspan\s*=\s*["']?(\d+)/i.exec(attrs)
+      const colspan = colspanMatch ? Math.min(Number(colspanMatch[1]), 50) : 1
+      for (let c = 1; c < colspan; c++) row.push('')
+    }
+
+    if (row.some((cell) => cell.length > 0)) {
+      rows.push(row)
+    }
+  }
+
+  return rows
+}
+
+function parseSpreadsheetXmlSheets(xml: string): Array<{ name: string; rows: string[][] }> {
+  const sheets: Array<{ name: string; rows: string[][] }> = []
+  const wsRegex = /<Worksheet\b([^>]*)>([\s\S]*?)<\/Worksheet>/gi
+  const wsMatches: Array<{ name: string; body: string }> = []
+  let wsMatch: RegExpExecArray | null
+
+  while ((wsMatch = wsRegex.exec(xml)) !== null) {
+    const nameMatch = /\bss:Name\s*=\s*"([^"]*)"/i.exec(wsMatch[1] || '')
+    wsMatches.push({
+      name: decodeHtmlEntities(nameMatch?.[1] || `Sheet${wsMatches.length + 1}`),
+      body: wsMatch[2],
+    })
+  }
+
+  const targets = wsMatches.length > 0 ? wsMatches : [{ name: 'Sheet1', body: xml }]
+
+  for (const target of targets) {
+    const rows: string[][] = []
+    const rowRegex = /<Row\b[^>]*>([\s\S]*?)<\/Row>/gi
+    let rowMatch: RegExpExecArray | null
+
+    while ((rowMatch = rowRegex.exec(target.body)) !== null) {
+      const row: string[] = []
+      const cellRegex = /<Cell\b([^>]*)(?:\/>|>([\s\S]*?)<\/Cell>)/gi
+      let cellMatch: RegExpExecArray | null
+
+      while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+        const attrs = cellMatch[1] || ''
+        const idxMatch = /\bss:Index\s*=\s*"(\d+)"/i.exec(attrs)
+        if (idxMatch) {
+          const targetIdx = Math.min(Number(idxMatch[1]) - 1, 200)
+          while (row.length < targetIdx) row.push('')
+        }
+
+        const inner = cellMatch[2] || ''
+        const dataMatch = /<Data\b[^>]*>([\s\S]*?)<\/Data>/i.exec(inner)
+        const rawVal = (dataMatch ? dataMatch[1] : inner).replace(/<[^>]+>/g, '')
+        row.push(decodeHtmlEntities(rawVal).trim())
+      }
+
+      if (row.some((cell) => cell.length > 0)) {
+        rows.push(row)
+      }
+    }
+
+    if (rows.length > 0) {
+      sheets.push({ name: target.name, rows })
+    }
+  }
+
+  return sheets
+}
+
 /**
- * Load .xlsx or .csv buffer into an ExcelJS Workbook, giving clear diagnostics for legacy binary/HTML .xls
+ * Load .xlsx, .csv/.tsv, or HTML/XML .xls buffer into an ExcelJS Workbook,
+ * giving clear diagnostics for legacy binary OLE2 .xls files.
  */
-async function loadWorkbookFromBuffer(buffer: Buffer, fileName: string): Promise<ExcelJS.Workbook> {
+export async function loadWorkbookFromBuffer(buffer: Buffer, fileName: string): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook()
   const isZip =
     buffer.length >= 4 &&
@@ -650,8 +745,14 @@ async function loadWorkbookFromBuffer(buffer: Buffer, fileName: string): Promise
     buffer[3] === 0x04
 
   if (isZip) {
-    await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0])
-    return workbook
+    try {
+      await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0])
+      return workbook
+    } catch (err: unknown) {
+      throw new Error(
+        `ไม่สามารถเปิดอ่านไฟล์ .xlsx ได้ (${err instanceof Error ? err.message : 'ไฟล์เสียหายหรือไม่สมบูรณ์'})`
+      )
+    }
   }
 
   const isOle2Xls =
@@ -662,20 +763,69 @@ async function loadWorkbookFromBuffer(buffer: Buffer, fileName: string): Promise
     buffer[3] === 0xe0
 
   if (isOle2Xls) {
+    try {
+      const xlsWorkbook = readXls(buffer)
+      const visibleSheets = xlsWorkbook.sheets.filter((s) => s.visibility !== 'very-hidden')
+      const targetSheets = visibleSheets.length > 0 ? visibleSheets : xlsWorkbook.sheets
+      const usedNames = new Set<string>()
+
+      for (let i = 0; i < targetSheets.length; i++) {
+        const s = targetSheets[i]
+        const base = (s.name || `Sheet${i + 1}`).replace(/[*?:\\/\[\]]/g, '_').slice(0, 31) || `Sheet${i + 1}`
+        let sheetName = base
+        let suffix = 2
+        while (usedNames.has(sheetName.toLowerCase())) {
+          const tag = `_${suffix++}`
+          sheetName = `${base.slice(0, 31 - tag.length)}${tag}`
+        }
+        usedNames.add(sheetName.toLowerCase())
+
+        const ws = workbook.addWorksheet(sheetName)
+        for (const row of s.rows) {
+          ws.addRow(row.map((cell) => (cell instanceof CellError ? cell.code : cell)))
+        }
+      }
+
+      if (workbook.worksheets.length === 0) {
+        throw new Error('ไม่พบชีทข้อมูลในไฟล์ .xls')
+      }
+      return workbook
+    } catch {
+      throw new Error(
+        'ไฟล์นี้เป็น Excel 97-2003 (.xls ไบนารี) ที่เสียหาย เข้ารหัสไว้ หรือเป็นรูปแบบเก่ากว่า BIFF8 — กรุณาเปิดไฟล์ใน Excel แล้ว Save As เป็น .xlsx หรือ .csv ก่อนนำเข้า'
+      )
+    }
+  }
+
+  const headText = decodeTextBuffer(buffer.subarray(0, Math.min(buffer.length, 1024))).trimStart()
+  if (/^<(?:!doctype|html|head|meta|style|table|\?xml|workbook|!--)\b/i.test(headText)) {
+    const fullText = decodeTextBuffer(buffer)
+    if (/<(?:Workbook|Worksheet)\b/i.test(fullText)) {
+      const xmlSheets = parseSpreadsheetXmlSheets(fullText)
+      if (xmlSheets.length > 0) {
+        for (const s of xmlSheets) {
+          const ws = workbook.addWorksheet(s.name.slice(0, 31) || 'Sheet1')
+          for (const row of s.rows) ws.addRow(row)
+        }
+        return workbook
+      }
+    }
+
+    const htmlRows = parseHtmlTableRows(fullText)
+    if (htmlRows.length > 0) {
+      const sheet = workbook.addWorksheet('INDIVIDUAL')
+      for (const row of htmlRows) sheet.addRow(row)
+      return workbook
+    }
+
     throw new Error(
-      'ไฟล์นี้เป็น Excel 97-2003 (.xls ไบนารี) ซึ่งระบบเว็บอ่านโดยตรงไม่ได้ — กรุณาเปิดไฟล์ใน Excel แล้ว Save As เป็น .xlsx หรือ .csv ก่อนนำเข้า'
+      'ไฟล์นี้เป็นเอกสาร HTML/XML (.xls) ที่ไม่พบตารางข้อมูล — กรุณาเปิดไฟล์ใน Excel แล้ว Save As เป็น .xlsx หรือ .csv ก่อนนำเข้า'
     )
   }
 
-  const headText = decodeTextBuffer(buffer.subarray(0, Math.min(buffer.length, 512))).trimStart()
-  if (/^<(?:!doctype|html|table|\?xml|workbook)\b/i.test(headText)) {
-    throw new Error(
-      'ไฟล์นี้เป็นเอกสาร HTML/XML (.xls) ซึ่งระบบเว็บอ่านโดยตรงไม่ได้ — กรุณาเปิดไฟล์ใน Excel แล้ว Save As เป็น .xlsx หรือ .csv ก่อนนำเข้า'
-    )
-  }
-
-  if (/\.csv$/i.test(fileName) || headText.includes(',')) {
-    const csvRows = parseCsvRows(decodeTextBuffer(buffer))
+  if (/\.(csv|tsv)$/i.test(fileName) || headText.includes(',') || headText.includes('\t')) {
+    const delimiter = headText.includes('\t') && !headText.includes(',') ? '\t' : ','
+    const csvRows = parseCsvRows(decodeTextBuffer(buffer), delimiter)
     const sheet = workbook.addWorksheet('INDIVIDUAL')
     for (const row of csvRows) {
       sheet.addRow(row)
