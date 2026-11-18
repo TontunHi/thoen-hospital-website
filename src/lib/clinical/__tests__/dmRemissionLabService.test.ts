@@ -183,10 +183,13 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
       .mockResolvedValueOnce([
         { hn: '0005678', vn: '6907100002', vstdate: '2026-07-10', icodes: '1000184' },
       ]) // rx
+      .mockResolvedValueOnce([]) // rcmdb.t1dm
 
-    appQuery.mockResolvedValueOnce([
-      { hn: '0001234', cid: '1520000000001', summary_remission: 'Remission' },
-    ])
+    appQuery
+      .mockResolvedValueOnce([
+        { hn: '0001234', cid: '1520000000001', summary_remission: 'Remission' },
+      ])
+      .mockResolvedValueOnce([]) // t1dm_registries mirror
 
     const service = new DmRemissionLabService({ appQuery, clinicalQuery })
 
@@ -197,7 +200,7 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
     expect(first.items[0].inCohortRegistry).toBe(true)
     expect(first.items[0].cohortRemissionStatus).toBe('Remission')
     expect(first.items[0].prevA1c).toBe(6.7)
-    expect(clinicalQuery).toHaveBeenCalledTimes(5)
+    expect(clinicalQuery).toHaveBeenCalledTimes(6)
 
     // Ensure no SQL uses WITH CTE and basePoolSql computes GROUP_CONCAT once
     for (const call of clinicalQuery.mock.calls) {
@@ -209,14 +212,118 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
     // Second call with different drugScope and a1cMax <= 7.0 uses SWR cache (no extra DB queries)
     const second = await service.getLabTracking({ fiscalYear: 2569, drugScope: 'all', a1cMax: 7.0 })
     expect(second.summary.totalEligible).toBe(2)
-    expect(clinicalQuery).toHaveBeenCalledTimes(5)
+    expect(clinicalQuery).toHaveBeenCalledTimes(6)
 
     // Refresh invalidates cache and hits DB again
     clinicalQuery
       .mockResolvedValueOnce([{ total_tested: 121 }])
       .mockResolvedValueOnce([])
     await service.getLabTracking({ fiscalYear: 2569, refresh: true })
-    expect(clinicalQuery).toHaveBeenCalledTimes(7)
+    expect(clinicalQuery).toHaveBeenCalledTimes(8)
+  })
+
+  it('marks patients found in rcmdb.t1dm or t1dm_registries as registered in DM registry', async () => {
+    const clinicalQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
+    const appQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
+
+    clinicalQuery
+      .mockResolvedValueOnce([{ total_tested: 2 }]) // total query
+      .mockResolvedValueOnce([
+        {
+          hn: '0002001',
+          cid: '1520000002001',
+          patient_name: 'นายหนึ่ง ในt1dm',
+          age_years: 45,
+          sex_label: 'ชาย',
+          death_flag: 0,
+          visit_date: '2026-08-10',
+          vn: '6908100001',
+          lab_order_number: 1001,
+          latest_a1c: '6.10',
+          a1c_test_count: 1,
+          prev_entry: null,
+          visit_pttype_code: '33',
+          visit_pttype_name: 'บัตรทอง',
+          is_uc_visit: 1,
+          current_pttype_code: '33',
+          current_pttype_name: 'บัตรทอง',
+          is_uc_current: 1,
+          tambon_name: 'ล้อมแรด',
+          village_name: 'บ้านล้อมแรด',
+          village_moo: '1',
+        },
+        {
+          hn: '0002002',
+          cid: '1520000002002',
+          patient_name: 'นางสอง ในmirror',
+          age_years: 32,
+          sex_label: 'หญิง',
+          death_flag: 0,
+          visit_date: '2026-08-11',
+          vn: '6908110002',
+          lab_order_number: 1002,
+          latest_a1c: '5.90',
+          a1c_test_count: 1,
+          prev_entry: null,
+          visit_pttype_code: '33',
+          visit_pttype_name: 'บัตรทอง',
+          is_uc_visit: 1,
+          current_pttype_code: '33',
+          current_pttype_name: 'บัตรทอง',
+          is_uc_current: 1,
+          tambon_name: 'ล้อมแรด',
+          village_name: 'บ้านล้อมแรด',
+          village_moo: '1',
+        },
+      ]) // base pool
+      .mockResolvedValueOnce([
+        { hn: '0002001', last_e11_date: '2026-08-10', last_e11_icd10: 'E119', in_fy_e11_count: 1 },
+        { hn: '0002002', last_e11_date: '2026-08-11', last_e11_icd10: 'E119', in_fy_e11_count: 1 },
+      ]) // e11
+      .mockResolvedValueOnce([{ vn: '6908100001' }, { vn: '6908110002' }]) // same vn e11
+      .mockResolvedValueOnce([]) // rx
+      .mockResolvedValueOnce([{ pid: '1520000002001', type: 'T1DM' }]) // rcmdb.t1dm
+
+    appQuery
+      .mockResolvedValueOnce([
+        { hn: '0002002', cid: '1520000002002', summary_remission: 'ไม่ Remission' },
+      ]) // dm_remission_cohorts has 0002002
+      .mockResolvedValueOnce([{ pid: '1520000002002', type: 'GDM' }]) // t1dm_registries also has 0002002
+
+    const service = new DmRemissionLabService({ appQuery, clinicalQuery })
+    const result = await service.getLabTracking({ fiscalYear: 2569 })
+
+    expect(result.summary.registeredCount).toBe(2)
+    expect(result.summary.unregisteredCount).toBe(0)
+    expect(result.summary.funnel.registeredInCohort).toBe(2)
+
+    const byHn = new Map(result.items.map((item) => [item.hn, item]))
+    expect(byHn.get('0002001')).toMatchObject({
+      inCohortRegistry: true,
+      cohortRemissionStatus: 'T1DM',
+      inDmRemissionCohort: false,
+      inT1dmRegistry: true,
+      t1dmRegistryType: 'T1DM',
+    })
+    expect(byHn.get('0002002')).toMatchObject({
+      inCohortRegistry: true,
+      cohortRemissionStatus: 'ไม่ Remission',
+      inDmRemissionCohort: true,
+      inT1dmRegistry: true,
+      t1dmRegistryType: 'GDM',
+    })
+    expect(result.summary.dmRemissionCount).toBe(1)
+    expect(result.summary.t1dmRegistryCount).toBe(2)
+    expect(result.summary.bothRegistriesCount).toBe(1)
+
+    const bothOnly = await service.getLabTracking({ fiscalYear: 2569, cohortStatus: 'both' })
+    expect(bothOnly.items.map((item) => item.hn)).toEqual(['0002002'])
+
+    const dmOnly = await service.getLabTracking({ fiscalYear: 2569, cohortStatus: 'dm_remission' })
+    expect(dmOnly.items.map((item) => item.hn)).toEqual(['0002002'])
+
+    const t1dmOnly = await service.getLabTracking({ fiscalYear: 2569, cohortStatus: 't1dm' })
+    expect(t1dmOnly.items.map((item) => item.hn)).toEqual(['0002002', '0002001'])
   })
 
   it('fetches patient lab, E11, and DM drug timeline or returns null if HN not found', async () => {

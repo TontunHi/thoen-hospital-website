@@ -75,6 +75,11 @@ interface CohortLookupSqlRow {
   summary_remission: string | null
 }
 
+interface T1dmLookupSqlRow {
+  pid: string | null
+  type: string | null
+}
+
 interface CachedFiscalYearDataset {
   totalA1cTested: number
   basePool: DmLabTrackingRecord[]
@@ -270,12 +275,29 @@ export class DmRemissionLabService {
     const vns = Array.from(
       new Set(baseRows.map((r) => r.vn?.trim()).filter((v): v is string => Boolean(v)))
     )
+    const cids = Array.from(
+      new Set(
+        baseRows.flatMap((r) => {
+          const raw = r.cid?.trim()
+          const norm = normalizeCid(raw)
+          return [raw, norm].filter((v): v is string => Boolean(v))
+        })
+      )
+    )
 
     const hnChunks = chunkArray(hns, HOSXP_CHUNK_SIZE)
     const vnChunks = chunkArray(vns, HOSXP_CHUNK_SIZE)
+    const cidChunks = chunkArray(cids, HOSXP_CHUNK_SIZE)
     const icodePlaceholders = buildPlaceholders(DM_ANTIDIABETIC_ICODES.length)
 
-    const [e11ChunkResults, sameVnChunkResults, rxChunkResults, cohortRows] = await Promise.all([
+    const [
+      e11ChunkResults,
+      sameVnChunkResults,
+      rxChunkResults,
+      cohortRows,
+      t1dmChunkResults,
+      t1dmMirrorRows,
+    ] = await Promise.all([
       Promise.all(
         hnChunks.map((chunk) =>
           this.deps.clinicalQuery<E11AggSqlRow>(
@@ -337,6 +359,35 @@ export class DmRemissionLabService {
           [fiscalYear]
         )
         .catch(() => [] as CohortLookupSqlRow[]),
+      Promise.all(
+        cidChunks.map((chunk) =>
+          this.deps
+            .clinicalQuery<T1dmLookupSqlRow>(
+              `
+                SELECT
+                  TRIM(PID) AS pid,
+                  MAX(NULLIF(TRIM(Type), '')) AS type
+                FROM rcmdb.t1dm
+                WHERE PID IN (${buildPlaceholders(chunk.length)})
+                GROUP BY TRIM(PID)
+              `,
+              chunk
+            )
+            .catch(() => [] as T1dmLookupSqlRow[])
+        )
+      ),
+      this.deps
+        .appQuery<T1dmLookupSqlRow>(
+          `
+            SELECT
+              TRIM(pid) AS pid,
+              MAX(NULLIF(TRIM(type), '')) AS type
+            FROM t1dm_registries
+            WHERE pid IS NOT NULL AND pid <> ''
+            GROUP BY TRIM(pid)
+          `
+        )
+        .catch(() => [] as T1dmLookupSqlRow[]),
     ])
 
     const e11ByHn = new Map<string, E11AggSqlRow>()
@@ -364,11 +415,30 @@ export class DmRemissionLabService {
 
     const cohortByHn = new Map<string, string | null>()
     const cohortByCid = new Map<string, string | null>()
-    for (const row of cohortRows) {
+    for (const row of cohortRows ?? []) {
       const normHn = normalizeHn(row.hn)
       if (normHn) cohortByHn.set(normHn, row.summary_remission ?? null)
       const normCid = normalizeCid(row.cid)
       if (normCid) cohortByCid.set(normCid, row.summary_remission ?? null)
+    }
+
+    // Match the registration source of /service/dashboard-rcm/funds/t1dm-gdm-pdm/2
+    // (rcmdb.t1dm + Website DB mirror table t1dm_registries by PID/CID).
+    const t1dmByCid = new Map<string, string | null>()
+    for (const rows of t1dmChunkResults) {
+      for (const row of rows ?? []) {
+        const normPid = normalizeCid(row.pid)
+        if (normPid) {
+          t1dmByCid.set(normPid, row.type?.trim() || null)
+        }
+      }
+    }
+    for (const row of t1dmMirrorRows ?? []) {
+      const normPid = normalizeCid(row.pid)
+      if (normPid) {
+        const existing = t1dmByCid.get(normPid) ?? null
+        t1dmByCid.set(normPid, row.type?.trim() || existing)
+      }
     }
 
     const basePool: DmLabTrackingRecord[] = baseRows.map((row) => {
@@ -409,11 +479,19 @@ export class DmRemissionLabService {
       const normCid = normalizeCid(row.cid)
       const matchedByHn = normHn ? cohortByHn.has(normHn) : false
       const matchedByCid = normCid ? cohortByCid.has(normCid) : false
-      const inCohortRegistry = matchedByHn || matchedByCid
-      const cohortRemissionStatus = matchedByHn
+      const matchedInCohort = matchedByHn || matchedByCid
+      const matchedInT1dm = normCid ? t1dmByCid.has(normCid) : false
+      const inCohortRegistry = matchedInCohort || matchedInT1dm
+      const cohortStatus = matchedByHn
         ? (cohortByHn.get(normHn!) ?? null)
         : matchedByCid
           ? (cohortByCid.get(normCid!) ?? null)
+          : null
+      const t1dmType = matchedInT1dm ? (t1dmByCid.get(normCid!) ?? null) : null
+      const cohortRemissionStatus = matchedInCohort
+        ? cohortStatus
+        : matchedInT1dm
+          ? t1dmType || 'ลงทะเบียนแล้ว'
           : null
 
       const { prevA1c, prevA1cDate } = parsePrevEntry(row.prev_entry)
@@ -452,6 +530,9 @@ export class DmRemissionLabService {
         villageMoo: row.village_moo?.trim() || null,
         inCohortRegistry,
         cohortRemissionStatus,
+        inDmRemissionCohort: matchedInCohort,
+        inT1dmRegistry: matchedInT1dm,
+        t1dmRegistryType: t1dmType,
       }
     })
 

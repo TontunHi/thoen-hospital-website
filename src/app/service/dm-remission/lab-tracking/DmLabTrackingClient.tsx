@@ -61,6 +61,23 @@ function pctOf(part: number, total: number): string {
   return `${((part / total) * 100).toFixed(1)}%`
 }
 
+function isInDmRemissionCohortRow(row: DmLabTrackingRecord): boolean {
+  return row.inDmRemissionCohort ?? (row.inCohortRegistry && !row.inT1dmRegistry)
+}
+
+function formatDmRemissionText(row: DmLabTrackingRecord, forExport = false): string {
+  if (!isInDmRemissionCohortRow(row)) return 'ยังไม่เข้าทะเบียน'
+  const fallback = forExport ? 'ยังไม่ระบุ' : 'รอสรุป'
+  return `อยู่ในทะเบียน (${row.cohortRemissionStatus || fallback})`
+}
+
+function formatT1dmRegistryText(row: DmLabTrackingRecord): string {
+  if (!row.inT1dmRegistry) return 'ยังไม่ลงทะเบียน'
+  return row.t1dmRegistryType
+    ? `ลงทะเบียนแล้ว (${row.t1dmRegistryType})`
+    : 'ลงทะเบียนแล้ว'
+}
+
 export default function DmLabTrackingClient({
   userRole: _userRole,
   initialData,
@@ -283,7 +300,8 @@ export default function DmLabTrackingClient({
         { header: 'ยาเบาหวานในปีงบ', key: 'dmDrugs', width: 28 },
         { header: 'ตำบล', key: 'tambonName', width: 16 },
         { header: 'หมู่บ้าน', key: 'villageName', width: 18 },
-        { header: 'สถานะทะเบียน DM Remission', key: 'cohortStatus', width: 22 },
+        { header: 'ทะเบียน DM Remission', key: 'cohortStatus', width: 24 },
+        { header: 'ทะเบียน DM (T1DM/GDM/PDM)', key: 't1dmStatus', width: 26 },
       ]
 
       const headerRow = sheet.getRow(1)
@@ -316,9 +334,8 @@ export default function DmLabTrackingClient({
           villageName: row.villageName
             ? `${row.villageName}${row.villageMoo ? ` ม.${row.villageMoo}` : ''}`
             : '-',
-          cohortStatus: row.inCohortRegistry
-            ? `อยู่ในทะเบียน (${row.cohortRemissionStatus || 'ยังไม่ระบุ'})`
-            : 'ยังไม่เข้าทะเบียน',
+          cohortStatus: formatDmRemissionText(row, true),
+          t1dmStatus: formatT1dmRegistryText(row),
         })
       })
 
@@ -499,7 +516,7 @@ export default function DmLabTrackingClient({
               </div>
 
               <div className="dmltKpiCard">
-                <span className="dmltKpiLabel">ยังไม่เข้าทะเบียน DM Remission</span>
+                <span className="dmltKpiLabel">ยังไม่เข้าทะเบียนใดเลย</span>
                 <span className="dmltKpiValue">
                   {summary.unregisteredCount.toLocaleString()} ราย
                 </span>
@@ -509,13 +526,14 @@ export default function DmLabTrackingClient({
               </div>
 
               <div className="dmltKpiCard">
-                <span className="dmltKpiLabel">อยู่ในทะเบียน DM Remission แล้ว</span>
+                <span className="dmltKpiLabel">อยู่ในทะเบียนแล้ว</span>
                 <span className="dmltKpiValue">
                   {summary.registeredCount.toLocaleString()} ราย
                 </span>
                 <span className="dmltKpiMeta">
-                  ครอบคลุม {pctOf(summary.registeredCount, summary.totalEligible)} ในปีงบ{' '}
-                  {data?.fiscalYear}
+                  DM Remission {(summary.dmRemissionCount ?? 0).toLocaleString()} · ทะเบียน DM{' '}
+                  {(summary.t1dmRegistryCount ?? 0).toLocaleString()} · ทั้งคู่{' '}
+                  {(summary.bothRegistriesCount ?? 0).toLocaleString()}
                 </span>
               </div>
             </section>
@@ -658,7 +676,7 @@ export default function DmLabTrackingClient({
             </select>
 
             <select
-              aria-label="กรองตามสถานะทะเบียน DM Remission"
+              aria-label="กรองตามสถานะทะเบียน"
               className="dmltSelect"
               value={cohortStatus}
               onChange={(e) => {
@@ -667,8 +685,11 @@ export default function DmLabTrackingClient({
               }}
             >
               <option value="all">ทุกสถานะทะเบียน</option>
-              <option value="unregistered">ยังไม่เข้าทะเบียน DM Remission</option>
-              <option value="registered">อยู่ในทะเบียน DM Remission แล้ว</option>
+              <option value="unregistered">ยังไม่เข้าทะเบียนใดเลย</option>
+              <option value="registered">อยู่ในทะเบียนแล้ว (อย่างน้อย 1 แหล่ง)</option>
+              <option value="dm_remission">มีชื่อในทะเบียน DM Remission</option>
+              <option value="t1dm">มีชื่อในทะเบียน DM (T1DM/GDM/PDM)</option>
+              <option value="both">มีชื่อในทั้ง 2 ทะเบียน</option>
             </select>
 
             <select
@@ -867,6 +888,7 @@ export default function DmLabTrackingClient({
                     <th>ยาเบาหวาน</th>
                     <th>ที่อยู่</th>
                     <th>ทะเบียน DM Remission</th>
+                    <th>ทะเบียน DM (T1DM/GDM/PDM)</th>
                     <th>รายละเอียด</th>
                   </tr>
                 </thead>
@@ -937,12 +959,21 @@ export default function DmLabTrackingClient({
                           )}
                         </td>
                         <td>
-                          {row.inCohortRegistry ? (
+                          {isInDmRemissionCohortRow(row) ? (
                             <span className="dmltPill dmltPillInfo">
-                              อยู่ในทะเบียน ({row.cohortRemissionStatus || 'รอสรุป'})
+                              {formatDmRemissionText(row)}
                             </span>
                           ) : (
                             <span className="dmltPill dmltPillNeutral">ยังไม่เข้าทะเบียน</span>
+                          )}
+                        </td>
+                        <td>
+                          {row.inT1dmRegistry ? (
+                            <span className="dmltPill dmltPillSuccess">
+                              {formatT1dmRegistryText(row)}
+                            </span>
+                          ) : (
+                            <span className="dmltPill dmltPillNeutral">ยังไม่ลงทะเบียน</span>
                           )}
                         </td>
                         <td>

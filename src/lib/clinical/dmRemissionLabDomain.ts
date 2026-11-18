@@ -208,12 +208,22 @@ export function runLabTrackingPipeline(params: LabTrackingPipelineParams): {
     .sort((a, b) => a.localeCompare(b, 'th'))
 
   // Apply user-facing list filters (cohort status, tambon, text search)
+  const isInDmRemissionCohort = (r: DmLabTrackingRecord): boolean =>
+    r.inDmRemissionCohort ?? (r.inCohortRegistry && !r.inT1dmRegistry)
+  const isInT1dmRegistry = (r: DmLabTrackingRecord): boolean => Boolean(r.inT1dmRegistry)
+
   let filtered = stepNoDrug
 
   if (cohortStatus === 'registered') {
     filtered = filtered.filter((r) => r.inCohortRegistry)
   } else if (cohortStatus === 'unregistered') {
     filtered = filtered.filter((r) => !r.inCohortRegistry)
+  } else if (cohortStatus === 'dm_remission') {
+    filtered = filtered.filter(isInDmRemissionCohort)
+  } else if (cohortStatus === 't1dm') {
+    filtered = filtered.filter(isInT1dmRegistry)
+  } else if (cohortStatus === 'both') {
+    filtered = filtered.filter((r) => isInDmRemissionCohort(r) && isInT1dmRegistry(r))
   }
 
   const trimmedTambon = tambon?.trim()
@@ -258,11 +268,19 @@ export function runLabTrackingPipeline(params: LabTrackingPipelineParams): {
   const medianLatestA1c = computeMedian(a1cValues)
   const repeatTestedCount = sorted.filter((r) => r.a1cTestCount >= 2).length
   const filteredRegistered = sorted.filter((r) => r.inCohortRegistry).length
+  const dmRemissionCount = sorted.filter(isInDmRemissionCohort).length
+  const t1dmRegistryCount = sorted.filter(isInT1dmRegistry).length
+  const bothRegistriesCount = sorted.filter(
+    (r) => isInDmRemissionCohort(r) && isInT1dmRegistry(r)
+  ).length
 
   const summary: DmLabTrackingSummary = {
     totalEligible: sorted.length,
     registeredCount: filteredRegistered,
     unregisteredCount: sorted.length - filteredRegistered,
+    dmRemissionCount,
+    t1dmRegistryCount,
+    bothRegistriesCount,
     avgLatestA1c,
     medianLatestA1c,
     repeatTestedCount,

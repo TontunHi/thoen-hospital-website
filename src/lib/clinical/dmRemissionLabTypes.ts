@@ -4,7 +4,13 @@ export type DmLabDiagScope = 'ever' | 'in_fy' | 'same_vn'
 
 export type DmLabDrugScope = 'fy' | '90d_before_lab' | 'visit_only' | 'all'
 
-export type DmLabCohortStatusFilter = 'all' | 'registered' | 'unregistered'
+export type DmLabCohortStatusFilter =
+  | 'all'
+  | 'registered'
+  | 'unregistered'
+  | 'dm_remission'
+  | 't1dm'
+  | 'both'
 
 export interface DmAntidiabeticDrugDef {
   icode: string
@@ -75,6 +81,9 @@ export interface DmLabTrackingRecord {
   villageMoo: string | null
   inCohortRegistry: boolean
   cohortRemissionStatus: string | null
+  inDmRemissionCohort?: boolean
+  inT1dmRegistry?: boolean
+  t1dmRegistryType?: string | null
 }
 
 export interface DmLabTrackingFunnel {
@@ -104,6 +113,9 @@ export interface DmLabTrackingSummary {
   totalEligible: number
   registeredCount: number
   unregisteredCount: number
+  dmRemissionCount?: number
+  t1dmRegistryCount?: number
+  bothRegistriesCount?: number
   avgLatestA1c: number | null
   medianLatestA1c: number | null
   repeatTestedCount: number

@@ -156,4 +156,31 @@ describe('DmLabTrackingClient', () => {
     expect(screen.getByText('นายทดสอบ ปลอดยา')).toBeInTheDocument()
     expect(global.fetch).not.toHaveBeenCalled()
   })
+
+  it('displays separate registry columns for DM Remission and T1DM/GDM/PDM', () => {
+    const dualRegistryData = {
+      ...mockLabTrackingResponse.data,
+      items: [
+        {
+          ...mockLabTrackingResponse.data.items[0],
+          inCohortRegistry: true,
+          cohortRemissionStatus: 'ไม่ Remission',
+          inDmRemissionCohort: true,
+          inT1dmRegistry: true,
+          t1dmRegistryType: 'T1DM',
+        },
+      ],
+    }
+
+    render(
+      <DmLabTrackingClient
+        userRole="staff"
+        initialData={dualRegistryData as any}
+        initialError={null}
+      />
+    )
+
+    expect(screen.getByText('อยู่ในทะเบียน (ไม่ Remission)')).toBeInTheDocument()
+    expect(screen.getByText('ลงทะเบียนแล้ว (T1DM)')).toBeInTheDocument()
+  })
 })

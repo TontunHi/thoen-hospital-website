@@ -222,7 +222,9 @@ export const labTrackingQuerySchema = z.object({
     })
     .optional(),
   cohortStatus: z
-    .enum(['all', 'registered', 'unregistered'], { message: 'ตัวกรองสถานะทะเบียนไม่ถูกต้อง' })
+    .enum(['all', 'registered', 'unregistered', 'dm_remission', 't1dm', 'both'], {
+      message: 'ตัวกรองสถานะทะเบียนไม่ถูกต้อง',
+    })
     .optional(),
   tambon: optionalQueryString(100, 'ตำบล'),
   search: optionalQueryString(120, 'คำค้นหา'),
