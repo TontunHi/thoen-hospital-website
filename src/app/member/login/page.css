@@ -1,48 +1,52 @@
 /* ==========================================================================
-   Thoen Hospital Staff Portal — Member Login (Loy Krathong Festival Edition)
-   Festive Night Sky & Candlelit River Atmosphere (ประเพณีลอยกระทงและยี่เป็ง)
-   Tokens harmonized with Thoen Hospital Design System & OpenDesigner standards
+   Thoen Hospital Staff Portal — Member Login (3D Loy Krathong & Yee Peng Edition)
+   Split-Stage Editorial Workbench over Interactive Three.js Night River
    ========================================================================== */
 
 .memberLoginContainer {
-  /* Festive Loy Krathong Seasonal Palette */
-  --lk-night-sky: #070B14;
-  --lk-card-surface: rgba(14, 20, 36, 0.88);
-  --lk-raised-surface: rgba(22, 32, 54, 0.85);
-  --lk-raised-hover: rgba(30, 44, 72, 0.9);
-  
-  /* Hairline Borders with Subtle Amber Shimmer */
-  --lk-hairline: rgba(255, 255, 255, 0.12);
-  --lk-hairline-hover: rgba(245, 158, 11, 0.35);
-  --lk-border-active: rgba(245, 158, 11, 0.65);
+  /* Lanna Twilight & Candlelight Design Tokens */
+  --lk-night-sky: #040812;
+  --lk-card-surface: rgba(11, 18, 34, 0.72);
+  --lk-raised-surface: rgba(20, 31, 54, 0.82);
+  --lk-raised-hover: rgba(28, 43, 74, 0.92);
 
-  /* Typography & High-Contrast Night Ink */
+  /* Specular Gold & Emerald Hairlines */
+  --lk-hairline: rgba(255, 255, 255, 0.11);
+  --lk-hairline-gold: rgba(251, 191, 36, 0.28);
+  --lk-hairline-hover: rgba(251, 191, 36, 0.48);
+  --lk-border-active: rgba(245, 158, 11, 0.75);
+
+  /* Typography */
   --lk-text-primary: #F8FAFC;
   --lk-text-secondary: #CBD5E1;
   --lk-text-muted: #94A3B8;
 
-  /* Candlelight & Lantern Accents (แสงประทีปและโคมยี่เป็ง) */
+  /* Candlelight & Lantern Gold Accents */
   --lk-candle-gold: #F59E0B;
   --lk-candle-glow: #FBBF24;
+  --lk-candle-pale: #FEF08A;
   --lk-candle-warm: #D97706;
-  --lk-candle-subtle: rgba(245, 158, 11, 0.12);
-  --lk-focus-ring: rgba(245, 158, 11, 0.32);
+  --lk-focus-ring: rgba(245, 158, 11, 0.34);
 
-  /* Thoen Forest Green Accent (ผสานสีมงคลใบตองและเอกลักษณ์ รพ.) */
+  /* Thoen Hospital Emerald Accent */
   --lk-emerald: #10B981;
   --lk-emerald-dark: #0D7446;
-  --lk-emerald-subtle: rgba(16, 185, 129, 0.14);
 
   /* Radii & Motion */
-  --lk-radius-sm: 0.375rem; /* 6px */
-  --lk-radius-md: 0.5rem;   /* 8px */
-  --lk-radius-lg: 1rem;     /* 16px */
+  --lk-radius-sm: 0.5rem;
+  --lk-radius-md: 0.75rem;
+  --lk-radius-lg: 1.25rem;
   --lk-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --lk-dur: 150ms;
+  --lk-dur: 180ms;
 
-  /* Shadows with Candle Glow Tint */
-  --lk-shadow-card: 0 16px 44px -8px rgba(0, 0, 0, 0.65), 0 0 28px rgba(245, 158, 11, 0.08);
-  --lk-shadow-modal: 0 24px 56px -10px rgba(0, 0, 0, 0.8), 0 0 36px rgba(245, 158, 11, 0.12);
+  /* Atmospheric Shadows */
+  --lk-shadow-card:
+    0 24px 60px -12px rgba(0, 0, 0, 0.75),
+    0 0 40px -8px rgba(245, 158, 11, 0.12),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  --lk-shadow-modal:
+    0 28px 68px -12px rgba(0, 0, 0, 0.85),
+    0 0 44px rgba(245, 158, 11, 0.16);
 
   position: relative;
   min-height: calc(100vh - var(--navbar-height, 72px));
@@ -55,20 +59,19 @@
   justify-content: center;
   align-items: center;
   overflow-x: hidden;
-  padding: max(1.25rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  padding: max(1.25rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   -webkit-tap-highlight-color: transparent;
 }
 
-@media (min-width: 480px) {
+@media (min-width: 640px) {
   .memberLoginContainer {
-    padding: 2rem 1.5rem;
+    padding: 2rem 1.75rem;
   }
 }
 
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .memberLoginContainer {
-    padding: 3rem;
-    align-items: center;
+    padding: 2.75rem 3rem;
   }
 }
 
@@ -77,37 +80,57 @@
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 460px;
-  margin: auto auto;
+  max-width: 450px;
+  margin: auto;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
+/* ==========================================================================
+   Frosted Obsidian & Gold-Leaf Authentication Card
+   ========================================================================== */
+
 .memberAuthColumn {
   width: 100%;
-  max-width: 460px;
+  max-width: 450px;
   margin: 0 auto;
 }
 
-/* Card: Frosted Twilight Glass with Candlelight Glow */
 .memberLoginCard {
+  position: relative;
+  overflow: hidden;
   width: 100%;
-  background-color: var(--lk-card-surface);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background-color: rgba(11, 18, 34, 0.84);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--lk-hairline);
-  border-top-color: rgba(245, 158, 11, 0.3);
   border-radius: var(--lk-radius-lg);
-  padding: 1.5rem 1.25rem;
+  padding: 1.625rem 1.375rem;
   box-shadow: var(--lk-shadow-card);
   animation: loginPanelEnter var(--lk-dur) var(--lk-ease);
 }
 
 @media (min-width: 480px) {
   .memberLoginCard {
-    padding: 2rem 1.75rem;
+    padding: 2.125rem 1.875rem;
   }
+}
+
+.cardTopGoldAccent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(16, 185, 129, 0.65) 20%,
+    #FBBF24 50%,
+    rgba(245, 158, 11, 0.75) 80%,
+    transparent 100%
+  );
 }
 
 .memberLoginSkeleton .skeletonLabel {
@@ -118,47 +141,45 @@
   margin: 0;
 }
 
-/* Header with Soft Lantern Ambiance */
+/* Header with Warm Lantern Crest Halo */
 .memberLoginHeader {
   display: flex;
   align-items: center;
-  gap: 0.875rem;
+  gap: 0.95rem;
   margin-bottom: 1.5rem;
 }
 
-@media (min-width: 480px) {
-  .memberLoginHeader {
-    gap: 1rem;
-    margin-bottom: 1.75rem;
-  }
+.crestHaloWrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.18) 0%, rgba(16, 185, 129, 0.08) 70%, transparent 100%);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .memberLoginCrest {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
-  flex-shrink: 0;
   filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.35));
-}
-
-@media (min-width: 480px) {
-  .memberLoginCrest {
-    width: 56px;
-    height: 56px;
-  }
 }
 
 .memberLoginTitleGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 0.15rem;
   min-width: 0;
 }
 
 .memberLoginTitleGroup h1 {
-  font-size: 1.25rem; /* 20px */
-  line-height: 1.35;
-  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 700;
   color: var(--lk-text-primary);
   margin: 0;
   letter-spacing: -0.01em;
@@ -166,34 +187,19 @@
 
 @media (min-width: 480px) {
   .memberLoginTitleGroup h1 {
-    font-size: 1.375rem; /* 22px */
+    font-size: 1.35rem;
   }
 }
 
 .memberLoginTitleGroup p {
-  font-size: 0.84375rem; /* ~13.5px */
-  line-height: 1.5;
+  font-size: 0.84375rem;
+  line-height: 1.45;
   font-weight: 400;
-  color: var(--lk-candle-glow);
+  color: var(--lk-text-secondary);
   margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
 }
 
-.memberLoginTitleGroup p::after {
-  content: '· ประเพณีลอยกระทง ๒๕๖๙';
-  font-size: 0.78125rem;
-  color: var(--lk-text-muted);
-}
-
-@media (min-width: 480px) {
-  .memberLoginTitleGroup p {
-    font-size: 0.875rem; /* 14px */
-  }
-}
-
-/* Semantic Alerts (Tuned for Dark Twilight Backdrop) */
+/* Semantic Alerts */
 .memberAlert {
   display: flex;
   align-items: flex-start;
@@ -203,7 +209,6 @@
   margin-bottom: 1.25rem;
   font-size: 0.875rem;
   line-height: 1.55;
-  font-weight: 400;
 }
 
 .memberAlert .alertIcon {
@@ -213,13 +218,13 @@
 
 .alertDanger {
   background-color: rgba(220, 38, 38, 0.16);
-  border: 1px solid rgba(239, 68, 68, 0.32);
+  border: 1px solid rgba(239, 68, 68, 0.35);
   color: #FCA5A5;
 }
 
 .alertSuccess {
   background-color: rgba(16, 185, 129, 0.16);
-  border: 1px solid rgba(52, 211, 153, 0.32);
+  border: 1px solid rgba(52, 211, 153, 0.35);
   color: #6EE7B7;
 }
 
@@ -245,6 +250,7 @@
   transition:
     background-color var(--lk-dur) var(--lk-ease),
     border-color var(--lk-dur) var(--lk-ease),
+    transform var(--lk-dur) var(--lk-ease),
     box-shadow var(--lk-dur) var(--lk-ease);
 }
 
@@ -252,7 +258,8 @@
 .mophIdBtn:hover:not(:disabled) {
   background-color: var(--lk-raised-hover);
   border-color: var(--lk-hairline-hover);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
 }
 
 .thaidLoginBtn:focus-visible,
@@ -267,29 +274,29 @@
   cursor: not-allowed;
 }
 
-/* ThaID Button — Official Identity Card in Twilight */
+/* ThaID Primary Button */
 .thaidLoginBtn {
   display: flex;
   align-items: center;
   gap: 0.875rem;
-  min-height: 56px;
+  min-height: 60px;
   padding: 0.75rem 1rem;
-  border-color: rgba(59, 130, 246, 0.3);
-  background: linear-gradient(135deg, rgba(24, 34, 58, 0.95) 0%, rgba(18, 26, 46, 0.95) 100%);
+  border-color: rgba(96, 165, 250, 0.32);
+  background: linear-gradient(135deg, rgba(23, 35, 64, 0.92) 0%, rgba(15, 23, 44, 0.92) 100%);
 }
 
 .thaidLoginBtn:hover:not(:disabled) {
-  border-color: rgba(96, 165, 250, 0.6);
-  background: linear-gradient(135deg, rgba(28, 40, 70, 0.98) 0%, rgba(22, 32, 56, 0.98) 100%);
+  border-color: rgba(251, 191, 36, 0.55);
+  background: linear-gradient(135deg, rgba(28, 43, 78, 0.96) 0%, rgba(19, 29, 54, 0.96) 100%);
 }
 
 .thaidIconFrame {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -305,22 +312,40 @@
 .digitalIdTextGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 0.15rem;
   flex: 1;
   min-width: 0;
 }
 
+.digitalIdTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
 .digitalIdTitle {
-  font-size: 0.9375rem; /* 15px */
-  line-height: 1.4;
+  font-size: 0.9375rem;
+  line-height: 1.35;
   font-weight: 600;
-  color: #93C5FD; /* Luminous Blue */
+  color: #BAE6FD;
+}
+
+.fastPathPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.42rem;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.22);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: var(--lk-candle-pale);
+  font-size: 0.6875rem;
+  font-weight: 600;
 }
 
 .digitalIdSubtitle {
-  font-size: 0.8125rem; /* 13px */
-  line-height: 1.4;
-  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.35;
   color: var(--lk-text-muted);
 }
 
@@ -334,15 +359,15 @@
 
 .thaidLoginBtn:hover:not(:disabled) .digitalIdChevron,
 .mophIdBtn:hover:not(:disabled) .digitalIdChevron {
-  color: var(--lk-text-secondary);
-  transform: translateX(2px);
+  color: var(--lk-candle-glow);
+  transform: translateX(3px);
 }
 
 /* MOPH Digital IDs: Health ID & Provider ID */
 .mophIdRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 0.625rem;
 }
 
 @media (max-width: 359px) {
@@ -356,16 +381,8 @@
   flex-direction: column;
   justify-content: space-between;
   gap: 0.5rem;
-  min-height: 76px;
-  padding: 0.625rem 0.75rem;
-}
-
-@media (min-width: 480px) {
-  .mophIdBtn {
-    gap: 0.625rem;
-    min-height: 80px;
-    padding: 0.75rem 0.875rem;
-  }
+  min-height: 78px;
+  padding: 0.7rem 0.85rem;
 }
 
 .mophBrandRow {
@@ -379,32 +396,19 @@
 .mophLogoPlate {
   display: inline-flex;
   align-items: center;
-  height: 24px;
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
+  height: 25px;
+  padding: 0.125rem 0.4rem;
+  border-radius: 5px;
   background-color: #FFFFFF;
   flex-shrink: 0;
 }
 
-@media (min-width: 480px) {
-  .mophLogoPlate {
-    height: 26px;
-  }
-}
-
 .mophWordmarkImg {
-  height: 18px;
+  height: 19px;
   width: auto;
-  max-width: 80px;
+  max-width: 86px;
   object-fit: contain;
   object-position: left center;
-}
-
-@media (min-width: 480px) {
-  .mophWordmarkImg {
-    height: 20px;
-    max-width: 90px;
-  }
 }
 
 .mophCaptionGroup {
@@ -415,7 +419,7 @@
 }
 
 .mophBtnTitle {
-  font-size: 0.8125rem; /* 13px */
+  font-size: 0.84375rem;
   line-height: 1.35;
   font-weight: 600;
   color: var(--lk-text-primary);
@@ -424,17 +428,9 @@
   text-overflow: ellipsis;
 }
 
-@media (min-width: 480px) {
-  .mophBtnTitle {
-    font-size: 0.875rem; /* 14px */
-    line-height: 1.4;
-  }
-}
-
 .mophBtnSubtitle {
-  font-size: 0.75rem; /* 12px */
+  font-size: 0.75rem;
   line-height: 1.3;
-  font-weight: 400;
   color: var(--lk-text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -449,12 +445,6 @@
   margin: 1.25rem 0;
 }
 
-@media (min-width: 480px) {
-  .loginDivider {
-    margin: 1.5rem 0;
-  }
-}
-
 .loginDivider::before,
 .loginDivider::after {
   content: '';
@@ -464,9 +454,7 @@
 
 .loginDivider span {
   color: var(--lk-text-muted);
-  font-size: 0.8125rem; /* 13px */
-  line-height: 1.4;
-  font-weight: 400;
+  font-size: 0.8125rem;
   white-space: nowrap;
 }
 
@@ -474,13 +462,7 @@
 .memberLoginForm {
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
-}
-
-@media (min-width: 480px) {
-  .memberLoginForm {
-    gap: 1rem;
-  }
+  gap: 0.9rem;
 }
 
 .formGroup {
@@ -489,22 +471,54 @@
   gap: 0.375rem;
 }
 
+.formLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .formGroup label {
   color: var(--lk-text-secondary);
-  font-size: 0.875rem; /* 14px */
+  font-size: 0.84375rem;
   line-height: 1.4;
   font-weight: 500;
 }
 
+.digitCounter {
+  font-size: 0.75rem;
+  color: var(--lk-candle-glow);
+  font-weight: 500;
+}
+
+.inputIconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputLeadIcon {
+  position: absolute;
+  left: 0.875rem;
+  color: var(--lk-text-muted);
+  pointer-events: none;
+  transition: color var(--lk-dur) var(--lk-ease);
+}
+
+.inputIconWrapper:focus-within .inputLeadIcon {
+  color: var(--lk-candle-glow);
+}
+
 .formInput {
+  width: 100%;
   height: 46px;
   min-height: 44px;
-  background-color: rgba(10, 16, 30, 0.9);
+  background-color: rgba(8, 14, 26, 0.88);
   border: 1px solid var(--lk-hairline);
   border-radius: var(--lk-radius-md);
   padding: 0.625rem 0.875rem;
   color: var(--lk-text-primary);
-  font-size: 16px; /* Prevents iOS Safari auto-zoom */
+  font-size: 16px;
   line-height: 1.5;
   font-family: inherit;
   -webkit-appearance: none;
@@ -515,19 +529,23 @@
     box-shadow var(--lk-dur) var(--lk-ease);
 }
 
+.formInput.withLeadIcon {
+  padding-left: 2.55rem;
+}
+
 .formInput::placeholder {
   color: #64748B;
 }
 
 .formInput:hover:not(:disabled):not(:focus) {
-  border-color: rgba(245, 158, 11, 0.4);
+  border-color: rgba(251, 191, 36, 0.38);
 }
 
 .formInput:focus {
   outline: none;
   border-color: var(--lk-candle-gold);
   box-shadow: 0 0 0 3px var(--lk-focus-ring);
-  background-color: rgba(14, 22, 40, 0.95);
+  background-color: rgba(12, 20, 38, 0.96);
 }
 
 .formInput:disabled {
@@ -542,14 +560,14 @@
 
 /* Primary Submit Button: Warm Candle Amber & Lantern Glow */
 .memberSubmitBtn {
-  min-height: 46px;
+  min-height: 48px;
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  border: 1px solid rgba(254, 240, 138, 0.4);
+  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 55%, #D97706 100%);
+  border: 1px solid rgba(254, 240, 138, 0.55);
   border-radius: var(--lk-radius-md);
-  color: #111827; /* Rich Dark Contrast Text */
-  font-size: 0.9375rem; /* 15px */
-  font-weight: 600;
+  color: #0F172A;
+  font-size: 0.9375rem;
+  font-weight: 700;
   font-family: inherit;
   cursor: pointer;
   touch-action: manipulation;
@@ -558,7 +576,9 @@
   justify-content: center;
   gap: 0.5rem;
   margin-top: 0.25rem;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+  box-shadow:
+    0 4px 16px rgba(245, 158, 11, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
   transition:
     background var(--lk-dur) var(--lk-ease),
     box-shadow var(--lk-dur) var(--lk-ease),
@@ -567,18 +587,17 @@
 }
 
 .memberSubmitBtn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%);
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
+  background: linear-gradient(135deg, #FEF08A 0%, #FBBF24 55%, #F59E0B 100%);
+  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.52);
   transform: translateY(-1px);
 }
 
 .memberSubmitBtn:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.3);
 }
 
 .memberSubmitBtn:focus-visible {
-  outline: 3px solid var(--lk-candle-glow);
+  outline: 3px solid var(--lk-candle-pale);
   outline-offset: 2px;
 }
 
@@ -591,20 +610,19 @@
   transform: none;
 }
 
-/* OTP Modal Panel (Night Ambiance) */
+/* OTP Modal Panel */
 .otpModalBackdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(3, 7, 16, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(3, 7, 16, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: 999;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: max(1rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   animation: modalFadeIn var(--lk-dur) var(--lk-ease);
 }
 
@@ -613,11 +631,10 @@
   max-width: 420px;
   margin: auto;
   max-height: calc(100dvh - 32px);
-  max-height: calc(100vh - 32px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background-color: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  background-color: rgba(13, 21, 38, 0.96);
+  border: 1px solid rgba(251, 191, 36, 0.34);
   border-radius: var(--lk-radius-lg);
   padding: 1.5rem 1.25rem;
   box-shadow: var(--lk-shadow-modal);
@@ -645,15 +662,15 @@
 }
 
 .otpModalTitleWrap h2 {
-  font-size: 1.25rem; /* 20px */
+  font-size: 1.25rem;
   line-height: 1.35;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--lk-text-primary);
   margin: 0;
 }
 
 .otpModalSubtitle {
-  font-size: 0.84375rem; /* ~13.5px */
+  font-size: 0.84375rem;
   line-height: 1.5;
   color: var(--lk-text-secondary);
   margin: 0;
@@ -679,7 +696,6 @@
   color: var(--lk-text-muted);
   cursor: pointer;
   flex-shrink: 0;
-  touch-action: manipulation;
   transition:
     background-color var(--lk-dur) var(--lk-ease),
     color var(--lk-dur) var(--lk-ease);
@@ -702,16 +718,16 @@
 }
 
 .otpInput {
-  height: 52px;
+  height: 54px;
   text-align: center;
   font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
-  font-size: 1.5rem; /* 24px */
-  font-weight: 600;
+  font-size: 1.5rem;
+  font-weight: 700;
   letter-spacing: 0.32em;
   padding-left: calc(0.625rem + 0.32em);
-  color: #FEF08A; /* Warm Candlelight Text */
-  background-color: rgba(10, 16, 30, 0.95);
-  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--lk-candle-pale);
+  background-color: rgba(8, 14, 26, 0.95);
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
 .otpInput::placeholder {
@@ -724,7 +740,6 @@
   margin-top: 0.25rem;
 }
 
-/* Resend OTP Row */
 .otpResendRow {
   display: flex;
   align-items: center;
@@ -749,12 +764,11 @@
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  touch-action: manipulation;
   transition: color var(--lk-dur) var(--lk-ease);
 }
 
 .resendBtn:hover:not(:disabled) {
-  color: #FEF08A;
+  color: var(--lk-candle-pale);
   text-decoration: underline;
 }
 
@@ -771,15 +785,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-}
-
-@media (min-width: 480px) {
-  .memberLoginFooter {
-    margin-top: 1.75rem;
-    padding-top: 1.25rem;
-    gap: 0.375rem;
-  }
+  gap: 0.4rem;
 }
 
 .backHomeLink {
@@ -787,14 +793,13 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 40px;
-  padding: 0.5rem 0.875rem;
+  min-height: 38px;
+  padding: 0.45rem 0.875rem;
   border-radius: var(--lk-radius-md);
   color: var(--lk-text-secondary);
   font-size: 0.84375rem;
   font-weight: 500;
   text-decoration: none;
-  touch-action: manipulation;
   transition:
     color var(--lk-dur) var(--lk-ease),
     background-color var(--lk-dur) var(--lk-ease);
@@ -821,12 +826,11 @@
 .legalLinks a {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  padding: 0.25rem 0.375rem;
+  min-height: 34px;
+  padding: 0.2rem 0.375rem;
   color: var(--lk-text-muted);
   font-size: 0.8125rem;
   text-decoration: none;
-  touch-action: manipulation;
   transition: color var(--lk-dur) var(--lk-ease);
 }
 
@@ -835,21 +839,15 @@
   text-decoration: underline;
 }
 
-.legalLinks a:focus-visible {
-  outline: 2px solid var(--lk-candle-gold);
-  outline-offset: 2px;
-}
-
 .legalDot {
   color: var(--lk-hairline);
   font-size: 0.8125rem;
 }
 
-/* Animations */
 @keyframes loginPanelEnter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;

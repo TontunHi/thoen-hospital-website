@@ -1,6 +1,7 @@
-/* Loy Krathong Seasonal Scene - Pure CSS & GPU Accelerated
- * Integrated with Thoen Hospital Staff Login Unslop Design System
- */
+/* ==========================================================================
+   Loy Krathong & Yee Peng 3D Three.js Seasonal Atmosphere
+   Thoen Hospital Staff Portal — Interactive WebGL Night River & Lantern Sky
+   ========================================================================== */
 
 .seasonWrapper {
   position: absolute;
@@ -11,305 +12,84 @@
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(circle at 86% 8%, rgba(254, 240, 138, 0.12) 0%, rgba(250, 204, 21, 0.04) 30%, transparent 65%),
-    radial-gradient(ellipse at 50% 100%, rgba(14, 28, 48, 0.4) 0%, transparent 60%),
-    linear-gradient(180deg, #070b14 0%, #0a1120 35%, #0b1526 65%, #07101d 82%, #030810 100%);
+    radial-gradient(circle at 88% 12%, rgba(254, 240, 138, 0.18) 0%, rgba(245, 158, 11, 0.06) 28%, transparent 60%),
+    radial-gradient(ellipse at 35% 88%, rgba(16, 185, 129, 0.09) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(245, 158, 11, 0.12) 0%, transparent 65%),
+    linear-gradient(180deg, #030711 0%, #071022 38%, #0a192f 68%, #061320 86%, #02060d 100%);
   user-select: none;
 }
 
-/* 1. Full Moon in upper sky */
-.moonContainer {
+.webglCanvasHost {
   position: absolute;
-  top: 4%;
-  right: 10%;
-  width: 76px;
-  height: 76px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-@media (min-width: 768px) {
-  .moonContainer {
-    top: 5%;
-    right: 12%;
-    width: 104px;
-    height: 104px;
-  }
-}
-
-.moon {
+  inset: 0;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fffdf0 0%, #fef08a 42%, #fde047 75%, #eab308 100%);
-  box-shadow:
-    0 0 24px rgba(254, 240, 138, 0.7),
-    0 0 55px rgba(250, 204, 21, 0.42),
-    0 0 110px rgba(234, 179, 8, 0.25);
-  animation: moonPulse 7s ease-in-out infinite alternate;
-}
-
-@keyframes moonPulse {
-  0% {
-    transform: scale(1);
-    box-shadow:
-      0 0 24px rgba(254, 240, 138, 0.6),
-      0 0 50px rgba(250, 204, 21, 0.35),
-      0 0 95px rgba(234, 179, 8, 0.2);
-  }
-  100% {
-    transform: scale(1.03);
-    box-shadow:
-      0 0 36px rgba(254, 240, 138, 0.85),
-      0 0 75px rgba(250, 204, 21, 0.5),
-      0 0 130px rgba(234, 179, 8, 0.32);
-  }
-}
-
-/* 2. Twinkling Stars */
-.star {
-  position: absolute;
-  border-radius: 50%;
-  background-color: #ffffff;
-  pointer-events: none;
-  animation: twinkle ease-in-out infinite alternate;
-  z-index: 1;
-}
-
-@keyframes twinkle {
-  0% {
-    opacity: 0.2;
-    transform: scale(0.7);
-  }
-  50% {
-    opacity: 0.95;
-    transform: scale(1.25);
-  }
-  100% {
-    opacity: 0.35;
-    transform: scale(0.85);
-  }
-}
-
-/* 3. Floating Lanterns (Khom Loi / Yee Peng) */
-.lantern {
-  position: absolute;
-  bottom: -60px;
-  will-change: transform, opacity;
-  animation: floatUpward linear infinite;
-  pointer-events: none;
-  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.5));
   z-index: 2;
-}
-
-@keyframes floatUpward {
-  0% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
-    opacity: 0;
-  }
-  6% {
-    opacity: 0.95;
-  }
-  25% {
-    transform: translate3d(14px, -28vh, 0) rotate(2deg);
-  }
-  50% {
-    transform: translate3d(-12px, -56vh, 0) rotate(-2deg);
-    opacity: 0.92;
-  }
-  75% {
-    transform: translate3d(16px, -84vh, 0) rotate(1.5deg);
-    opacity: 0.78;
-  }
-  100% {
-    transform: translate3d(4px, -114vh, 0) rotate(2.5deg);
-    opacity: 0;
-  }
-}
-
-/* 4. Horizon Riverbank Silhouette */
-.horizonSilhouette {
-  position: absolute;
-  bottom: 85px;
-  left: 0;
-  width: 100%;
-  height: 55px;
   pointer-events: none;
-  z-index: 1;
 }
 
-.horizonSvg {
-  width: 100%;
-  height: 100%;
+.webglCanvasHost canvas {
   display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
-/* 5. River Water Layer & Reflections */
-.riverLayer {
+/* Soft atmospheric vignette & horizon mist overlay to blend 3D stage with UI */
+.atmosphericVignette {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 120px;
-  background: linear-gradient(180deg, rgba(3, 8, 18, 0) 0%, rgba(3, 11, 20, 0.72) 40%, rgba(2, 6, 12, 0.98) 100%);
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 2;
-}
-
-.riverWave {
-  position: absolute;
-  bottom: 26px;
-  left: -50%;
-  width: 200%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(254, 240, 138, 0.18) 30%, rgba(250, 204, 21, 0.35) 50%, rgba(254, 240, 138, 0.18) 70%, transparent 100%);
-  animation: waveShimmer 8s ease-in-out infinite alternate;
-}
-
-.riverWave2 {
-  position: absolute;
-  bottom: 14px;
-  left: -30%;
-  width: 160%;
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent 0%, rgba(167, 243, 208, 0.15) 40%, rgba(110, 231, 183, 0.25) 60%, transparent 100%);
-  animation: waveShimmer 11s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes waveShimmer {
-  0% {
-    transform: translateX(0) scaleY(1);
-    opacity: 0.45;
-  }
-  100% {
-    transform: translateX(6%) scaleY(1.4);
-    opacity: 0.9;
-  }
-}
-
-/* 6. Floating Krathongs (Drifting along river with subtle bobbing physics) */
-.krathong {
-  position: absolute;
-  left: -150px;
-  will-change: transform;
-  animation: krathongDrift linear infinite;
-  pointer-events: none;
+  inset: 0;
   z-index: 3;
-}
-
-@keyframes krathongDrift {
-  0% {
-    transform: translate3d(0, 0, 0) rotate(-1.5deg);
-  }
-  25% {
-    transform: translate3d(28vw, -5px, 0) rotate(1.5deg);
-  }
-  50% {
-    transform: translate3d(55vw, 3px, 0) rotate(-1.2deg);
-  }
-  75% {
-    transform: translate3d(82vw, -4px, 0) rotate(1.2deg);
-  }
-  100% {
-    transform: translate3d(calc(100vw + 180px), 0, 0) rotate(-1.5deg);
-  }
-}
-
-/* Candle Flame Flicker */
-.candleFlame {
-  animation: candleFlicker 1.8s ease-in-out infinite alternate;
-  transform-origin: 61px 28px;
-}
-
-@keyframes candleFlicker {
-  0% {
-    transform: scale(0.92) rotate(-2deg);
-    opacity: 0.85;
-    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.85));
-  }
-  50% {
-    transform: scale(1.1) rotate(2.5deg);
-    opacity: 1;
-    filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.98));
-  }
-  100% {
-    transform: scale(0.95) rotate(-1deg);
-    opacity: 0.9;
-    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.85));
-  }
-}
-
-/* Water Ripple Reflection under Krathong */
-.krathongGlow {
-  filter: drop-shadow(0 4px 12px rgba(250, 204, 21, 0.35));
-}
-
-/* 7. Festive Fireworks */
-.firework {
-  position: absolute;
-  width: 170px;
-  height: 170px;
-  margin-left: -85px;
-  margin-top: -85px;
   pointer-events: none;
-  opacity: 0;
-  will-change: transform, opacity;
-  animation: fireworkBurst ease-out infinite;
+  background:
+    radial-gradient(circle at 50% 45%, transparent 45%, rgba(2, 6, 14, 0.55) 100%),
+    linear-gradient(180deg, rgba(3, 7, 17, 0.35) 0%, transparent 22%, transparent 76%, rgba(2, 6, 13, 0.65) 100%);
+}
+
+.horizonMist {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24%;
+  height: 140px;
   z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(245, 158, 11, 0.05) 45%,
+    rgba(16, 185, 129, 0.06) 75%,
+    transparent 100%
+  );
+  filter: blur(18px);
 }
 
-@keyframes fireworkBurst {
-  0% {
-    transform: scale(0.08) translate3d(0, 0, 0);
-    opacity: 0;
-  }
-  8% {
-    transform: scale(0.45) translate3d(0, 0, 0);
-    opacity: 0.95;
-  }
-  35% {
-    transform: scale(0.88) translate3d(0, 6px, 0);
-    opacity: 0.9;
-  }
-  65% {
-    transform: scale(1.05) translate3d(0, 16px, 0);
-    opacity: 0.65;
-  }
-  85% {
-    transform: scale(1.18) translate3d(0, 26px, 0);
-    opacity: 0.3;
-  }
-  100% {
-    transform: scale(1.24) translate3d(0, 32px, 0);
-    opacity: 0;
-  }
+/* Ornamental Lanna Gold Corner Filigree (Subtle non-intrusive framing) */
+.lannaCornerTopLeft,
+.lannaCornerBottomRight {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.22;
 }
 
-/* Accessibility: Respect Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  .moon,
-  .star,
-  .firework,
-  .lantern,
-  .riverWave,
-  .riverWave2,
-  .krathong,
-  .candleFlame {
-    animation: none !important;
-    transform: none !important;
-  }
+.lannaCornerTopLeft {
+  top: 16px;
+  left: 16px;
+}
 
-  .firework {
-    display: none;
-  }
+.lannaCornerBottomRight {
+  bottom: 16px;
+  right: 16px;
+  transform: rotate(180deg);
+}
 
-  .lantern {
-    opacity: 0.6;
-    bottom: 25%;
-  }
-
-  .krathong {
-    left: 20%;
+@media (max-width: 767px) {
+  .lannaCornerTopLeft,
+  .lannaCornerBottomRight {
+    width: 110px;
+    height: 110px;
+    opacity: 0.14;
   }
 }

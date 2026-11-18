@@ -1,22 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render } from '@testing-library/react'
-import LoyKrathongScene, { isLoyKrathongSeason } from '../LoyKrathongScene'
+import LoyKrathongScene, {
+  isLoyKrathongSeason,
+  triggerLoyKrathongLaunch,
+  setLoyKrathongCameraView,
+} from '../LoyKrathongScene'
 
 vi.mock('next/navigation', () => ({
   useSearchParams: vi.fn(() => ({
     get: (param: string) => (param === 'theme' ? 'loy-krathong' : null),
   })),
-}))
-
-vi.mock('next/image', () => ({
-  default: ({
-    fill: _fill,
-    priority: _priority,
-    ...props
-  }: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; priority?: boolean }) => {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img {...props} alt={props.alt || ''} />
-  },
 }))
 
 describe('LoyKrathongScene - isLoyKrathongSeason', () => {
@@ -53,18 +46,37 @@ describe('LoyKrathongScene - isLoyKrathongSeason', () => {
   })
 })
 
-describe('LoyKrathongScene Component', () => {
+describe('LoyKrathongScene Component (Three.js 3D Stage)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('renders the animated Loy Krathong elements and artwork when active', () => {
-    const { container } = render(<LoyKrathongScene />)
-    const wrapper = container.querySelector('[aria-hidden="true"]')
+  it('renders the Three.js 3D stage host and Lanna ornaments when active', () => {
+    const { container, getByTestId } = render(<LoyKrathongScene />)
+    const wrapper = getByTestId('loy-krathong-scene')
     expect(wrapper).toBeTruthy()
+    expect(wrapper.getAttribute('aria-hidden')).toBe('true')
 
-    // Verifies SVG krathongs, lanterns and fireworks exist in the DOM
-    const svgs = container.querySelectorAll('svg')
-    expect(svgs.length).toBeGreaterThanOrEqual(10) // 8 lanterns + 5 krathongs + 3 fireworks
+    const stageHost = getByTestId('loy-krathong-3d-stage')
+    expect(stageHost).toBeTruthy()
+
+    const ornaments = container.querySelectorAll('svg')
+    expect(ornaments.length).toBe(2)
+  })
+
+  it('dispatches custom interactive events for launching krathongs and switching camera view', () => {
+    const launchSpy = vi.fn()
+    const cameraSpy = vi.fn()
+    window.addEventListener('loy-krathong:launch', launchSpy)
+    window.addEventListener('loy-krathong:camera', cameraSpy)
+
+    triggerLoyKrathongLaunch({ wish: 'ขอให้มีความสุข' })
+    setLoyKrathongCameraView('sky')
+
+    expect(launchSpy).toHaveBeenCalledTimes(1)
+    expect(cameraSpy).toHaveBeenCalledTimes(1)
+
+    window.removeEventListener('loy-krathong:launch', launchSpy)
+    window.removeEventListener('loy-krathong:camera', cameraSpy)
   })
 })

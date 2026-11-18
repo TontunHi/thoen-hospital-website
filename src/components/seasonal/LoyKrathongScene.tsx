@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import * as THREE from 'three'
 import styles from './LoyKrathongScene.module.css'
 
 /**
@@ -9,7 +10,6 @@ import styles from './LoyKrathongScene.module.css'
  * Evaluation is based on Thailand local time (UTC+7).
  */
 export function isLoyKrathongSeason(now: Date = new Date()): boolean {
-  // Convert UTC time to Asia/Bangkok time
   const bangkokDateStr = now.toLocaleDateString('en-US', {
     timeZone: 'Asia/Bangkok',
     month: 'numeric',
@@ -19,404 +19,1144 @@ export function isLoyKrathongSeason(now: Date = new Date()): boolean {
   const month = parseInt(monthStr, 10)
   const day = parseInt(dayStr, 10)
 
-  // Active during festival season: November (Nov 1 through Nov 30)
   if (month === 11 && day <= 30) return true
   return false
 }
 
+export type LoyKrathongCameraView = 'river' | 'sky'
+
+export interface LoyKrathongLaunchDetail {
+  wish?: string
+}
+
 /**
- * Yee Peng (โคมลอย) SVG Icon - Lightweight & Beautiful Lanna Paper Lantern
+ * Helper to dispatch a new 3D Krathong & Yee Peng lantern launch into the Three.js scene
  */
-function YeePengLantern({ size = 32 }: { size?: number }) {
-  const width = size
-  const height = size * 1.3
+export function triggerLoyKrathongLaunch(detail?: LoyKrathongLaunchDetail): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('loy-krathong:launch', { detail }))
+  }
+}
+
+/**
+ * Helper to switch the 3D camera perspective between Riverbank and Yee Peng Sky
+ */
+export function setLoyKrathongCameraView(view: LoyKrathongCameraView): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('loy-krathong:camera', { detail: { view } }))
+  }
+}
+
+/**
+ * Evaluates wave elevation at world (x, z) and time t so 3D Krathongs bob and tilt accurately on the shader water
+ */
+function sampleRiverWaveHeight(x: number, z: number, t: number): number {
+  const w1 = Math.sin(x * 0.45 + t * 1.65) * 0.12
+  const w2 = Math.cos(z * 0.58 - t * 1.25) * 0.09
+  const w3 = Math.sin(x * 0.72 + z * 0.48 + t * 2.1) * 0.055
+  return w1 + w2 + w3
+}
+
+/**
+ * Creates a soft radial glow texture on an offscreen 2D canvas for Three.js sprites/particles
+ */
+function createRadialGlowTexture(innerColor: string, midColor: string, outerColor: string): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 64
+  canvas.height = 64
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const gradient = ctx.createRadialGradient(32, 32, 1, 32, 32, 32)
+  gradient.addColorStop(0, innerColor)
+  gradient.addColorStop(0.38, midColor)
+  gradient.addColorStop(1, outerColor)
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 64, 64)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  return texture
+}
+
+type KrathongHue = 'rose' | 'gold' | 'emerald'
+
+interface SharedKrathongAssets {
+  baseGeo: THREE.CylinderGeometry
+  baseMat: THREE.MeshLambertMaterial
+  trimGeo: THREE.TorusGeometry
+  trimMat: THREE.MeshLambertMaterial
+  leafGeo: THREE.ConeGeometry
+  leafMat: THREE.MeshLambertMaterial
+  petalGeo: THREE.ConeGeometry
+  petalMats: Record<KrathongHue, THREE.MeshLambertMaterial>
+  marigoldGeo: THREE.SphereGeometry
+  marigoldMat: THREE.MeshLambertMaterial
+  stickGeo: THREE.CylinderGeometry
+  stickMat: THREE.MeshBasicMaterial
+  emberGeo: THREE.SphereGeometry
+  emberMat: THREE.MeshBasicMaterial
+  candleGeo: THREE.CylinderGeometry
+  candleMat: THREE.MeshLambertMaterial
+  flameGeo: THREE.ConeGeometry
+  flameMat: THREE.MeshBasicMaterial
+  rippleGeo: THREE.RingGeometry
+  glowMat: THREE.SpriteMaterial | null
+}
+
+function createSharedKrathongAssets(glowTexture: THREE.Texture | null): SharedKrathongAssets {
+  return {
+    baseGeo: new THREE.CylinderGeometry(0.68, 0.56, 0.18, 16),
+    baseMat: new THREE.MeshLambertMaterial({
+      color: 0x14532d,
+      emissive: 0x052e16,
+      emissiveIntensity: 0.45,
+    }),
+    trimGeo: new THREE.TorusGeometry(0.64, 0.026, 6, 20),
+    trimMat: new THREE.MeshLambertMaterial({
+      color: 0xfbbf24,
+      emissive: 0xb45309,
+      emissiveIntensity: 0.55,
+    }),
+    leafGeo: new THREE.ConeGeometry(0.22, 0.48, 4),
+    leafMat: new THREE.MeshLambertMaterial({
+      color: 0x22c55e,
+      emissive: 0x064e3b,
+      emissiveIntensity: 0.45,
+    }),
+    petalGeo: new THREE.ConeGeometry(0.19, 0.4, 5),
+    petalMats: {
+      rose: new THREE.MeshLambertMaterial({ color: 0xfb7185, emissive: 0xbe123c, emissiveIntensity: 0.65 }),
+      gold: new THREE.MeshLambertMaterial({ color: 0xfcd34d, emissive: 0xd97706, emissiveIntensity: 0.65 }),
+      emerald: new THREE.MeshLambertMaterial({ color: 0x6ee7b7, emissive: 0x059669, emissiveIntensity: 0.65 }),
+    },
+    marigoldGeo: new THREE.SphereGeometry(0.095, 6, 6),
+    marigoldMat: new THREE.MeshLambertMaterial({
+      color: 0xfde047,
+      emissive: 0xf59e0b,
+      emissiveIntensity: 0.7,
+    }),
+    stickGeo: new THREE.CylinderGeometry(0.011, 0.011, 0.6, 5),
+    stickMat: new THREE.MeshBasicMaterial({ color: 0xa16207 }),
+    emberGeo: new THREE.SphereGeometry(0.026, 5, 5),
+    emberMat: new THREE.MeshBasicMaterial({ color: 0xf87171 }),
+    candleGeo: new THREE.CylinderGeometry(0.055, 0.06, 0.48, 8),
+    candleMat: new THREE.MeshLambertMaterial({
+      color: 0xfef08a,
+      emissive: 0xf59e0b,
+      emissiveIntensity: 0.75,
+    }),
+    flameGeo: new THREE.ConeGeometry(0.082, 0.28, 8),
+    flameMat: new THREE.MeshBasicMaterial({ color: 0xfffbeb }),
+    rippleGeo: new THREE.RingGeometry(0.72, 0.92, 20),
+    glowMat: glowTexture
+      ? new THREE.SpriteMaterial({
+          map: glowTexture,
+          color: 0xfbbf24,
+          transparent: true,
+          opacity: 0.92,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      : null,
+  }
+}
+
+/**
+ * Builds a detailed 3D Krathong (กระทงใบตองดอกบัว) Group reusing shared geometries & materials
+ */
+function create3DKrathong(
+  assets: SharedKrathongAssets,
+  scale = 1,
+  variantHue: KrathongHue = 'rose'
+): {
+  group: THREE.Group
+  flameMesh: THREE.Mesh
+  haloSprite: THREE.Sprite | null
+  rippleRing: THREE.Mesh
+} {
+  const group = new THREE.Group()
+
+  const baseMesh = new THREE.Mesh(assets.baseGeo, assets.baseMat)
+  baseMesh.position.y = 0.09
+  group.add(baseMesh)
+
+  const trimMesh = new THREE.Mesh(assets.trimGeo, assets.trimMat)
+  trimMesh.rotation.x = Math.PI / 2
+  trimMesh.position.y = 0.14
+  group.add(trimMesh)
+
+  // Outer Folded Banana Leaf Cones (8 petals)
+  const outerCount = 8
+  for (let i = 0; i < outerCount; i++) {
+    const angle = (i / outerCount) * Math.PI * 2
+    const leaf = new THREE.Mesh(assets.leafGeo, assets.leafMat)
+    leaf.position.set(Math.cos(angle) * 0.54, 0.28, Math.sin(angle) * 0.54)
+    leaf.rotation.y = -angle
+    leaf.rotation.z = -0.38
+    group.add(leaf)
+  }
+
+  // Inner Lotus Petals (6 petals)
+  const petalMat = assets.petalMats[variantHue]
+  const innerCount = 6
+  for (let i = 0; i < innerCount; i++) {
+    const angle = ((i + 0.5) / innerCount) * Math.PI * 2
+    const petal = new THREE.Mesh(assets.petalGeo, petalMat)
+    petal.position.set(Math.cos(angle) * 0.36, 0.35, Math.sin(angle) * 0.36)
+    petal.rotation.y = -angle
+    petal.rotation.z = -0.22
+    group.add(petal)
+  }
+
+  // Marigold Inner Ring (4 flowers)
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2
+    const flower = new THREE.Mesh(assets.marigoldGeo, assets.marigoldMat)
+    flower.position.set(Math.cos(angle) * 0.2, 0.27, Math.sin(angle) * 0.2)
+    group.add(flower)
+  }
+
+  // Three Incense Sticks
+  const stickAngles = [-0.14, 0, 0.14]
+  stickAngles.forEach((tilt, idx) => {
+    const stick = new THREE.Mesh(assets.stickGeo, assets.stickMat)
+    stick.position.set((idx - 1) * 0.05, 0.49, -0.06)
+    stick.rotation.z = tilt
+    group.add(stick)
+
+    const ember = new THREE.Mesh(assets.emberGeo, assets.emberMat)
+    ember.position.set((idx - 1) * 0.088, 0.78, -0.06)
+    group.add(ember)
+  })
+
+  // Central Beeswax Candle & Flame
+  const candleMesh = new THREE.Mesh(assets.candleGeo, assets.candleMat)
+  candleMesh.position.y = 0.45
+  group.add(candleMesh)
+
+  const flameMesh = new THREE.Mesh(assets.flameGeo, assets.flameMat)
+  flameMesh.position.y = 0.81
+  group.add(flameMesh)
+
+  let haloSprite: THREE.Sprite | null = null
+  if (assets.glowMat) {
+    haloSprite = new THREE.Sprite(assets.glowMat)
+    haloSprite.scale.set(1.85, 1.85, 1)
+    haloSprite.position.set(0, 0.82, 0)
+    group.add(haloSprite)
+  }
+
+  // Per-krathong ripple material so opacity animates independently
+  const rippleMat = new THREE.MeshBasicMaterial({
+    color: 0xfef08a,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.45,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  const rippleRing = new THREE.Mesh(assets.rippleGeo, rippleMat)
+  rippleRing.rotation.x = -Math.PI / 2
+  rippleRing.position.y = 0.04
+  group.add(rippleRing)
+
+  group.scale.setScalar(scale)
+  return { group, flameMesh, haloSprite, rippleRing }
+}
+
+interface SharedLanternAssets {
+  bodyGeo: THREE.CylinderGeometry
+  bodyMat: THREE.MeshLambertMaterial
+  capGeo: THREE.SphereGeometry
+  capMat: THREE.MeshLambertMaterial
+  rimGeo: THREE.TorusGeometry
+  rimMat: THREE.MeshBasicMaterial
+  coreGeo: THREE.SphereGeometry
+  coreMat: THREE.MeshBasicMaterial
+  glowMat: THREE.SpriteMaterial | null
+}
+
+function createSharedLanternAssets(glowTexture: THREE.Texture | null): SharedLanternAssets {
+  return {
+    bodyGeo: new THREE.CylinderGeometry(0.36, 0.25, 0.88, 12, 1, true),
+    bodyMat: new THREE.MeshLambertMaterial({
+      color: 0xffedd5,
+      emissive: 0xf97316,
+      emissiveIntensity: 0.95,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.94,
+    }),
+    capGeo: new THREE.SphereGeometry(0.36, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.48),
+    capMat: new THREE.MeshLambertMaterial({
+      color: 0xfff7ed,
+      emissive: 0xf59e0b,
+      emissiveIntensity: 0.8,
+    }),
+    rimGeo: new THREE.TorusGeometry(0.25, 0.02, 6, 14),
+    rimMat: new THREE.MeshBasicMaterial({ color: 0x78350f }),
+    coreGeo: new THREE.SphereGeometry(0.095, 6, 6),
+    coreMat: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    glowMat: glowTexture
+      ? new THREE.SpriteMaterial({
+          map: glowTexture,
+          color: 0xf59e0b,
+          transparent: true,
+          opacity: 0.78,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      : null,
+  }
+}
+
+/**
+ * Builds a 3D Yee Peng Sky Lantern (โคมลอยยี่เป็งล้านนา) Group reusing shared geometries & materials
+ */
+function create3DLantern(
+  assets: SharedLanternAssets,
+  scale = 1
+): { group: THREE.Group; haloSprite: THREE.Sprite | null } {
+  const group = new THREE.Group()
+
+  group.add(new THREE.Mesh(assets.bodyGeo, assets.bodyMat))
+
+  const capMesh = new THREE.Mesh(assets.capGeo, assets.capMat)
+  capMesh.position.y = 0.43
+  capMesh.scale.y = 0.42
+  group.add(capMesh)
+
+  const rimMesh = new THREE.Mesh(assets.rimGeo, assets.rimMat)
+  rimMesh.rotation.x = Math.PI / 2
+  rimMesh.position.y = -0.44
+  group.add(rimMesh)
+
+  const coreMesh = new THREE.Mesh(assets.coreGeo, assets.coreMat)
+  coreMesh.position.y = -0.32
+  group.add(coreMesh)
+
+  let haloSprite: THREE.Sprite | null = null
+  if (assets.glowMat) {
+    haloSprite = new THREE.Sprite(assets.glowMat)
+    haloSprite.scale.set(2.1, 2.1, 1)
+    haloSprite.position.y = -0.1
+    group.add(haloSprite)
+  }
+
+  group.scale.setScalar(scale)
+  return { group, haloSprite }
+}
+
+/**
+ * Builds a 3D Firework Burst Particle System in the Night Sky
+ */
+interface FireworkBurstEntity {
+  points: THREE.Points
+  velocities: Float32Array
+  age: number
+  lifetime: number
+  material: THREE.PointsMaterial
+}
+
+function create3DFireworkBurst(
+  origin: THREE.Vector3,
+  colorHex: number,
+  glowTexture: THREE.Texture | null,
+  particleCount = 40
+): FireworkBurstEntity {
+  const positions = new Float32Array(particleCount * 3)
+  const velocities = new Float32Array(particleCount * 3)
+
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = origin.x
+    positions[i * 3 + 1] = origin.y
+    positions[i * 3 + 2] = origin.z
+
+    const theta = Math.random() * Math.PI * 2
+    const phi = Math.acos(2 * Math.random() - 1)
+    const speed = 1.6 + Math.random() * 2.4
+
+    velocities[i * 3] = Math.sin(phi) * Math.cos(theta) * speed
+    velocities[i * 3 + 1] = Math.cos(phi) * speed * 0.85 + 0.5
+    velocities[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * speed * 0.45
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+
+  const material = new THREE.PointsMaterial({
+    color: colorHex,
+    size: 0.45,
+    map: glowTexture || undefined,
+    transparent: true,
+    opacity: 1,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+
+  const points = new THREE.Points(geo, material)
+  return {
+    points,
+    velocities,
+    age: 0,
+    lifetime: 2.0 + Math.random() * 0.7,
+    material,
+  }
+}
+
+/**
+ * Subtle Lanna Gold Corner Filigree SVG
+ */
+function LannaCornerOrnament({ className }: { className: string }) {
   return (
     <svg
-      width={width}
-      height={height}
-      viewBox="0 0 32 42"
+      className={className}
+      viewBox="0 0 120 120"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <defs>
-        <linearGradient id="lanternGrad" x1="16" y1="2" x2="16" y2="38" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.95" />
-          <stop offset="40%" stopColor="#fed7aa" stopOpacity="0.9" />
-          <stop offset="85%" stopColor="#f97316" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#c2410c" stopOpacity="0.9" />
-        </linearGradient>
-        <radialGradient id="fireLight" cx="16" cy="35" r="7" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="45%" stopColor="#fef08a" />
-          <stop offset="90%" stopColor="#ea580c" />
-        </radialGradient>
-      </defs>
-
-      {/* Outer Halo Glow */}
-      <circle cx="16" cy="24" r="14" fill="#fbbf24" fillOpacity="0.25" />
-
-      {/* Main Lantern Silhouette */}
       <path
-        d="M8 7C8 4.2 11.5 2 16 2C20.5 2 24 4.2 24 7L26 31C26 34 21.5 36 16 36C10.5 36 6 34 6 31L8 7Z"
-        fill="url(#lanternGrad)"
-        stroke="#fdba74"
-        strokeWidth="0.8"
+        d="M8 112V28C8 16.9543 16.9543 8 28 8H112"
+        stroke="url(#lannaGold)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
       />
-
-      {/* Traditional Frame Rims */}
-      <ellipse cx="16" cy="7" rx="8" ry="2" stroke="#ea580c" strokeWidth="0.7" fill="none" opacity="0.6" />
-      <ellipse cx="16" cy="20" rx="9.5" ry="2.2" stroke="#ea580c" strokeWidth="0.6" fill="none" opacity="0.4" />
-      <ellipse cx="16" cy="31" rx="10" ry="2.5" stroke="#9a3412" strokeWidth="0.8" fill="none" opacity="0.7" />
-
-      {/* Bamboo Rim at the base */}
-      <ellipse cx="16" cy="35.5" rx="7.5" ry="1.8" fill="#78350f" />
-
-      {/* Flame Light Source */}
-      <circle cx="16" cy="34" r="4.5" fill="url(#fireLight)" />
-      <ellipse cx="16" cy="35" rx="2" ry="1" fill="#ffffff" />
-    </svg>
-  )
-}
-
-/**
- * Krathong (กระทงประทีป) SVG - Banana Leaf, Lotus Petals & Flickering Candle
- */
-function KrathongSVG({ width = 110 }: { width?: number }) {
-  const height = width * 0.72
-  return (
-    <svg
-      width={width}
-      height={height}
-      viewBox="0 0 120 86"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={styles.krathongGlow}
-      aria-hidden="true"
-    >
+      <path
+        d="M16 96V34C16 24.0589 24.0589 16 34 16H96"
+        stroke="url(#lannaGold)"
+        strokeWidth="0.9"
+        strokeDasharray="3 3"
+      />
+      <path
+        d="M28 28L42 18L36 36L18 42L28 28Z"
+        fill="#FBBF24"
+        fillOpacity="0.45"
+      />
+      <circle cx="28" cy="28" r="3" fill="#FEF08A" />
       <defs>
-        <linearGradient id="leafGradDark" x1="60" y1="52" x2="60" y2="78" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#15803d" />
-          <stop offset="100%" stopColor="#052e16" />
+        <linearGradient id="lannaGold" x1="8" y1="8" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FEF08A" />
+          <stop offset="50%" stopColor="#F59E0B" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
         </linearGradient>
-        <linearGradient id="leafGradLight" x1="60" y1="45" x2="60" y2="72" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#4ade80" />
-          <stop offset="60%" stopColor="#16a34a" />
-          <stop offset="100%" stopColor="#166534" />
-        </linearGradient>
-        <linearGradient id="lotusPetal" x1="60" y1="28" x2="60" y2="58" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#fda4af" />
-          <stop offset="50%" stopColor="#f43f5e" />
-          <stop offset="100%" stopColor="#be123c" />
-        </linearGradient>
-        <linearGradient id="candleGrad" x1="60" y1="22" x2="64" y2="45" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#fffbeb" />
-          <stop offset="40%" stopColor="#fef08a" />
-          <stop offset="100%" stopColor="#eab308" />
-        </linearGradient>
-        <radialGradient id="flameGlow" cx="60" cy="14" r="10" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="35%" stopColor="#fef08a" />
-          <stop offset="70%" stopColor="#f59e0b" />
-          <stop offset="100%" stopColor="#ea580c" stopOpacity="0" />
-        </radialGradient>
       </defs>
-
-      {/* Water reflection under the krathong */}
-      <ellipse cx="60" cy="79" rx="42" ry="5" fill="#facc15" fillOpacity="0.28" filter="blur(2px)" />
-
-      {/* Bottom Banana Trunk Disc Base */}
-      <ellipse cx="60" cy="73" rx="48" ry="8" fill="url(#leafGradDark)" />
-
-      {/* Outer Banana Leaf Folded Petals */}
-      <path d="M12 68C22 55 35 60 40 70C30 73 18 72 12 68Z" fill="url(#leafGradLight)" stroke="#14532d" strokeWidth="0.8" />
-      <path d="M108 68C98 55 85 60 80 70C90 73 102 72 108 68Z" fill="url(#leafGradLight)" stroke="#14532d" strokeWidth="0.8" />
-      <path d="M26 67C34 52 48 56 54 69C44 72 32 71 26 67Z" fill="url(#leafGradLight)" stroke="#14532d" strokeWidth="0.8" />
-      <path d="M94 67C86 52 72 56 66 69C76 72 88 71 94 67Z" fill="url(#leafGradLight)" stroke="#14532d" strokeWidth="0.8" />
-      <path d="M44 68C52 48 68 48 76 68C66 73 54 73 44 68Z" fill="url(#leafGradLight)" stroke="#14532d" strokeWidth="0.8" />
-
-      {/* Inner Decorative Lotus Flower Petals */}
-      <path d="M36 62C40 45 50 46 54 60C46 64 39 63 36 62Z" fill="url(#lotusPetal)" opacity="0.9" />
-      <path d="M84 62C80 45 70 46 66 60C74 64 81 63 84 62Z" fill="url(#lotusPetal)" opacity="0.9" />
-      <path d="M48 60C54 40 66 40 72 60C64 64 56 64 48 60Z" fill="url(#lotusPetal)" />
-
-      {/* Golden Center Petals */}
-      <circle cx="53" cy="55" r="4.5" fill="#facc15" />
-      <circle cx="67" cy="55" r="4.5" fill="#facc15" />
-      <circle cx="60" cy="56" r="5" fill="#fbbf24" />
-
-      {/* Incense Sticks */}
-      <line x1="56" y1="48" x2="52" y2="18" stroke="#92400e" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="59" y1="48" x2="58" y2="14" stroke="#92400e" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="62" y1="48" x2="64" y2="17" stroke="#92400e" strokeWidth="1.2" strokeLinecap="round" />
-      <circle cx="52" cy="18" r="0.9" fill="#ef4444" />
-      <circle cx="58" cy="14" r="0.9" fill="#ef4444" />
-      <circle cx="64" cy="17" r="0.9" fill="#ef4444" />
-
-      {/* Center Candle */}
-      <rect x="58.5" y="28" width="5" height="24" rx="1.5" fill="url(#candleGrad)" stroke="#ca8a04" strokeWidth="0.5" />
-      <line x1="61" y1="28" x2="61" y2="24" stroke="#451a03" strokeWidth="1" strokeLinecap="round" />
-
-      {/* Animated Candle Flame */}
-      <g className={styles.candleFlame}>
-        <circle cx="61" cy="16" r="11" fill="url(#flameGlow)" />
-        <path
-          d="M61 7C64 12 65.5 16 64.5 19C63.5 22 58.5 22 57.5 19C56.5 16 58 12 61 7Z"
-          fill="#f97316"
-        />
-        <path
-          d="M61 10C63 13.5 64 16 63 18C62.2 19.5 59.8 19.5 59 18C58 16 59 13.5 61 10Z"
-          fill="#fef08a"
-        />
-        <ellipse cx="61" cy="18.5" rx="1" ry="1.5" fill="#ffffff" />
-      </g>
     </svg>
-  )
-}
-
-/**
- * Organic Spark Particles Data for Fireworks
- */
-const FIREWORK_SPARKS = [
-  // Outer layer - 12 glowing spark points with natural radius variance
-  { deg: 0, r: 62, size: 2.8 },
-  { deg: 30, r: 58, size: 2.5 },
-  { deg: 60, r: 64, size: 2.9 },
-  { deg: 90, r: 60, size: 2.6 },
-  { deg: 120, r: 63, size: 2.8 },
-  { deg: 150, r: 57, size: 2.4 },
-  { deg: 180, r: 62, size: 2.8 },
-  { deg: 210, r: 59, size: 2.5 },
-  { deg: 240, r: 65, size: 2.9 },
-  { deg: 270, r: 60, size: 2.7 },
-  { deg: 300, r: 63, size: 2.8 },
-  { deg: 330, r: 57, size: 2.5 },
-
-  // Middle layer - 12 staggered sparks
-  { deg: 15, r: 40, size: 2.2 },
-  { deg: 48, r: 44, size: 2.4 },
-  { deg: 78, r: 38, size: 2.1 },
-  { deg: 108, r: 43, size: 2.3 },
-  { deg: 138, r: 39, size: 2.2 },
-  { deg: 168, r: 44, size: 2.4 },
-  { deg: 198, r: 38, size: 2.1 },
-  { deg: 228, r: 42, size: 2.3 },
-  { deg: 258, r: 39, size: 2.2 },
-  { deg: 288, r: 43, size: 2.4 },
-  { deg: 318, r: 37, size: 2.1 },
-  { deg: 348, r: 41, size: 2.3 },
-
-  // Inner core sparks - 6 soft glowing embers
-  { deg: 22, r: 22, size: 1.8 },
-  { deg: 82, r: 24, size: 1.9 },
-  { deg: 142, r: 21, size: 1.7 },
-  { deg: 202, r: 25, size: 2.0 },
-  { deg: 262, r: 22, size: 1.8 },
-  { deg: 322, r: 24, size: 1.9 },
-]
-
-/**
- * Firework SVG - Organic Particle Sparks & Trails
- */
-function FireworkBurst({
-  id,
-  color = '#fbbf24',
-  secondaryColor = '#fef08a',
-}: {
-  id: string
-  color?: string
-  secondaryColor?: string
-}) {
-  return (
-    <svg
-      width="170"
-      height="170"
-      viewBox="0 0 170 170"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ filter: `drop-shadow(0 0 8px ${color})` }}
-      aria-hidden="true"
-    >
-      <defs>
-        <radialGradient id={`fwGlow-${id}`} cx="85" cy="85" r="50" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-          <stop offset="25%" stopColor={secondaryColor} stopOpacity="0.75" />
-          <stop offset="60%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* Central Flash Bloom */}
-      <circle cx="85" cy="85" r="26" fill={`url(#fwGlow-${id})`} />
-      <circle cx="85" cy="85" r="4" fill="#ffffff" />
-
-      {/* Scattered Organic Spark Particles and Trails */}
-      {FIREWORK_SPARKS.map((spark, idx) => {
-        const rad = (spark.deg * Math.PI) / 180
-        const cos = Math.cos(rad)
-        const sin = Math.sin(rad)
-
-        const x = 85 + spark.r * cos
-        const y = 85 + spark.r * sin
-        const xTrail1 = 85 + spark.r * 0.74 * cos
-        const yTrail1 = 85 + spark.r * 0.74 * sin - 1
-        const xTrail2 = 85 + spark.r * 0.5 * cos
-        const yTrail2 = 85 + spark.r * 0.5 * sin - 1.5
-
-        return (
-          <g key={idx}>
-            <circle cx={x} cy={y} r={spark.size * 1.9} fill={color} opacity="0.4" />
-            <circle cx={x} cy={y} r={spark.size} fill={secondaryColor} />
-            <circle cx={x} cy={y} r={spark.size * 0.55} fill="#ffffff" />
-
-            {/* Trailing embers */}
-            <circle cx={xTrail1} cy={yTrail1} r={spark.size * 0.6} fill={color} opacity="0.75" />
-            <circle cx={xTrail2} cy={yTrail2} r={spark.size * 0.4} fill={secondaryColor} opacity="0.5" />
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
-
-/**
- * Distant Riverbank Silhouette
- * Subtle landscape horizon separating the starry night sky and the river
- */
-function RiverbankSilhouette() {
-  return (
-    <div className={styles.horizonSilhouette} aria-hidden="true">
-      <svg
-        viewBox="0 0 1440 90"
-        preserveAspectRatio="none"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={styles.horizonSvg}
-      >
-        {/* Soft mountain ridge & tree line in deep twilight hue */}
-        <path
-          d="M0 64 Q140 38 300 52 T640 44 T980 54 T1240 38 T1440 48 L1440 90 L0 90 Z"
-          fill="#060d1b"
-          opacity="0.8"
-        />
-        <path
-          d="M0 72 Q180 54 380 64 T780 58 T1180 64 T1440 60 L1440 90 L0 90 Z"
-          fill="#030812"
-        />
-      </svg>
-    </div>
   )
 }
 
 /**
  * LoyKrathongScene Component
- * Renders full festive atmosphere if within festival date window (Nov 1-30) or override `?theme=loy-krathong`.
- * Returns null when not in season (zero DOM footprint & pure fallback to original UI).
+ * Renders a GPU-optimized Three.js 3D Night River, Floating Krathongs, Fireworks & Ascending Yee Peng Lanterns
+ * during the annual festival window (Nov 1-30) or when `?theme=loy-krathong` is active.
  */
 export default function LoyKrathongScene() {
   const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Avoid hydration mismatch by waiting for client mount
-  if (!mounted) {
-    return null
-  }
-
-  // Allows testing normal mode (?theme=normal), forcing halloween (?theme=halloween), or forcing festival (?theme=loy-krathong)
   const themeParam = searchParams.get('theme')
-  if (themeParam === 'normal' || themeParam === 'halloween') {
-    return null
-  }
+  const isDisabledByParam = themeParam === 'normal' || themeParam === 'halloween'
   const isQueryActive = themeParam === 'loy-krathong'
   const isDateActive = isLoyKrathongSeason()
+  const isActive = mounted && !isDisabledByParam && (isQueryActive || isDateActive)
 
-  if (!isQueryActive && !isDateActive) {
+  useEffect(() => {
+    if (!isActive || !containerRef.current) return
+
+    const host = containerRef.current
+    let animationFrameId = 0
+    let renderer: THREE.WebGLRenderer | null = null
+    let resizeObserver: ResizeObserver | null = null
+    let isPageVisible = typeof document !== 'undefined' ? !document.hidden : true
+
+    try {
+      const width = host.clientWidth || window.innerWidth || 1280
+      const height = host.clientHeight || window.innerHeight || 800
+
+      // 1. Initialize Scene, Fog & Camera
+      const scene = new THREE.Scene()
+      scene.fog = new THREE.FogExp2(0x040914, 0.018)
+
+      const camera = new THREE.PerspectiveCamera(48, width / height, 0.1, 160)
+      camera.position.set(0, 1.55, 13.2)
+      const cameraLookTarget = new THREE.Vector3(0, -0.35, -3.5)
+      camera.lookAt(cameraLookTarget)
+
+      // Cap pixel ratio at 1.5 (1.0 on <=4 CPU core machines) to keep office/integrated GPUs smooth
+      const isLowCoreDevice =
+        typeof navigator !== 'undefined' &&
+        typeof navigator.hardwareConcurrency === 'number' &&
+        navigator.hardwareConcurrency <= 4
+      const maxDpr = isLowCoreDevice ? 1 : 1.5
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: !isLowCoreDevice,
+        alpha: true,
+        powerPreference: 'default',
+      })
+      renderer.setSize(width, height)
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr))
+      renderer.toneMapping = THREE.ACESFilmicToneMapping
+      renderer.toneMappingExposure = 1.25
+
+      host.innerHTML = ''
+      host.appendChild(renderer.domElement)
+
+      // 2. Scene Lighting
+      scene.add(new THREE.AmbientLight(0x334155, 1.3))
+
+      const moonDirLight = new THREE.DirectionalLight(0xfef08a, 1.65)
+      moonDirLight.position.set(20, 12.6, -20)
+      scene.add(moonDirLight)
+
+      const riverCandleLight = new THREE.PointLight(0xf59e0b, 3.6, 30, 1.2)
+      riverCandleLight.position.set(-1.5, 0.4, 5.5)
+      scene.add(riverCandleLight)
+
+      // Shared radial glow textures
+      const goldGlowTex = createRadialGlowTexture(
+        'rgba(255, 255, 255, 1)',
+        'rgba(251, 191, 36, 0.62)',
+        'rgba(234, 88, 12, 0)'
+      )
+      const moonGlowTex = createRadialGlowTexture(
+        'rgba(255, 253, 240, 0.98)',
+        'rgba(254, 240, 138, 0.42)',
+        'rgba(234, 179, 8, 0)'
+      )
+
+      // Helper to position the 3D moon cleanly in the top-right sky across any viewport aspect
+      const computeTopRightMoonPos = (aspect: number): THREE.Vector3 => {
+        const distToMoon = 38.2 // camera z (13.2) - moon z (-25)
+        const halfH = Math.tan(THREE.MathUtils.degToRad(24)) * distToMoon
+        const halfW = halfH * Math.max(aspect, 0.5)
+        const moonX = Math.max(5.8, halfW * 0.76)
+        const moonY = 10.6
+        return new THREE.Vector3(moonX, moonY, -25)
+      }
+
+      const initialMoonPos = computeTopRightMoonPos(width / height)
+
+      // 3. 3D Full Moon & Volumetric Corona
+      const moonGroup = new THREE.Group()
+      moonGroup.position.copy(initialMoonPos)
+      moonDirLight.position.set(initialMoonPos.x, initialMoonPos.y + 2, -20)
+
+      const moonGeo = new THREE.SphereGeometry(2.15, 24, 24)
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb })
+      moonGroup.add(new THREE.Mesh(moonGeo, moonMat))
+
+      let moonOuterHalo: THREE.Sprite | null = null
+      if (moonGlowTex) {
+        const innerHaloMat = new THREE.SpriteMaterial({
+          map: moonGlowTex,
+          color: 0xfef08a,
+          transparent: true,
+          opacity: 0.82,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+        const innerHalo = new THREE.Sprite(innerHaloMat)
+        innerHalo.scale.set(12, 12, 1)
+        moonGroup.add(innerHalo)
+
+        const outerHaloMat = new THREE.SpriteMaterial({
+          map: moonGlowTex,
+          color: 0xf59e0b,
+          transparent: true,
+          opacity: 0.44,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+        moonOuterHalo = new THREE.Sprite(outerHaloMat)
+        moonOuterHalo.scale.set(24, 24, 1)
+        moonGroup.add(moonOuterHalo)
+      }
+      scene.add(moonGroup)
+
+      // 4. Distant Lanna Mountain Range Silhouette
+      const createMountainRidge = (zPos: number, yBase: number, colorHex: number, seedOffset: number) => {
+        const shape = new THREE.Shape()
+        shape.moveTo(-48, -6)
+        const steps = 24
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps
+          const x = -48 + t * 96
+          const peak =
+            Math.sin(t * Math.PI * 3 + seedOffset) * 1.65 +
+            Math.cos(t * Math.PI * 7 + seedOffset * 1.7) * 0.75 +
+            Math.sin(t * Math.PI) * 1.4
+          shape.lineTo(x, yBase + Math.max(0.2, peak))
+        }
+        shape.lineTo(48, -6)
+        shape.closePath()
+
+        const mesh = new THREE.Mesh(
+          new THREE.ShapeGeometry(shape),
+          new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.94 })
+        )
+        mesh.position.z = zPos
+        return mesh
+      }
+
+      scene.add(createMountainRidge(-23, -1.5, 0x061024, 0.4))
+      scene.add(createMountainRidge(-17.5, -2.0, 0x030814, 2.1))
+
+      // 5. 3D Animated Water Surface (56x40 segments & 6 krathong light pools for low GPU overhead)
+      const MAX_KRATHONG_LIGHTS = 6
+      const krathongLightUniforms: THREE.Vector3[] = Array.from(
+        { length: MAX_KRATHONG_LIGHTS },
+        () => new THREE.Vector3(999, -2.3, 999)
+      )
+
+      const waterGeo = new THREE.PlaneGeometry(80, 46, 56, 40)
+      const waterMat = new THREE.ShaderMaterial({
+        transparent: true,
+        uniforms: {
+          uTime: { value: 0 },
+          uMoonPos: { value: initialMoonPos.clone() },
+          uKrathongLights: { value: krathongLightUniforms },
+        },
+        vertexShader: `
+          uniform float uTime;
+          varying vec3 vWorldPos;
+          varying float vWaveHeight;
+          varying vec3 vCustomNormal;
+
+          float waveHeight(vec2 p, float t) {
+            float w1 = sin(p.x * 0.45 + t * 1.65) * 0.12;
+            float w2 = cos(p.y * 0.58 - t * 1.25) * 0.09;
+            float w3 = sin((p.x * 0.72 + p.y * 0.48) + t * 2.1) * 0.055;
+            return w1 + w2 + w3;
+          }
+
+          void main() {
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            float h = waveHeight(worldPosition.xz, uTime);
+            worldPosition.y += h;
+
+            float eps = 0.16;
+            float hx = waveHeight(worldPosition.xz + vec2(eps, 0.0), uTime);
+            float hz = waveHeight(worldPosition.xz + vec2(0.0, eps), uTime);
+            vCustomNormal = normalize(vec3(h - hx, eps * 2.0, h - hz));
+
+            vWorldPos = worldPosition.xyz;
+            vWaveHeight = h;
+            gl_Position = projectionMatrix * viewMatrix * worldPosition;
+          }
+        `,
+        fragmentShader: `
+          uniform float uTime;
+          uniform vec3 uMoonPos;
+          uniform vec3 uKrathongLights[${MAX_KRATHONG_LIGHTS}];
+          varying vec3 vWorldPos;
+          varying float vWaveHeight;
+          varying vec3 vCustomNormal;
+
+          void main() {
+            vec3 deepWater = vec3(0.020, 0.058, 0.122);
+            vec3 midWater = vec3(0.045, 0.145, 0.240);
+            vec3 emeraldCrest = vec3(0.09, 0.48, 0.38);
+
+            float crestFactor = smoothstep(-0.16, 0.20, vWaveHeight);
+            vec3 color = mix(deepWater, midWater, crestFactor);
+            color = mix(color, emeraldCrest, smoothstep(0.08, 0.24, vWaveHeight) * 0.42);
+
+            vec2 toMoon = normalize(uMoonPos.xz - vWorldPos.xz);
+            float moonAlign = max(0.0, dot(normalize(vCustomNormal.xz), toMoon));
+            float moonReflectX = uMoonPos.x * clamp((13.2 - vWorldPos.z) / 38.2, 0.15, 1.0);
+            float moonColumn = exp(-pow((vWorldPos.x - moonReflectX) * 0.19, 2.0));
+            float shimmer = pow(max(0.0, vCustomNormal.y), 5.0) * (0.5 + 0.5 * sin(vWorldPos.z * 3.8 - uTime * 4.2));
+            color += vec3(0.99, 0.92, 0.54) * moonColumn * (0.34 + shimmer * 0.65 + moonAlign * 0.32);
+
+            vec3 candleGlowTotal = vec3(0.0);
+            for (int i = 0; i < ${MAX_KRATHONG_LIGHTS}; i++) {
+              vec3 kPos = uKrathongLights[i];
+              float dist = length(vWorldPos.xz - kPos.xz);
+              float atten = exp(-dist * dist * 0.45);
+              float rippleGlint = 0.72 + 0.28 * sin(dist * 9.5 - uTime * 5.2);
+              candleGlowTotal += vec3(0.99, 0.68, 0.16) * atten * rippleGlint * 1.05;
+            }
+            color += candleGlowTotal;
+
+            float distFromCenter = length(vWorldPos.xz * vec2(0.025, 0.04));
+            float alpha = clamp(1.0 - smoothstep(0.68, 1.15, distFromCenter), 0.0, 0.96);
+
+            gl_FragColor = vec4(color, alpha);
+          }
+        `,
+      })
+
+      const waterMesh = new THREE.Mesh(waterGeo, waterMat)
+      waterMesh.rotation.x = -Math.PI / 2
+      waterMesh.position.set(0, -2.35, -2)
+      scene.add(waterMesh)
+
+      // 6. Floating 3D Krathongs on the River (6 krathongs with shared geometries/materials)
+      const sharedKrathongAssets = createSharedKrathongAssets(goldGlowTex)
+      interface KrathongEntity {
+        group: THREE.Group
+        flameMesh: THREE.Mesh
+        haloSprite: THREE.Sprite | null
+        rippleRing: THREE.Mesh
+        speed: number
+        baseZ: number
+        phase: number
+      }
+
+      const krathongs: KrathongEntity[] = []
+      const initialKrathongSpecs: Array<{
+        x: number
+        z: number
+        scale: number
+        speed: number
+        hue: KrathongHue
+      }> = [
+        { x: -9.5, z: 5.8, scale: 1.42, speed: 1.12, hue: 'gold' },
+        { x: -4.2, z: 6.8, scale: 1.55, speed: 1.24, hue: 'rose' },
+        { x: 2.6, z: 5.4, scale: 1.28, speed: 1.02, hue: 'emerald' },
+        { x: 7.5, z: 4.0, scale: 1.14, speed: 0.94, hue: 'rose' },
+        { x: -6.5, z: 2.0, scale: 1.02, speed: 0.84, hue: 'emerald' },
+        { x: 4.8, z: 0.6, scale: 0.92, speed: 0.76, hue: 'gold' },
+      ]
+
+      initialKrathongSpecs.forEach((spec, idx) => {
+        const { group, flameMesh, haloSprite, rippleRing } = create3DKrathong(
+          sharedKrathongAssets,
+          spec.scale,
+          spec.hue
+        )
+        group.position.set(spec.x, -2.32, spec.z)
+        scene.add(group)
+        krathongs.push({
+          group,
+          flameMesh,
+          haloSprite,
+          rippleRing,
+          speed: spec.speed,
+          baseZ: spec.z,
+          phase: idx * 1.37,
+        })
+      })
+
+      // 7. Ascending 3D Yee Peng Sky Lanterns (18 lanterns sharing geometries/materials)
+      const sharedLanternAssets = createSharedLanternAssets(goldGlowTex)
+      interface LanternEntity {
+        group: THREE.Group
+        haloSprite: THREE.Sprite | null
+        speedY: number
+        swayAmp: number
+        swayFreq: number
+        rotSpeed: number
+        phase: number
+        baseX: number
+      }
+
+      const lanterns: LanternEntity[] = []
+      const lanternCount = 18
+      for (let i = 0; i < lanternCount; i++) {
+        const depthFactor = (i % 6) / 5
+        const scale = 0.68 + depthFactor * 0.62
+        const { group: lanternGroup, haloSprite } = create3DLantern(sharedLanternAssets, scale)
+
+        const startX = -16 + ((i * 3.8) % 32)
+        const startY = -1.6 + ((i * 2.1) % 14.5)
+        const startZ = -14 + depthFactor * 13
+
+        lanternGroup.position.set(startX, startY, startZ)
+        scene.add(lanternGroup)
+
+        lanterns.push({
+          group: lanternGroup,
+          haloSprite,
+          speedY: 0.78 + depthFactor * 0.62,
+          swayAmp: 0.36 + (i % 3) * 0.16,
+          swayFreq: 0.65 + (i % 4) * 0.14,
+          rotSpeed: (i % 2 === 0 ? 1 : -1) * (0.28 + (i % 3) * 0.1),
+          phase: i * 0.95,
+          baseX: startX,
+        })
+      }
+
+      // 8. Twinkling 3D Starfield & Rising Golden Fireflies
+      const starCount = 120
+      const starPositions = new Float32Array(starCount * 3)
+      for (let i = 0; i < starCount; i++) {
+        starPositions[i * 3] = (Math.random() - 0.5) * 76
+        starPositions[i * 3 + 1] = 0.2 + Math.random() * 22
+        starPositions[i * 3 + 2] = -28 + Math.random() * 14
+      }
+      const starGeo = new THREE.BufferGeometry()
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
+      const starMat = new THREE.PointsMaterial({
+        color: 0xfef9c3,
+        size: 0.24,
+        map: goldGlowTex || undefined,
+        transparent: true,
+        opacity: 0.88,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+      const starParticles = new THREE.Points(starGeo, starMat)
+      scene.add(starParticles)
+
+      // Golden Fireflies & River Embers
+      const fireflyCount = 65
+      const fireflyPositions = new Float32Array(fireflyCount * 3)
+      const fireflySpeeds = new Float32Array(fireflyCount)
+      for (let i = 0; i < fireflyCount; i++) {
+        fireflyPositions[i * 3] = (Math.random() - 0.5) * 32
+        fireflyPositions[i * 3 + 1] = -2.2 + Math.random() * 11
+        fireflyPositions[i * 3 + 2] = -8 + Math.random() * 17
+        fireflySpeeds[i] = 0.55 + Math.random() * 0.95
+      }
+      const fireflyGeo = new THREE.BufferGeometry()
+      fireflyGeo.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3))
+      const fireflyMat = new THREE.PointsMaterial({
+        color: 0xfbbf24,
+        size: 0.38,
+        map: goldGlowTex || undefined,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+      const fireflyParticles = new THREE.Points(fireflyGeo, fireflyMat)
+      scene.add(fireflyParticles)
+
+      // 9. 3D Sky Firework Bursts
+      const fireworks: FireworkBurstEntity[] = []
+      const fireworkColors = [0xfbbf24, 0xfb7185, 0x34d399, 0xfde047]
+      let fireworkTimer = 0.8
+
+      const spawnFirework = (customOrigin?: THREE.Vector3, customColor?: number) => {
+        const origin =
+          customOrigin ||
+          new THREE.Vector3(
+            (Math.random() - 0.5) * 20,
+            3.2 + Math.random() * 4.5,
+            -12 - Math.random() * 6
+          )
+        const color = customColor ?? fireworkColors[Math.floor(Math.random() * fireworkColors.length)]
+        const burst = create3DFireworkBurst(origin, color, goldGlowTex)
+        scene.add(burst.points)
+        fireworks.push(burst)
+      }
+
+      spawnFirework(new THREE.Vector3(-4.5, 4.8, -13), 0xfbbf24)
+
+      // 10. Interactive Mouse Parallax & Camera View State
+      const pointer = { x: 0, y: 0, targetX: 0, targetY: 0 }
+      let activeCameraMode: LoyKrathongCameraView = 'river'
+
+      const handlePointerMove = (e: PointerEvent) => {
+        const nx = (e.clientX / (window.innerWidth || 1)) * 2 - 1
+        const ny = (e.clientY / (window.innerHeight || 1)) * 2 - 1
+        pointer.targetX = nx
+        pointer.targetY = ny
+      }
+
+      const hues: KrathongHue[] = ['gold', 'rose', 'emerald']
+      let launchCounter = 0
+
+      const handleLaunchKrathong = () => {
+        const hue = hues[launchCounter % hues.length]
+        launchCounter += 1
+
+        const spawnX = -5.2 + (Math.random() - 0.5) * 3.0
+        const spawnZ = 6.2 + Math.random() * 1.4
+        const { group, flameMesh, haloSprite, rippleRing } = create3DKrathong(
+          sharedKrathongAssets,
+          1.52,
+          hue
+        )
+        group.position.set(spawnX, -2.32, spawnZ)
+        scene.add(group)
+
+        if (krathongs.length >= MAX_KRATHONG_LIGHTS) {
+          const oldest = krathongs.shift()
+          if (oldest) {
+            scene.remove(oldest.group)
+            ;(oldest.rippleRing.material as THREE.Material).dispose()
+          }
+        }
+
+        krathongs.push({
+          group,
+          flameMesh,
+          haloSprite,
+          rippleRing,
+          speed: 1.25,
+          baseZ: spawnZ,
+          phase: performance.now() * 0.002,
+        })
+
+        const { group: newLantern, haloSprite: newHalo } = create3DLantern(sharedLanternAssets, 1.08)
+        const lx = spawnX + (Math.random() - 0.5) * 2
+        newLantern.position.set(lx, -1.5, 2.5)
+        scene.add(newLantern)
+        lanterns.push({
+          group: newLantern,
+          haloSprite: newHalo,
+          speedY: 1.25,
+          swayAmp: 0.4,
+          swayFreq: 0.75,
+          rotSpeed: 0.35,
+          phase: performance.now() * 0.001,
+          baseX: lx,
+        })
+
+        spawnFirework(new THREE.Vector3(lx * 0.8, 4.4, -12), 0xfde047)
+      }
+
+      const handleCameraViewChange = (e: Event) => {
+        const customEvent = e as CustomEvent<{ view?: LoyKrathongCameraView }>
+        if (customEvent.detail?.view) {
+          activeCameraMode = customEvent.detail.view
+        }
+      }
+
+      const handleResize = () => {
+        if (!renderer || !host) return
+        const w = host.clientWidth || window.innerWidth || 1280
+        const h = host.clientHeight || window.innerHeight || 800
+        if (w <= 0 || h <= 0) return
+        const aspect = w / h
+        camera.aspect = aspect
+        camera.updateProjectionMatrix()
+        renderer.setSize(w, h)
+
+        const nextMoonPos = computeTopRightMoonPos(aspect)
+        moonGroup.position.copy(nextMoonPos)
+        moonDirLight.position.set(nextMoonPos.x, nextMoonPos.y + 2, -20)
+        waterMat.uniforms.uMoonPos.value.copy(nextMoonPos)
+      }
+
+      // 11. Animation Loop (Paused automatically when browser tab is hidden to save CPU/GPU)
+      const clock = new THREE.Clock()
+
+      const animate = () => {
+        if (!isPageVisible) return
+
+        const delta = Math.min(clock.getDelta(), 0.05) || 0.016
+        const elapsed = clock.elapsedTime
+        waterMat.uniforms.uTime.value = elapsed
+
+        pointer.x += (pointer.targetX - pointer.x) * Math.min(1, delta * 5.5)
+        pointer.y += (pointer.targetY - pointer.y) * Math.min(1, delta * 5.5)
+
+        const baseCamY = activeCameraMode === 'sky' ? 2.8 : 1.55
+        const baseLookY = activeCameraMode === 'sky' ? 3.2 : -0.35
+
+        camera.position.x += (pointer.x * 2.1 - camera.position.x) * Math.min(1, delta * 3.8)
+        camera.position.y += (baseCamY - pointer.y * 0.85 - camera.position.y) * Math.min(1, delta * 3.8)
+        cameraLookTarget.x += (pointer.x * 0.85 - cameraLookTarget.x) * Math.min(1, delta * 3.8)
+        cameraLookTarget.y += (baseLookY - pointer.y * 0.45 - cameraLookTarget.y) * Math.min(1, delta * 3.8)
+        camera.lookAt(cameraLookTarget)
+
+        if (moonOuterHalo) {
+          const haloPulse = 23 + Math.sin(elapsed * 1.4) * 2.2
+          moonOuterHalo.scale.set(haloPulse, haloPulse, 1)
+        }
+
+        krathongs.forEach((item, idx) => {
+          item.group.position.x += item.speed * delta
+          if (item.group.position.x > 14.5) {
+            item.group.position.x = -14.5
+          }
+
+          const kx = item.group.position.x
+          const kz = item.baseZ + Math.sin(elapsed * 0.75 + item.phase) * 0.35
+          const waveY = sampleRiverWaveHeight(kx, kz, elapsed)
+
+          item.group.position.z = kz
+          item.group.position.y = -2.32 + waveY
+          item.group.rotation.z = Math.sin(elapsed * 1.85 + item.phase) * 0.08
+          item.group.rotation.x = Math.cos(elapsed * 1.45 + item.phase) * 0.065
+          item.group.rotation.y += 0.22 * delta
+
+          const flicker = 0.88 + Math.sin(elapsed * 12 + item.phase * 3) * 0.18
+          item.flameMesh.scale.set(flicker, 0.9 + Math.cos(elapsed * 16 + item.phase) * 0.22, flicker)
+
+          if (item.haloSprite) {
+            const haloSize = 1.75 + Math.sin(elapsed * 9 + item.phase) * 0.28
+            item.haloSprite.scale.set(haloSize, haloSize, 1)
+          }
+
+          const rippleCycle = (elapsed * 0.8 + item.phase) % 1
+          const rippleScale = 1 + rippleCycle * 0.85
+          item.rippleRing.scale.set(rippleScale, rippleScale, 1)
+          const rippleMat = item.rippleRing.material as THREE.MeshBasicMaterial
+          rippleMat.opacity = (1 - rippleCycle) * 0.45
+
+          if (idx < MAX_KRATHONG_LIGHTS) {
+            krathongLightUniforms[idx].set(kx, item.group.position.y, kz)
+          }
+        })
+
+        for (let i = krathongs.length; i < MAX_KRATHONG_LIGHTS; i++) {
+          krathongLightUniforms[i].set(999, -2.3, 999)
+        }
+
+        lanterns.forEach((lantern) => {
+          lantern.group.position.y += lantern.speedY * delta
+          if (lantern.group.position.y > 14.2) {
+            lantern.group.position.y = -2.4
+          }
+          lantern.group.position.x =
+            lantern.baseX + Math.sin(elapsed * lantern.swayFreq + lantern.phase) * lantern.swayAmp
+          lantern.group.rotation.y += lantern.rotSpeed * delta
+          lantern.group.rotation.z = Math.sin(elapsed * 1.2 + lantern.phase) * 0.08
+
+          if (lantern.haloSprite) {
+            const lPulse = 1.95 + Math.sin(elapsed * 6 + lantern.phase) * 0.25
+            lantern.haloSprite.scale.set(lPulse, lPulse, 1)
+          }
+        })
+
+        starParticles.rotation.y = Math.sin(elapsed * 0.08) * 0.03
+        starMat.opacity = 0.72 + Math.sin(elapsed * 2.2) * 0.18
+
+        const posAttr = fireflyGeo.getAttribute('position') as THREE.BufferAttribute
+        for (let i = 0; i < fireflyCount; i++) {
+          let py = posAttr.getY(i) + fireflySpeeds[i] * delta
+          const px = posAttr.getX(i) + Math.sin(elapsed * 1.6 + i) * 0.45 * delta
+          if (py > 9.0) py = -2.2
+          posAttr.setXY(i, px, py)
+        }
+        posAttr.needsUpdate = true
+
+        fireworkTimer -= delta
+        if (fireworkTimer <= 0) {
+          spawnFirework()
+          fireworkTimer = 2.6 + Math.random() * 2.2
+        }
+
+        for (let i = fireworks.length - 1; i >= 0; i--) {
+          const fw = fireworks[i]
+          fw.age += delta
+          const progress = fw.age / fw.lifetime
+
+          if (progress >= 1) {
+            scene.remove(fw.points)
+            fw.points.geometry.dispose()
+            fw.material.dispose()
+            fireworks.splice(i, 1)
+            continue
+          }
+
+          const fwPos = fw.points.geometry.getAttribute('position') as THREE.BufferAttribute
+          for (let j = 0; j < fwPos.count; j++) {
+            const vx = fw.velocities[j * 3]
+            const vy = fw.velocities[j * 3 + 1] - 1.35 * delta
+            const vz = fw.velocities[j * 3 + 2]
+
+            fw.velocities[j * 3] = vx * (1 - 0.85 * delta)
+            fw.velocities[j * 3 + 1] = vy * (1 - 0.65 * delta)
+            fw.velocities[j * 3 + 2] = vz * (1 - 0.85 * delta)
+
+            fwPos.setXYZ(
+              j,
+              fwPos.getX(j) + vx * delta,
+              fwPos.getY(j) + vy * delta,
+              fwPos.getZ(j) + vz * delta
+            )
+          }
+          fwPos.needsUpdate = true
+          fw.material.opacity = Math.max(0, 1 - Math.pow(progress, 1.5))
+        }
+
+        renderer?.render(scene, camera)
+        animationFrameId = window.requestAnimationFrame(animate)
+      }
+
+      const handleVisibilityChange = () => {
+        isPageVisible = !document.hidden
+        if (isPageVisible) {
+          clock.getDelta()
+          window.cancelAnimationFrame(animationFrameId)
+          animationFrameId = window.requestAnimationFrame(animate)
+        } else {
+          window.cancelAnimationFrame(animationFrameId)
+        }
+      }
+
+      window.addEventListener('pointermove', handlePointerMove, { passive: true })
+      window.addEventListener('loy-krathong:launch', handleLaunchKrathong)
+      window.addEventListener('loy-krathong:camera', handleCameraViewChange)
+      window.addEventListener('resize', handleResize)
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(handleResize)
+        resizeObserver.observe(host)
+      }
+
+      animate()
+
+      return () => {
+        window.cancelAnimationFrame(animationFrameId)
+        window.removeEventListener('pointermove', handlePointerMove)
+        window.removeEventListener('loy-krathong:launch', handleLaunchKrathong)
+        window.removeEventListener('loy-krathong:camera', handleCameraViewChange)
+        window.removeEventListener('resize', handleResize)
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        resizeObserver?.disconnect()
+
+        const geometries = new Set<THREE.BufferGeometry>()
+        const materials = new Set<THREE.Material>()
+
+        scene.traverse((obj) => {
+          if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
+            if (obj.geometry) geometries.add(obj.geometry)
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach((m) => materials.add(m))
+            } else if (obj.material) {
+              materials.add(obj.material)
+            }
+          } else if (obj instanceof THREE.Sprite && obj.material) {
+            materials.add(obj.material)
+          }
+        })
+
+        geometries.forEach((g) => g.dispose())
+        materials.forEach((m) => m.dispose())
+        goldGlowTex?.dispose()
+        moonGlowTex?.dispose()
+        renderer?.dispose()
+      }
+    } catch {
+      return undefined
+    }
+  }, [isActive])
+
+  if (!isActive) {
     return null
   }
 
   return (
-    <div className={styles.seasonWrapper} aria-hidden="true">
-      {/* 1. Full Moon in upper sky */}
-      <div className={styles.moonContainer}>
-        <div className={styles.moon} />
-      </div>
+    <div className={styles.seasonWrapper} aria-hidden="true" data-testid="loy-krathong-scene">
+      {/* Horizon warm mist glow */}
+      <div className={styles.horizonMist} />
 
-      {/* 2. Twinkling Stars across the sky */}
-      <span className={styles.star} style={{ top: '10%', left: '12%', width: 3, height: 3, animationDuration: '3.2s', animationDelay: '-0.5s' }} />
-      <span className={styles.star} style={{ top: '20%', left: '28%', width: 2, height: 2, animationDuration: '4.1s', animationDelay: '-1.4s' }} />
-      <span className={styles.star} style={{ top: '8%', left: '46%', width: 2.5, height: 2.5, animationDuration: '3.6s', animationDelay: '-0.8s' }} />
-      <span className={styles.star} style={{ top: '26%', left: '64%', width: 3, height: 3, animationDuration: '4.8s', animationDelay: '-2.1s' }} />
-      <span className={styles.star} style={{ top: '16%', left: '84%', width: 2, height: 2, animationDuration: '2.9s', animationDelay: '-0.3s' }} />
-      <span className={styles.star} style={{ top: '34%', left: '18%', width: 2, height: 2, animationDuration: '3.8s', animationDelay: '-1.9s' }} />
-      <span className={styles.star} style={{ top: '14%', left: '72%', width: 2.5, height: 2.5, animationDuration: '4.3s', animationDelay: '-2.7s' }} />
-      <span className={styles.star} style={{ top: '38%', left: '88%', width: 2, height: 2, animationDuration: '3.5s', animationDelay: '-1.1s' }} />
+      {/* Three.js 3D WebGL Canvas Stage */}
+      <div
+        ref={containerRef}
+        className={styles.webglCanvasHost}
+        data-testid="loy-krathong-3d-stage"
+      />
 
-      {/* 3. Festive Fireworks in upper sky (Negative delays start them immediately) */}
-      <div className={styles.firework} style={{ top: '14%', left: '16%', animationDuration: '6s', animationDelay: '-1.2s' }}>
-        <FireworkBurst id="fw1" color="#f59e0b" secondaryColor="#fef08a" />
-      </div>
-      <div className={styles.firework} style={{ top: '22%', left: '38%', animationDuration: '7.2s', animationDelay: '-3.8s' }}>
-        <FireworkBurst id="fw2" color="#f43f5e" secondaryColor="#fed7aa" />
-      </div>
-      <div className={styles.firework} style={{ top: '18%', left: '56%', animationDuration: '8s', animationDelay: '-5.5s' }}>
-        <FireworkBurst id="fw3" color="#10b981" secondaryColor="#a7f3d0" />
-      </div>
-
-      {/* 4. Ascending Yee Peng Lanterns (8 lanterns in diverse altitudes with negative delays) */}
-      <div className={styles.lantern} style={{ left: '6%', animationDuration: '22s', animationDelay: '-3s' }}>
-        <YeePengLantern size={24} />
-      </div>
-      <div className={styles.lantern} style={{ left: '19%', animationDuration: '26s', animationDelay: '-11s' }}>
-        <YeePengLantern size={34} />
-      </div>
-      <div className={styles.lantern} style={{ left: '32%', animationDuration: '20s', animationDelay: '-6s' }}>
-        <YeePengLantern size={20} />
-      </div>
-      <div className={styles.lantern} style={{ left: '46%', animationDuration: '28s', animationDelay: '-17s' }}>
-        <YeePengLantern size={38} />
-      </div>
-      <div className={styles.lantern} style={{ left: '60%', animationDuration: '24s', animationDelay: '-9s' }}>
-        <YeePengLantern size={26} />
-      </div>
-      <div className={styles.lantern} style={{ left: '74%', animationDuration: '25s', animationDelay: '-15s' }}>
-        <YeePengLantern size={30} />
-      </div>
-      <div className={styles.lantern} style={{ left: '86%', animationDuration: '19s', animationDelay: '-2s' }}>
-        <YeePengLantern size={22} />
-      </div>
-      <div className={styles.lantern} style={{ left: '94%', animationDuration: '23s', animationDelay: '-13s' }}>
-        <YeePengLantern size={28} />
-      </div>
-
-      {/* 5. Riverbank Horizon Silhouette */}
-      <RiverbankSilhouette />
-
-      {/* 6. River Water Layer & Reflections */}
-      <div className={styles.riverLayer}>
-        <div className={styles.riverWave} />
-        <div className={styles.riverWave2} />
-      </div>
-
-      {/* 7. Floating Krathongs drifting across water (Varied depths & negative delays) */}
-      <div className={styles.krathong} style={{ bottom: '14px', animationDuration: '28s', animationDelay: '-4s' }}>
-        <KrathongSVG width={124} />
-      </div>
-      <div className={styles.krathong} style={{ bottom: '26px', animationDuration: '34s', animationDelay: '-14s', opacity: 0.92 }}>
-        <KrathongSVG width={96} />
-      </div>
-      <div className={styles.krathong} style={{ bottom: '40px', animationDuration: '40s', animationDelay: '-24s', opacity: 0.82 }}>
-        <KrathongSVG width={76} />
-      </div>
-      <div className={styles.krathong} style={{ bottom: '18px', animationDuration: '30s', animationDelay: '-19s' }}>
-        <KrathongSVG width={112} />
-      </div>
-      <div className={styles.krathong} style={{ bottom: '48px', animationDuration: '44s', animationDelay: '-33s', opacity: 0.72 }}>
-        <KrathongSVG width={66} />
-      </div>
+      {/* Atmospheric vignette & Lanna ornamental corner frames */}
+      <div className={styles.atmosphericVignette} />
+      <LannaCornerOrnament className={styles.lannaCornerTopLeft} />
+      <LannaCornerOrnament className={styles.lannaCornerBottomRight} />
     </div>
   )
 }

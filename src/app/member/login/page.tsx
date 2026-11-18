@@ -4,7 +4,15 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { AlertCircle, CheckCircle2, ChevronRight, ArrowLeft, X } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronRight,
+  ArrowLeft,
+  X,
+  CreditCard,
+  Mail,
+} from 'lucide-react'
 import LoyKrathongScene from '@/components/seasonal/LoyKrathongScene'
 import HalloweenScene from '@/components/seasonal/HalloweenScene'
 import './page.css'
@@ -227,15 +235,19 @@ function MemberLoginForm() {
   return (
     <>
       <div className="memberLoginCard">
+        <div className="cardTopGoldAccent" aria-hidden="true" />
+
         <header className="memberLoginHeader">
-          <Image
-            src="/images/common/logo-website.webp"
-            alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
-            width={56}
-            height={56}
-            className="memberLoginCrest"
-            priority
-          />
+          <div className="crestHaloWrap">
+            <Image
+              src="/images/common/logo-website.webp"
+              alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
+              width={56}
+              height={56}
+              className="memberLoginCrest"
+              priority
+            />
+          </div>
           <div className="memberLoginTitleGroup">
             <h1>เข้าสู่ระบบบุคลากร</h1>
             <p>โรงพยาบาลเถิน จังหวัดลำปาง</p>
@@ -274,8 +286,11 @@ function MemberLoginForm() {
               />
             </span>
             <span className="digitalIdTextGroup">
-              <span className="digitalIdTitle">
-                {thaidLoading ? 'กำลังเชื่อมต่อระบบ ThaID' : 'เข้าสู่ระบบด้วย ThaID'}
+              <span className="digitalIdTitleRow">
+                <span className="digitalIdTitle">
+                  {thaidLoading ? 'กำลังเชื่อมต่อระบบ ThaID' : 'เข้าสู่ระบบด้วย ThaID'}
+                </span>
+                <span className="fastPathPill">แนะนำ</span>
               </span>
               <span className="digitalIdSubtitle">บัตรประชาชนดิจิทัล กรมการปกครอง</span>
             </span>
@@ -345,37 +360,48 @@ function MemberLoginForm() {
 
         <form onSubmit={handleRequestOtp} className="memberLoginForm">
           <div className="formGroup">
-            <label htmlFor="username">เลขบัตรประชาชน</label>
-            <input
-              id="username"
-              type="text"
-              className="formInput tabularNums"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="เลขบัตรประชาชน 13 หลัก"
-              autoComplete="username"
-              required
-              disabled={isAnyBusy}
-            />
+            <div className="formLabelRow">
+              <label htmlFor="username">เลขบัตรประชาชน</label>
+              {username.length > 0 && (
+                <span className="digitCounter tabularNums">{username.length}/13 หลัก</span>
+              )}
+            </div>
+            <div className="inputIconWrapper">
+              <CreditCard size={17} strokeWidth={1.6} className="inputLeadIcon" aria-hidden="true" />
+              <input
+                id="username"
+                type="text"
+                className="formInput withLeadIcon tabularNums"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="เลขบัตรประชาชน 13 หลัก"
+                autoComplete="username"
+                required
+                disabled={isAnyBusy}
+              />
+            </div>
           </div>
 
           <div className="formGroup">
             <label htmlFor="email">อีเมลที่ลงทะเบียนไว้</label>
-            <input
-              id="email"
-              type="email"
-              className="formInput"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
-              autoComplete="email"
-              required
-              disabled={isAnyBusy}
-            />
+            <div className="inputIconWrapper">
+              <Mail size={17} strokeWidth={1.6} className="inputLeadIcon" aria-hidden="true" />
+              <input
+                id="email"
+                type="email"
+                className="formInput withLeadIcon"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                autoComplete="email"
+                required
+                disabled={isAnyBusy}
+              />
+            </div>
           </div>
 
           <button type="submit" className="memberSubmitBtn" disabled={isAnyBusy}>
-            {loading ? 'กำลังส่งรหัส OTP...' : 'ขอรหัส OTP ทางอีเมล'}
+            <span>{loading ? 'กำลังส่งรหัส OTP...' : 'ขอรหัส OTP ทางอีเมล'}</span>
           </button>
         </form>
 
@@ -481,7 +507,7 @@ function MemberLoginForm() {
 export default function MemberLoginPage() {
   return (
     <div className="memberLoginContainer">
-      {/* Seasonal Atmosphere Layers */}
+      {/* Seasonal Atmosphere Layers (Three.js 3D WebGL Scene) */}
       <Suspense fallback={null}>
         <HalloweenScene />
         <LoyKrathongScene />

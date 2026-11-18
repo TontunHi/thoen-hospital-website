@@ -2,151 +2,87 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import ExcelJS from 'exceljs'
 import {
   ArrowLeft,
   Search,
   FileSpreadsheet,
   RefreshCw,
-  CheckCircle2,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
   Download,
   Building2,
-  Users,
   Check,
   Copy,
   X,
-  Clock,
-  Filter
+  BarChart3,
 } from 'lucide-react'
-import './page.css'
-
-interface TbRecord {
-  id: number
-  risk_type: string | null
-  title: string | null
-  fname: string | null
-  lname: string | null
-  cid: string | null
-  gender: string | null
-  born: string | null
-  addr: string | null
-  mu: string | null
-  province_id: string | null
-  amphur_id: string | null
-  tambol_id: string | null
-  full_name: string | null
-  people_type: string | null
-  race_id: string | null
-  hn: string | null
-  inccl_id: string | null
-  contact_date: string | null
-  symptom_screen: string | null
-  cxr_date: string | null
-  cxr_status: 'DONE' | 'MISSING'
-  cxr_result: string | null
-  cxr_abnormal_result: string | null
-  dx: string | null
-  icd10: string | null
-  hba1c: string | null
-  immunno_discase: string | null
-  b24: string | null
-  b24_ch: string | null
-  note: string | null
-  age: number | null
-  status: string
-  home: string
-}
-
-interface SummaryData {
-  total: number
-  doneCount: number
-  missingCount: number
-  coveragePercentage: number
-  statusBreakdown: Record<string, number>
-}
+import {
+  formatGenderLabel,
+  formatPatientFullName,
+  formatThaiDateString,
+  type ExportScope,
+  type FilterTab,
+  type HospCoverageItem,
+  type SortOption,
+  type SummaryData,
+  type TbRecord,
+} from './tbCxrTypes'
+import { exportTbCxrToExcel } from './exportTbCxrExcel'
 
 interface Props {
   userRole?: string
 }
 
-/** แปลงวันที่ YYYYMMDD หรือ YYYY-MM-DD เป็นวันที่ไทย พ.ศ. (เช่น "16 ต.ค. 2569") */
-function formatThaiDateString(rawDate?: string | null): string {
-  if (!rawDate) return '-'
-  try {
-    let year = 0
-    let month = 0
-    let day = 0
-
-    const clean = String(rawDate).trim()
-    if (clean.length === 8 && /^\d{8}$/.test(clean)) {
-      year = parseInt(clean.substring(0, 4), 10)
-      month = parseInt(clean.substring(4, 6), 10) - 1
-      day = parseInt(clean.substring(6, 8), 10)
-    } else {
-      const d = new Date(clean)
-      if (isNaN(d.getTime())) return clean
-      year = d.getFullYear()
-      month = d.getMonth()
-      day = d.getDate()
-    }
-
-    const monthNames = [
-      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
-    ]
-    const thaiYear = year > 2400 ? year : year + 543
-    return `${day} ${monthNames[month]} ${thaiYear}`
-  } catch {
-    return String(rawDate)
-  }
+const INITIAL_SUMMARY: SummaryData = {
+  total: 0,
+  doneCount: 0,
+  missingCount: 0,
+  coveragePercentage: 0,
+  statusBreakdown: {},
 }
 
 export default function TbCxrTrackerClient({ userRole }: Props) {
   const [data, setData] = useState<TbRecord[]>([])
-  const [summary, setSummary] = useState<SummaryData>({
-    total: 0,
-    doneCount: 0,
-    missingCount: 0,
-    coveragePercentage: 0,
-    statusBreakdown: {}
-  })
+  const [summary, setSummary] = useState<SummaryData>(INITIAL_SUMMARY)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
 
-  // Filters & Controls
-  const [activeTab, setActiveTab] = useState<'all' | 'done' | 'missing'>('all')
+  // Filters & sorting
+  const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [selectedHosp, setSelectedHosp] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState<string>('')
+  const [sortBy, setSortBy] = useState<SortOption>('default')
+
+  // Subdistrict coverage breakdown toggle
+  const [showHospBreakdown, setShowHospBreakdown] = useState<boolean>(false)
+  const [hospSortMode, setHospSortMode] = useState<'missing' | 'rate' | 'name'>('missing')
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const pageSize = 50
+  const [pageSize, setPageSize] = useState<number>(50)
 
-  // Export Modal
+  // Modals & Drawers
+  const [selectedRecord, setSelectedRecord] = useState<TbRecord | null>(null)
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
-  const handleCopyCode = (key: string, text: string) => {
+  const handleCopyText = useCallback((key: string, text: string) => {
     if (!text) return
-    navigator.clipboard.writeText(text)
+    navigator.clipboard?.writeText(text)
     setCopiedKey(key)
-    setTimeout(() => setCopiedKey(null), 1800)
-  }
+    setTimeout(() => setCopiedKey(null), 1600)
+  }, [])
 
-  // Fetch initial data
   const fetchData = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true)
     else setLoading(true)
 
     try {
       setFetchError(null)
-      // ดึงข้อมูลทั้งหมดผ่านเส้น API Gateway Adapter
       const res = await fetch('/api/service/tb-cxr-tracker?status=all', { cache: 'no-store' })
       const json = await res.json()
       if (json.success) {
@@ -158,12 +94,14 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
       } else {
         setFetchError(json.error || 'ไม่สามารถโหลดข้อมูลจากระบบได้')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load TB CXR data:', err)
-      setFetchError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+      setFetchError(
+        err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'
+      )
     } finally {
       setLoading(false)
-      if (manual) setTimeout(() => setRefreshing(false), 500)
+      if (manual) setRefreshing(false)
     }
   }, [])
 
@@ -171,45 +109,54 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
     fetchData()
   }, [fetchData])
 
-  // Reset page when tab/filters change
+  // Escape key closes drawer or export modal
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (exportModalOpen && !isExporting) {
+        setExportModalOpen(false)
+      } else if (selectedRecord) {
+        setSelectedRecord(null)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [exportModalOpen, isExporting, selectedRecord])
+
+  // Reset to page 1 when filters or sort change
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeTab, selectedHosp, searchTerm])
+  }, [activeTab, selectedHosp, searchTerm, sortBy, pageSize])
 
-  // Filtered dataset
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      // 1. Tab Status Filter
-      if (activeTab === 'done' && item.cxr_status !== 'DONE') return false
-      if (activeTab === 'missing' && item.cxr_status !== 'MISSING') return false
+  // Per-รพ.สต. coverage breakdown derived from loaded cohort
+  const hospBreakdown = useMemo<HospCoverageItem[]>(() => {
+    const map = new Map<string, { total: number; done: number; missing: number }>()
+    for (const item of data) {
+      const name = item.status || 'ไม่ระบุ'
+      const entry = map.get(name) ?? { total: 0, done: 0, missing: 0 }
+      entry.total += 1
+      if (item.cxr_status === 'DONE') entry.done += 1
+      else entry.missing += 1
+      map.set(name, entry)
+    }
 
-      // 2. Hospital Filter
-      if (selectedHosp && item.status !== selectedHosp) return false
+    const list: HospCoverageItem[] = Array.from(map.entries()).map(([name, counts]) => ({
+      name,
+      total: counts.total,
+      done: counts.done,
+      missing: counts.missing,
+      coverageRate: counts.total > 0 ? (counts.done / counts.total) * 100 : 0,
+    }))
 
-      // 3. Search Filter
-      if (searchTerm.trim()) {
-        const q = searchTerm.trim().toLowerCase()
-        const hn = String(item.hn || '').toLowerCase()
-        const cid = String(item.cid || '').toLowerCase()
-        const fullname = `${item.fname || ''} ${item.lname || ''}`.toLowerCase()
-        const home = String(item.home || '').toLowerCase()
-        if (!hn.includes(q) && !cid.includes(q) && !fullname.includes(q) && !home.includes(q)) {
-          return false
-        }
-      }
+    if (hospSortMode === 'missing') {
+      return list.sort((a, b) => b.missing - a.missing || a.name.localeCompare(b.name, 'th'))
+    }
+    if (hospSortMode === 'rate') {
+      return list.sort((a, b) => a.coverageRate - b.coverageRate || b.total - a.total)
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name, 'th'))
+  }, [data, hospSortMode])
 
-      return true
-    })
-  }, [data, activeTab, selectedHosp, searchTerm])
-
-  // Paginated Rows
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize))
-  const paginatedRows = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredData.slice(start, start + pageSize)
-  }, [filteredData, currentPage, pageSize])
-
-  // List of all unique health centers sorted in Thai alphabetical order
   const hospList = useMemo(() => {
     const keys = Object.keys(summary.statusBreakdown || {})
     if (keys.length > 0) return keys.sort((a, b) => a.localeCompare(b, 'th'))
@@ -218,123 +165,71 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
       .sort((a, b) => a.localeCompare(b, 'th'))
   }, [summary.statusBreakdown, data])
 
-  // Export to Excel using exceljs
-  const handleExportExcel = async (exportType: 'filtered' | 'all' | 'done' | 'missing') => {
-    setIsExporting(true)
-    try {
-      let exportRows: TbRecord[] = []
-      let filenameSuffix = ''
+  const filteredData = useMemo(() => {
+    const filtered = data.filter((item) => {
+      if (activeTab === 'done' && item.cxr_status !== 'DONE') return false
+      if (activeTab === 'missing' && item.cxr_status !== 'MISSING') return false
+      if (selectedHosp && item.status !== selectedHosp) return false
 
-      if (exportType === 'filtered') {
-        exportRows = filteredData
-        filenameSuffix = `filtered_${activeTab}`
-      } else if (exportType === 'all') {
-        exportRows = data
-        filenameSuffix = 'all_5680'
-      } else if (exportType === 'done') {
-        exportRows = data.filter((d) => d.cxr_status === 'DONE')
-        filenameSuffix = 'cxr_done_1494'
-      } else if (exportType === 'missing') {
-        exportRows = data.filter((d) => d.cxr_status === 'MISSING')
-        filenameSuffix = 'cxr_missing_4186'
+      if (searchTerm.trim()) {
+        const q = searchTerm.trim().toLowerCase()
+        const hn = String(item.hn || '').toLowerCase()
+        const cid = String(item.cid || '').toLowerCase()
+        const fullname = `${item.title || ''}${item.fname || ''} ${item.lname || ''}`.toLowerCase()
+        const home = String(item.home || '').toLowerCase()
+        if (!hn.includes(q) && !cid.includes(q) && !fullname.includes(q) && !home.includes(q)) {
+          return false
+        }
       }
 
-      const workbook = new ExcelJS.Workbook()
-      workbook.creator = 'โรงพยาบาลเถิน (Thoen Hospital)'
-      workbook.created = new Date()
+      return true
+    })
 
-      const sheet = workbook.addWorksheet('รายชื่อคัดกรอง CXR', {
-        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
+    if (sortBy === 'default') return filtered
+
+    const sorted = [...filtered]
+    if (sortBy === 'missing_first') {
+      sorted.sort((a, b) => {
+        if (a.cxr_status !== b.cxr_status) return a.cxr_status === 'MISSING' ? -1 : 1
+        return (a.status || '').localeCompare(b.status || '', 'th')
       })
+    } else if (sortBy === 'cxr_recent') {
+      sorted.sort((a, b) => (b.cxr_date || '').localeCompare(a.cxr_date || ''))
+    } else if (sortBy === 'name_asc') {
+      sorted.sort((a, b) =>
+        `${a.fname || ''} ${a.lname || ''}`.localeCompare(`${b.fname || ''} ${b.lname || ''}`, 'th')
+      )
+    } else if (sortBy === 'age_desc') {
+      sorted.sort((a, b) => (b.age ?? -1) - (a.age ?? -1))
+    }
+    return sorted
+  }, [data, activeTab, selectedHosp, searchTerm, sortBy])
 
-      // Header definitions
-      sheet.columns = [
-        { header: 'ลำดับ', key: 'no', width: 8 },
-        { header: 'HN', key: 'hn', width: 12 },
-        { header: 'คำนำ', key: 'title', width: 10 },
-        { header: 'ชื่อ', key: 'fname', width: 18 },
-        { header: 'นามสกุล', key: 'lname', width: 20 },
-        { header: 'เลขบัตรประชาชน', key: 'cid', width: 18 },
-        { header: 'เพศ', key: 'gender', width: 8 },
-        { header: 'อายุ (ปี)', key: 'age', width: 10 },
-        { header: 'วันเกิด (YYYYMMDD)', key: 'born_raw', width: 16 },
-        { header: 'วันเกิด (ไทย)', key: 'born', width: 14 },
-        { header: 'สถานะ CXR', key: 'cxr_status', width: 16 },
-        { header: 'ค่าวันที่ CXR (cxr_date)', key: 'cxr_date_raw', width: 22 },
-        { header: 'วันที่ตรวจ CXR (ไทย)', key: 'cxr_date', width: 18 },
-        { header: 'รพ.สต. / สถานพยาบาล', key: 'status', width: 22 },
-        { header: 'ที่อยู่ตามทะเบียน', key: 'home', width: 40 },
-        { header: 'สิทธิการรักษา', key: 'inccl_id', width: 24 },
-        { header: 'ผลตรวจ CXR (cxr_result)', key: 'cxr_result', width: 20 },
-        { header: 'ผลผิดปกติ (cxr_abnormal_result)', key: 'cxr_abnormal_result', width: 24 },
-        { header: 'หมายเหตุ', key: 'note', width: 20 },
-      ]
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize))
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filteredData.slice(start, start + pageSize)
+  }, [filteredData, currentPage, pageSize])
 
-      // Style header row
-      const headerRow = sheet.getRow(1)
-      headerRow.height = 28
-      headerRow.eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Sarabun' }
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FF0F766E' } // Deep Teal
-        }
-        cell.alignment = { vertical: 'middle', horizontal: 'center' }
+  const hasActiveFilters =
+    activeTab !== 'all' || selectedHosp !== '' || searchTerm.trim() !== '' || sortBy !== 'default'
+
+  const resetAllFilters = useCallback(() => {
+    setActiveTab('all')
+    setSelectedHosp('')
+    setSearchTerm('')
+    setSortBy('default')
+  }, [])
+
+  const handleExportExcel = async (exportType: ExportScope) => {
+    setIsExporting(true)
+    try {
+      await exportTbCxrToExcel({
+        exportType,
+        activeTab,
+        allData: data,
+        filteredData,
       })
-
-      // Add Data Rows
-      exportRows.forEach((r, idx) => {
-        const isDone = r.cxr_status === 'DONE'
-        const row = sheet.addRow({
-          no: idx + 1,
-          hn: r.hn || '',
-          title: r.title || '',
-          fname: r.fname || '',
-          lname: r.lname || '',
-          cid: r.cid || '',
-          gender: r.gender === 'M' ? 'ชาย' : r.gender === 'F' ? 'หญิง' : '',
-          age: r.age ?? '',
-          born_raw: r.born || '',
-          born: formatThaiDateString(r.born),
-          cxr_status: isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ',
-          cxr_date_raw: r.cxr_date || '',
-          cxr_date: isDone ? formatThaiDateString(r.cxr_date) : '-',
-          status: r.status || '',
-          home: r.home || '',
-          inccl_id: r.inccl_id || '',
-          cxr_result: r.cxr_result || '',
-          cxr_abnormal_result: r.cxr_abnormal_result || '',
-          note: r.note || '',
-        })
-
-        // Status highlight
-        const statusCell = row.getCell('cxr_status')
-        if (isDone) {
-          statusCell.font = { color: { argb: 'FF059669' }, bold: true } // Green
-        } else {
-          statusCell.font = { color: { argb: 'FFDC2626' }, bold: true } // Red
-        }
-
-        row.height = 22
-        row.alignment = { vertical: 'middle' }
-      })
-
-      // Generate buffer and trigger browser download
-      const buffer = await workbook.xlsx.writeBuffer()
-      const blob = new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-      a.href = url
-      a.download = `tb_cxr_tracker_${filenameSuffix}_${timestamp}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-
       setExportModalOpen(false)
     } catch (err) {
       console.error('Export error:', err)
@@ -344,147 +239,296 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
     }
   }
 
+  const remainingPercentage = Math.max(0, 100 - summary.coveragePercentage).toFixed(1)
+
   return (
-    <div className="tbPageWrapper">
+    <div className="tbPage" data-role={userRole || 'staff'}>
       <div className="tbContainer">
-        {/* Navigation & Header */}
+        {/* Header */}
         <header className="tbHeader">
           <div className="tbHeaderLeft">
             <Link href="/service" className="tbBackLink">
-              <ArrowLeft size={16} /> กลับหน้ารวมบริการ
+              <ArrowLeft size={16} strokeWidth={1.5} />
+              กลับหน้ารวมบริการ
             </Link>
             <div className="tbTitleRow">
               <h1 className="tbTitle">ระบบติดตามการทำ CXR ในกลุ่มผู้ป่วย TB</h1>
             </div>
             <p className="tbSubtitle">
-              โรงพยาบาลเถิน · ฐานข้อมูล HOSxP & กลุ่มคัดกรองวัณโรค (CXR Screening Tracker)
+              โรงพยาบาลเถิน · ทะเบียนคัดกรองภาพรังสีทรวงอกกลุ่มเสี่ยงและผู้สัมผัสวัณโรค
             </p>
           </div>
 
           <div className="tbHeaderActions">
             <button
+              type="button"
+              onClick={() => setShowHospBreakdown((prev) => !prev)}
+              className={`tbBtn ${showHospBreakdown ? 'tbBtnActive' : ''}`}
+              aria-expanded={showHospBreakdown}
+            >
+              <BarChart3 size={16} strokeWidth={1.5} />
+              <span>ภาพรวมราย รพ.สต.</span>
+              {hospBreakdown.length > 0 && (
+                <span className="tbBtnCount">{hospBreakdown.length}</span>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => fetchData(true)}
-              className="tbActionBtn"
-              disabled={refreshing}
+              className="tbBtn"
+              disabled={refreshing || loading}
               title="รีเฟรชข้อมูล"
             >
-              <RefreshCw size={16} className={refreshing ? 'tbSpin' : ''} />
+              <RefreshCw size={16} strokeWidth={1.5} className={refreshing ? 'tbSpin' : ''} />
               <span>รีเฟรช</span>
             </button>
 
             <button
+              type="button"
               onClick={() => setExportModalOpen(true)}
-              className="tbExportBtn"
-              title="ส่งออกไฟล์ Excel"
+              className="tbBtn tbBtnPrimary"
+              disabled={loading || data.length === 0}
             >
-              <FileSpreadsheet size={16} />
+              <FileSpreadsheet size={16} strokeWidth={1.5} />
               <span>ส่งออก Excel</span>
             </button>
           </div>
         </header>
 
-        {/* KPI Metrics Dashboard */}
-        <section className="tbKpiGrid">
-          <div className="tbKpiCard primary">
-            <div className="tbKpiIconWrapper primary">
-              <Users size={22} />
+        {/* KPI Strip */}
+        <section className="tbKpiGrid" aria-label="สรุปสถานะการคัดกรอง CXR">
+          <button
+            type="button"
+            className={`tbKpiCard ${activeTab === 'all' ? 'tbKpiCardSelected' : ''}`}
+            onClick={() => setActiveTab('all')}
+          >
+            <div className="tbKpiHead">
+              <span className="tbKpiLabel">กลุ่มเป้าหมายทั้งหมด</span>
+              <span className="tbKpiDot" aria-hidden="true" />
             </div>
-            <div className="tbKpiContent">
-              <span className="tbKpiLabel">กลุ่มเป้าหมายคัดกรองทั้งหมด</span>
-              <div className="tbKpiValue">
-                {summary.total.toLocaleString()} <span className="tbKpiUnit">ราย</span>
-              </div>
-              <span className="tbKpiSub">ฐานข้อมูล CID.cid_link_tb</span>
+            <div className="tbKpiValueRow">
+              <span className="tbKpiValue">{summary.total.toLocaleString()}</span>
+              <span className="tbKpiUnit">ราย</span>
             </div>
-          </div>
+            <span className="tbKpiMeta">ครอบคลุม {hospList.length} หน่วยบริการ</span>
+          </button>
 
-          <div className="tbKpiCard success">
-            <div className="tbKpiIconWrapper success">
-              <CheckCircle2 size={22} />
+          <button
+            type="button"
+            className={`tbKpiCard ${activeTab === 'done' ? 'tbKpiCardSelected' : ''}`}
+            onClick={() => setActiveTab('done')}
+          >
+            <div className="tbKpiHead">
+              <span className="tbKpiLabel">ตรวจ CXR แล้ว</span>
+              <span className="tbKpiDot tbKpiDotSuccess" aria-hidden="true" />
             </div>
-            <div className="tbKpiContent">
-              <span className="tbKpiLabel">ตรวจ CXR แล้ว (มีผลบันทึก)</span>
-              <div className="tbKpiValue">
-                {summary.doneCount.toLocaleString()} <span className="tbKpiUnit">ราย</span>
-              </div>
-              <div className="tbProgressBar">
-                <div
-                  className="tbProgressFill"
-                  style={{ width: `${summary.coveragePercentage}%` }}
-                ></div>
-              </div>
-              <span className="tbKpiSub successText">
-                ความครอบคลุม {summary.coveragePercentage}%
+            <div className="tbKpiValueRow">
+              <span className="tbKpiValue tbKpiValueAccent">
+                {summary.doneCount.toLocaleString()}
               </span>
+              <span className="tbKpiUnit">ราย</span>
             </div>
-          </div>
+            <span className="tbKpiMeta">มีผลบันทึกในระบบ HOSxP</span>
+          </button>
 
-          <div className="tbKpiCard warning">
-            <div className="tbKpiIconWrapper warning">
-              <Clock size={22} />
+          <button
+            type="button"
+            className={`tbKpiCard ${activeTab === 'missing' ? 'tbKpiCardSelected' : ''}`}
+            onClick={() => setActiveTab('missing')}
+          >
+            <div className="tbKpiHead">
+              <span className="tbKpiLabel">ยังไม่ได้ตรวจ CXR</span>
+              <span className="tbKpiDot tbKpiDotDanger" aria-hidden="true" />
             </div>
-            <div className="tbKpiContent">
-              <span className="tbKpiLabel">ยังไม่ได้ตรวจ CXR / รอคัดกรอง</span>
-              <div className="tbKpiValue">
-                {summary.missingCount.toLocaleString()} <span className="tbKpiUnit">ราย</span>
-              </div>
-              <span className="tbKpiSub warningText">
-                คงเหลือ {(100 - summary.coveragePercentage).toFixed(1)}% ที่ต้องลงพื้นที่
+            <div className="tbKpiValueRow">
+              <span className="tbKpiValue tbKpiValueDanger">
+                {summary.missingCount.toLocaleString()}
               </span>
+              <span className="tbKpiUnit">ราย</span>
             </div>
+            <span className="tbKpiMeta">คงเหลือ {remainingPercentage}% ที่ต้องติดตาม</span>
+          </button>
+
+          <div className="tbKpiCard">
+            <div className="tbKpiHead">
+              <span className="tbKpiLabel">ความครอบคลุมภาพรวม</span>
+              <span className="tbKpiDot tbKpiDotAccent" aria-hidden="true" />
+            </div>
+            <div className="tbKpiValueRow">
+              <span className="tbKpiValue">{summary.coveragePercentage.toFixed(1)}%</span>
+            </div>
+            <div className="tbProgressTrack" aria-hidden="true">
+              <div
+                className="tbProgressFill"
+                style={{
+                  transform: `scaleX(${Math.min(1, Math.max(0, summary.coveragePercentage / 100))})`,
+                }}
+              />
+            </div>
+            <span className="tbKpiMeta">
+              ตรวจแล้ว {summary.doneCount.toLocaleString()} จาก {summary.total.toLocaleString()} ราย
+            </span>
           </div>
         </section>
 
+        {/* Subdistrict Coverage Breakdown (Expandable) */}
+        {showHospBreakdown && hospBreakdown.length > 0 && (
+          <section className="tbBreakdownCard" aria-label="ความครอบคลุมราย รพ.สต.">
+            <div className="tbBreakdownHeader">
+              <div>
+                <h2 className="tbBreakdownTitle">
+                  ความครอบคลุมแยกตาม รพ.สต. / สถานพยาบาล
+                  <span className="tbBreakdownSub">คลิกหน่วยบริการเพื่อกรองรายชื่อ</span>
+                </h2>
+              </div>
+              <div className="tbBreakdownSortGroup" role="group" aria-label="เรียงลำดับหน่วยบริการ">
+                <button
+                  type="button"
+                  className={`tbMiniTab ${hospSortMode === 'missing' ? 'tbMiniTabActive' : ''}`}
+                  onClick={() => setHospSortMode('missing')}
+                >
+                  รอตรวจมากสุด
+                </button>
+                <button
+                  type="button"
+                  className={`tbMiniTab ${hospSortMode === 'rate' ? 'tbMiniTabActive' : ''}`}
+                  onClick={() => setHospSortMode('rate')}
+                >
+                  ความครอบคลุมน้อยสุด
+                </button>
+                <button
+                  type="button"
+                  className={`tbMiniTab ${hospSortMode === 'name' ? 'tbMiniTabActive' : ''}`}
+                  onClick={() => setHospSortMode('name')}
+                >
+                  เรียง ก-ฮ
+                </button>
+              </div>
+            </div>
+
+            <div className="tbHospGrid">
+              {hospBreakdown.map((item) => {
+                const isSelected = selectedHosp === item.name
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    className={`tbHospItem ${isSelected ? 'tbHospItemActive' : ''}`}
+                    onClick={() => setSelectedHosp(isSelected ? '' : item.name)}
+                  >
+                    <div className="tbHospItemTop">
+                      <span className="tbHospItemName" title={item.name}>
+                        {item.name}
+                      </span>
+                      <span className="tbHospItemRate">{item.coverageRate.toFixed(1)}%</span>
+                    </div>
+                    <div className="tbProgressTrack" aria-hidden="true">
+                      <div
+                        className="tbProgressFill"
+                        style={{
+                          transform: `scaleX(${Math.min(1, Math.max(0, item.coverageRate / 100))})`,
+                        }}
+                      />
+                    </div>
+                    <div className="tbHospItemMeta">
+                      <span>
+                        ตรวจแล้ว {item.done.toLocaleString()} / {item.total.toLocaleString()}
+                      </span>
+                      <span className={item.missing > 0 ? 'tbHospMissingText' : ''}>
+                        รอตรวจ {item.missing.toLocaleString()}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Filter & Control Bar */}
-        <section className="tbControlPanel">
-          {/* Segmented Tab Switcher */}
-          <div className="tbTabGroup">
-            <button
-              className={`tbTabBtn ${activeTab === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveTab('all')}
-            >
-              ทั้งหมด
-              <span className="tbTabBadge">{summary.total.toLocaleString()}</span>
-            </button>
-            <button
-              className={`tbTabBtn done ${activeTab === 'done' ? 'active' : ''}`}
-              onClick={() => setActiveTab('done')}
-            >
-              <CheckCircle2 size={15} />
-              ตรวจ CXR แล้ว
-              <span className="tbTabBadge done">{summary.doneCount.toLocaleString()}</span>
-            </button>
-            <button
-              className={`tbTabBtn missing ${activeTab === 'missing' ? 'active' : ''}`}
-              onClick={() => setActiveTab('missing')}
-            >
-              <AlertCircle size={15} />
-              ยังไม่ได้ตรวจ
-              <span className="tbTabBadge missing">{summary.missingCount.toLocaleString()}</span>
-            </button>
+        <section className="tbControlPanel" aria-label="ตัวกรองและการค้นหา">
+          <div className="tbControlTopRow">
+            <div className="tbTabGroup" role="tablist" aria-label="สถานะการตรวจ CXR">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'all'}
+                className={`tbTabBtn ${activeTab === 'all' ? 'tbTabBtnActive' : ''}`}
+                onClick={() => setActiveTab('all')}
+              >
+                ทั้งหมด
+                <span className="tbTabCount">{summary.total.toLocaleString()}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'done'}
+                className={`tbTabBtn ${activeTab === 'done' ? 'tbTabBtnActive' : ''}`}
+                onClick={() => setActiveTab('done')}
+              >
+                ตรวจ CXR แล้ว
+                <span className="tbTabCount tbTabCountDone">
+                  {summary.doneCount.toLocaleString()}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'missing'}
+                className={`tbTabBtn ${activeTab === 'missing' ? 'tbTabBtnActive' : ''}`}
+                onClick={() => setActiveTab('missing')}
+              >
+                ยังไม่ได้ตรวจ
+                <span className="tbTabCount tbTabCountMissing">
+                  {summary.missingCount.toLocaleString()}
+                </span>
+              </button>
+            </div>
+
+            <div className="tbControlStatusRight">
+              {lastFetched && (
+                <span>อัปเดตล่าสุด {lastFetched.toLocaleTimeString('th-TH')} น.</span>
+              )}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="tbBtn tbBtnSm"
+                  onClick={resetAllFilters}
+                >
+                  ล้างตัวกรอง
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Search & Hospital Dropdown */}
           <div className="tbFilterRow">
-            <div className="tbSearchBox">
-              <Search size={16} className="tbSearchIcon" />
+            <div className="tbFieldWrap">
+              <Search size={16} strokeWidth={1.5} className="tbFieldIcon" aria-hidden="true" />
               <input
                 type="text"
-                placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล หรือที่อยู่..."
+                aria-label="ค้นหารายชื่อผู้ป่วย"
+                placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล หรือที่อยู่"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="tbSearchInput"
+                className="tbInput"
               />
               {searchTerm && (
-                <button className="tbSearchClear" onClick={() => setSearchTerm('')}>
-                  <X size={14} />
+                <button
+                  type="button"
+                  className="tbClearBtn"
+                  onClick={() => setSearchTerm('')}
+                  aria-label="ล้างคำค้นหา"
+                >
+                  <X size={16} strokeWidth={1.5} />
                 </button>
               )}
             </div>
 
-            <div className="tbSelectWrapper">
-              <Building2 size={16} className="tbSelectIcon" />
+            <div className="tbFieldWrap">
+              <Building2 size={16} strokeWidth={1.5} className="tbFieldIcon" aria-hidden="true" />
               <select
+                aria-label="เลือก รพ.สต. หรือสถานพยาบาล"
                 value={selectedHosp}
                 onChange={(e) => setSelectedHosp(e.target.value)}
                 className="tbSelect"
@@ -492,311 +536,614 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                 <option value="">ทุก รพ.สต. / สถานพยาบาล ({hospList.length} แห่ง)</option>
                 {hospList.map((hosp) => (
                   <option key={hosp} value={hosp}>
-                    {hosp} ({summary.statusBreakdown[hosp] || 0} ราย)
+                    {hosp} ({(summary.statusBreakdown[hosp] || 0).toLocaleString()} ราย)
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="tbFieldWrap">
+              <select
+                aria-label="เรียงลำดับรายชื่อ"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="tbSelect tbSelectPlain"
+              >
+                <option value="default">เรียงตาม: ค่าเริ่มต้น</option>
+                <option value="missing_first">ยังไม่ได้ตรวจขึ้นก่อน</option>
+                <option value="cxr_recent">วันที่ตรวจ CXR ล่าสุด</option>
+                <option value="name_asc">ชื่อ ก - ฮ</option>
+                <option value="age_desc">อายุมากไปน้อย</option>
               </select>
             </div>
           </div>
         </section>
 
-        {/* Results Info & Count */}
-        <div className="tbMetaBar">
-          <span className="tbResultCount">
-            พบข้อมูลตามเงื่อนไข <strong>{filteredData.length.toLocaleString()}</strong> ราย
-            {selectedHosp && <span className="tbFilterPill">รพ.สต.: {selectedHosp}</span>}
-            {searchTerm && <span className="tbFilterPill">ค้นหา: &quot;{searchTerm}&quot;</span>}
-          </span>
-          {lastFetched && (
-            <span className="tbTimestamp">
-              อัปเดตล่าสุด: {lastFetched.toLocaleTimeString('th-TH')} น.
-            </span>
+        {/* Table & Mobile Cards */}
+        <section className="tbTableCard" aria-label="ทะเบียนรายชื่อคัดกรอง CXR">
+          {!loading && !fetchError && (
+            <div className="tbTableMeta">
+              <div className="tbTableMetaLeft">
+                <span>
+                  พบข้อมูล <strong>{filteredData.length.toLocaleString()}</strong> รายการ
+                </span>
+                {selectedHosp && (
+                  <span className="tbFilterPill">รพ.สต.: {selectedHosp}</span>
+                )}
+                {searchTerm.trim() && (
+                  <span className="tbFilterPill">ค้นหา: &quot;{searchTerm.trim()}&quot;</span>
+                )}
+              </div>
+              <div className="tbPageSizeWrap">
+                <label htmlFor="tb-page-size">แสดงหน้าละ</label>
+                <select
+                  id="tb-page-size"
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="tbPageSizeSelect"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
           )}
-        </div>
 
-        {/* Table View */}
-        <section className="tbTableCard">
           {loading ? (
-            <div className="tbLoadingState">
-              <RefreshCw size={32} className="tbSpin" />
-              <p>กำลังเชื่อมต่อ API Gateway และโหลดข้อมูลเวชระเบียน...</p>
+            <div className="tbStateBox">
+              <RefreshCw size={24} strokeWidth={1.5} className="tbSpin tbStateIcon" />
+              <p className="tbStateDesc">กำลังโหลดข้อมูลการติดตามคัดกรอง CXR…</p>
             </div>
           ) : fetchError ? (
-            <div className="tbEmptyState">
-              <AlertCircle size={40} style={{ color: '#ef4444' }} />
-              <h3>เกิดข้อผิดพลาดในการโหลดข้อมูล</h3>
-              <p>{fetchError}</p>
+            <div className="tbStateBox">
+              <AlertCircle size={24} strokeWidth={1.5} className="tbStateIconDanger" />
+              <h2 className="tbStateTitle">ไม่สามารถโหลดข้อมูลได้</h2>
+              <p className="tbStateDesc">{fetchError}</p>
               <button
-                className="tbResetBtn"
+                type="button"
+                className="tbBtn tbBtnPrimary"
                 onClick={() => fetchData(true)}
               >
                 ลองใหม่อีกครั้ง
               </button>
             </div>
           ) : paginatedRows.length === 0 ? (
-            <div className="tbEmptyState">
-              <AlertCircle size={40} />
-              <h3>ไม่พบข้อมูลที่ตรงกับเงื่อนไข</h3>
-              <p>ลองเปลี่ยนคำค้นหา หรือรีเซ็ตตัวกรอง รพ.สต.</p>
+            <div className="tbStateBox">
+              <AlertCircle size={24} strokeWidth={1.5} className="tbStateIcon" />
+              <h2 className="tbStateTitle">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</h2>
+              <p className="tbStateDesc">ลองเปลี่ยนคำค้นหา หรือล้างตัวกรองเพื่อดูข้อมูลทั้งหมด</p>
               <button
-                className="tbResetBtn"
-                onClick={() => {
-                  setSelectedHosp('')
-                  setSearchTerm('')
-                  setActiveTab('all')
-                }}
+                type="button"
+                className="tbBtn tbBtnPrimary"
+                onClick={resetAllFilters}
               >
                 ล้างตัวกรองทั้งหมด
               </button>
             </div>
           ) : (
-            <div className="tbTableResponsive">
-              <table className="tbTable">
-                <thead>
-                  <tr>
-                    <th style={{ width: '56px', textAlign: 'center' }}>ลำดับ</th>
-                    <th style={{ width: '100px', textAlign: 'center' }}>HN</th>
-                    <th style={{ width: '180px' }}>ชื่อ - สกุล</th>
-                    <th style={{ width: '160px', textAlign: 'center' }}>เลขบัตรประชาชน</th>
-                    <th style={{ width: '110px', textAlign: 'center' }}>เพศ/อายุ</th>
-                    <th style={{ width: '130px', textAlign: 'center' }}>สถานะ CXR</th>
-                    <th style={{ width: '230px', textAlign: 'center' }}>วันที่ตรวจ CXR</th>
-                    <th style={{ width: '170px' }}>รพ.สต. ที่รับผิดชอบ</th>
-                    <th>ที่อยู่</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedRows.map((row, idx) => {
-                    const rowNumber = (currentPage - 1) * pageSize + idx + 1
-                    const isDone = row.cxr_status === 'DONE'
-                    const rowKey = `${row.id || row.hn || idx}`
-                    const isCopied = copiedKey === rowKey
-                    return (
-                      <tr key={row.id || `${row.hn}-${idx}`} className={isDone ? 'rowDone' : 'rowMissing'}>
-                        <td className="tbCellCenter tbColMuted">
-                          {rowNumber}
-                        </td>
-                        <td className="tbCellCenter tbColHn">
-                          <code>{row.hn || '-'}</code>
-                        </td>
-                        <td className="tbCellLeft tbColName">
-                          <span className="tbPatientName">
-                            {row.title || ''}{row.fname || '-'} {row.lname || ''}
-                          </span>
-                        </td>
-                        <td className="tbCellCenter tbColCid">
-                          <code>{row.cid || '-'}</code>
-                        </td>
-                        <td className="tbCellCenter">
-                          <div className="tbMetaInline">
-                            <span className={`tbGenderBadge ${row.gender === 'M' ? 'male' : row.gender === 'F' ? 'female' : ''}`}>
-                              {row.gender === 'M' ? 'ช' : row.gender === 'F' ? 'ญ' : '-'}
+            <>
+              {/* Desktop Table */}
+              <div className="tbTableScroll">
+                <table className="tbTable">
+                  <thead>
+                    <tr>
+                      <th className="tbColNum">ลำดับ</th>
+                      <th>HN</th>
+                      <th>ชื่อ - สกุล</th>
+                      <th>เลขบัตรประชาชน</th>
+                      <th>เพศ / อายุ</th>
+                      <th>สถานะ CXR</th>
+                      <th>วันที่ตรวจ CXR</th>
+                      <th>รพ.สต. รับผิดชอบ</th>
+                      <th>ที่อยู่</th>
+                      <th aria-label="ดูรายละเอียด" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedRows.map((row, idx) => {
+                      const rowNumber = (currentPage - 1) * pageSize + idx + 1
+                      const isDone = row.cxr_status === 'DONE'
+                      const rowKey = `${row.id || row.hn || idx}`
+                      const hnCopied = copiedKey === `hn-${rowKey}`
+                      const cidCopied = copiedKey === `cid-${rowKey}`
+                      const fullName = formatPatientFullName(row)
+
+                      return (
+                        <tr
+                          key={row.id || `${row.hn}-${idx}`}
+                          className="tbTableRow"
+                          tabIndex={0}
+                          onClick={() => setSelectedRecord(row)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setSelectedRecord(row)
+                            }
+                          }}
+                        >
+                          <td className="tbColNum">{rowNumber.toLocaleString()}</td>
+                          <td>
+                            <div className="tbIdCell">
+                              <span className="tbMono">{row.hn || '-'}</span>
+                              {row.hn && (
+                                <button
+                                  type="button"
+                                  className={`tbCopyMini ${hnCopied ? 'tbCopyMiniCopied' : ''}`}
+                                  aria-label={`คัดลอก HN ${row.hn}`}
+                                  title="คัดลอก HN"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCopyText(`hn-${rowKey}`, row.hn!)
+                                  }}
+                                >
+                                  {hnCopied ? (
+                                    <Check size={14} strokeWidth={1.5} />
+                                  ) : (
+                                    <Copy size={14} strokeWidth={1.5} />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="tbPatientName">{fullName}</div>
+                            {row.risk_type && (
+                              <div className="tbSubMeta">{row.risk_type}</div>
+                            )}
+                          </td>
+                          <td>
+                            <div className="tbIdCell">
+                              <span className="tbMono">{row.cid || '-'}</span>
+                              {row.cid && (
+                                <button
+                                  type="button"
+                                  className={`tbCopyMini ${cidCopied ? 'tbCopyMiniCopied' : ''}`}
+                                  aria-label={`คัดลอกเลขบัตรประชาชน ${row.cid}`}
+                                  title="คัดลอกเลขบัตรประชาชน"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCopyText(`cid-${rowKey}`, row.cid!)
+                                  }}
+                                >
+                                  {cidCopied ? (
+                                    <Check size={14} strokeWidth={1.5} />
+                                  ) : (
+                                    <Copy size={14} strokeWidth={1.5} />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <span>{formatGenderLabel(row.gender)}</span>
+                            <span className="tbMutedText"> · </span>
+                            <span className="tbDateText">
+                              {row.age !== null && row.age !== undefined ? `${row.age} ปี` : '-'}
                             </span>
-                            <span className="tbAgeText">{row.age ? `${row.age} ปี` : '-'}</span>
-                          </div>
-                        </td>
-                        <td className="tbCellCenter">
-                          <span className={`tbStatusBadge ${isDone ? 'done' : 'missing'}`}>
-                            {isDone ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-                            {isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ'}
-                          </span>
-                        </td>
-                        <td className="tbCellCenter tbColDate">
-                          {isDone && row.cxr_date ? (
-                            <div className="tbDateInline">
-                              <span className="tbDatePill">
+                          </td>
+                          <td>
+                            <span
+                              className={`tbStatusPill ${isDone ? 'tbStatusPillDone' : 'tbStatusPillMissing'}`}
+                            >
+                              <span className="tbStatusDot" aria-hidden="true" />
+                              {isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ'}
+                            </span>
+                          </td>
+                          <td>
+                            {isDone && row.cxr_date ? (
+                              <span className="tbDateText">
                                 {formatThaiDateString(row.cxr_date)}
                               </span>
-                              <button
-                                type="button"
-                                className={`tbDateRawBtn ${isCopied ? 'copied' : ''}`}
-                                title="คลิกเพื่อคัดลอกค่า cxr_date (YYYYMMDD)"
-                                onClick={() => handleCopyCode(rowKey, row.cxr_date!)}
-                              >
-                                {isCopied ? (
-                                  <>
-                                    <Check size={11} /> คัดลอกแล้ว
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy size={10} /> {row.cxr_date}
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="tbDateInline">
-                              <span className="tbMutedDash">-</span>
-                              <code className="tbDateRawMissing" title="ยังไม่มีค่า cxr_date">
-                                NULL
-                              </code>
-                            </div>
+                            ) : (
+                              <span className="tbMutedText">-</span>
+                            )}
+                          </td>
+                          <td>{row.status || '-'}</td>
+                          <td className="tbColHome" title={row.home || ''}>
+                            {row.home || '-'}
+                          </td>
+                          <td>
+                            <ChevronRight
+                              size={16}
+                              strokeWidth={1.5}
+                              className="tbRowChevron"
+                              aria-hidden="true"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Stacked Cards */}
+              <div className="tbMobileList">
+                {paginatedRows.map((row, idx) => {
+                  const isDone = row.cxr_status === 'DONE'
+                  const fullName = formatPatientFullName(row)
+                  return (
+                    <button
+                      key={row.id || `${row.hn}-${idx}`}
+                      type="button"
+                      className="tbMobileCard"
+                      onClick={() => setSelectedRecord(row)}
+                    >
+                      <div className="tbMobileCardTop">
+                        <div>
+                          <div className="tbPatientName">{fullName}</div>
+                          {row.risk_type && (
+                            <div className="tbSubMeta">{row.risk_type}</div>
                           )}
-                        </td>
-                        <td className="tbCellLeft tbColHosp">
-                          <span className="tbHospTag">{row.status || '-'}</span>
-                        </td>
-                        <td className="tbCellLeft tbColHome" title={row.home || ''}>
-                          {row.home || '-'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        </div>
+                        <span
+                          className={`tbStatusPill ${isDone ? 'tbStatusPillDone' : 'tbStatusPillMissing'}`}
+                        >
+                          <span className="tbStatusDot" aria-hidden="true" />
+                          {isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ'}
+                        </span>
+                      </div>
 
-          {/* Pagination Bar */}
-          {!loading && filteredData.length > 0 && (
-            <div className="tbPagination">
-              <span className="tbPaginationInfo">
-                แสดงแถวที่ {(currentPage - 1) * pageSize + 1} -{' '}
-                {Math.min(currentPage * pageSize, filteredData.length)} จากทั้งหมด{' '}
-                {filteredData.length.toLocaleString()} รายการ
-              </span>
+                      <div className="tbMobileMetaRow">
+                        <span className="tbMono">HN {row.hn || '-'}</span>
+                        <span>
+                          {formatGenderLabel(row.gender)} ·{' '}
+                          {row.age !== null && row.age !== undefined ? `${row.age} ปี` : '-'}
+                        </span>
+                        {isDone && row.cxr_date && (
+                          <span>CXR {formatThaiDateString(row.cxr_date)}</span>
+                        )}
+                      </div>
 
-              <div className="tbPaginationControls">
-                <button
-                  className="tbPageBtn"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(1)}
-                  title="หน้าแรก"
-                >
-                  «
-                </button>
-                <button
-                  className="tbPageBtn"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  title="หน้าก่อนหน้า"
-                >
-                  <ChevronLeft size={16} />
-                </button>
+                      <div className="tbMobileFooter">
+                        <span>{row.status || '-'}</span>
+                        <ChevronRight size={16} strokeWidth={1.5} aria-hidden="true" />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
 
-                <span className="tbPageCurrent">
-                  หน้า {currentPage} / {totalPages}
+              {/* Pagination */}
+              <div className="tbPagination">
+                <span>
+                  แสดงแถวที่ {((currentPage - 1) * pageSize + 1).toLocaleString()}–
+                  {Math.min(currentPage * pageSize, filteredData.length).toLocaleString()} จาก{' '}
+                  {filteredData.length.toLocaleString()} รายการ
                 </span>
 
-                <button
-                  className="tbPageBtn"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  title="หน้าถัดไป"
-                >
-                  <ChevronRight size={16} />
-                </button>
-                <button
-                  className="tbPageBtn"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(totalPages)}
-                  title="หน้าสุดท้าย"
-                >
-                  »
-                </button>
+                <div className="tbPaginationControls">
+                  <button
+                    type="button"
+                    className="tbPageBtn"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(1)}
+                    aria-label="หน้าแรก"
+                    title="หน้าแรก"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    className="tbPageBtn"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    aria-label="หน้าก่อนหน้า"
+                    title="หน้าก่อนหน้า"
+                  >
+                    <ChevronLeft size={16} strokeWidth={1.5} />
+                  </button>
+
+                  <span className="tbPageCurrent">
+                    หน้า {currentPage.toLocaleString()} / {totalPages.toLocaleString()}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="tbPageBtn"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    aria-label="หน้าถัดไป"
+                    title="หน้าถัดไป"
+                  >
+                    <ChevronRight size={16} strokeWidth={1.5} />
+                  </button>
+                  <button
+                    type="button"
+                    className="tbPageBtn"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                    aria-label="หน้าสุดท้าย"
+                    title="หน้าสุดท้าย"
+                  >
+                    »
+                  </button>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </section>
       </div>
 
-      {/* Export Options Modal */}
-      {exportModalOpen && (
-        <div className="tbModalOverlay" onClick={() => !isExporting && setExportModalOpen(false)}>
-          <div className="tbModalCard" onClick={(e) => e.stopPropagation()}>
-            <div className="tbModalHeader">
-              <div className="tbModalIcon">
-                <FileSpreadsheet size={24} />
-              </div>
+      {/* Patient Detail Slide-Over Drawer */}
+      {selectedRecord && (
+        <div
+          className="tbBackdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tb-drawer-title"
+          onClick={() => setSelectedRecord(null)}
+        >
+          <div className="tbDrawer" onClick={(e) => e.stopPropagation()}>
+            <div className="tbDrawerHeader">
               <div>
-                <h3 className="tbModalTitle">ส่งออกข้อมูลเป็นไฟล์ Excel (.xlsx)</h3>
-                <p className="tbModalSubtitle">
-                  เลือกประเภทชุดข้อมูลที่ต้องการส่งออกสำหรับนำไปติดตามในพื้นที่
+                <span
+                  className={`tbStatusPill ${
+                    selectedRecord.cxr_status === 'DONE'
+                      ? 'tbStatusPillDone'
+                      : 'tbStatusPillMissing'
+                  }`}
+                >
+                  <span className="tbStatusDot" aria-hidden="true" />
+                  {selectedRecord.cxr_status === 'DONE' ? 'ตรวจ CXR แล้ว' : 'ยังไม่ได้ตรวจ CXR'}
+                </span>
+                <h2 id="tb-drawer-title" className="tbDrawerTitle">
+                  {formatPatientFullName(selectedRecord)}
+                </h2>
+                <p className="tbDrawerSub">
+                  {selectedRecord.status || 'ไม่ระบุหน่วยบริการ'}
+                  {selectedRecord.risk_type ? ` · ${selectedRecord.risk_type}` : ''}
                 </p>
               </div>
               <button
-                className="tbModalClose"
+                type="button"
+                className="tbIconCloseBtn"
+                onClick={() => setSelectedRecord(null)}
+                aria-label="ปิดรายละเอียดผู้ป่วย"
+              >
+                <X size={18} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <div className="tbDrawerBody">
+              {/* Quick Copy Strip */}
+              <div className="tbCopyStrip">
+                {selectedRecord.hn && (
+                  <button
+                    type="button"
+                    className={`tbCopyChip ${
+                      copiedKey === 'drawer-hn' ? 'tbCopyChipCopied' : ''
+                    }`}
+                    onClick={() => handleCopyText('drawer-hn', selectedRecord.hn!)}
+                  >
+                    {copiedKey === 'drawer-hn' ? (
+                      <Check size={14} strokeWidth={1.5} />
+                    ) : (
+                      <Copy size={14} strokeWidth={1.5} />
+                    )}
+                    <span className="tbMono">HN {selectedRecord.hn}</span>
+                  </button>
+                )}
+                {selectedRecord.cid && (
+                  <button
+                    type="button"
+                    className={`tbCopyChip ${
+                      copiedKey === 'drawer-cid' ? 'tbCopyChipCopied' : ''
+                    }`}
+                    onClick={() => handleCopyText('drawer-cid', selectedRecord.cid!)}
+                  >
+                    {copiedKey === 'drawer-cid' ? (
+                      <Check size={14} strokeWidth={1.5} />
+                    ) : (
+                      <Copy size={14} strokeWidth={1.5} />
+                    )}
+                    <span className="tbMono">{selectedRecord.cid}</span>
+                  </button>
+                )}
+                {selectedRecord.cxr_date && (
+                  <button
+                    type="button"
+                    className={`tbCopyChip ${
+                      copiedKey === 'drawer-cxr' ? 'tbCopyChipCopied' : ''
+                    }`}
+                    onClick={() => handleCopyText('drawer-cxr', selectedRecord.cxr_date!)}
+                  >
+                    {copiedKey === 'drawer-cxr' ? (
+                      <Check size={14} strokeWidth={1.5} />
+                    ) : (
+                      <Copy size={14} strokeWidth={1.5} />
+                    )}
+                    <span className="tbMono">CXR {selectedRecord.cxr_date}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Demographics */}
+              <div className="tbDetailSection">
+                <h3 className="tbDetailHeading">ข้อมูลผู้ป่วยและที่อยู่</h3>
+                <dl className="tbDetailList">
+                  <dt>เพศ / อายุ</dt>
+                  <dd>
+                    {formatGenderLabel(selectedRecord.gender)} ·{' '}
+                    {selectedRecord.age !== null && selectedRecord.age !== undefined
+                      ? `${selectedRecord.age} ปี`
+                      : '-'}
+                  </dd>
+                  <dt>วันเกิด</dt>
+                  <dd>{formatThaiDateString(selectedRecord.born)}</dd>
+                  <dt>สิทธิการรักษา</dt>
+                  <dd>{selectedRecord.inccl_id || '-'}</dd>
+                  <dt>หน่วยบริการ</dt>
+                  <dd>{selectedRecord.status || '-'}</dd>
+                  <dt>ที่อยู่</dt>
+                  <dd>{selectedRecord.home || '-'}</dd>
+                </dl>
+              </div>
+
+              {/* Screening & CXR */}
+              <div className="tbDetailSection">
+                <h3 className="tbDetailHeading">การคัดกรองและผล CXR</h3>
+                <dl className="tbDetailList">
+                  <dt>กลุ่มเสี่ยง</dt>
+                  <dd>{selectedRecord.risk_type || '-'}</dd>
+                  <dt>วันที่คัดกรอง/สัมผัส</dt>
+                  <dd>{formatThaiDateString(selectedRecord.contact_date)}</dd>
+                  <dt>คัดกรองอาการ</dt>
+                  <dd>{selectedRecord.symptom_screen || '-'}</dd>
+                  <dt>วันที่ตรวจ CXR</dt>
+                  <dd>
+                    {selectedRecord.cxr_status === 'DONE' && selectedRecord.cxr_date
+                      ? formatThaiDateString(selectedRecord.cxr_date)
+                      : 'ยังไม่ได้ตรวจ'}
+                  </dd>
+                  <dt>ผลตรวจ CXR</dt>
+                  <dd>{selectedRecord.cxr_result || '-'}</dd>
+                  {selectedRecord.cxr_abnormal_result && (
+                    <>
+                      <dt>ผลผิดปกติ</dt>
+                      <dd>{selectedRecord.cxr_abnormal_result}</dd>
+                    </>
+                  )}
+                </dl>
+              </div>
+
+              {/* Additional Clinical */}
+              {(selectedRecord.dx ||
+                selectedRecord.icd10 ||
+                selectedRecord.hba1c ||
+                selectedRecord.note) && (
+                <div className="tbDetailSection">
+                  <h3 className="tbDetailHeading">ข้อมูลทางคลินิกเพิ่มเติม</h3>
+                  <dl className="tbDetailList">
+                    {selectedRecord.icd10 && (
+                      <>
+                        <dt>ICD-10</dt>
+                        <dd className="tbMono">{selectedRecord.icd10}</dd>
+                      </>
+                    )}
+                    {selectedRecord.dx && (
+                      <>
+                        <dt>การวินิจฉัย</dt>
+                        <dd>{selectedRecord.dx}</dd>
+                      </>
+                    )}
+                    {selectedRecord.hba1c && (
+                      <>
+                        <dt>HbA1c</dt>
+                        <dd>{selectedRecord.hba1c}</dd>
+                      </>
+                    )}
+                    {selectedRecord.note && (
+                      <>
+                        <dt>หมายเหตุ</dt>
+                        <dd>{selectedRecord.note}</dd>
+                      </>
+                    )}
+                  </dl>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Options Modal */}
+      {exportModalOpen && (
+        <div
+          className="tbBackdrop tbBackdropCenter"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tb-export-title"
+          onClick={() => !isExporting && setExportModalOpen(false)}
+        >
+          <div className="tbModalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="tbModalHeader">
+              <div>
+                <h2 id="tb-export-title" className="tbModalTitle">
+                  ส่งออกข้อมูลเป็นไฟล์ Excel (.xlsx)
+                </h2>
+                <p className="tbModalSubtitle">
+                  เลือกชุดข้อมูลที่ต้องการนำไปใช้ติดตามการคัดกรองในพื้นที่
+                </p>
+              </div>
+              <button
+                type="button"
+                className="tbIconCloseBtn"
                 disabled={isExporting}
                 onClick={() => setExportModalOpen(false)}
+                aria-label="ปิดหน้าต่างส่งออก"
               >
-                <X size={18} />
+                <X size={18} strokeWidth={1.5} />
               </button>
             </div>
 
             <div className="tbModalBody">
               <button
+                type="button"
                 className="tbExportChoiceBtn"
-                disabled={isExporting}
+                disabled={isExporting || filteredData.length === 0}
                 onClick={() => handleExportExcel('filtered')}
               >
-                <div className="tbChoiceIcon">
-                  <Filter size={18} />
-                </div>
                 <div className="tbChoiceText">
-                  <strong>ส่งออกตามตัวกรองที่เลือกไว้ปัจจุบัน (Filtered View)</strong>
-                  <span>
-                    ส่งออกจำนวน {filteredData.length.toLocaleString()} รายการ (ตามแท็บ & รพ.สต. ที่เลือก)
+                  <span className="tbChoiceTitle">ส่งออกตามตัวกรองที่เลือกไว้ปัจจุบัน</span>
+                  <span className="tbChoiceDesc">
+                    จำนวน {filteredData.length.toLocaleString()} รายการ
                   </span>
                 </div>
-                <Download size={16} className="tbChoiceArrow" />
+                <Download size={16} strokeWidth={1.5} className="tbChoiceIcon" />
               </button>
 
               <button
-                className="tbExportChoiceBtn warningChoice"
-                disabled={isExporting}
+                type="button"
+                className="tbExportChoiceBtn"
+                disabled={isExporting || summary.missingCount === 0}
                 onClick={() => handleExportExcel('missing')}
               >
-                <div className="tbChoiceIcon warning">
-                  <AlertCircle size={18} />
-                </div>
                 <div className="tbChoiceText">
-                  <strong>ส่งออกเฉพาะกลุ่มที่ &quot;ยังไม่ได้ตรวจ CXR&quot; (Missing)</strong>
-                  <span>
-                    ส่งออกทั้งหมด {summary.missingCount.toLocaleString()} ราย เพื่อนำไปใช้วางแผนติดตามคัดกรอง
+                  <span className="tbChoiceTitle">ส่งออกเฉพาะกลุ่มที่ยังไม่ได้ตรวจ CXR</span>
+                  <span className="tbChoiceDesc">
+                    จำนวน {summary.missingCount.toLocaleString()} รายการ สำหรับวางแผนลงพื้นที่
                   </span>
                 </div>
-                <Download size={16} className="tbChoiceArrow" />
+                <Download size={16} strokeWidth={1.5} className="tbChoiceIcon" />
               </button>
 
               <button
-                className="tbExportChoiceBtn successChoice"
-                disabled={isExporting}
+                type="button"
+                className="tbExportChoiceBtn"
+                disabled={isExporting || summary.doneCount === 0}
                 onClick={() => handleExportExcel('done')}
               >
-                <div className="tbChoiceIcon success">
-                  <CheckCircle2 size={18} />
-                </div>
                 <div className="tbChoiceText">
-                  <strong>ส่งออกเฉพาะกลุ่มที่ &quot;ตรวจ CXR แล้ว&quot; (Done)</strong>
-                  <span>
-                    ส่งออกจำนวน {summary.doneCount.toLocaleString()} ราย ที่มีผลบันทึกเรียบร้อยแล้ว
+                  <span className="tbChoiceTitle">ส่งออกเฉพาะกลุ่มที่ตรวจ CXR แล้ว</span>
+                  <span className="tbChoiceDesc">
+                    จำนวน {summary.doneCount.toLocaleString()} รายการ ที่มีผลบันทึกแล้ว
                   </span>
                 </div>
-                <Download size={16} className="tbChoiceArrow" />
+                <Download size={16} strokeWidth={1.5} className="tbChoiceIcon" />
               </button>
 
               <button
-                className="tbExportChoiceBtn allChoice"
-                disabled={isExporting}
+                type="button"
+                className="tbExportChoiceBtn"
+                disabled={isExporting || summary.total === 0}
                 onClick={() => handleExportExcel('all')}
               >
-                <div className="tbChoiceIcon primary">
-                  <Users size={18} />
-                </div>
                 <div className="tbChoiceText">
-                  <strong>ส่งออกกลุ่มเป้าหมายทั้งหมด (All Targets)</strong>
-                  <span>
-                    ส่งออกครบถ้วนทุกกลุ่ม {summary.total.toLocaleString()} รายการ
+                  <span className="tbChoiceTitle">ส่งออกกลุ่มเป้าหมายทั้งหมด</span>
+                  <span className="tbChoiceDesc">
+                    ครบถ้วนทุกกลุ่ม {summary.total.toLocaleString()} รายการ
                   </span>
                 </div>
-                <Download size={16} className="tbChoiceArrow" />
+                <Download size={16} strokeWidth={1.5} className="tbChoiceIcon" />
               </button>
             </div>
 
             {isExporting && (
               <div className="tbExportLoading">
-                <RefreshCw size={18} className="tbSpin" />
-                <span>กำลังสร้างไฟล์ Excel พร้อมจัดรูปแบบตาราง...</span>
+                <RefreshCw size={16} strokeWidth={1.5} className="tbSpin" />
+                <span>กำลังสร้างไฟล์ Excel…</span>
               </div>
             )}
           </div>
