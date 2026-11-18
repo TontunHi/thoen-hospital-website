@@ -803,9 +803,57 @@ function mapSeamlessHeaderRow(
 
 /**
  * Check whether a worksheet contains Seamless INDIVIDUAL claim data
+ * based on structural headers (requiring TransID/ID or excluding Summary/Detail/DenyCode tables)
  */
 function isIndividualSheet(sheet: ExcelJS.Worksheet): boolean {
   const sheetNameUpper = (sheet.name || '').toUpperCase()
+  if (
+    sheetNameUpper.includes('SUMMARY') ||
+    sheetNameUpper.includes('DENY CODE') ||
+    sheetNameUpper.includes('DENY_CODE') ||
+    sheetNameUpper === 'DETAIL'
+  ) {
+    return false
+  }
+
+  let hasSummaryColumns = false
+  let hasDetailOrDenyColumns = false
+  let hasStructuredHeaderWithoutId = false
+
+  for (let r = 1; r <= Math.min(15, sheet.rowCount); r++) {
+    const row = sheet.getRow(r)
+    const tempMap: Record<string, number> = {}
+    const foundKeywords = mapSeamlessHeaderRow(row, tempMap)
+
+    if (tempMap.id && foundKeywords >= 3 && (tempMap.rep || tempMap.pid || tempMap.hn || tempMap.admDate)) {
+      return true
+    }
+
+    let rowText = ''
+    row.eachCell((cell) => {
+      const val = cleanCellString(cell.value)
+      if (val) rowText += ` ${val}`
+    })
+
+    if (rowText.includes('งวด/เลขที่เบิกจ่าย') || rowText.includes('REP Date')) {
+      hasSummaryColumns = true
+    }
+    if (
+      rowText.includes('รวมจำนวนชดเชย') ||
+      rowText.includes('ชดเชยสุทธิ') ||
+      rowText.includes('DENY CODE')
+    ) {
+      hasDetailOrDenyColumns = true
+    }
+    if (foundKeywords >= 4 && !tempMap.id && (tempMap.rep || tempMap.pid)) {
+      hasStructuredHeaderWithoutId = true
+    }
+  }
+
+  if (hasSummaryColumns || hasDetailOrDenyColumns || hasStructuredHeaderWithoutId) {
+    return false
+  }
+
   if (sheetNameUpper.includes('INDIVIDUAL')) return true
 
   for (let r = 1; r <= Math.min(8, sheet.rowCount); r++) {
@@ -988,10 +1036,11 @@ export class RcmSeamlessImportService {
           headerRowIndex = r
           Object.assign(colMap, tempMap)
 
-          // Check next row for 2-row merged subheaders (handles both empty CSV cells and ExcelJS vertically-merged master copies)
-          if (r + 1 <= sheet.rowCount) {
-            const nextRow = sheet.getRow(r + 1)
-            const headerIdText = cleanCellString(colMap.id ? row.getCell(colMap.id).value : '')
+          // Advance across multi-row merged subheaders (2-3 rows in DKTP/NHSO exports; handles both empty CSV cells and ExcelJS merged master copies)
+          const headerIdText = cleanCellString(colMap.id ? row.getCell(colMap.id).value : '')
+          const maxSubHeaderRow = Math.min(sheet.rowCount, r + 4)
+          while (headerRowIndex + 1 <= maxSubHeaderRow) {
+            const nextRow = sheet.getRow(headerRowIndex + 1)
             const nextIdText = cleanCellString(colMap.id ? nextRow.getCell(colMap.id).value : '')
             const nextPidText = cleanCellString(colMap.pid ? nextRow.getCell(colMap.pid).value : '')
             const isIdEmptyOrMergedHeader =
@@ -1004,14 +1053,17 @@ export class RcmSeamlessImportService {
               nextPidText.includes('เลขบัตร') ||
               nextPidText.includes('เลขประจำตัว')
 
-            if (isIdEmptyOrMergedHeader && isPidEmptyOrMergedHeader) {
-              const subMap: Record<string, number> = {}
-              const subKeywords = mapSeamlessHeaderRow(nextRow, subMap)
-              if (subKeywords >= 1) {
-                Object.assign(colMap, subMap)
-                headerRowIndex = r + 1
-              }
+            if (!isIdEmptyOrMergedHeader || !isPidEmptyOrMergedHeader) {
+              break
             }
+
+            const subMap: Record<string, number> = {}
+            const subKeywords = mapSeamlessHeaderRow(nextRow, subMap)
+            if (subKeywords < 1) {
+              break
+            }
+            Object.assign(colMap, subMap)
+            headerRowIndex++
           }
           break
         }
@@ -1080,18 +1132,23 @@ export class RcmSeamlessImportService {
       const equipCodeCol = colMap.equipCode || 0
       const equipNameCol = colMap.equipName || 0
 
-      // Iterate through data rows
+      // Iterate through data rows (stop when footer DENY CODE / column-legend section begins)
+      let stopAtFooterLegend = false
       sheet.eachRow((row, rowNumber) => {
-        if (rowNumber <= headerRowIndex) return
+        if (stopAtFooterLegend || rowNumber <= headerRowIndex) return
 
         const id = cleanCellString(idCol ? row.getCell(idCol).value : '')
         const rep = cleanCellString(repCol ? row.getCell(repCol).value : '')
 
         if (!id && !rep) return
 
-        // Skip any subheader, repeat header, or footer summary rows (FoxPro isdigit(m.id) parity)
+        // Skip any subheader, repeat header, or footer summary/legend rows (FoxPro isdigit(m.id) parity)
         const idLower = id.toLowerCase().replace(/[\s_\-]/g, '')
         const repLower = rep.toLowerCase().replace(/[\s_\-]/g, '')
+        if (repLower === 'denycode' || idLower.includes('คำอธิบายรายละเอียด')) {
+          stopAtFooterLegend = true
+          return
+        }
         if (
           idLower === 'transid' ||
           idLower === 'tranid' ||

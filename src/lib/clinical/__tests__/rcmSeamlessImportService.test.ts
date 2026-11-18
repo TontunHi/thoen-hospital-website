@@ -680,6 +680,84 @@ describe('Seamless ExcelJS unwrapping, helpers, and FoxPro parity', () => {
     expect(result.summaryInfo?.payDate).toBe('2026-02-20')
     expect(result.summaryInfo?.codeAccount).toBe('AC-999')
   })
+
+  it('skips Summary and Detail sheets sharing the same report title, handles 3-row merged Individual headers, and stops at footer DENY CODE legend', async () => {
+    const workbook = new ExcelJS.Workbook()
+
+    // 1. Summary sheet sharing "รายงานสรุปการขอเบิกชดเชยค่าการรักษาผู้ป่วยของหน่วยบริการ"
+    const summarySheet = workbook.addWorksheet('Summary')
+    summarySheet.getCell('B2').value = 'รายงาน :'
+    summarySheet.getCell('C2').value = 'รายงานสรุปการขอเบิกชดเชยค่าการรักษาผู้ป่วยของหน่วยบริการ'
+    summarySheet.getCell('B4').value = 'ชื่อหน่วยบริการ :'
+    summarySheet.getCell('C4').value = 'รพ.เถิน'
+    summarySheet.getRow(6).values = ['เขต', 'จังหวัด', 'รหัสหน่วยบริการ', 'ชื่อหน่วยบริการ', 'งวด/เลขที่เบิกจ่าย', 'REP NO.', 'REP Date']
+    summarySheet.getRow(12).values = ['เขต 1 เชียงใหม่', 'ลำปาง', '11152', 'รพ.เถิน', 'DKTP7002100002', 'DKTP69103100065', '31/10/2026']
+
+    // 2. Detail (person-level summary) sheet sharing the same report title (no Trans ID)
+    const detailSheet = workbook.addWorksheet('Detail')
+    detailSheet.getCell('B2').value = 'รายงาน :'
+    detailSheet.getCell('C2').value = 'รายงานสรุปการขอเบิกชดเชยค่าการรักษาผู้ป่วยของหน่วยบริการ'
+    detailSheet.getRow(6).values = ['REP No.', 'ลำดับที่', 'VCTID,NAPNumber,PID', 'ชื่อ-สกุล', 'HCODE', 'PROV', 'รวมจำนวนชดเชย(บาท)']
+    detailSheet.getRow(9).values = ['DKTP69103100065', 1, '9999900000011', 'สมมติ ทดสอบระบบ', '11152', '5200', 50]
+
+    // 3. Individual sheet with 3-row merged header + trailing DENY CODE legend containing digits
+    const indSheet = workbook.addWorksheet('Individual')
+    indSheet.getCell('B2').value = 'รายงาน :'
+    indSheet.getCell('C2').value = 'รายงานสรุปการขอเบิกชดเชยค่าการรักษาผู้ป่วยของหน่วยบริการ'
+    indSheet.getCell('B4').value = 'ชื่อหน่วยบริการ :'
+    indSheet.getCell('C4').value = 'รพ.เถิน'
+    indSheet.getRow(6).values = [
+      'ลำดับที่', 'REP No.', 'Trans ID', 'HN', 'AN', 'VCTID,NAPNumber,PID', 'ชื่อ-สกุล',
+      'สิทธิการรักษาพยาบาล', 'หน่วยบริการแม่ข่าย (HmainOP)', 'วันที่ส่งข้อมูล', 'วันที่เข้ารักษา/วันที่รับบริการ',
+      'ลำดับที่', 'รายการประเภทที่ขอเบิก', 'เรียกเก็บ', 'เรียกเก็บ', 'เรียกเก็บ', 'เรียกเก็บ',
+      'ล่าช้า (PS)', 'ล่าช้า (PS)', 'ชดเชย', 'ชดเชย', 'ชดเชย', 'ชดเชย', 'สถานะ', 'หมายเหตุ', 'หมายเหตุอื่นๆ (STMID)', 'หน่วยบริการที่ส่งข้อมูล (HSEND)',
+    ]
+    const row7Values = [
+      'ลำดับที่', 'REP No.', 'Trans ID', 'HN', 'AN', 'VCTID,NAPNumber,PID', 'ชื่อ-สกุล',
+      'สิทธิการรักษาพยาบาล', 'หน่วยบริการแม่ข่าย (HmainOP)', 'วันที่ส่งข้อมูล', 'วันที่เข้ารักษา/วันที่รับบริการ',
+      'ลำดับที่', 'รายการประเภทที่ขอเบิก', 'จำนวน', 'ราคาต่อหน่วย', 'ราคาเพดาน', 'รวมเงินที่ขอเบิก',
+      'PS CODE', '%', 'ชดเชย', 'ไม่ชดเชย', 'จ่ายเพิ่ม', 'เรียกคืน', 'สถานะ', 'หมายเหตุ', 'หมายเหตุอื่นๆ (STMID)', 'หน่วยบริการที่ส่งข้อมูล (HSEND)',
+    ]
+    indSheet.getRow(7).values = row7Values
+    indSheet.getRow(8).values = [...row7Values]
+    indSheet.getRow(9).values = [
+      1, 'DKTP69103100065', '691101999001', '', '', '9999900000011', 'สมมติ ทดสอบระบบ',
+      'UCS', '11152', '21/10/2026', '19/10/2026', 1, 'ค่าตรวจ VDRL', 1, 50, 0, 50, 0, '', 50, 0, 0, 0, 'ชดเชย', '', '', '11152',
+    ]
+    indSheet.getRow(14).values = ['', 'DENY CODE', 'คำอธิบายรายละเอียด']
+    indSheet.getRow(15).values = ['', 'KT024', 'อายุเกิน 65 ปี ไม่ตรงเงื่อนไข']
+
+    // 4. DENY CODE sheet
+    const denySheet = workbook.addWorksheet('DENY CODE')
+    denySheet.addRow(['DENY CODE', 'คำอธิบายรายละเอียด'])
+    denySheet.addRow(['D001', 'ไม่ผ่านการตรวจสอบโดย Auditor'])
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer())
+    const mockExecutor = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM rcmdb.nhso_budget')) {
+        return [{ paydate: '2026-11-05', accountcode: 'ACC-DKTP' }] as any
+      }
+      return [] as any
+    })
+
+    const result = await RcmSeamlessImportService.parseWorkbook(buffer, '11152_DKTP69103100065.xlsx.xls', {
+      isDryRun: true,
+      autoEnrichHosp: false,
+      updatePayment: true,
+      executor: mockExecutor,
+    })
+
+    expect(result.errorRows).toBe(0)
+    expect(result.validRows).toBe(1)
+    expect(result.previewRows[0].id).toBe('691101999001')
+    expect(result.previewRows[0].rep).toBe('DKTP69103100065')
+    expect(result.previewRows[0].collected).toBe(50)
+    expect(result.previewRows[0].compensated).toBe(50)
+    expect(result.previewRows[0].payNo).toBe('DKTP7002100002')
+    expect(result.previewRows[0].payDate).toBe('2026-11-05')
+    expect(result.denyCodes).toEqual([{ code: 'D001', name: 'ไม่ผ่านการตรวจสอบโดย Auditor' }])
+    expect(result.processedSheets).toEqual(['Summary', 'DENY CODE', 'Individual'])
+  })
 })
 
 describe('RcmSeamlessImportService ledger, files, deny codes, delete & sync', () => {
