@@ -69,7 +69,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" className={sarabun.variable} data-scroll-behavior="smooth">
+    <html lang="th" className={sarabun.variable} data-theme="light" data-scroll-behavior="smooth">
       <head>
         <script
           dangerouslySetInnerHTML={{

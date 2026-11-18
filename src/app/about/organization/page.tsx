@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import '../../../../opendesigner/build/css/tokens.css'
 import OrganizationPublicClient from './OrganizationPublicClient'
 import './page.css'
 

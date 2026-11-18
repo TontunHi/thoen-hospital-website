@@ -138,14 +138,14 @@ describe('OrganizationPublicClient Component', () => {
     expect(screen.queryByText(/เบอร์โทร/i)).toBeNull()
   })
 
-  it('searches staff by keyword and displays instant results', async () => {
+  it('searches staff and matching departments via unified search input', async () => {
     render(<OrganizationPublicClient />)
 
-    const searchInput = screen.getByPlaceholderText(/ค้นหาบุคลากรตามชื่อ-นามสกุล หรือตำแหน่ง/i)
+    const searchInput = screen.getByPlaceholderText(/ค้นหาชื่อบุคลากร ตำแหน่ง หรือกลุ่มงาน/i)
     fireEvent.change(searchInput, { target: { value: 'สมหญิง' } })
 
     await waitFor(() => {
-      expect(screen.getByText(/ผลการค้นหาสำหรับ/i)).toBeDefined()
+      expect(screen.getByText(/ผลการค้นหาบุคลากรสำหรับ/i)).toBeDefined()
       expect(screen.getAllByText('พว.สมหญิง หัวหน้างาน').length).toBeGreaterThanOrEqual(1)
     })
   })
@@ -542,9 +542,9 @@ describe('OrganizationPublicClient Component', () => {
       expect(screen.getAllByText('กลุ่มงานพยาบาล').length).toBeGreaterThanOrEqual(1)
     })
 
-    const tabButtons = document.querySelectorAll<HTMLButtonElement>('.deptTabBtn')
-    const tabMed = tabButtons[0]
-    const tabNurse = tabButtons[1]
+    const sidebarItems = document.querySelectorAll<HTMLButtonElement>('.orgSidebarItem')
+    const tabMed = sidebarItems[0]
+    const tabNurse = sidebarItems[1]
 
     const dataTransfer = {
       setData: vi.fn(),
@@ -626,23 +626,23 @@ describe('OrganizationPublicClient Component', () => {
       fireEvent.click(card)
     })
 
-    // Check modal opened with title
+    // Check slide-over drawer opened with title
     expect(screen.getByText('ข้อมูลบุคลากร')).toBeDefined()
 
-    // Check modal displays Name, Position, and Department/Group inside the modal card
-    const modal = document.querySelector('.orgModalCard')!
-    expect(modal).toBeDefined()
-    expect(modal.textContent).toContain('ทพ.สมศักดิ์ ฟันดี')
-    expect(modal.textContent).toContain('ทันตแพทย์ชำนาญการพิเศษ')
-    expect(modal.textContent).toContain('กลุ่มงานทันตกรรม')
+    // Check drawer displays Name, Position, and Department/Group inside the drawer panel
+    const drawer = document.querySelector('.orgDrawerPanel')!
+    expect(drawer).toBeDefined()
+    expect(drawer.textContent).toContain('ทพ.สมศักดิ์ ฟันดี')
+    expect(drawer.textContent).toContain('ทันตแพทย์ชำนาญการพิเศษ')
+    expect(drawer.textContent).toContain('กลุ่มงานทันตกรรม')
 
-    // Check enlarged avatar image is present
-    const avatarImg = document.querySelector<HTMLImageElement>('.orgModalAvatar')!
+    // Check portrait image is present
+    const avatarImg = document.querySelector<HTMLImageElement>('.orgDrawerPortrait')!
     expect(avatarImg).toBeDefined()
     expect(avatarImg.src).toContain('/uploads/dentist.jpg')
 
     // Click photo to open full-size lightbox viewer
-    const avatarWrap = document.querySelector('.orgModalAvatarWrap.hasZoom')!
+    const avatarWrap = document.querySelector('.orgDrawerPortraitWrap.hasZoom')!
     await act(async () => {
       fireEvent.click(avatarWrap)
     })
@@ -726,14 +726,14 @@ describe('OrganizationPublicClient Component', () => {
       expect(screen.getByText('ทพ.ทันตแพทย์หนึ่ง')).toBeDefined()
     })
 
-    // 2. Filter input: filter groups
-    const filterInput = screen.getByPlaceholderText('ค้นหากลุ่มงาน...') as HTMLInputElement
+    // 2. Unified search filters sidebar departments too
+    const filterInput = screen.getByPlaceholderText(/ค้นหาชื่อบุคลากร ตำแหน่ง หรือกลุ่มงาน/i) as HTMLInputElement
     fireEvent.change(filterInput, { target: { value: 'ทันต' } })
 
-    // Tab buttons: 'กลุ่มงานทันตกรรม' should be visible, others filtered out
-    const deptTabs = document.querySelectorAll('.deptTabBtn')
-    expect(deptTabs.length).toBe(1)
-    expect(deptTabs[0].textContent).toContain('กลุ่มงานทันตกรรม')
+    // Sidebar items: 'กลุ่มงานทันตกรรม' should be visible, others filtered out
+    const sidebarItems = document.querySelectorAll('.orgSidebarItem')
+    expect(sidebarItems.length).toBe(1)
+    expect(sidebarItems[0].textContent).toContain('กลุ่มงานทันตกรรม')
   })
 
   it('supports free view canvas panning and reset view button', async () => {
@@ -804,6 +804,69 @@ describe('OrganizationPublicClient Component', () => {
     noLeaderCards.forEach((card) => {
       expect(card.textContent).toContain('งานย่อย')
       expect(card.textContent).not.toContain('เจ้าหน้าที่ผู้ปฏิบัติงาน')
+    })
+  })
+
+  it('jumps directly to a matched department from unified search results', async () => {
+    const multiDeptChart = [
+      {
+        id: 1,
+        name: 'กลุ่มงานการแพทย์',
+        parentId: null,
+        orderIndex: 0,
+        members: [{ id: 11, groupId: 1, name: 'นพ.หมอหนึ่ง', position: 'แพทย์', role: 'member', orderIndex: 0, imagePath: null }],
+        children: []
+      },
+      {
+        id: 2,
+        name: 'กลุ่มงานเภสัชกรรม',
+        parentId: null,
+        orderIndex: 1,
+        members: [{ id: 21, groupId: 2, name: 'ภก.เภสัชกรหนึ่ง', position: 'เภสัชกร', role: 'member', orderIndex: 0, imagePath: null }],
+        children: []
+      }
+    ]
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/departments/public/search')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: [] })
+        })
+      }
+      if (url.includes('/api/departments/public')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: multiDeptChart })
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: [] })
+      })
+    })
+
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นพ.หมอหนึ่ง')).toBeDefined()
+    })
+
+    const searchInput = screen.getByPlaceholderText(/ค้นหาชื่อบุคลากร ตำแหน่ง หรือกลุ่มงาน/i) as HTMLInputElement
+    fireEvent.change(searchInput, { target: { value: 'เภสัช' } })
+
+    await waitFor(() => {
+      const jumpBtn = document.querySelector('.orgMatchedDeptCard')
+      expect(jumpBtn).not.toBeNull()
+      expect(jumpBtn?.textContent).toContain('กลุ่มงานเภสัชกรรม')
+    })
+
+    const jumpBtn = document.querySelector('.orgMatchedDeptCard') as HTMLButtonElement
+    fireEvent.click(jumpBtn)
+
+    await waitFor(() => {
+      expect(searchInput.value).toBe('')
+      expect(screen.getByText('ภก.เภสัชกรหนึ่ง')).toBeDefined()
     })
   })
 })

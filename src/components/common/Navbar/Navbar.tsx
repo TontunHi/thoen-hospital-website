@@ -5,23 +5,24 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { siteConfig } from '@/config/site';
-import { 
-  Calendar, 
-  User, 
-  ChevronDown, 
-  ChevronRight, 
-  Menu, 
+import {
+  Calendar,
+  ChevronDown,
+  ChevronRight,
+  Menu,
   X,
   FileText,
   Folder,
   ArrowRight,
-  Sparkles,
   LogIn,
   ShieldCheck,
   Scale,
-  Server
+  Server,
+  Phone,
 } from 'lucide-react';
 import { calculateThaiFiscalYear } from '@/lib/events/eventUtils';
+import { getInitials } from '@/lib/formatters';
+import '../../../../opendesigner/build/css/tokens.css';
 import './Navbar.css';
 
 interface SubmenuItem {
@@ -43,27 +44,53 @@ interface RduFolder {
 }
 
 interface NavItem {
+  id: string;
   label: string;
   href?: string;
+  overviewHref?: string;
+  overviewLabel?: string;
   submenu?: SubmenuItem[];
   isGovernance?: boolean;
-  folders?: RduFolder[];
 }
 
+interface MemberBrief {
+  id?: number;
+  username: string;
+  email?: string;
+  role?: string;
+  name?: string | null;
+  hasProfileImage?: boolean;
+}
+
+const FIXED_NAVBAR_HEIGHT = '64px';
+
+/**
+ * Primary navigation bar for Thoen Hospital Web Portal.
+ * Follows OpenDesigner DESIGN.md tokens ("Quiet Chrome, clinical paper")
+ * with accessible button-triggered directory popovers and GPU-composited mobile sheet.
+ */
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [member, setMember] = useState<{ username: string; email?: string; role?: string; name?: string | null } | null>(null);
+  const [member, setMember] = useState<MemberBrief | null>(null);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState<number>(0);
   const [rduFolders, setRduFolders] = useState<RduFolder[]>([]);
-  const [expandedFolderId, setExpandedFolderId] = useState<number | null>(null);
-  
+  const [expandedSubgroup, setExpandedSubgroup] = useState<'ethics' | 'rdu' | null>(null);
+
+  const memberAvatarSrc =
+    member?.hasProfileImage && member?.id && !avatarLoadError
+      ? `/api/member/profile/image?userId=${member.id}${avatarVersion ? `&t=${avatarVersion}` : ''}`
+      : null;
+
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
   const yearParam = searchParams.get('year');
+
   const navRef = useRef<HTMLElement>(null);
-  const burgerButtonRef = useRef<HTMLButtonElement>(null);
+  const closeHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentFiscalYear = parseInt(calculateThaiFiscalYear(), 10);
   const ethicsFiscalYears = [currentFiscalYear, currentFiscalYear - 1, currentFiscalYear - 2];
@@ -80,15 +107,38 @@ export default function Navbar() {
     return member.username;
   }, [member]);
 
-  // Handle scroll effect & synchronize dynamic navbar height
+  const clearHoverTimer = useCallback(() => {
+    if (closeHoverTimerRef.current) {
+      clearTimeout(closeHoverTimerRef.current);
+      closeHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const canHover = () =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  const handleDropdownMouseEnter = (id: string) => {
+    if (!canHover()) return;
+    clearHoverTimer();
+    setActiveDropdown(id);
+  };
+
+  const handleDropdownMouseLeave = () => {
+    if (!canHover()) return;
+    clearHoverTimer();
+    closeHoverTimerRef.current = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 120);
+  };
+
+  // Sync fixed --navbar-height token and subtle scroll border elevation (no layout/height shift)
   useEffect(() => {
+    document.documentElement.style.setProperty('--navbar-height', FIXED_NAVBAR_HEIGHT);
+
     const handleScroll = () => {
-      const isScrolled = window.scrollY > 15;
-      setScrolled(isScrolled);
-      document.documentElement.style.setProperty(
-        '--navbar-height',
-        isScrolled ? '66px' : '72px'
-      );
+      setScrolled(window.scrollY > 8);
     };
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -99,10 +149,10 @@ export default function Navbar() {
   useEffect(() => {
     setIsOpen(false);
     setActiveDropdown(null);
-    setExpandedFolderId(null);
+    setExpandedSubgroup(null);
   }, [pathname, searchParams]);
 
-  // Outside click & Escape key to close dropdowns
+  // Outside click & Escape key to close dropdowns or drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -121,17 +171,19 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
+      clearHoverTimer();
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [clearHoverTimer]);
 
   // Fetch RDU dynamic menu items
   useEffect(() => {
+    let active = true;
     async function fetchRdu() {
       try {
         const res = await fetch('/api/rdu');
-        if (res.ok) {
+        if (res.ok && active) {
           const data = await res.json();
           if (data.success && Array.isArray(data.folders)) {
             setRduFolders(data.folders);
@@ -142,11 +194,13 @@ export default function Navbar() {
       }
     }
     fetchRdu();
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Check if member is logged in
   useEffect(() => {
-    // Instant client restore from sessionStorage to eliminate visual flickering on page navigation
     try {
       if (typeof window !== 'undefined' && !member) {
         const cached = sessionStorage.getItem('thoen_member_brief');
@@ -163,15 +217,22 @@ export default function Navbar() {
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated && data.member) {
+            setAvatarLoadError(false);
             setMember(data.member);
-            try { sessionStorage.setItem('thoen_member_brief', JSON.stringify(data.member)); } catch {}
+            try {
+              sessionStorage.setItem('thoen_member_brief', JSON.stringify(data.member));
+            } catch {}
           } else {
             setMember(null);
-            try { sessionStorage.removeItem('thoen_member_brief'); } catch {}
+            try {
+              sessionStorage.removeItem('thoen_member_brief');
+            } catch {}
           }
         } else {
           setMember(null);
-          try { sessionStorage.removeItem('thoen_member_brief'); } catch {}
+          try {
+            sessionStorage.removeItem('thoen_member_brief');
+          } catch {}
         }
       } catch (err) {
         console.error('Failed to verify member session in navbar:', err);
@@ -179,15 +240,32 @@ export default function Navbar() {
     }
 
     checkMember();
+
+    const handleProfileUpdated = (event: Event) => {
+      const updatedAt = (event as CustomEvent<{ updatedAt?: number }>).detail?.updatedAt || Date.now();
+      setAvatarLoadError(false);
+      setAvatarVersion(updatedAt);
+      setMember((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, hasProfileImage: true };
+        try {
+          sessionStorage.setItem('thoen_member_brief', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+      checkMember();
+    };
+
+    window.addEventListener('thoen:member-profile-updated', handleProfileUpdated);
+    return () => {
+      window.removeEventListener('thoen:member-profile-updated', handleProfileUpdated);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Lock body scroll when mobile menu is open
+  // Lock body scroll when mobile drawer is open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
@@ -222,21 +300,23 @@ export default function Navbar() {
     return !categoryParam && !yearParam;
   };
 
-  const isGovernanceActive = 
-    pathname.startsWith('/ita') || 
-    pathname.startsWith('/ethics') || 
-    pathname.startsWith('/rdu') || 
+  const isGovernanceActive =
+    pathname.startsWith('/ita') ||
+    pathname.startsWith('/ethics') ||
+    pathname.startsWith('/rdu') ||
     pathname.startsWith('/systems');
 
   if (pathname && pathname.includes('/tv-mode')) {
     return null;
   }
 
-  const navLinks: NavItem[] = [
-    { href: '/', label: 'หน้าแรก' },
+  const navItems: NavItem[] = [
+    { id: 'home', href: '/', label: 'หน้าแรก' },
     {
-      label: 'แพ็กเกจและบริการ',
-      href: '/package',
+      id: 'services',
+      label: 'บริการ',
+      overviewHref: '/package',
+      overviewLabel: 'ดูแพ็กเกจและบริการทั้งหมด',
       submenu: [
         { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' },
         { href: '/package/specialized-clinics', label: 'คลินิกเฉพาะทาง' },
@@ -244,61 +324,72 @@ export default function Navbar() {
         { href: '/package/thai-traditional-and-alternative-medicine', label: 'แพทย์แผนไทย' },
         { href: '/package/vip-room', label: 'ห้องพิเศษ VIP' },
         { href: '/package/childbirth', label: 'คลอดบุตร' },
-      ]
+      ],
     },
     {
+      id: 'news',
       label: 'ข่าวสาร',
-      href: '/news',
+      overviewHref: '/news',
+      overviewLabel: 'ดูข่าวสารทั้งหมด',
       submenu: [
-        { href: '/news', label: 'ข่าวสารทั้งหมด' },
         { href: '/news?category=PR', label: 'ข่าวสารประชาสัมพันธ์' },
         { href: '/news?category=TRAINING', label: 'ประชุมอบรม / สัมมนา' },
         { href: '/news?category=JOBS', label: 'ประกาศรับสมัครงาน' },
         { href: '/news?category=ANNOUNCEMENT', label: 'ประกาศ' },
-      ]
+      ],
     },
     {
-      label: 'ข้อมูลองค์กรและธรรมาภิบาล',
+      id: 'governance',
+      label: 'ธรรมาภิบาล',
       isGovernance: true,
-      folders: rduFolders
     },
     {
+      id: 'about',
       label: 'เกี่ยวกับเรา',
-      href: '/about',
+      overviewHref: '/about',
+      overviewLabel: 'ผู้บริหารและภาพรวมโรงพยาบาล',
       submenu: [
-        { href: '/about', label: 'ผู้บริหารโรงพยาบาล' },
         { href: '/about/history', label: 'ประวัติความเป็นมา' },
         { href: '/about/vision-mission', label: 'วิสัยทัศน์ ค่านิยม พันธกิจ' },
         { href: '/about/board', label: 'คณะกรรมการบริหาร' },
         { href: '/about/organization', label: 'โครงสร้างกลุ่มงานและบุคลากร' },
-      ]
+      ],
     },
-    { href: '/contact', label: 'ติดต่อเรา' },
+    { id: 'contact', href: '/contact', label: 'ติดต่อเรา' },
   ];
 
   if (member) {
-    navLinks.push({ href: '/service', label: 'ระบบงานภายใน' });
+    navItems.push({ id: 'service', href: '/service', label: 'ระบบงานภายใน' });
   }
 
-  const toggleDropdown = (label: string) => {
-    setActiveDropdown((prev) => (prev === label ? null : label));
+  const toggleDropdown = (id: string) => {
+    clearHoverTimer();
+    setActiveDropdown((prev) => (prev === id ? null : id));
+  };
+
+  const closeAllMenus = () => {
+    setActiveDropdown(null);
+    setIsOpen(false);
   };
 
   return (
-    <nav ref={navRef} className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`} aria-label="แถบนำทางหลัก">
+    <nav
+      ref={navRef}
+      data-theme="light"
+      className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}
+      aria-label="แถบนำทางหลัก"
+    >
       <div className="navbar__container">
-        {/* Brand Logo */}
+        {/* Brand Logo Lockup */}
         <Link href="/" className="navbar__logo" aria-label="กลับสู่หน้าแรกโรงพยาบาลเถิน">
-          <div className="navbar__logo-badge">
-            <Image
-              src="/images/common/logo-website.webp"
-              alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
-              width={44}
-              height={44}
-              priority
-              className="navbar__logo-img"
-            />
-          </div>
+          <Image
+            src="/images/common/logo-website.webp"
+            alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
+            width={36}
+            height={36}
+            priority
+            className="navbar__logo-img"
+          />
           <div className="navbar__logo-text">
             <span className="navbar__logo-name">{siteConfig.name}</span>
             <span className="navbar__logo-sub">{siteConfig.englishName}</span>
@@ -307,66 +398,74 @@ export default function Navbar() {
 
         {/* Primary Desktop Navigation */}
         <ul className="navbar__links" id="primary-navigation">
-          {navLinks.map((link) => {
-            // Grouped Governance Dropdown (Hallmark & Superfuture Card Architecture)
-            if (link.isGovernance) {
-              const isDropdownOpen = activeDropdown === link.label;
-              const folders = link.folders || [];
+          {navItems.map((item) => {
+            if (item.isGovernance) {
+              const isOpenMenu = activeDropdown === item.id;
 
               return (
                 <li
-                  key={link.label}
-                  className={`navbar__dropdown navbar__dropdown--governance ${isDropdownOpen ? 'is-active-dropdown' : ''}`}
+                  key={item.id}
+                  className={`navbar__dropdown ${isOpenMenu ? 'is-open' : ''}`}
+                  onMouseEnter={() => handleDropdownMouseEnter(item.id)}
+                  onMouseLeave={handleDropdownMouseLeave}
                 >
-                  <div className="navbar__dropdown-trigger-row">
-                    <button
-                      type="button"
-                      className={`navbar__link navbar__link--has-sub ${isGovernanceActive ? 'navbar__link--active' : ''}`}
-                      onClick={() => toggleDropdown(link.label)}
-                      aria-expanded={isDropdownOpen}
-                      aria-haspopup="true"
-                    >
-                      <span>{link.label}</span>
-                      <ChevronDown size={14} strokeWidth={2.5} className="dropdown-arrow" aria-hidden="true" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className={`navbar__trigger ${isGovernanceActive ? 'navbar__trigger--active' : ''}`}
+                    onClick={() => toggleDropdown(item.id)}
+                    aria-expanded={isOpenMenu}
+                    aria-haspopup="true"
+                  >
+                    <span>{item.label}</span>
+                    <ChevronDown size={16} strokeWidth={1.5} className="navbar__chevron" aria-hidden="true" />
+                  </button>
 
-                  <div className="navbar__grouped-dropdown" role="region" aria-label="เมนูข้อมูลองค์กรและธรรมาภิบาล">
-                    <div className="navbar__grouped-grid">
-                      {/* Column 1: ธรรมาภิบาลและความโปร่งใส */}
-                      <div className="navbar__grouped-col">
-                        <div className="navbar__grouped-col-header">
-                          <ShieldCheck size={16} className="navbar__grouped-col-icon" aria-hidden="true" />
-                          <span>ธรรมาภิบาล & ความโปร่งใส</span>
+                  <div
+                    className="navbar__popover navbar__popover--directory"
+                    role="region"
+                    aria-label="เมนูข้อมูลองค์กรและธรรมาภิบาล"
+                  >
+                    <div className="navbar__directory-grid">
+                      {/* Column 1: Governance & Transparency */}
+                      <div className="navbar__directory-col">
+                        <div className="navbar__directory-heading">
+                          <ShieldCheck size={16} strokeWidth={1.5} className="navbar__directory-icon" aria-hidden="true" />
+                          <span>ธรรมาภิบาลและความโปร่งใส</span>
                         </div>
-                        <div className="navbar__grouped-cards">
-                          {/* ITA Card */}
+
+                        <div className="navbar__directory-list">
                           <Link
                             href="/ita"
-                            className={`navbar__grouped-card ${pathname.startsWith('/ita') ? 'navbar__grouped-card--active' : ''}`}
+                            className={`navbar__directory-item ${pathname.startsWith('/ita') ? 'navbar__directory-item--active' : ''}`}
+                            onClick={closeAllMenus}
                           >
-                            <div className="navbar__grouped-card-head">
-                              <span className="navbar__grouped-card-badge">ITA</span>
-                              <span className="navbar__grouped-card-title">การประเมิน ITA</span>
+                            <div className="navbar__directory-item-head">
+                              <span className="navbar__directory-tag">ITA</span>
+                              <span className="navbar__directory-title">การประเมิน ITA</span>
                             </div>
-                            <p className="navbar__grouped-card-desc">การประเมินคุณธรรมและความโปร่งใสในการดำเนินงาน</p>
+                            <p className="navbar__directory-desc">การประเมินคุณธรรมและความโปร่งใสในการดำเนินงาน</p>
                           </Link>
 
-                          {/* ชมรมจริยธรรม Card */}
-                          <div className={`navbar__grouped-card ${pathname.startsWith('/ethics') ? 'navbar__grouped-card--active' : ''}`}>
-                            <Link
-                              href="/ethics"
-                              className="navbar__grouped-card-head-link"
-                            >
-                              <div className="navbar__grouped-card-head">
-                                <Scale size={15} className="navbar__grouped-card-icon" aria-hidden="true" />
-                                <span className="navbar__grouped-card-title">ชมรมจริยธรรม</span>
+                          <div
+                            className={`navbar__directory-item navbar__directory-item--grouped ${
+                              pathname.startsWith('/ethics') ? 'navbar__directory-item--active' : ''
+                            }`}
+                          >
+                            <Link href="/ethics" className="navbar__directory-item-link" onClick={closeAllMenus}>
+                              <div className="navbar__directory-item-head">
+                                <Scale size={16} strokeWidth={1.5} className="navbar__directory-icon" aria-hidden="true" />
+                                <span className="navbar__directory-title">ชมรมจริยธรรม</span>
                               </div>
-                              <p className="navbar__grouped-card-desc">วัฒนธรรมองค์กร คุณธรรม และจริยธรรมบุคลากร</p>
+                              <p className="navbar__directory-desc">วัฒนธรรมองค์กร คุณธรรม และจริยธรรมบุคลากร</p>
                             </Link>
-                            <div className="navbar__grouped-subtags">
+                            <div className="navbar__directory-chips">
                               {ethicsFiscalYears.map((year) => (
-                                <Link key={year} href={`/ethics?year=${year}`} className="navbar__grouped-subtag">
+                                <Link
+                                  key={year}
+                                  href={`/ethics?year=${year}`}
+                                  className="navbar__directory-chip"
+                                  onClick={closeAllMenus}
+                                >
                                   ปี {year}
                                 </Link>
                               ))}
@@ -375,54 +474,62 @@ export default function Navbar() {
                         </div>
                       </div>
 
-                      {/* Column 2: ระบบงานและข้อมูลวิชาการ */}
-                      <div className="navbar__grouped-col">
-                        <div className="navbar__grouped-col-header">
-                          <Server size={16} className="navbar__grouped-col-icon" aria-hidden="true" />
-                          <span>ระบบ & ข้อมูลวิชาการ</span>
+                      {/* Column 2: Clinical Systems & RDU */}
+                      <div className="navbar__directory-col">
+                        <div className="navbar__directory-heading">
+                          <Server size={16} strokeWidth={1.5} className="navbar__directory-icon" aria-hidden="true" />
+                          <span>ระบบและข้อมูลวิชาการ</span>
                         </div>
-                        <div className="navbar__grouped-cards">
-                          {/* RDU Card */}
-                          <div className={`navbar__grouped-card ${pathname.startsWith('/rdu') ? 'navbar__grouped-card--active' : ''}`}>
-                            <Link
-                              href="/rdu"
-                              className="navbar__grouped-card-head-link"
-                            >
-                              <div className="navbar__grouped-card-head">
-                                <span className="navbar__grouped-card-badge navbar__grouped-card-badge--rdu">RDU</span>
-                                <span className="navbar__grouped-card-title">เอกสาร RDU</span>
+
+                        <div className="navbar__directory-list">
+                          <div
+                            className={`navbar__directory-item navbar__directory-item--grouped ${
+                              pathname.startsWith('/rdu') ? 'navbar__directory-item--active' : ''
+                            }`}
+                          >
+                            <Link href="/rdu" className="navbar__directory-item-link" onClick={closeAllMenus}>
+                              <div className="navbar__directory-item-head">
+                                <span className="navbar__directory-tag">RDU</span>
+                                <span className="navbar__directory-title">เอกสาร RDU</span>
                               </div>
-                              <p className="navbar__grouped-card-desc">โรงพยาบาลส่งเสริมการใช้ยาอย่างสมเหตุผล</p>
+                              <p className="navbar__directory-desc">โรงพยาบาลส่งเสริมการใช้ยาอย่างสมเหตุผล</p>
                             </Link>
-                            {folders.length > 0 && (
-                              <div className="navbar__grouped-rdu-folders">
-                                <span className="navbar__grouped-rdu-label">โฟลเดอร์เอกสาร:</span>
-                                <div className="navbar__grouped-subtags">
-                                  {folders.slice(0, 3).map((f) => (
-                                    <Link key={f.id} href={`/rdu#folder-${f.id}`} className="navbar__grouped-subtag" title={f.folder_name}>
-                                      {f.folder_name}
-                                    </Link>
-                                  ))}
-                                  {folders.length > 3 && (
-                                    <Link href="/rdu" className="navbar__grouped-subtag navbar__grouped-subtag--more">
-                                      +{folders.length - 3} โฟลเดอร์
-                                    </Link>
-                                  )}
-                                </div>
+                            {rduFolders.length > 0 && (
+                              <div className="navbar__directory-chips">
+                                {rduFolders.slice(0, 3).map((folder) => (
+                                  <Link
+                                    key={folder.id}
+                                    href={`/rdu#folder-${folder.id}`}
+                                    className="navbar__directory-chip"
+                                    title={folder.folder_name}
+                                    onClick={closeAllMenus}
+                                  >
+                                    {folder.folder_name}
+                                  </Link>
+                                ))}
+                                {rduFolders.length > 3 && (
+                                  <Link
+                                    href="/rdu"
+                                    className="navbar__directory-chip navbar__directory-chip--more"
+                                    onClick={closeAllMenus}
+                                  >
+                                    +{rduFolders.length - 3} โฟลเดอร์
+                                  </Link>
+                                )}
                               </div>
                             )}
                           </div>
 
-                          {/* ระบบสารสนเทศ Card */}
                           <Link
                             href="/systems"
-                            className={`navbar__grouped-card ${pathname.startsWith('/systems') ? 'navbar__grouped-card--active' : ''}`}
+                            className={`navbar__directory-item ${pathname.startsWith('/systems') ? 'navbar__directory-item--active' : ''}`}
+                            onClick={closeAllMenus}
                           >
-                            <div className="navbar__grouped-card-head">
-                              <span className="navbar__grouped-card-badge navbar__grouped-card-badge--sys">SYSTEMS</span>
-                              <span className="navbar__grouped-card-title">ระบบสารสนเทศ</span>
+                            <div className="navbar__directory-item-head">
+                              <span className="navbar__directory-tag">SYS</span>
+                              <span className="navbar__directory-title">ระบบสารสนเทศ</span>
                             </div>
-                            <p className="navbar__grouped-card-desc">ระบบสารสนเทศโรงพยาบาล บริการสำหรับประชาชนและบุคลากร</p>
+                            <p className="navbar__directory-desc">ระบบสารสนเทศโรงพยาบาล บริการสำหรับประชาชนและบุคลากร</p>
                           </Link>
                         </div>
                       </div>
@@ -432,291 +539,256 @@ export default function Navbar() {
               );
             }
 
-            // Normal dropdown menu items
-            if (link.submenu) {
-              const isSubActive = link.submenu.some((sub) => isActiveLink(sub.href));
-              const isDropdownOpen = activeDropdown === link.label;
+            if (item.submenu && item.overviewHref) {
+              const isOpenMenu = activeDropdown === item.id;
+              const isSubActive =
+                isActiveLink(item.overviewHref) ||
+                pathname.startsWith(item.overviewHref) ||
+                item.submenu.some((sub) => isActiveLink(sub.href));
 
               return (
                 <li
-                  key={link.label}
-                  className={`navbar__dropdown ${isDropdownOpen ? 'is-active-dropdown' : ''}`}
+                  key={item.id}
+                  className={`navbar__dropdown ${isOpenMenu ? 'is-open' : ''}`}
+                  onMouseEnter={() => handleDropdownMouseEnter(item.id)}
+                  onMouseLeave={handleDropdownMouseLeave}
                 >
-                  <div className="navbar__dropdown-trigger-row">
-                    <Link
-                      href={link.href || '#'}
-                      className={`navbar__link navbar__link--has-sub ${
-                        isSubActive || (link.href && isActiveLink(link.href)) ? 'navbar__link--active' : ''
-                      }`}
-                    >
-                      <span>{link.label}</span>
-                      <ChevronDown size={14} strokeWidth={2.5} className="dropdown-arrow" aria-hidden="true" />
-                    </Link>
-                  </div>
+                  <button
+                    type="button"
+                    className={`navbar__trigger ${isSubActive ? 'navbar__trigger--active' : ''}`}
+                    onClick={() => toggleDropdown(item.id)}
+                    aria-expanded={isOpenMenu}
+                    aria-haspopup="true"
+                  >
+                    <span>{item.label}</span>
+                    <ChevronDown size={16} strokeWidth={1.5} className="navbar__chevron" aria-hidden="true" />
+                  </button>
 
-                  <ul className="navbar__submenu" aria-label={`เมนูย่อย ${link.label}`}>
-                    {link.submenu.map((sub, idx) => (
-                      <li key={`${sub.label}-${idx}`}>
-                        {sub.href.startsWith('http') ? (
-                          <a
-                            href={sub.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="navbar__submenu-link"
-                          >
-                            <span>{sub.label}</span>
-                          </a>
-                        ) : (
+                  <div className="navbar__popover" role="region" aria-label={`เมนูย่อย ${item.label}`}>
+                    <Link
+                      href={item.overviewHref}
+                      className={`navbar__popover-overview ${isActiveLink(item.overviewHref) ? 'navbar__popover-overview--active' : ''}`}
+                      onClick={closeAllMenus}
+                    >
+                      <span>{item.overviewLabel}</span>
+                      <ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" />
+                    </Link>
+
+                    <ul className="navbar__submenu">
+                      {item.submenu.map((sub) => (
+                        <li key={sub.href}>
                           <Link
                             href={sub.href}
-                            className={`navbar__submenu-link ${
-                              isActiveLink(sub.href) ? 'navbar__submenu-link--active' : ''
-                            }`}
+                            className={`navbar__submenu-link ${isActiveLink(sub.href) ? 'navbar__submenu-link--active' : ''}`}
+                            onClick={closeAllMenus}
                           >
-                            <span>{sub.label}</span>
+                            {sub.label}
                           </Link>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </li>
               );
             }
 
-            // Normal Single Links
             return (
-              <li key={link.href}>
+              <li key={item.id}>
                 <Link
-                  href={link.href || '#'}
-                  className={`navbar__link ${
-                    link.href && isActiveLink(link.href) ? 'navbar__link--active' : ''
-                  }`}
+                  href={item.href || '/'}
+                  className={`navbar__link ${item.href && isActiveLink(item.href) ? 'navbar__link--active' : ''}`}
                 >
-                  {link.label}
+                  {item.label}
                 </Link>
               </li>
             );
           })}
         </ul>
 
-        {/* Action Buttons (Desktop CTAs + Mobile Burger Toggle) */}
+        {/* Right Utility Zone (One Primary Action + Quiet Staff Access + Mobile Toggle) */}
         <div className="navbar__actions">
-          {/* Member status on desktop */}
           <div className="navbar__cta-desktop">
-            <Link href="/check-date" className="navbar__check-date-btn" title="ตรวจสอบวันนัดหมายผู้ป่วย">
-              <span className="navbar__check-date-icon-wrap">
-                <Calendar size={15} strokeWidth={2.2} aria-hidden="true" />
-              </span>
-              <span className="navbar__check-date-text-full">ตรวจสอบวันนัดหมาย</span>
-              <span className="navbar__check-date-text-short">วันนัดหมาย</span>
+            <Link href="/check-date" className="navbar__primary-btn" title="ตรวจสอบวันนัดหมายผู้ป่วย">
+              <Calendar size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span>ตรวจสอบวันนัดหมาย</span>
             </Link>
 
             {member ? (
-              <Link href="/member" className="navbar__member-btn" title="เข้าสู่ระบบสมาชิก">
-                <div className="navbar__member-avatar">
-                  <User size={15} strokeWidth={2.2} aria-hidden="true" />
-                  <span className="navbar__member-status-dot" aria-label="สถานะออนไลน์" />
-                </div>
-                <div className="navbar__member-info">
-                  <span className="navbar__member-name">{getDisplayName()}</span>
-                </div>
-                <ChevronRight size={14} className="navbar__member-arrow" aria-hidden="true" />
+              <Link href="/member" className="navbar__member-chip" title="เข้าสู่ระบบสมาชิก">
+                <span className="navbar__member-avatar" aria-hidden="true">
+                  {memberAvatarSrc ? (
+                    <img
+                      src={memberAvatarSrc}
+                      alt=""
+                      className="navbar__member-avatar-img"
+                      onError={() => setAvatarLoadError(true)}
+                    />
+                  ) : (
+                    getInitials(member.name || member.username)
+                  )}
+                  <span className="navbar__member-status-dot" />
+                </span>
+                <span className="navbar__member-name">{getDisplayName()}</span>
+                <ChevronRight size={16} strokeWidth={1.5} className="navbar__member-arrow" aria-hidden="true" />
               </Link>
             ) : (
-              <Link href="/member/login" className="navbar__login-btn" title="เข้าสู่ระบบสมาชิก">
-                <span className="navbar__login-icon-wrap">
-                  <User size={15} strokeWidth={2.2} aria-hidden="true" />
-                </span>
+              <Link href="/member/login" className="navbar__staff-btn" title="เข้าสู่ระบบสมาชิก">
+                <LogIn size={16} strokeWidth={1.5} aria-hidden="true" />
                 <span>เข้าสู่ระบบ</span>
               </Link>
             )}
           </div>
 
-          {/* Mobile Burger Menu Button */}
           <button
-            ref={burgerButtonRef}
             type="button"
-            className={`navbar__burger touch-target ${isOpen ? 'navbar__burger--active' : ''}`}
-            onClick={() => setIsOpen(!isOpen)}
+            className="navbar__burger"
+            onClick={() => setIsOpen((prev) => !prev)}
             aria-label={isOpen ? 'ปิดเมนู' : 'เปิดเมนู'}
             aria-expanded={isOpen}
             aria-controls="mobile-navigation-drawer"
           >
-            {isOpen ? <X size={24} strokeWidth={2.2} /> : <Menu size={24} strokeWidth={2.2} />}
+            {isOpen ? <X size={20} strokeWidth={1.5} aria-hidden="true" /> : <Menu size={20} strokeWidth={1.5} aria-hidden="true" />}
           </button>
         </div>
       </div>
 
       {/* Mobile Navigation Drawer */}
-      <div 
-        id="mobile-navigation-drawer" 
+      <div
+        id="mobile-navigation-drawer"
         className={`navbar__drawer ${isOpen ? 'navbar__drawer--open' : ''}`}
         aria-hidden={!isOpen}
       >
-        {/* Drawer Header */}
         <div className="navbar__drawer-header">
-          <Link href="/" className="navbar__drawer-brand" onClick={() => setIsOpen(false)}>
+          <Link href="/" className="navbar__drawer-brand" onClick={closeAllMenus}>
             <Image
               src="/images/common/logo-website.webp"
               alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
-              width={36}
-              height={36}
+              width={32}
+              height={32}
               className="navbar__drawer-logo"
             />
             <div className="navbar__drawer-brand-text">
               <span className="navbar__drawer-title">{siteConfig.name}</span>
-              <span className="navbar__drawer-subtitle">ระบบบริการประชาชนและบุคลากร</span>
+              <span className="navbar__drawer-subtitle">{siteConfig.englishName}</span>
             </div>
           </Link>
           <button
             type="button"
-            className="navbar__drawer-close-btn"
+            className="navbar__drawer-close"
             onClick={() => setIsOpen(false)}
             aria-label="ปิดเมนู"
           >
-            <X size={20} strokeWidth={2.2} />
+            <X size={20} strokeWidth={1.5} aria-hidden="true" />
           </button>
         </div>
 
-        {/* Drawer CTAs */}
-        <div className="navbar__drawer-cta-section">
-          <Link
-            href="/check-date"
-            className="navbar__mobile-check-date-card"
-            onClick={() => setIsOpen(false)}
-          >
-            <div className="navbar__mobile-card-icon">
-              <Calendar size={20} strokeWidth={2.2} aria-hidden="true" />
-            </div>
-            <div className="navbar__mobile-card-info">
-              <span className="navbar__mobile-card-title">ตรวจสอบวันนัดหมาย</span>
-              <span className="navbar__mobile-card-sub">ค้นหาข้อมูลและกำหนดการนัดตรวจ</span>
-            </div>
-            <ArrowRight size={16} className="navbar__mobile-card-arrow" />
+        {/* Mobile Quick Actions */}
+        <div className="navbar__drawer-actions">
+          <Link href="/check-date" className="navbar__mobile-primary-btn" onClick={closeAllMenus}>
+            <Calendar size={18} strokeWidth={1.5} aria-hidden="true" />
+            <span>ตรวจสอบวันนัดหมาย</span>
+            <ArrowRight size={16} strokeWidth={1.5} className="navbar__mobile-btn-arrow" aria-hidden="true" />
           </Link>
 
           {member ? (
-            <Link
-              href="/member"
-              className="navbar__mobile-member-card"
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="navbar__mobile-avatar-wrap">
-                <User size={20} strokeWidth={2.2} aria-hidden="true" />
+            <Link href="/member" className="navbar__mobile-member-card" onClick={closeAllMenus}>
+              <span className="navbar__member-avatar" aria-hidden="true">
+                {memberAvatarSrc ? (
+                  <img
+                    src={memberAvatarSrc}
+                    alt=""
+                    className="navbar__member-avatar-img"
+                    onError={() => setAvatarLoadError(true)}
+                  />
+                ) : (
+                  getInitials(member.name || member.username)
+                )}
                 <span className="navbar__member-status-dot" />
+              </span>
+              <div className="navbar__mobile-member-info">
+                <span className="navbar__mobile-member-name">{getDisplayName()}</span>
+                <span className="navbar__mobile-member-sub">เข้าสู่ระบบงานบุคลากร</span>
               </div>
-              <div className="navbar__mobile-card-info">
-                <div className="navbar__mobile-card-header">
-                  <span className="navbar__mobile-card-title">{getDisplayName()}</span>
-                  <span className="navbar__mobile-badge">ออนไลน์</span>
-                </div>
-                <span className="navbar__mobile-card-sub">ระบบงานและบริการภายใน</span>
-              </div>
-              <ChevronRight size={16} className="navbar__mobile-card-arrow" />
+              <ChevronRight size={16} strokeWidth={1.5} aria-hidden="true" />
             </Link>
           ) : (
-            <Link 
-              href="/member/login" 
-              className="navbar__mobile-login-card"
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="navbar__mobile-card-icon navbar__mobile-card-icon--gray">
-                <LogIn size={20} strokeWidth={2.2} aria-hidden="true" />
-              </div>
-              <div className="navbar__mobile-card-info">
-                <span className="navbar__mobile-card-title">เข้าสู่ระบบสมาชิก</span>
-                <span className="navbar__mobile-card-sub">สำหรับบุคลากรโรงพยาบาลเถิน</span>
-              </div>
-              <ChevronRight size={16} className="navbar__mobile-card-arrow" />
+            <Link href="/member/login" className="navbar__mobile-staff-btn" onClick={closeAllMenus}>
+              <LogIn size={18} strokeWidth={1.5} aria-hidden="true" />
+              <span>เข้าสู่ระบบสำหรับบุคลากร</span>
+              <ChevronRight size={16} strokeWidth={1.5} className="navbar__mobile-btn-arrow" aria-hidden="true" />
             </Link>
           )}
         </div>
 
-        {/* Drawer Navigation Links */}
-        <div className="navbar__drawer-links-section">
+        {/* Mobile Navigation List */}
+        <div className="navbar__drawer-body">
           <span className="navbar__drawer-section-label">เมนูนำทาง</span>
-          <ul className="navbar__mobile-links">
-            {navLinks.map((link) => {
-              // Grouped Governance Dropdown in Mobile Drawer (Accordion)
-              if (link.isGovernance) {
-                const isDropdownOpen = activeDropdown === link.label;
-                const folders = link.folders || [];
+          <ul className="navbar__mobile-list">
+            {navItems.map((item) => {
+              if (item.isGovernance) {
+                const isExpanded = activeDropdown === item.id;
 
                 return (
-                  <li key={link.label} className="navbar__mobile-item">
-                    <div className="navbar__mobile-row">
-                      <button
-                        type="button"
-                        className={`navbar__mobile-link navbar__mobile-link--btn ${isGovernanceActive ? 'navbar__mobile-link--active' : ''}`}
-                        onClick={() => toggleDropdown(link.label)}
-                        aria-expanded={isDropdownOpen}
-                      >
-                        {link.label}
-                      </button>
-                      <button
-                        type="button"
-                        className="navbar__mobile-accordion-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleDropdown(link.label);
-                        }}
-                        aria-expanded={isDropdownOpen}
-                        aria-label={`ขยายเมนู ${link.label}`}
-                      >
-                        <ChevronDown 
-                          size={18} 
-                          className={`navbar__mobile-chevron ${isDropdownOpen ? 'is-rotated' : ''}`} 
-                        />
-                      </button>
-                    </div>
+                  <li key={item.id} className="navbar__mobile-item">
+                    <button
+                      type="button"
+                      className={`navbar__mobile-trigger ${isGovernanceActive ? 'navbar__mobile-link--active' : ''}`}
+                      onClick={() => toggleDropdown(item.id)}
+                      aria-expanded={isExpanded}
+                    >
+                      <span>{item.label}</span>
+                      <ChevronDown
+                        size={18}
+                        strokeWidth={1.5}
+                        className={`navbar__mobile-chevron ${isExpanded ? 'is-rotated' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </button>
 
-                    {isDropdownOpen && (
+                    {isExpanded && (
                       <ul className="navbar__mobile-submenu">
-                        {/* ITA */}
                         <li>
                           <Link
                             href="/ita"
                             className={`navbar__mobile-sublink ${pathname.startsWith('/ita') ? 'navbar__mobile-sublink--active' : ''}`}
-                            onClick={() => setIsOpen(false)}
+                            onClick={closeAllMenus}
                           >
-                            <ShieldCheck size={15} className="navbar__mobile-subicon" aria-hidden="true" />
+                            <ShieldCheck size={16} strokeWidth={1.5} aria-hidden="true" />
                             <span>การประเมิน ITA</span>
                           </Link>
                         </li>
 
-                        {/* ชมรมจริยธรรม */}
-                        <li className="navbar__mobile-subfolder">
-                          <div className="navbar__mobile-row">
+                        <li>
+                          <div className="navbar__mobile-subrow">
                             <Link
                               href="/ethics"
                               className={`navbar__mobile-sublink ${pathname.startsWith('/ethics') ? 'navbar__mobile-sublink--active' : ''}`}
-                              onClick={() => setIsOpen(false)}
+                              onClick={closeAllMenus}
                             >
-                              <Scale size={15} className="navbar__mobile-subicon" aria-hidden="true" />
+                              <Scale size={16} strokeWidth={1.5} aria-hidden="true" />
                               <span>ชมรมจริยธรรม</span>
                             </Link>
                             <button
                               type="button"
-                              className="navbar__mobile-subfolder-trigger-btn"
-                              onClick={() => setExpandedFolderId(expandedFolderId === -1 ? null : -1)}
+                              className="navbar__mobile-subtoggle"
+                              onClick={() => setExpandedSubgroup((prev) => (prev === 'ethics' ? null : 'ethics'))}
+                              aria-expanded={expandedSubgroup === 'ethics'}
                               aria-label="แสดงปีงบประมาณจริยธรรม"
                             >
                               <ChevronDown
-                                size={14}
-                                className={`navbar__mobile-subchevron ${expandedFolderId === -1 ? 'is-rotated' : ''}`}
+                                size={16}
+                                strokeWidth={1.5}
+                                className={`navbar__mobile-chevron ${expandedSubgroup === 'ethics' ? 'is-rotated' : ''}`}
+                                aria-hidden="true"
                               />
                             </button>
                           </div>
-                          {expandedFolderId === -1 && (
+                          {expandedSubgroup === 'ethics' && (
                             <ul className="navbar__mobile-filelist">
                               {ethicsFiscalYears.map((year) => (
                                 <li key={year}>
-                                  <Link
-                                    href={`/ethics?year=${year}`}
-                                    className="navbar__mobile-filelink"
-                                    onClick={() => setIsOpen(false)}
-                                  >
-                                    <span>จริยธรรมปีงบประมาณ {year}</span>
+                                  <Link href={`/ethics?year=${year}`} className="navbar__mobile-filelink" onClick={closeAllMenus}>
+                                    จริยธรรมปีงบประมาณ {year}
                                   </Link>
                                 </li>
                               ))}
@@ -724,41 +796,43 @@ export default function Navbar() {
                           )}
                         </li>
 
-                        {/* RDU */}
-                        <li className="navbar__mobile-subfolder">
-                          <div className="navbar__mobile-row">
+                        <li>
+                          <div className="navbar__mobile-subrow">
                             <Link
                               href="/rdu"
                               className={`navbar__mobile-sublink ${pathname.startsWith('/rdu') ? 'navbar__mobile-sublink--active' : ''}`}
-                              onClick={() => setIsOpen(false)}
+                              onClick={closeAllMenus}
                             >
-                              <Folder size={15} className="navbar__mobile-subicon" aria-hidden="true" />
-                              <span>เอกสาร RDU ทั้งหมด</span>
+                              <Folder size={16} strokeWidth={1.5} aria-hidden="true" />
+                              <span>เอกสาร RDU</span>
                             </Link>
-                            {folders.length > 0 && (
+                            {rduFolders.length > 0 && (
                               <button
                                 type="button"
-                                className="navbar__mobile-subfolder-trigger-btn"
-                                onClick={() => setExpandedFolderId(expandedFolderId === -2 ? null : -2)}
+                                className="navbar__mobile-subtoggle"
+                                onClick={() => setExpandedSubgroup((prev) => (prev === 'rdu' ? null : 'rdu'))}
+                                aria-expanded={expandedSubgroup === 'rdu'}
                                 aria-label="แสดงโฟลเดอร์เอกสาร RDU"
                               >
                                 <ChevronDown
-                                  size={14}
-                                  className={`navbar__mobile-subchevron ${expandedFolderId === -2 ? 'is-rotated' : ''}`}
+                                  size={16}
+                                  strokeWidth={1.5}
+                                  className={`navbar__mobile-chevron ${expandedSubgroup === 'rdu' ? 'is-rotated' : ''}`}
+                                  aria-hidden="true"
                                 />
                               </button>
                             )}
                           </div>
-                          {expandedFolderId === -2 && folders.length > 0 && (
+                          {expandedSubgroup === 'rdu' && rduFolders.length > 0 && (
                             <ul className="navbar__mobile-filelist">
-                              {folders.map((folder) => (
-                                <li key={`mobile-rdu-${folder.id}`}>
+                              {rduFolders.map((folder) => (
+                                <li key={folder.id}>
                                   <Link
                                     href={`/rdu#folder-${folder.id}`}
                                     className="navbar__mobile-filelink"
-                                    onClick={() => setIsOpen(false)}
+                                    onClick={closeAllMenus}
                                   >
-                                    <FileText size={13} aria-hidden="true" />
+                                    <FileText size={14} strokeWidth={1.5} aria-hidden="true" />
                                     <span>{folder.folder_name}</span>
                                   </Link>
                                 </li>
@@ -767,14 +841,13 @@ export default function Navbar() {
                           )}
                         </li>
 
-                        {/* ระบบสารสนเทศ */}
                         <li>
                           <Link
                             href="/systems"
                             className={`navbar__mobile-sublink ${pathname.startsWith('/systems') ? 'navbar__mobile-sublink--active' : ''}`}
-                            onClick={() => setIsOpen(false)}
+                            onClick={closeAllMenus}
                           >
-                            <Server size={15} className="navbar__mobile-subicon" aria-hidden="true" />
+                            <Server size={16} strokeWidth={1.5} aria-hidden="true" />
                             <span>ระบบสารสนเทศ</span>
                           </Link>
                         </li>
@@ -784,64 +857,53 @@ export default function Navbar() {
                 );
               }
 
-              if (link.submenu) {
-                const isSubActive = link.submenu.some((sub) => isActiveLink(sub.href));
-                const isDropdownOpen = activeDropdown === link.label;
+              if (item.submenu && item.overviewHref) {
+                const isExpanded = activeDropdown === item.id;
+                const isSubActive =
+                  isActiveLink(item.overviewHref) ||
+                  pathname.startsWith(item.overviewHref) ||
+                  item.submenu.some((sub) => isActiveLink(sub.href));
 
                 return (
-                  <li key={link.label} className="navbar__mobile-item">
-                    <div className="navbar__mobile-row">
-                      <Link
-                        href={link.href || '#'}
-                        className={`navbar__mobile-link ${
-                          isSubActive || (link.href && isActiveLink(link.href)) ? 'navbar__mobile-link--active' : ''
-                        }`}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {link.label}
-                      </Link>
-                      <button
-                        type="button"
-                        className="navbar__mobile-accordion-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleDropdown(link.label);
-                        }}
-                        aria-expanded={isDropdownOpen}
-                        aria-label={`ขยายเมนู ${link.label}`}
-                      >
-                        <ChevronDown 
-                          size={18} 
-                          className={`navbar__mobile-chevron ${isDropdownOpen ? 'is-rotated' : ''}`} 
-                        />
-                      </button>
-                    </div>
+                  <li key={item.id} className="navbar__mobile-item">
+                    <button
+                      type="button"
+                      className={`navbar__mobile-trigger ${isSubActive ? 'navbar__mobile-link--active' : ''}`}
+                      onClick={() => toggleDropdown(item.id)}
+                      aria-expanded={isExpanded}
+                    >
+                      <span>{item.label}</span>
+                      <ChevronDown
+                        size={18}
+                        strokeWidth={1.5}
+                        className={`navbar__mobile-chevron ${isExpanded ? 'is-rotated' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </button>
 
-                    {isDropdownOpen && (
+                    {isExpanded && (
                       <ul className="navbar__mobile-submenu">
-                        {link.submenu.map((sub, idx) => (
-                          <li key={`sub-${idx}`}>
-                            {sub.href.startsWith('http') ? (
-                              <a
-                                href={sub.href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="navbar__mobile-sublink"
-                                onClick={() => setIsOpen(false)}
-                              >
-                                <span>{sub.label}</span>
-                              </a>
-                            ) : (
-                              <Link
-                                href={sub.href}
-                                className={`navbar__mobile-sublink ${
-                                  isActiveLink(sub.href) ? 'navbar__mobile-sublink--active' : ''
-                                }`}
-                                onClick={() => setIsOpen(false)}
-                              >
-                                <span>{sub.label}</span>
-                              </Link>
-                            )}
+                        <li>
+                          <Link
+                            href={item.overviewHref}
+                            className={`navbar__mobile-sublink navbar__mobile-sublink--overview ${
+                              isActiveLink(item.overviewHref) ? 'navbar__mobile-sublink--active' : ''
+                            }`}
+                            onClick={closeAllMenus}
+                          >
+                            <span>{item.overviewLabel}</span>
+                            <ArrowRight size={14} strokeWidth={1.5} aria-hidden="true" />
+                          </Link>
+                        </li>
+                        {item.submenu.map((sub) => (
+                          <li key={sub.href}>
+                            <Link
+                              href={sub.href}
+                              className={`navbar__mobile-sublink ${isActiveLink(sub.href) ? 'navbar__mobile-sublink--active' : ''}`}
+                              onClick={closeAllMenus}
+                            >
+                              <span>{sub.label}</span>
+                            </Link>
                           </li>
                         ))}
                       </ul>
@@ -851,24 +913,30 @@ export default function Navbar() {
               }
 
               return (
-                <li key={link.href} className="navbar__mobile-item">
+                <li key={item.id} className="navbar__mobile-item">
                   <Link
-                    href={link.href || '#'}
-                    className={`navbar__mobile-link ${
-                      link.href && isActiveLink(link.href) ? 'navbar__mobile-link--active' : ''
-                    }`}
-                    onClick={() => setIsOpen(false)}
+                    href={item.href || '/'}
+                    className={`navbar__mobile-link ${item.href && isActiveLink(item.href) ? 'navbar__mobile-link--active' : ''}`}
+                    onClick={closeAllMenus}
                   >
-                    {link.label}
+                    {item.label}
                   </Link>
                 </li>
               );
             })}
           </ul>
         </div>
+
+        {/* Quiet Hospital Contact Footer in Mobile Drawer */}
+        <div className="navbar__drawer-footer">
+          <Link href="/contact" className="navbar__drawer-contact" onClick={closeAllMenus}>
+            <Phone size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span>ติดต่อโรงพยาบาล {siteConfig.contact.hospitalPhone} · ฉุกเฉิน {siteConfig.contact.emergencyPhone}</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Backdrop Overlay for Mobile Drawer */}
+      {/* Mobile Scrim */}
       {isOpen && (
         <div
           className="navbar__overlay"

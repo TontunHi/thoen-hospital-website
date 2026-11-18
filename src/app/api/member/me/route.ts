@@ -25,6 +25,7 @@ export async function GET() {
         department: member.department,
         position: member.position,
         role: member.role,
+        hasProfileImage: Boolean(member.profilePath),
         hasSalaryCredentials: member.hasSalaryCredentials,
         isWorkAuthorized,
         canCreateWork

@@ -74,8 +74,10 @@ export default function ProfileBanner({
       const data = res.ok ? await res.json() : null
 
       if (res.ok && data?.success) {
+        const now = Date.now()
         setHasAvatar(true)
-        setAvatarTimestamp(Date.now())
+        setAvatarTimestamp(now)
+        window.dispatchEvent(new CustomEvent('thoen:member-profile-updated', { detail: { updatedAt: now } }))
         router.refresh()
       } else {
         setError(data?.error || 'ไม่สามารถอัปโหลดรูปโปรไฟล์ได้')
