@@ -887,6 +887,7 @@ export default function FastingPlasmaGlucoseClient({
                     {renderSortIcon('vsttime')}
                   </button>
                 </th>
+                <th className="col-center">VN</th>
                 <th className="col-center">
                   <button type="button" className="hs-table-sort-btn" onClick={() => handleSort('hn')}>
                     <span>HN</span>
@@ -940,7 +941,7 @@ export default function FastingPlasmaGlucoseClient({
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={`skeleton-${i}`} className="rcm-skeleton-row" aria-busy="true">
-                    {Array.from({ length: 15 }).map((__, j) => (
+                    {Array.from({ length: 16 }).map((__, j) => (
                       <td key={`skeleton-cell-${j}`} className="col-center">
                         <div className="rcm-skeleton-bar" />
                       </td>
@@ -949,7 +950,7 @@ export default function FastingPlasmaGlucoseClient({
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={15}>
+                  <td colSpan={16}>
                     <div className="hs-empty-state">
                       <UserCheck size={36} aria-hidden="true" />
                       <h3>ไม่พบข้อมูลผู้รับบริการตรวจ FPG</h3>
@@ -970,6 +971,7 @@ export default function FastingPlasmaGlucoseClient({
                     <td className="col-center hs-num text-muted">{item.no}</td>
                     <td className="col-center hs-num font-medium">{formatThaiDate(item.vstdate)}</td>
                     <td className="col-center hs-num text-muted">{item.vsttime || '—'}</td>
+                    <td className="col-center hs-num font-mono">{item.vn || '—'}</td>
                     <td className="col-center hs-num font-mono">{item.hn || '—'}</td>
                     <td className="col-center hs-num font-mono">{item.cid || '—'}</td>
                     <td className="col-left">

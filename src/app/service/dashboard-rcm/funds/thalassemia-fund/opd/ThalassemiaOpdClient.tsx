@@ -329,6 +329,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
         'ลำดับ',
         'วันที่รับบริการ',
         'เวลา',
+        'VN',
         'HN',
         'เลขบัตรประชาชน',
         'ชื่อ-สกุล',
@@ -360,6 +361,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
         row.no,
         row.vstdate,
         row.vsttime,
+        row.vn,
         row.hn,
         row.cid,
         row.ptname,
@@ -804,6 +806,9 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                 <th className="col-center" style={{ minWidth: '80px' }}>
                   เวลา
                 </th>
+                <th className="col-center" style={{ minWidth: '120px' }}>
+                  VN
+                </th>
                 <th className="col-center" style={{ minWidth: '90px' }}>
                   <button
                     type="button"
@@ -879,7 +884,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, idx) => (
                   <tr key={`skel-${idx}`} className="rcm-skeleton-row">
-                    {Array.from({ length: 17 }).map((__, colIdx) => (
+                    {Array.from({ length: 18 }).map((__, colIdx) => (
                       <td key={colIdx} className="col-center">
                         <div className="rcm-skeleton-bar" />
                       </td>
@@ -888,7 +893,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                 ))
               ) : error ? (
                 <tr>
-                  <td colSpan={17} className="th-empty-state">
+                  <td colSpan={18} className="th-empty-state">
                     <div className="th-empty-title" style={{ color: '#dc2626' }}>
                       เกิดข้อผิดพลาด
                     </div>
@@ -897,7 +902,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="th-empty-state">
+                  <td colSpan={18} className="th-empty-state">
                     <Droplet size={28} className="th-empty-icon" />
                     <div className="th-empty-title">ไม่พบข้อมูลที่ตรงตามเงื่อนไข</div>
                     <div className="th-empty-desc">
@@ -918,6 +923,7 @@ export default function ThalassemiaOpdClient({ initialData = null }: Thalassemia
                         {formatThaiDate(row.vstdate)}
                       </td>
                       <td className="col-center th-num">{row.vsttime || '—'}</td>
+                      <td className="col-center th-num font-mono">{row.vn || '—'}</td>
                       <td className="col-center th-num">{row.hn}</td>
                       <td className="col-center th-cid">{row.cid}</td>
                       <td className="col-center th-ptname">{row.ptname}</td>

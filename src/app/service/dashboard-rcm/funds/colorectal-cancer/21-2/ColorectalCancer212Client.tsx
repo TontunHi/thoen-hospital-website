@@ -423,6 +423,7 @@ export default function ColorectalCancer212Client({
         'ลำดับ',
         'วันที่รับบริการ',
         'เวลา',
+        'VN',
         'HN',
         'CID',
         'ชื่อ-สกุล',
@@ -450,6 +451,7 @@ export default function ColorectalCancer212Client({
         it.no,
         it.vstdate,
         it.vsttime,
+        it.vn,
         it.hn,
         it.cid,
         `"${it.ptname.replace(/"/g, '""')}"`,
@@ -978,6 +980,7 @@ export default function ColorectalCancer212Client({
                   </div>
                 </th>
                 <th className="crc-col-center" style={{ width: '80px' }}>เวลา</th>
+                <th className="crc-col-center" style={{ width: '120px' }}>VN</th>
                 <th
                   className="crc-col-center sortable"
                   onClick={() => handleSort('hn')}
@@ -1070,7 +1073,7 @@ export default function ColorectalCancer212Client({
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={`skel-${i}`} className="crc-table-skeleton-row rcm-skeleton-row">
-                    {Array.from({ length: 17 }).map((_, j) => (
+                    {Array.from({ length: 18 }).map((_, j) => (
                       <td key={`skel-td-${j}`} className="crc-col-center">
                         <div className="crc-skeleton-box rcm-skeleton-bar" />
                       </td>
@@ -1079,7 +1082,7 @@ export default function ColorectalCancer212Client({
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={17}>
+                  <td colSpan={18}>
                     <div className="crc-empty-state">
                       <TestTube2 size={40} className="crc-empty-icon" />
                       <p className="crc-empty-title">ไม่พบข้อมูลผู้รับบริการคัดกรอง FIT test</p>
@@ -1113,6 +1116,9 @@ export default function ColorectalCancer212Client({
                       </td>
                       <td className="crc-col-center" style={{ fontVariantNumeric: 'tabular-nums' }}>
                         {item.vsttime.slice(0, 5)}
+                      </td>
+                      <td className="crc-col-center" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {item.vn || '—'}
                       </td>
                       <td className="crc-col-center" style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                         {item.hn}

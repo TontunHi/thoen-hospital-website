@@ -882,6 +882,7 @@ export default function DentalImplantDensurClient({
                     </button>
                   </th>
                   <th className="densur-col-time densur-col-center">เวลา</th>
+                  <th className="densur-col-hn densur-col-center">VN</th>
                   <th className="densur-col-hn densur-col-center">
                     <button
                       type="button"
@@ -984,7 +985,7 @@ export default function DentalImplantDensurClient({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 26 }).map((__, colIdx) => (
+                      {Array.from({ length: 27 }).map((__, colIdx) => (
                         <td key={colIdx} className="densur-col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -993,7 +994,7 @@ export default function DentalImplantDensurClient({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={26} className="densur-col-center" style={{ padding: '48px 16px' }}>
+                    <td colSpan={27} className="densur-col-center" style={{ padding: '48px 16px' }}>
                       ไม่พบรายการบริการผ่าตัดใส่รากฟันเทียม DENSUR ที่ตรงตามเงื่อนไขในช่วงเวลาหรือตัวกรองที่เลือก
                     </td>
                   </tr>
@@ -1006,6 +1007,7 @@ export default function DentalImplantDensurClient({
                     <td className="densur-col-no">{it.no}</td>
                     <td className="densur-col-date">{formatThaiDate(it.vstdate)}</td>
                     <td className="densur-col-time">{it.vsttime || '—'}</td>
+                    <td className="densur-col-hn">{it.vn || '—'}</td>
                     <td className="densur-col-hn">{it.hn}</td>
                     <td className="densur-col-cid">{it.cid || '—'}</td>
                     <td className="densur-col-name">{it.ptname}</td>

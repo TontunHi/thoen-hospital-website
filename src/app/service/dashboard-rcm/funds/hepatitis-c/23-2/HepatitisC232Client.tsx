@@ -967,6 +967,7 @@ export default function HepatitisC232Client({
                     </button>
                   </th>
                   <th className="col-center">เวลา</th>
+                  <th className="col-center">VN</th>
                   <th className="col-center">
                     <button
                       type="button"
@@ -1087,7 +1088,7 @@ export default function HepatitisC232Client({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 13 }).map((__, colIdx) => (
+                      {Array.from({ length: 14 }).map((__, colIdx) => (
                         <td key={colIdx} className="col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -1096,7 +1097,7 @@ export default function HepatitisC232Client({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="col-center" style={{ padding: '48px 16px' }}>
+                    <td colSpan={14} className="col-center" style={{ padding: '48px 16px' }}>
                       ไม่พบข้อมูลตามเงื่อนไขที่เลือก
                     </td>
                   </tr>
@@ -1120,6 +1121,7 @@ export default function HepatitisC232Client({
                       <td className="col-center hepc-num">{item.no}</td>
                       <td className="col-center hepc-num">{formatThaiDate(item.vstdate)}</td>
                       <td className="col-center hepc-num">{item.vsttime || '—'}</td>
+                      <td className="col-center hepc-num font-mono">{item.vn || '—'}</td>
                       <td className="col-center hepc-num font-mono">{item.hn}</td>
                       <td className="col-center hepc-num font-mono">{item.cid}</td>
                       <td className="col-left">{item.ptname}</td>

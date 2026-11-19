@@ -820,6 +820,7 @@ export default function PostpartumService72Client({
                     {renderSortIcon('vsttime')}
                   </div>
                 </th>
+                <th>VN</th>
                 <th className="sortable" onClick={() => handleSort('hn')}>
                   <div className="pnc72-th-content">
                     <span>HN</span>
@@ -867,7 +868,7 @@ export default function PostpartumService72Client({
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={`skeleton-${i}`} className="rcm-skeleton-row" aria-busy="true">
-                    {Array.from({ length: 14 }).map((__, j) => (
+                    {Array.from({ length: 15 }).map((__, j) => (
                       <td key={`skeleton-cell-${j}`} className="col-center">
                         <div className="rcm-skeleton-bar" />
                       </td>
@@ -876,7 +877,7 @@ export default function PostpartumService72Client({
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={14}>
+                  <td colSpan={15}>
                     <div className="pnc72-empty-state">
                       <UserCheck size={36} className="text-gray-400" aria-hidden="true" />
                       <strong>ไม่พบข้อมูลผู้รับบริการตรวจหลังคลอด</strong>
@@ -901,6 +902,7 @@ export default function PostpartumService72Client({
                     </td>
                     <td className="pnc72-num font-medium">{formatThaiDate(item.vstdate)}</td>
                     <td className="pnc72-num text-muted">{item.vsttime || '—'}</td>
+                    <td className="pnc72-num font-mono">{item.vn || '—'}</td>
                     <td className="pnc72-num font-mono">{item.hn || '—'}</td>
                     <td className="pnc72-num font-mono">{item.cid || '—'}</td>
                     <td>

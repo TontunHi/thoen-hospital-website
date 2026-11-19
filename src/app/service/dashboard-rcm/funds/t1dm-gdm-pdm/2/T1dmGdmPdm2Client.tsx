@@ -847,6 +847,9 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                 <th className="col-center" style={{ minWidth: '80px' }}>
                   เวลา
                 </th>
+                <th className="col-center" style={{ minWidth: '120px' }}>
+                  VN
+                </th>
                 <th className="col-center" style={{ minWidth: '90px' }}>
                   <button
                     type="button"
@@ -978,7 +981,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, idx) => (
                   <tr key={`skel-${idx}`} className="rcm-skeleton-row">
-                    {Array.from({ length: 16 }).map((__, colIdx) => (
+                    {Array.from({ length: 17 }).map((__, colIdx) => (
                       <td key={colIdx} className="col-center">
                         <div className="rcm-skeleton-bar" />
                       </td>
@@ -987,7 +990,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                 ))
               ) : error ? (
                 <tr>
-                  <td colSpan={16} className="dm-empty-state">
+                  <td colSpan={17} className="dm-empty-state">
                     <div className="dm-empty-title" style={{ color: '#dc2626' }}>
                       เกิดข้อผิดพลาดในการดึงข้อมูล
                     </div>
@@ -996,7 +999,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="dm-empty-state">
+                  <td colSpan={17} className="dm-empty-state">
                     <HeartPulse size={28} className="dm-empty-icon" />
                     <div className="dm-empty-title">ไม่พบข้อมูลผู้รับบริการที่ตรงตามเงื่อนไข</div>
                     <div className="dm-empty-desc">
@@ -1019,6 +1022,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
                         {formatThaiDate(row.vstdate)}
                       </td>
                       <td className="col-center dm-num">{row.vsttime || '—'}</td>
+                      <td className="col-center dm-num font-mono">{row.vn || '—'}</td>
                       <td className="col-center dm-num">{row.hn}</td>
                       <td className="col-center dm-cid">{row.cid}</td>
                       <td className="dm-ptname-col">

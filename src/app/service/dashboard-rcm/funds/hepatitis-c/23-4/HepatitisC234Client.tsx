@@ -948,6 +948,9 @@ export default function HepatitisC234Client({
                 <th className="text-center" style={{ width: '80px' }}>
                   เวลา
                 </th>
+                <th className="text-center" style={{ width: '120px' }}>
+                  VN
+                </th>
                 <th
                   className="sortable text-center"
                   style={{ width: '100px' }}
@@ -1044,7 +1047,7 @@ export default function HepatitisC234Client({
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, rowIdx) => (
                   <tr key={`skeleton-${rowIdx}`} className="rcm-skeleton-row">
-                    {Array.from({ length: 15 }).map((__, colIdx) => (
+                    {Array.from({ length: 16 }).map((__, colIdx) => (
                       <td key={colIdx} className="text-center">
                         <div className="rcm-skeleton-bar" />
                       </td>
@@ -1053,7 +1056,7 @@ export default function HepatitisC234Client({
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={15} style={{ padding: '48px 0', textAlign: 'center' }}>
+                  <td colSpan={16} style={{ padding: '48px 0', textAlign: 'center' }}>
                     <div className="hs-empty-state">
                       <TestTube2 size={32} className="hs-empty-icon" />
                       <span className="hs-empty-title">ไม่พบข้อมูลการตรวจยืนยันไวรัสตับ C</span>
@@ -1073,6 +1076,7 @@ export default function HepatitisC234Client({
                     <td className="text-center">{item.no}</td>
                     <td className="text-center">{formatThaiDate(item.vstdate)}</td>
                     <td className="text-center">{item.vsttime.slice(0, 5)}</td>
+                    <td className="text-center font-mono">{item.vn || '—'}</td>
                     <td className="text-center font-medium">{item.hn}</td>
                     <td className="text-center">{item.cid || '—'}</td>
                     <td>{item.ptname}</td>

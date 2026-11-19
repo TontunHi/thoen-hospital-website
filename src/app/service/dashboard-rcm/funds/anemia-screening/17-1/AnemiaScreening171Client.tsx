@@ -386,6 +386,7 @@ export default function AnemiaScreening171Client({
         'ลำดับ',
         'วันที่รับบริการ',
         'เวลา',
+        'VN',
         'HN',
         'เลขบัตรประชาชน',
         'ชื่อ-สกุล',
@@ -413,6 +414,7 @@ export default function AnemiaScreening171Client({
         row.no,
         row.vstdate,
         row.vsttime,
+        row.vn,
         row.hn,
         row.cid,
         row.ptname,
@@ -936,6 +938,7 @@ export default function AnemiaScreening171Client({
                     </button>
                   </th>
                   <th className="col-center">เวลา</th>
+                  <th className="col-center">VN</th>
                   <th className="col-center">
                     <button
                       type="button"
@@ -1044,7 +1047,7 @@ export default function AnemiaScreening171Client({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skel-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                      {Array.from({ length: 15 }).map((__, colIdx) => (
                         <td key={colIdx} className="col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -1053,7 +1056,7 @@ export default function AnemiaScreening171Client({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="as-state-box">
+                    <td colSpan={15} className="as-state-box">
                       <Droplets size={36} color="#94a3b8" />
                       <p>ไม่พบรายการข้อมูลตามเงื่อนไขหรือช่วงเวลาที่เลือก</p>
                     </td>
@@ -1068,6 +1071,7 @@ export default function AnemiaScreening171Client({
                     <td className="col-center as-num">{item.no}</td>
                     <td className="col-center as-num">{formatThaiDate(item.vstdate)}</td>
                     <td className="col-center as-num">{item.vsttime || '—'}</td>
+                    <td className="col-center as-num font-mono">{item.vn || '—'}</td>
                     <td className="col-center as-num font-mono">{item.hn}</td>
                     <td className="col-center as-num font-mono">{item.cid}</td>
                     <td className="col-left">{item.ptname}</td>

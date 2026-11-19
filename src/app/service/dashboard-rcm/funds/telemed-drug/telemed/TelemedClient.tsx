@@ -184,6 +184,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
   const [visibleColumns, setVisibleColumns] = useState<{
     vstdate: boolean
     ptname: boolean
+    vn: boolean
     pttype: boolean
     pdx: boolean
     fee: boolean
@@ -196,6 +197,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
   }>({
     vstdate: true,
     ptname: true,
+    vn: true,
     pttype: true,
     pdx: true,
     fee: true,
@@ -285,7 +287,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
       const savedDensity = localStorage.getItem('rcm_telemed_density') as 'comfortable' | 'compact'
       if (savedDensity) setDensity(savedDensity)
       const savedCols = localStorage.getItem('rcm_telemed_columns')
-      if (savedCols) setVisibleColumns(JSON.parse(savedCols))
+      if (savedCols) setVisibleColumns((prev) => ({ ...prev, ...JSON.parse(savedCols) }))
     } catch {
       // ignore
     }
@@ -1337,6 +1339,14 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                   <label className="telemed-column-checkbox-item">
                     <input
                       type="checkbox"
+                      checked={visibleColumns.vn}
+                      onChange={() => handleToggleColumn('vn')}
+                    />
+                    <span>VN</span>
+                  </label>
+                  <label className="telemed-column-checkbox-item">
+                    <input
+                      type="checkbox"
                       checked={visibleColumns.cid}
                       onChange={() => handleToggleColumn('cid')}
                     />
@@ -1793,6 +1803,11 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                     </button>
                   </th>
                 )}
+                {visibleColumns.vn && (
+                  <th scope="col" className="cell-center" style={{ width: 130 }}>
+                    VN
+                  </th>
+                )}
                 {visibleColumns.cid && (
                   <th scope="col" className="cell-center" style={{ width: 160 }}>
                     เลขบัตรประชาชน
@@ -1882,7 +1897,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--muted)' }}>
+                  <td colSpan={12} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--muted)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                       <p style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 500 }}>
                         ไม่พบรายการตามตัวกรองนี้
@@ -1943,6 +1958,11 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
                               {item.sex} {item.age} ปี
                             </span>
                           </div>
+                        </td>
+                      )}
+                      {visibleColumns.vn && (
+                        <td className="cell-center font-mono" style={{ fontSize: '0.8125rem' }}>
+                          {item.vn || '—'}
                         </td>
                       )}
                       {visibleColumns.cid && (

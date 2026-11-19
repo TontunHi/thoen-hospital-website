@@ -442,6 +442,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         'ลำดับ',
         'วันที่รับบริการ',
         'เวลา',
+        'VN',
         'HN',
         'เลขบัตรประชาชน',
         'ชื่อ-สกุล',
@@ -475,6 +476,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           idx + 1,
           item.vstdate,
           item.vsttime,
+          item.vn,
           item.hn,
           item.cid,
           item.ptname,
@@ -976,6 +978,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                     )}
                   </button>
                 </th>
+                <th className="col-center">VN</th>
                 <th className="col-center">
                   <button
                     type="button"
@@ -1057,7 +1060,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, rowIdx) => (
                   <tr key={`skeleton-${rowIdx}`} className="rcm-skeleton-row">
-                    {Array.from({ length: 13 }).map((__, colIdx) => (
+                    {Array.from({ length: 14 }).map((__, colIdx) => (
                       <td key={colIdx} className="col-center">
                         <div className="rcm-skeleton-bar" />
                       </td>
@@ -1066,7 +1069,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                 ))
               ) : error ? (
                 <tr>
-                  <td colSpan={13}>
+                  <td colSpan={14}>
                     <div className="cancer-state-container">
                       <AlertCircle size={24} className="text-rose-600" />
                       <p className="cancer-state-title">เกิดข้อผิดพลาด</p>
@@ -1083,7 +1086,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={13}>
+                  <td colSpan={14}>
                     <div className="cancer-state-container">
                       <Search size={24} className="text-gray-400" />
                       <p className="cancer-state-title">ไม่พบรายการข้อมูล</p>
@@ -1105,6 +1108,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                       {formatThaiDate(item.vstdate)}
                     </td>
                     <td className="col-center tabular-nums">{item.vsttime || '—'}</td>
+                    <td className="col-center font-mono text-xs">{item.vn || '—'}</td>
                     <td className="col-center font-mono font-medium">{item.hn}</td>
                     <td className="col-center font-mono text-gray-700">{item.cid}</td>
                     <td className="col-center">{renderPatientName(item.ptname)}</td>

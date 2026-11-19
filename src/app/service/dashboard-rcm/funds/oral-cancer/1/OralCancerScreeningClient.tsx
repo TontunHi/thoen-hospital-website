@@ -917,6 +917,7 @@ export default function OralCancerScreeningClient({
                   </button>
                 </th>
                 <th className="col-center">เวลา</th>
+                <th className="col-center">VN</th>
                 <th className="col-center">
                   <button
                     type="button"
@@ -989,7 +990,7 @@ export default function OralCancerScreeningClient({
               {loading || isRefreshing ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={`skeleton-${i}`} className="rcm-skeleton-row" aria-busy="true">
-                    {Array.from({ length: 15 }).map((__, j) => (
+                    {Array.from({ length: 16 }).map((__, j) => (
                       <td key={`skeleton-cell-${j}`} className="col-center">
                         <div className="rcm-skeleton-bar" />
                       </td>
@@ -998,7 +999,7 @@ export default function OralCancerScreeningClient({
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={15}>
+                  <td colSpan={16}>
                     <div className="oral-empty-state">
                       <Activity size={36} aria-hidden="true" />
                       <div className="oral-empty-title">ไม่พบข้อมูลการคัดกรองมะเร็งช่องปากในช่วงเวลาที่เลือก</div>
@@ -1027,6 +1028,7 @@ export default function OralCancerScreeningClient({
                     <td className="col-center">{item.no}</td>
                     <td className="col-center">{formatThaiDate(item.vstdate)}</td>
                     <td className="col-center">{item.vsttime || '—'}</td>
+                    <td className="col-center font-mono">{item.vn || '—'}</td>
                     <td className="col-center cell-strong">{item.hn}</td>
                     <td className="col-center">{formatCid(item.cid)}</td>
                     <td className="col-left cell-strong">{item.ptname}</td>

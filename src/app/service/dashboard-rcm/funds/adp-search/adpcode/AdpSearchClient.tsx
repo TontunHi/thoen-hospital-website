@@ -1110,6 +1110,9 @@ export default function AdpSearchClient({
                       )}
                     </button>
                   </th>
+                  <th className="col-center" style={{ width: '130px' }}>
+                    {patientType === 'IPD' ? 'AN' : 'VN'}
+                  </th>
                   <th className="col-center" style={{ width: '90px' }}>
                     <button
                       type="button"
@@ -1236,7 +1239,7 @@ export default function AdpSearchClient({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 12 }).map((__, colIdx) => (
+                      {Array.from({ length: 13 }).map((__, colIdx) => (
                         <td key={colIdx} className="col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -1245,7 +1248,7 @@ export default function AdpSearchClient({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="col-center" style={{ padding: '48px 16px' }}>
+                    <td colSpan={13} className="col-center" style={{ padding: '48px 16px' }}>
                       ไม่พบข้อมูลผู้รับบริการที่ตรงกับเงื่อนไขรหัส ADP หรือตัวกรองที่ระบุในช่วงเวลานี้
                     </td>
                   </tr>
@@ -1264,6 +1267,9 @@ export default function AdpSearchClient({
                       <td className="col-center adp-num">{item.no}</td>
                       <td className="col-center adp-num">
                         {formatThaiDate(item.vstdate)}
+                      </td>
+                      <td className="col-center adp-num">
+                        {(item.patientType === 'IPD' ? item.an : item.vn) || '—'}
                       </td>
                       <td className="col-center adp-num">{item.hn}</td>
                       {/* Full 13-digit Thai Citizen ID without hyphens */}

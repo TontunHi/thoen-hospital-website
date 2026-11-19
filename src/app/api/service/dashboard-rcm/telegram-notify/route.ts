@@ -22,6 +22,16 @@ export async function POST() {
       )
     }
 
+    if (process.env.ENABLE_IPD_CHART_NOTIFY !== 'true') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'ระบบแจ้งเตือนติดตามการสรุป IPD Chart ถูกปิดใช้งานชั่วคราว',
+        },
+        { status: 503 }
+      )
+    }
+
     const chatId = process.env.TELEGRAM_IPD_CHAT_ID || process.env.TELEGRAM_CHAT_ID
 
     if (!chatId) {

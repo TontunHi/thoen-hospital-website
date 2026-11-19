@@ -842,6 +842,9 @@ export default function WalkinFundClient({
                   <th className="col-center" style={{ width: '80px' }}>
                     เวลา
                   </th>
+                  <th className="col-center" style={{ width: '125px' }}>
+                    VN
+                  </th>
                   <th
                     className="col-center sortable"
                     onClick={() => handleSort('hn')}
@@ -925,7 +928,7 @@ export default function WalkinFundClient({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skel-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                      {Array.from({ length: 15 }).map((__, colIdx) => (
                         <td key={colIdx} className="col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -934,7 +937,7 @@ export default function WalkinFundClient({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="col-center" style={{ padding: '48px 16px' }}>
+                    <td colSpan={15} className="col-center" style={{ padding: '48px 16px' }}>
                       <div className="walkin-empty-box">
                         <FileText size={36} className="text-gray-400" />
                         <div className="font-medium text-gray-700">ไม่พบรายการผู้รับบริการตามเงื่อนไขที่เลือก</div>
@@ -958,6 +961,9 @@ export default function WalkinFundClient({
                       </td>
                       <td className="col-center walkin-tabular">
                         {item.vsttime ? item.vsttime.slice(0, 5) : '—'}
+                      </td>
+                      <td className="col-center walkin-tabular font-mono">
+                        {item.vn || '—'}
                       </td>
                       <td className="col-center walkin-tabular font-medium">
                         {item.hn}

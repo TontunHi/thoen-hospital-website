@@ -928,6 +928,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
                   {renderSortIcon('vstdate')}
                 </button>
               </th>
+              <th className="col-center" style={{ width: 125 }}>VN</th>
               <th className="col-center" style={{ width: 100 }}>
                 <button
                   type="button"
@@ -1008,7 +1009,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
             {loading || isRefreshing ? (
               Array.from({ length: 8 }).map((_, idx) => (
                 <tr key={`skel-${idx}`} className="rcm-skeleton-row">
-                  {Array.from({ length: 13 }).map((__, colIdx) => (
+                  {Array.from({ length: 14 }).map((__, colIdx) => (
                     <td key={colIdx} className="col-center">
                       <div className="rcm-skeleton-bar" />
                     </td>
@@ -1017,7 +1018,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
               ))
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={13} className="postal-empty-state">
+                <td colSpan={14} className="postal-empty-state">
                   <Package size={32} style={{ opacity: 0.3 }} />
                   <span>ไม่พบข้อมูลผู้ได้รับการส่งยาทางไปรษณีย์ในช่วงเวลาและเงื่อนไขที่เลือก</span>
                 </td>
@@ -1042,6 +1043,9 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
                       <div style={{ fontSize: '0.75rem', color: 'var(--gray-500, #64748b)' }}>
                         {item.vsttime || '—'}
                       </div>
+                    </td>
+                    <td className="col-center postal-num-cell font-mono">
+                      {item.vn || '—'}
                     </td>
                     <td className="col-center postal-num-cell" style={{ fontWeight: 600 }}>
                       {item.hn}

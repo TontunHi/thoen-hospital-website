@@ -955,6 +955,7 @@ export default function ViralHepatitis231Client({
                     </button>
                   </th>
                   <th className="col-center">เวลา</th>
+                  <th className="col-center">VN</th>
                   <th className="col-center">
                     <button
                       type="button"
@@ -1063,7 +1064,7 @@ export default function ViralHepatitis231Client({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skel-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 14 }).map((__, colIdx) => (
+                      {Array.from({ length: 15 }).map((__, colIdx) => (
                         <td key={colIdx} className="col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -1072,7 +1073,7 @@ export default function ViralHepatitis231Client({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="col-center" style={{ padding: '48px 16px' }}>
+                    <td colSpan={15} className="col-center" style={{ padding: '48px 16px' }}>
                       <div className="vh-empty-state">
                         <TestTube2 size={36} className="vh-empty-icon" />
                         <div className="vh-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
@@ -1093,6 +1094,7 @@ export default function ViralHepatitis231Client({
                       <td className="col-center vh-num">{item.no}</td>
                       <td className="col-center vh-num">{formatThaiDate(item.vstdate)}</td>
                       <td className="col-center vh-num">{item.vsttime || '—'}</td>
+                      <td className="col-center vh-num font-mono">{item.vn || '—'}</td>
                       <td className="col-center vh-num font-mono">{item.hn}</td>
                       <td className="col-center vh-num font-mono">{item.cid}</td>
                       <td className="col-left">{item.ptname}</td>

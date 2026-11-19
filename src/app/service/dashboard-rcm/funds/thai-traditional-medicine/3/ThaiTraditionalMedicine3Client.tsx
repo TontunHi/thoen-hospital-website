@@ -967,6 +967,7 @@ export default function ThaiTraditionalMedicine3Client({
                     </button>
                   </th>
                   <th className="col-center">เวลา</th>
+                  <th className="col-center">VN</th>
                   <th className="col-center">
                     <button
                       type="button"
@@ -1069,7 +1070,7 @@ export default function ThaiTraditionalMedicine3Client({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 20 }).map((__, colIdx) => (
+                      {Array.from({ length: 21 }).map((__, colIdx) => (
                         <td key={colIdx} className="col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -1078,7 +1079,7 @@ export default function ThaiTraditionalMedicine3Client({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={20} className="col-center" style={{ padding: '48px 16px' }}>
+                    <td colSpan={21} className="col-center" style={{ padding: '48px 16px' }}>
                       ไม่พบข้อมูลตามเงื่อนไขที่เลือก
                     </td>
                   </tr>
@@ -1092,6 +1093,7 @@ export default function ThaiTraditionalMedicine3Client({
                     <td className="col-center ttm-num">{item.no}</td>
                     <td className="col-center ttm-num">{formatThaiDate(item.vstdate)}</td>
                     <td className="col-center ttm-num">{item.vsttime || '—'}</td>
+                    <td className="col-center ttm-num font-mono">{item.vn || '—'}</td>
                     <td className="col-center ttm-num font-mono">{item.hn}</td>
                     <td className="col-center ttm-num font-mono">{item.cid}</td>
                     <td className="col-center">

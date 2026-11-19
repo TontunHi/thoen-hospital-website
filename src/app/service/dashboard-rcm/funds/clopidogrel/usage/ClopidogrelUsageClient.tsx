@@ -867,6 +867,7 @@ export default function ClopidogrelUsageClient({
                     </button>
                   </th>
                   <th style={{ width: 80 }} className="clop-col-center">เวลา</th>
+                  <th style={{ width: 120 }} className="clop-col-center">VN</th>
                   <th style={{ width: 90 }} className="clop-col-center">
                     <button
                       type="button"
@@ -924,7 +925,7 @@ export default function ClopidogrelUsageClient({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skeleton-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 13 }).map((__, colIdx) => (
+                      {Array.from({ length: 14 }).map((__, colIdx) => (
                         <td key={colIdx} className="clop-col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -933,7 +934,7 @@ export default function ClopidogrelUsageClient({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="clop-col-center" style={{ padding: '48px 16px' }}>
+                    <td colSpan={14} className="clop-col-center" style={{ padding: '48px 16px' }}>
                       ไม่พบรายการการใช้ยา Clopidogrel ที่ตรงตามเงื่อนไขในช่วงเวลาหรือตัวกรองที่เลือก
                     </td>
                   </tr>
@@ -949,6 +950,7 @@ export default function ClopidogrelUsageClient({
                     <td className="clop-col-center clop-tabular">{item.no}</td>
                     <td className="clop-col-center">{formatThaiDate(item.vstdate)}</td>
                     <td className="clop-col-center clop-tabular">{item.vsttime.slice(0, 5)}</td>
+                    <td className="clop-col-center clop-tabular">{item.vn || '—'}</td>
                     <td className="clop-col-center clop-tabular">{item.hn}</td>
                     <td className="clop-col-center clop-tabular">{item.cid || '—'}</td>
                     {/* Centered Patient Name on X-Axis & Intact Surname Wrap */}

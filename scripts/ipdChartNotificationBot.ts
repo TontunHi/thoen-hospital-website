@@ -29,6 +29,11 @@ const isDryRun = process.argv.includes('--dry-run')
 const isNow = process.argv.includes('--now')
 
 async function run() {
+  if (process.env.ENABLE_IPD_CHART_NOTIFY !== 'true') {
+    console.log(`[${new Date().toISOString()}] [DISABLED] ระบบแจ้งเตือนติดตามการสรุป IPD Chart ถูกปิดใช้งานชั่วคราว (ตั้งค่า ENABLE_IPD_CHART_NOTIFY=true เพื่อเปิดใช้งานอีกครั้ง)`)
+    process.exit(0)
+  }
+
   console.log(`[${new Date().toISOString()}] Starting IPD Incomplete Chart Summary Bot...`)
 
   try {

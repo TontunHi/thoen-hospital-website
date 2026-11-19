@@ -808,6 +808,7 @@ export default function AncService30011Client({
                   >
                     <span className="anc4-th-content">เวลา {renderSortIcon('vsttime')}</span>
                   </th>
+                  <th className="anc4-td-center">VN</th>
                   <th
                     className="anc4-th-sortable anc4-td-center"
                     onClick={() => handleSort('hn')}
@@ -881,7 +882,7 @@ export default function AncService30011Client({
                 {loading || isRefreshing ? (
                   Array.from({ length: 8 }).map((_, idx) => (
                     <tr key={`skel-${idx}`} className="rcm-skeleton-row">
-                      {Array.from({ length: 30 }).map((__, colIdx) => (
+                      {Array.from({ length: 31 }).map((__, colIdx) => (
                         <td key={colIdx} className="col-center">
                           <div className="rcm-skeleton-bar" />
                         </td>
@@ -890,7 +891,7 @@ export default function AncService30011Client({
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={30} className="anc4-empty-state">
+                    <td colSpan={31} className="anc4-empty-state">
                       <div className="anc4-empty-icon">
                         <Baby size={28} aria-hidden="true" />
                       </div>
@@ -912,6 +913,9 @@ export default function AncService30011Client({
                     <td className="anc4-td-center font-tabular">{row.no}</td>
                     <td className="font-tabular">{formatThaiDate(row.vstdate)}</td>
                     <td className="font-tabular">{row.vsttime.slice(0, 5)}</td>
+                    <td className="font-tabular">
+                      <span className="anc4-code-chip">{row.vn || '—'}</span>
+                    </td>
                     <td className="font-tabular">
                       <span className="anc4-code-chip">{row.hn}</span>
                     </td>
