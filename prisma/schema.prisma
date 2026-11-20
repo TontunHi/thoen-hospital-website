@@ -134,6 +134,7 @@ model Member {
   eventRegistrations       EventRegistration[]
   eventAttendances         EventAttendance[]
   eventAttachments         EventAttachment[]
+  onlineMediaViews         OnlineMediaView[]
 
   @@map("members")
 }
@@ -1153,4 +1154,105 @@ model DmRemissionOption {
   @@unique([category, label], map: "uq_dm_remission_opt_cat_label")
   @@index([category, isActive, sortOrder], map: "idx_dm_remission_opt_lookup")
   @@map("dm_remission_options")
+}
+
+// =============================================================================
+// 11. ONLINE MEDIA LIBRARY (คลังสื่อออนไลน์ บน MinIO: สื่อสาธารณะ & สื่อภายในบุคลากร)
+// =============================================================================
+
+/// ระบบ: คลังสื่อออนไลน์ (Online Media Library)
+/// หน้าเว็บ: /media, /member/online-media
+/// หน้าที่: เก็บหมวดหมู่สื่อออนไลน์ กำหนดขอบเขตการเข้าถึงและลำดับการแสดงผล
+model OnlineMediaCategory {
+  id           Int               @id @default(autoincrement())
+  name         String            @db.VarChar(200)
+  slug         String            @unique(map: "uq_media_cat_slug") @db.VarChar(200)
+  visibility   String            @default("ALL") @db.VarChar(20)
+  displayOrder Int               @default(0) @map("display_order")
+  isActive     Boolean           @default(true) @map("is_active")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  items        OnlineMediaItem[]
+
+  @@index([visibility, isActive, displayOrder], map: "idx_media_cat_vis_order")
+  @@map("online_media_categories")
+}
+
+/// ระบบ: คลังสื่อออนไลน์ (Online Media Library)
+/// หน้าเว็บ: /media, /media/[slug], /member/online-media
+/// หน้าที่: เก็บรายการสื่อหลัก (วิดีโอ MinIO/YouTube, อินโฟกราฟิก, PDF) พร้อมสิทธิ์สาธารณะ/ภายในและการดาวน์โหลด
+model OnlineMediaItem {
+  id              Int                     @id @default(autoincrement())
+  slug            String                  @unique(map: "uq_media_item_slug") @db.VarChar(255)
+  title           String                  @db.VarChar(500)
+  description     String?                 @db.Text
+  categoryId      Int                     @map("category_id")
+  visibility      String                  @default("PUBLIC") @db.VarChar(20)
+  mediaType       String                  @default("VIDEO") @map("media_type") @db.VarChar(30)
+  sourceType      String                  @default("MINIO") @map("source_type") @db.VarChar(20)
+  s3Bucket        String?                 @map("s3_bucket") @db.VarChar(100)
+  s3Key           String?                 @map("s3_key") @db.VarChar(1000)
+  youtubeUrl      String?                 @map("youtube_url") @db.VarChar(500)
+  thumbnailS3Key  String?                 @map("thumbnail_s3_key") @db.VarChar(1000)
+  fileName        String?                 @map("file_name") @db.VarChar(255)
+  fileSize        BigInt?                 @map("file_size")
+  mimeType        String?                 @map("mime_type") @db.VarChar(100)
+  allowDownload   Boolean                 @default(true) @map("allow_download")
+  isPublished     Boolean                 @default(true) @map("is_published")
+  viewCount       Int                     @default(0) @map("view_count")
+  createdById     Int?                    @map("created_by_id")
+  createdByName   String?                 @map("created_by_name") @db.VarChar(255)
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt       DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  category        OnlineMediaCategory     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  attachments     OnlineMediaAttachment[]
+  views           OnlineMediaView[]
+
+  @@index([visibility, isPublished, createdAt], map: "idx_media_item_vis_pub")
+  @@index([categoryId], map: "idx_media_item_cat")
+  @@index([mediaType], map: "idx_media_item_type")
+  @@map("online_media_items")
+}
+
+/// ระบบ: คลังสื่อออนไลน์ (เอกสาร/ภาพประกอบเพิ่มเติมในหัวข้อสื่อเดียวกัน)
+/// หน้าเว็บ: /media/[slug], /member/online-media
+/// หน้าที่: เก็บไฟล์แนบเสริมบน MinIO เช่น สไลด์บรรยาย เอกสาร PDF ประกอบคลิป
+model OnlineMediaAttachment {
+  id           Int             @id @default(autoincrement())
+  mediaId      Int             @map("media_id")
+  title        String          @db.VarChar(255)
+  s3Bucket     String          @map("s3_bucket") @db.VarChar(100)
+  s3Key        String          @map("s3_key") @db.VarChar(1000)
+  fileName     String          @map("file_name") @db.VarChar(255)
+  fileSize     BigInt?         @map("file_size")
+  mimeType     String?         @map("mime_type") @db.VarChar(100)
+  displayOrder Int             @default(0) @map("display_order")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamp(0)
+
+  media        OnlineMediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId, displayOrder], map: "idx_media_att_media_order")
+  @@map("online_media_attachments")
+}
+
+/// ระบบ: คลังสื่อออนไลน์ (บันทึกประวัติการเข้าชมรายบุคคล)
+/// หน้าเว็บ: /media/[slug], /member/online-media
+/// หน้าที่: เก็บประวัติการรับชมสื่อของบุคลากรแต่ละคน (จำนวนครั้ง เวลาเข้าชมครั้งแรก และล่าสุด)
+model OnlineMediaView {
+  id               Int             @id @default(autoincrement())
+  mediaId          Int             @map("media_id")
+  memberId         Int             @map("member_id")
+  memberName       String          @map("member_name") @db.VarChar(255)
+  memberDepartment String?         @map("member_department") @db.VarChar(150)
+  viewCount        Int             @default(1) @map("view_count")
+  firstViewedAt    DateTime        @default(now()) @map("first_viewed_at") @db.Timestamp(0)
+  lastViewedAt     DateTime        @default(now()) @updatedAt @map("last_viewed_at") @db.Timestamp(0)
+
+  media            OnlineMediaItem @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  member           Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, memberId], map: "uq_media_view_media_member")
+  @@index([mediaId, lastViewedAt], map: "idx_media_view_last")
+  @@map("online_media_views")
 }

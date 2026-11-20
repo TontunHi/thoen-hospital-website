@@ -1784,6 +1784,97 @@ export class ApiGatewayClient {
 
     deleteOutgoingDocument: (id: string | number) => {
       return this.delete<{ success: boolean; message: string; document: any }>(`/api/v1/app/outgoing-documents/${id}`)
+    },
+
+    // ── Online Media Library ──
+    getOnlineMediaCategories: (options?: { includeInactive?: boolean; isAuthenticated?: boolean }) => {
+      const q = new URLSearchParams()
+      if (options?.includeInactive) q.set('includeInactive', 'true')
+      if (options?.isAuthenticated) q.set('isAuthenticated', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<Array<Record<string, unknown>>>(`/api/v1/app/online-media/categories${qs}`)
+    },
+
+    saveOnlineMediaCategory: (data: {
+      id?: number
+      name: string
+      slug?: string
+      visibility: string
+      displayOrder: number
+      isActive: boolean
+    }) => {
+      return this.post<Record<string, unknown>>('/api/v1/app/online-media/categories', data)
+    },
+
+    deleteOnlineMediaCategory: (id: number) => {
+      return this.delete<{ name: string }>(`/api/v1/app/online-media/categories/${id}`)
+    },
+
+    getOnlineMediaItems: (filters?: {
+      visibility?: string
+      categoryId?: number
+      mediaType?: string
+      search?: string
+      includeUnpublished?: boolean
+      isAuthenticated?: boolean
+    }) => {
+      const q = new URLSearchParams()
+      if (filters?.visibility) q.set('visibility', filters.visibility)
+      if (filters?.categoryId) q.set('categoryId', String(filters.categoryId))
+      if (filters?.mediaType) q.set('mediaType', filters.mediaType)
+      if (filters?.search) q.set('search', filters.search)
+      if (filters?.includeUnpublished) q.set('includeUnpublished', 'true')
+      if (filters?.isAuthenticated) q.set('isAuthenticated', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<Array<Record<string, unknown>>>(`/api/v1/app/online-media/items${qs}`)
+    },
+
+    getOnlineMediaItemBySlugOrId: (
+      slugOrId: string | number,
+      options?: { isAuthenticated?: boolean; includeUnpublished?: boolean }
+    ) => {
+      const q = new URLSearchParams()
+      if (options?.isAuthenticated) q.set('isAuthenticated', 'true')
+      if (options?.includeUnpublished) q.set('includeUnpublished', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{ item: Record<string, unknown> | null; requiresAuth: boolean }>(
+        `/api/v1/app/online-media/items/${encodeURIComponent(String(slugOrId))}${qs}`
+      )
+    },
+
+    getOnlineMediaItemForManage: (id: number) => {
+      return this.get<Record<string, unknown>>(`/api/v1/app/online-media/items/${id}/manage`)
+    },
+
+    getOnlineMediaStreamTarget: (id: number, attachmentId?: number | null) => {
+      const qs = attachmentId ? `?attachmentId=${attachmentId}` : ''
+      return this.get<{
+        item: Record<string, unknown>
+        attachment: Record<string, unknown> | null
+      }>(`/api/v1/app/online-media/items/${id}/stream-target${qs}`)
+    },
+
+    createOnlineMediaItem: (payload: Record<string, unknown>) => {
+      return this.post<Record<string, unknown>>('/api/v1/app/online-media/items', payload)
+    },
+
+    updateOnlineMediaItem: (id: number, payload: Record<string, unknown>) => {
+      return this.put<Record<string, unknown>>(`/api/v1/app/online-media/items/${id}`, payload)
+    },
+
+    deleteOnlineMediaItem: (id: number) => {
+      return this.delete<{ success: boolean }>(`/api/v1/app/online-media/items/${id}`)
+    },
+
+    recordOnlineMediaView: (
+      id: number,
+      viewer?: { memberId: number; memberName: string; memberDepartment?: string | null } | null
+    ) => {
+      return this.post<{ success: boolean }>(`/api/v1/app/online-media/items/${id}/view`, { viewer })
+    },
+
+    getOnlineMediaViewers: (id: number) => {
+      return this.get<Array<Record<string, unknown>>>(`/api/v1/app/online-media/items/${id}/viewers`)
     }
   }
 

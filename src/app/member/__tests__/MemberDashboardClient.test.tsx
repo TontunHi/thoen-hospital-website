@@ -36,7 +36,9 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
       hasSignature: true,
       hasEquipmentBorrow: true,
       hasEvents: true,
+      hasOnlineMedia: true,
       isAssetsAuthorized: true,
+      isOnlineMediaAuthorized: true,
       isNewsAuthorized: true,
       isItaAuthorized: true,
       isRduAuthorized: true,
@@ -93,9 +95,10 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
     expect(screen.queryByText('จัดการลายเซ็นดิจิทัล')).not.toBeInTheDocument()
     expect(screen.getByText('ระบบยืม-คืนอุปกรณ์และพัสดุ')).toBeInTheDocument()
     expect(screen.getByText('ระบบกิจกรรมและสะสมคะแนน')).toBeInTheDocument()
+    expect(screen.getByText('คลังสื่อออนไลน์และสื่ออบรมภายใน')).toBeInTheDocument()
   })
 
-  it('renders information systems & documents list (7 items)', () => {
+  it('renders information systems & documents list (including online media management)', () => {
     render(<MemberDashboardClient {...defaultProps} />)
 
     expect(screen.getByRole('heading', { level: 3, name: 'ระบบสารสนเทศและเอกสาร' })).toBeInTheDocument()
@@ -105,6 +108,7 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
     expect(screen.getByText('ระบบจัดการเอกสาร RDU')).toBeInTheDocument()
     expect(screen.getByText('จัดการระบบหนังสือส่งออก Online')).toBeInTheDocument()
     expect(screen.getByText('จัดการเอกสารชมรมจริยธรรม')).toBeInTheDocument()
+    expect(screen.getByText('จัดการคลังสื่อออนไลน์')).toBeInTheDocument()
     expect(screen.getByText('ระบบนำเข้าข้อมูลการเงิน')).toBeInTheDocument()
     expect(screen.getByText('สลิปเงินเดือนบุคลากรทั้งหมด')).toBeInTheDocument()
   })

@@ -25,11 +25,13 @@ export interface MemberDashboardClientProps {
     hasInbox: boolean
     hasRepair: boolean
     hasMediaRequest: boolean
+    hasOnlineMedia?: boolean
     hasSalary: boolean
     hasSignature: boolean
     hasEquipmentBorrow: boolean
     hasEvents: boolean
     isAssetsAuthorized: boolean
+    isOnlineMediaAuthorized?: boolean
     isNewsAuthorized: boolean
     isItaAuthorized: boolean
     isRduAuthorized: boolean
@@ -141,6 +143,17 @@ export default function MemberDashboardClient({
         keywords: ['กิจกรรม', 'สะสมคะแนน', 'thaid', 'สแกน qr', 'กระดานคะแนน', 'events'],
         visible: permissions.hasEvents,
       },
+      {
+        id: 'online_media_library',
+        title: 'คลังสื่อออนไลน์และสื่ออบรมภายใน',
+        shortDesc: 'รับชมวิดีโออบรม คู่มือ อินโฟกราฟิก และสื่อความรู้ภายในโรงพยาบาล',
+        href: '/media?scope=INTERNAL',
+        icon: 'play_circle',
+        category: 'daily',
+        categoryLabel: 'งานประจำวัน',
+        keywords: ['คลังสื่อ', 'สื่อออนไลน์', 'วิดีโอ', 'อบรม', 'อินโฟกราฟิก', 'youtube', 'media'],
+        visible: permissions.hasOnlineMedia !== false,
+      },
 
       // ── Category 2: Information Systems & Documents (ระบบสารสนเทศและเอกสาร) ──
       {
@@ -197,6 +210,17 @@ export default function MemberDashboardClient({
         categoryLabel: 'ระบบสารสนเทศและเอกสาร',
         keywords: ['จริยธรรม', 'ชมรมจริยธรรม', 'คำสั่ง', 'แผนปฏิบัติการ', 'ethics'],
         visible: permissions.isEthicsAuthorized,
+      },
+      {
+        id: 'online_media_manage',
+        title: 'จัดการคลังสื่อออนไลน์',
+        shortDesc: 'อัปโหลดวิดีโอ อินโฟกราฟิก PDF ขึ้น MinIO และจัดการสิทธิ์สื่อสาธารณะ/ภายใน',
+        href: '/member/online-media',
+        icon: 'video_library',
+        category: 'system',
+        categoryLabel: 'ระบบสารสนเทศและเอกสาร',
+        keywords: ['จัดการคลังสื่อ', 'คลังสื่อออนไลน์', 'อัปโหลดวิดีโอ', 'minio', 'youtube', 'online media'],
+        visible: Boolean(permissions.isOnlineMediaAuthorized),
       },
       {
         id: 'upload_salary',

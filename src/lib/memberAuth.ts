@@ -61,6 +61,7 @@ export type MemberPermission =
   | 'manage_dm_remission'
   | 'manage_fct_home_visit'
   | 'manage_project_tracker'
+  | 'manage_online_media'
 
 export interface MemberDto {
   id: number

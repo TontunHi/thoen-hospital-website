@@ -336,6 +336,7 @@ export default function Navbar() {
         { href: '/news?category=TRAINING', label: 'ประชุมอบรม / สัมมนา' },
         { href: '/news?category=JOBS', label: 'ประกาศรับสมัครงาน' },
         { href: '/news?category=ANNOUNCEMENT', label: 'ประกาศ' },
+        { href: '/media', label: 'คลังสื่อออนไลน์' },
       ],
     },
     {

@@ -17,6 +17,7 @@ import tasksRoutes from './routes/tasks.js'
 import gtwRoutes from './routes/gtw.js'
 import mokRoutes from './routes/mok.js'
 import rcmFundsRoutes from './routes/rcmFunds.js'
+import onlineMediaRoutes from './routes/onlineMedia.js'
 import rawSqlRoutes from './routes/rawSql.js'
 
 const fastify = Fastify({
@@ -230,6 +231,7 @@ await fastify.register(tasksRoutes, routeContext)
 await fastify.register(gtwRoutes, routeContext)
 await fastify.register(mokRoutes, routeContext)
 await fastify.register(rcmFundsRoutes, routeContext)
+await fastify.register(onlineMediaRoutes, routeContext)
 await fastify.register(rawSqlRoutes, routeContext)
 
 // ------------------------------------------------------------------

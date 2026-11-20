@@ -8,6 +8,10 @@ import {
   getObjectFromS3,
   checkMinioHealth,
   ensureStorageBucketsExist,
+  createMultipartUploadS3,
+  uploadPartS3,
+  completeMultipartUploadS3,
+  abortMultipartUploadS3,
   S3_CONFIG,
 } from './s3Client'
 
@@ -80,6 +84,165 @@ const DEFAULT_ALLOWED_MIME_TYPES = [
 ]
 
 const DEFAULT_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.mp4']
+
+const ONLINE_MEDIA_ALLOWED_MIME_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/x-m4v',
+  'video/x-matroska',
+  'video/x-msvideo',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+]
+
+const ONLINE_MEDIA_ALLOWED_EXTENSIONS = [
+  '.mp4',
+  '.webm',
+  '.mov',
+  '.m4v',
+  '.mkv',
+  '.avi',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.pdf',
+]
+
+const EXT_TO_MIME: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.m4v': 'video/x-m4v',
+  '.mkv': 'video/x-matroska',
+  '.avi': 'video/x-msvideo',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.txt': 'text/plain; charset=utf-8',
+}
+
+function resolveMimeTypeFromExtension(ext: string): string {
+  return EXT_TO_MIME[ext.toLowerCase()] || 'application/octet-stream'
+}
+
+function assertAllowedS3Bucket(bucket: string): string {
+  if (bucket !== S3_CONFIG.publicBucket && bucket !== S3_CONFIG.privateBucket) {
+    throw new StorageValidationError(`Invalid S3 bucket: ${bucket}`, 'INVALID_BUCKET')
+  }
+  return bucket
+}
+
+function sanitizeS3Prefix(prefix: string): string {
+  const clean = prefix.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  if (!clean || clean.includes('..') || path.isAbsolute(prefix)) {
+    throw new StorageValidationError('Invalid S3 key prefix', 'PATH_TRAVERSAL')
+  }
+  return clean
+}
+
+function validateAndBuildS3Key(params: {
+  keyPrefix: string
+  originalName: string
+  baseName?: string
+  mimeType: string
+  fileSize: number
+  allowedMimeTypes?: string[]
+  allowedExtensions?: string[]
+  maxSizeBytes: number
+}): { s3Key: string; fileName: string; mimeType: string } {
+  const safePrefix = sanitizeS3Prefix(params.keyPrefix)
+  const allowedMimes = params.allowedMimeTypes || ONLINE_MEDIA_ALLOWED_MIME_TYPES
+  const allowedExts = (params.allowedExtensions || ONLINE_MEDIA_ALLOWED_EXTENSIONS).map((e) => {
+    const lower = e.toLowerCase().trim()
+    return lower.startsWith('.') ? lower : `.${lower}`
+  })
+
+  const effectiveMaxSize =
+    Number.isFinite(params.maxSizeBytes) && params.maxSizeBytes > 0
+      ? params.maxSizeBytes
+      : 10 * 1024 * 1024 * 1024
+
+  if (params.fileSize > effectiveMaxSize) {
+    const limitLabel =
+      effectiveMaxSize >= 1024 * 1024 * 1024
+        ? `${(effectiveMaxSize / (1024 * 1024 * 1024)).toFixed(0)}GB`
+        : `${Math.round(effectiveMaxSize / (1024 * 1024))}MB`
+    throw new StorageValidationError(`ขนาดไฟล์เกินกำหนด (สูงสุด ${limitLabel})`, 'FILE_TOO_LARGE')
+  }
+
+  if (params.fileSize <= 0) {
+    throw new StorageValidationError('ไฟล์มีขนาด 0 byte หรือว่างเปล่า', 'EMPTY_FILE')
+  }
+
+  const origExt = path.extname(params.originalName).toLowerCase()
+  const baseExt = params.baseName ? path.extname(params.baseName).toLowerCase() : ''
+  const inferredExt =
+    params.mimeType === 'application/pdf'
+      ? '.pdf'
+      : params.mimeType === 'video/mp4'
+      ? '.mp4'
+      : params.mimeType === 'video/webm'
+      ? '.webm'
+      : '.jpg'
+  const ext = baseExt && allowedExts.includes(baseExt) ? baseExt : origExt || inferredExt
+
+  if (!allowedExts.includes(ext)) {
+    throw new StorageValidationError(`ไม่อนุญาตไฟล์นามสกุล ${ext}`, 'INVALID_EXTENSION')
+  }
+
+  const normalizedMime = params.mimeType && params.mimeType !== 'application/octet-stream'
+    ? params.mimeType
+    : resolveMimeTypeFromExtension(ext)
+
+  if (allowedMimes.length > 0 && normalizedMime !== 'application/octet-stream') {
+    if (!allowedMimes.includes(normalizedMime)) {
+      throw new StorageValidationError(`ไม่อนุญาตประเภทไฟล์ ${normalizedMime}`, 'INVALID_MIME_TYPE')
+    }
+  }
+
+  const rawBase = params.baseName
+    ? baseExt && allowedExts.includes(baseExt)
+      ? path.basename(params.baseName, baseExt)
+      : params.baseName
+    : path.basename(params.originalName, origExt)
+  const safeBase = sanitizeName(rawBase, 60) || 'media'
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+  const fileName = `${safeBase}-${uniqueSuffix}${ext}`
+
+  return {
+    s3Key: `${safePrefix}/${fileName}`,
+    fileName,
+    mimeType: normalizedMime,
+  }
+}
+
+export const MAX_MULTIPART_MEDIA_SIZE_BYTES = 10 * 1024 * 1024 * 1024 // 10GB
+
+async function withBucketEnsureRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (err: any) {
+    if (err?.name === 'NoSuchBucket' || err?.Code === 'NoSuchBucket') {
+      await ensureStorageBucketsExist()
+      return await fn()
+    }
+    throw err
+  }
+}
 
 const DEFAULT_MAX_SIZE = 25 * 1024 * 1024 // 25MB
 
@@ -496,21 +659,7 @@ export const DocumentStorage = {
 
     const fileSize = stat.size
     const ext = path.extname(absolutePath).toLowerCase()
-
-    let contentType = 'application/octet-stream'
-    if (ext === '.mp4') contentType = 'video/mp4'
-    else if (ext === '.webm') contentType = 'video/webm'
-    else if (ext === '.png') contentType = 'image/png'
-    else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg'
-    else if (ext === '.webp') contentType = 'image/webp'
-    else if (ext === '.gif') contentType = 'image/gif'
-    else if (ext === '.svg') contentType = 'image/svg+xml'
-    else if (ext === '.pdf') contentType = 'application/pdf'
-    else if (ext === '.doc') contentType = 'application/msword'
-    else if (ext === '.docx') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    else if (ext === '.xls') contentType = 'application/vnd.ms-excel'
-    else if (ext === '.xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    else if (ext === '.txt') contentType = 'text/plain; charset=utf-8'
+    const contentType = resolveMimeTypeFromExtension(ext)
 
     const rangeHeader = req.headers.get('range')
 
@@ -595,6 +744,282 @@ export const DocumentStorage = {
       await fs.rm(absolutePath, { recursive: true, force: true })
     } catch {
       // ignore
+    }
+  },
+
+  /**
+   * Upload a file directly to MinIO / S3 without duplicating to local disk.
+   */
+  async saveToS3Only(
+    file: File | { name: string; type?: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> } | Buffer,
+    options: {
+      bucket: string
+      keyPrefix: string
+      baseName?: string
+      allowedMimeTypes?: string[]
+      allowedExtensions?: string[]
+      maxSizeBytes?: number
+    }
+  ): Promise<{ bucket: string; s3Key: string; fileName: string; fileSize: number; mimeType: string }> {
+    if (!isS3Configured()) {
+      throw new StorageValidationError('ระบบจัดเก็บไฟล์ MinIO ยังไม่พร้อมใช้งาน', 'S3_NOT_CONFIGURED')
+    }
+    const bucket = assertAllowedS3Bucket(options.bucket)
+
+    let buffer: Buffer
+    let originalName = 'media'
+    let mimeType = 'application/octet-stream'
+    let fileSize = 0
+
+    if (Buffer.isBuffer(file)) {
+      buffer = file
+      fileSize = buffer.length
+      originalName = options.baseName || 'media'
+      mimeType = options.allowedMimeTypes?.[0] || 'application/octet-stream'
+    } else {
+      originalName = file.name || options.baseName || 'media'
+      mimeType = file.type || 'application/octet-stream'
+      fileSize = file.size
+      buffer = Buffer.from(await file.arrayBuffer())
+    }
+
+    const validated = validateAndBuildS3Key({
+      keyPrefix: options.keyPrefix,
+      originalName,
+      baseName: options.baseName,
+      mimeType,
+      fileSize,
+      allowedMimeTypes: options.allowedMimeTypes,
+      allowedExtensions: options.allowedExtensions,
+      maxSizeBytes: options.maxSizeBytes ?? 50 * 1024 * 1024,
+    })
+
+    const uploaded = await withBucketEnsureRetry(() =>
+      uploadToS3({
+        bucket,
+        key: validated.s3Key,
+        body: buffer,
+        contentType: validated.mimeType,
+        cacheControl: bucket === S3_CONFIG.publicBucket ? 'public, max-age=31536000, immutable' : 'private, max-age=3600',
+      })
+    )
+
+    return {
+      bucket: uploaded.bucket,
+      s3Key: uploaded.key,
+      fileName: validated.fileName,
+      fileSize: buffer.length,
+      mimeType: validated.mimeType,
+    }
+  },
+
+  /**
+   * Initialize a chunked S3 Multipart upload for large media files (up to 10GB) directly on MinIO.
+   */
+  async initMultipartS3(options: {
+    bucket: string
+    keyPrefix: string
+    fileName: string
+    mimeType: string
+    fileSize: number
+    allowedMimeTypes?: string[]
+    allowedExtensions?: string[]
+    maxSizeBytes?: number
+  }): Promise<{ bucket: string; s3Key: string; uploadId: string; fileName: string; mimeType: string }> {
+    if (!isS3Configured()) {
+      throw new StorageValidationError('ระบบจัดเก็บไฟล์ MinIO ยังไม่พร้อมใช้งาน', 'S3_NOT_CONFIGURED')
+    }
+    const bucket = assertAllowedS3Bucket(options.bucket)
+
+    const validated = validateAndBuildS3Key({
+      keyPrefix: options.keyPrefix,
+      originalName: options.fileName,
+      mimeType: options.mimeType,
+      fileSize: options.fileSize,
+      allowedMimeTypes: options.allowedMimeTypes,
+      allowedExtensions: options.allowedExtensions,
+      maxSizeBytes: options.maxSizeBytes ?? MAX_MULTIPART_MEDIA_SIZE_BYTES,
+    })
+
+    const created = await withBucketEnsureRetry(() =>
+      createMultipartUploadS3({
+        bucket,
+        key: validated.s3Key,
+        contentType: validated.mimeType,
+      })
+    )
+
+    return {
+      bucket: created.bucket,
+      s3Key: created.key,
+      uploadId: created.uploadId,
+      fileName: validated.fileName,
+      mimeType: validated.mimeType,
+    }
+  },
+
+  /**
+   * Upload a single chunk part for an active MinIO multipart upload.
+   */
+  async uploadMultipartPartS3(params: {
+    bucket: string
+    s3Key: string
+    uploadId: string
+    partNumber: number
+    body: Buffer
+  }): Promise<{ eTag: string; partNumber: number }> {
+    if (!isS3Configured()) {
+      throw new StorageValidationError('ระบบจัดเก็บไฟล์ MinIO ยังไม่พร้อมใช้งาน', 'S3_NOT_CONFIGURED')
+    }
+    const bucket = assertAllowedS3Bucket(params.bucket)
+    if (!params.s3Key || params.s3Key.includes('..')) {
+      throw new StorageValidationError('Invalid S3 key', 'PATH_TRAVERSAL')
+    }
+    return await uploadPartS3({
+      bucket,
+      key: params.s3Key,
+      uploadId: params.uploadId,
+      partNumber: params.partNumber,
+      body: params.body,
+    })
+  },
+
+  /**
+   * Complete an active MinIO multipart upload.
+   */
+  async completeMultipartS3(params: {
+    bucket: string
+    s3Key: string
+    uploadId: string
+    parts: Array<{ ETag: string; PartNumber: number }>
+  }): Promise<{ bucket: string; s3Key: string }> {
+    if (!isS3Configured()) {
+      throw new StorageValidationError('ระบบจัดเก็บไฟล์ MinIO ยังไม่พร้อมใช้งาน', 'S3_NOT_CONFIGURED')
+    }
+    const bucket = assertAllowedS3Bucket(params.bucket)
+    if (!params.s3Key || params.s3Key.includes('..')) {
+      throw new StorageValidationError('Invalid S3 key', 'PATH_TRAVERSAL')
+    }
+    const completed = await completeMultipartUploadS3({
+      bucket,
+      key: params.s3Key,
+      uploadId: params.uploadId,
+      parts: params.parts,
+    })
+    return { bucket: completed.bucket, s3Key: completed.key }
+  },
+
+  /**
+   * Abort an active MinIO multipart upload.
+   */
+  async abortMultipartS3(params: {
+    bucket: string
+    s3Key: string
+    uploadId: string
+  }): Promise<void> {
+    if (!isS3Configured()) return
+    const bucket = assertAllowedS3Bucket(params.bucket)
+    if (!params.s3Key || params.s3Key.includes('..')) {
+      throw new StorageValidationError('Invalid S3 key', 'PATH_TRAVERSAL')
+    }
+    await abortMultipartUploadS3({
+      bucket,
+      key: params.s3Key,
+      uploadId: params.uploadId,
+    })
+  },
+
+  /**
+   * Delete an object from MinIO / S3 directly.
+   */
+  async deleteFromS3Only(params: { bucket: string; s3Key: string }): Promise<boolean> {
+    if (!isS3Configured() || !params.s3Key) return false
+    const bucket = assertAllowedS3Bucket(params.bucket)
+    if (params.s3Key.includes('..')) return false
+    return await deleteFromS3({ bucket, key: params.s3Key })
+  },
+
+  /**
+   * Stream an object directly from MinIO / S3 supporting HTTP 206 Partial Content Range requests.
+   */
+  async serveS3Object(params: {
+    bucket: string
+    s3Key: string
+    req: Request
+    fileName?: string
+    download?: boolean
+    isPrivate?: boolean
+  }): Promise<Response> {
+    if (!isS3Configured()) {
+      return new Response('Storage not configured', { status: 503 })
+    }
+    let bucket: string
+    try {
+      bucket = assertAllowedS3Bucket(params.bucket)
+    } catch {
+      return new Response('Forbidden', { status: 403 })
+    }
+    if (!params.s3Key || params.s3Key.includes('..')) {
+      return new Response('Forbidden', { status: 403 })
+    }
+
+    try {
+      const rangeHeader = params.req.headers.get('range') || undefined
+      const s3Res = await getObjectFromS3({
+        bucket,
+        key: params.s3Key,
+        range: rangeHeader,
+      })
+
+      if (!s3Res.Body) {
+        return new Response('Not Found', { status: 404 })
+      }
+
+      const ext = path.extname(params.fileName || params.s3Key).toLowerCase()
+      const fallbackMime = resolveMimeTypeFromExtension(ext)
+      const contentType =
+        s3Res.ContentType && s3Res.ContentType !== 'application/octet-stream'
+          ? s3Res.ContentType
+          : fallbackMime
+
+      const isPartial = Boolean(rangeHeader && s3Res.ContentRange)
+      const bodyAny = s3Res.Body as any
+      const webStream =
+        typeof bodyAny.transformToWebStream === 'function'
+          ? bodyAny.transformToWebStream()
+          : (require('stream').Readable.toWeb(bodyAny) as ReadableStream)
+
+      const safeFileName = sanitizeName(params.fileName || path.basename(params.s3Key), 120) || 'media'
+      const asciiFallback = safeFileName.replace(/[^\x20-\x7E]/g, '_') || 'media'
+      const disposition = params.download
+        ? `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(safeFileName)}`
+        : 'inline'
+
+      const headers: Record<string, string> = {
+        'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
+        'Content-Disposition': disposition,
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Cache-Control': params.isPrivate ? 'private, max-age=3600' : 'public, max-age=86400',
+      }
+
+      if (s3Res.ContentLength !== undefined) headers['Content-Length'] = String(s3Res.ContentLength)
+      if (s3Res.ContentRange) headers['Content-Range'] = s3Res.ContentRange
+
+      return new Response(webStream, {
+        status: isPartial ? 206 : 200,
+        headers,
+      })
+    } catch (s3Err: any) {
+      const status = s3Err?.$metadata?.httpStatusCode
+      if (s3Err?.name === 'NoSuchKey' || status === 404) {
+        return new Response('Not Found', { status: 404 })
+      }
+      if (status === 416) {
+        return new Response('Range Not Satisfiable', { status: 416 })
+      }
+      console.error(`[DocumentStorage] serveS3Object failed for ${bucket}/${params.s3Key}:`, s3Err)
+      return new Response('Failed to stream media', { status: 502 })
     }
   }
 }

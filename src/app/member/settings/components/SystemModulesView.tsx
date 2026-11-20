@@ -16,6 +16,7 @@ import {
   Calendar,
   Scale,
   FileSpreadsheet,
+  Film,
 } from 'lucide-react'
 
 export interface SystemModulesViewProps {
@@ -52,6 +53,9 @@ export default function SystemModulesView({
   const [featureOutgoingDoc, setFeatureOutgoingDoc] = useState(
     initialSettings['feature_outgoing_doc'] !== '0'
   )
+  const [featureOnlineMedia, setFeatureOnlineMedia] = useState(
+    initialSettings['feature_online_media'] !== '0'
+  )
 
   const [initialFeatureState, setInitialFeatureState] = useState({
     featureInbox: initialSettings['feature_inbox'] !== '0',
@@ -66,6 +70,7 @@ export default function SystemModulesView({
     featureEvents: initialSettings['feature_events'] !== '0',
     featureEthics: initialSettings['feature_ethics'] !== '0',
     featureOutgoingDoc: initialSettings['feature_outgoing_doc'] !== '0',
+    featureOnlineMedia: initialSettings['feature_online_media'] !== '0',
   })
 
   const [isSavingSettings, setIsSavingSettings] = useState(false)
@@ -83,7 +88,8 @@ export default function SystemModulesView({
       featureEquipmentBorrow !== initialFeatureState.featureEquipmentBorrow ||
       featureEvents !== initialFeatureState.featureEvents ||
       featureEthics !== initialFeatureState.featureEthics ||
-      featureOutgoingDoc !== initialFeatureState.featureOutgoingDoc
+      featureOutgoingDoc !== initialFeatureState.featureOutgoingDoc ||
+      featureOnlineMedia !== initialFeatureState.featureOnlineMedia
     )
   }, [
     featureInbox,
@@ -98,6 +104,7 @@ export default function SystemModulesView({
     featureEvents,
     featureEthics,
     featureOutgoingDoc,
+    featureOnlineMedia,
     initialFeatureState,
   ])
 
@@ -123,6 +130,7 @@ export default function SystemModulesView({
         feature_events: featureEvents ? '1' : '0',
         feature_ethics: featureEthics ? '1' : '0',
         feature_outgoing_doc: featureOutgoingDoc ? '1' : '0',
+        feature_online_media: featureOnlineMedia ? '1' : '0',
       }
       const res = await fetch('/api/member/settings', {
         method: 'POST',
@@ -145,6 +153,7 @@ export default function SystemModulesView({
         featureEvents,
         featureEthics,
         featureOutgoingDoc,
+        featureOnlineMedia,
       })
       addToast('บันทึกการตั้งค่าเปิด/ปิดโมดูลระบบเรียบร้อยแล้ว', 'success')
       onSaveSuccess?.()
@@ -447,6 +456,27 @@ export default function SystemModulesView({
               </label>
             </div>
             <p>ระบบจัดเก็บโฟลเดอร์และรายงานการใช้ยาอย่างสมเหตุผลของโรงพยาบาล</p>
+          </div>
+        </div>
+
+        {/* Online Media Library */}
+        <div className={`featureCard ${featureOnlineMedia ? 'active' : ''}`}>
+          <div className="featureCardIconBox iconCyan">
+            <Film size={24} />
+          </div>
+          <div className="featureCardContent">
+            <div className="featureCardTitleRow">
+              <h3>คลังสื่อออนไลน์และสื่ออบรมภายใน (Online Media)</h3>
+              <label className="switchToggle">
+                <input
+                  type="checkbox"
+                  checked={featureOnlineMedia}
+                  onChange={(e) => setFeatureOnlineMedia(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+            <p>คลังวิดีโออบรม คู่มือ อินโฟกราฟิก และเอกสารเผยแพร่สำหรับบุคลากรและประชาชน</p>
           </div>
         </div>
       </div>

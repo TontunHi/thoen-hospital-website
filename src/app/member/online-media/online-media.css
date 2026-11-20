@@ -1,0 +1,1125 @@
+/* ==========================================================================
+   OpenDesigner Tokens & Unslop Discipline (/member/online-media)
+   Source: DESIGN.md (Thoen Hospital Web Portal, house standards v4)
+   ========================================================================== */
+
+.onlineMediaAdminPage {
+  --od-surface-base: #fdfdfd;
+  --od-surface-raised: #ffffff;
+  --od-surface-sunken: #f4f4f4;
+  --od-bg-neutral-subtle: #ebebeb;
+  --od-bg-neutral-hover: #e3e3e3;
+  --od-bg-neutral-pressed: #dadada;
+
+  --od-text-primary: #242424;
+  --od-text-secondary: #575757;
+  --od-text-disabled: #868686;
+
+  --od-accent-bold: #0d7446;
+  --od-accent-hover: #00683d;
+  --od-accent-pressed: #005f37;
+  --od-accent-subtle: #e1efe5;
+  --od-accent-subtle-hover: #d2e8d9;
+  --od-text-accent: #14633d;
+
+  --od-info-subtle: #d9eefe;
+  --od-text-info: #005c8a;
+  --od-warning-subtle: #f4eadb;
+  --od-text-warning: #845d00;
+  --od-danger-bold: #c64e45;
+  --od-danger-hover: #b5443d;
+  --od-danger-subtle: #fee6e3;
+  --od-text-danger: #983630;
+  --od-border-danger: #c76c63;
+
+  --od-border-subtle: #d2d2d2;
+  --od-border-separator: #e3e3e3;
+  --od-border-default: #c9c9c9;
+  --od-border-input: #868686;
+  --od-border-accent: #55936e;
+
+  --od-radius-detail: 4px;
+  --od-radius-control: 6px;
+  --od-radius-container: 8px;
+  --od-radius-overlay: 12px;
+
+  --od-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --od-ease-enter: cubic-bezier(0.23, 1, 0.32, 1);
+
+  padding-top: 32px;
+  padding-bottom: 64px;
+  min-height: calc(100vh - var(--navbar-height, 64px));
+  color: var(--od-text-primary);
+}
+
+/* Focus Ring & Press Feedback Floor (WCAG 2.2 SC 2.4.7 & STD-mobile-touch-05) */
+.omBackBtn:focus-visible,
+.omBtn:focus-visible,
+.omTabBtn:focus-visible,
+.omInput:focus-visible,
+.omSelect:focus-visible,
+.omTextarea:focus-visible,
+.omViewCountBtn:focus-visible,
+.omIconBtn:focus-visible,
+.omChoiceCard:focus-visible,
+.omDropzone:focus-visible {
+  outline: 2px solid var(--od-accent-bold);
+  outline-offset: 2px;
+}
+
+.omBackBtn:active:not(:disabled),
+.omBtn:active:not(:disabled),
+.omIconBtn:active:not(:disabled),
+.omViewCountBtn:active:not(:disabled),
+.omChoiceCard:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Top Navigation Bar */
+.omTopNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.omBackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--od-text-secondary);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  background: var(--od-surface-raised);
+  border: 1px solid var(--od-border-subtle);
+  border-radius: var(--od-radius-control);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    border-color 150ms var(--od-ease-standard),
+    color 150ms var(--od-ease-standard),
+    background-color 150ms var(--od-ease-standard),
+    transform 120ms var(--od-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omBackBtn:hover {
+    color: var(--od-text-primary);
+    border-color: var(--od-border-input);
+    background: var(--od-surface-sunken);
+  }
+}
+
+/* Calm Clinical Page Header (No heavy dark banner fill; one primary CTA) */
+.omHeroHeader {
+  background: var(--od-surface-raised);
+  color: var(--od-text-primary);
+  padding: 20px 24px;
+  border-radius: var(--od-radius-container);
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border: 1px solid var(--od-border-subtle);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.omHeroHeader h1 {
+  font-size: 24px;
+  line-height: 32px;
+  color: var(--od-text-primary);
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.omHeroHeader p {
+  color: var(--od-text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  max-width: 65ch;
+  margin: 0;
+}
+
+.omHeroActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* KPI Stat Cards (Numbers first, tabular figures, no rainbow icon tiles) */
+.omStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.omStatCard {
+  background: var(--od-surface-raised);
+  border: 1px solid var(--od-border-subtle);
+  border-radius: var(--od-radius-container);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.omStatLabel {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--od-text-secondary);
+}
+
+.omStatNum {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  color: var(--od-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.omStatNumAccent {
+  color: var(--od-text-accent);
+}
+
+.omStatMeta {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+}
+
+/* Section Tabs */
+.omTabsBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--od-border-subtle);
+}
+
+.omTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--od-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 150ms var(--od-ease-standard),
+    border-color 150ms var(--od-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omTabBtn:hover {
+    color: var(--od-text-primary);
+  }
+}
+
+.omTabBtn.active {
+  color: var(--od-text-accent);
+  font-weight: 600;
+  border-bottom-color: var(--od-accent-bold);
+}
+
+/* Filter Toolbar */
+.omToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: var(--od-surface-raised);
+  padding: 12px 16px;
+  border-radius: var(--od-radius-container);
+  border: 1px solid var(--od-border-subtle);
+}
+
+.omToolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Form Controls (40px height, 6px radius, 3:1 #868686 border) */
+.omInput,
+.omSelect,
+.omTextarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--od-border-input);
+  border-radius: var(--od-radius-control);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--od-text-primary);
+  background: var(--od-surface-raised);
+  transition: border-color 150ms var(--od-ease-standard);
+}
+
+.omTextarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.omInput::placeholder,
+.omTextarea::placeholder {
+  color: var(--od-text-secondary);
+}
+
+.omInput:focus,
+.omSelect:focus,
+.omTextarea:focus {
+  border-color: var(--od-accent-bold);
+}
+
+/* Data Tables (Sticky Header, 1px separator, right-aligned tabular numbers) */
+.omTableCard {
+  background: var(--od-surface-raised);
+  border: 1px solid var(--od-border-subtle);
+  border-radius: var(--od-radius-container);
+  overflow-x: auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.omTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 780px;
+}
+
+.omTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  height: 44px;
+  padding: 0 16px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--od-text-secondary);
+  background: var(--od-surface-sunken);
+  border-bottom: 1px solid var(--od-border-subtle);
+  white-space: nowrap;
+}
+
+.omTable td {
+  height: 56px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--od-border-separator);
+  vertical-align: middle;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--od-text-primary);
+}
+
+.omTable tr:last-child td {
+  border-bottom: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omTable tbody tr:hover td {
+    background: var(--od-surface-sunken);
+  }
+}
+
+.omTable th.omNumCol,
+.omTable td.omNumCol {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.omDateCol {
+  font-variant-numeric: tabular-nums;
+  color: var(--od-text-secondary);
+  white-space: nowrap;
+}
+
+.omEmptyCell {
+  text-align: center;
+  padding: 48px 24px !important;
+  color: var(--od-text-secondary) !important;
+}
+
+.omItemCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 340px;
+}
+
+.omItemThumb {
+  width: 80px;
+  height: 48px;
+  border-radius: var(--od-radius-detail);
+  background: #242424;
+  color: #ffffff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.omItemThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.omItemTitle {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--od-text-primary);
+}
+
+.omItemSub {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+  margin-top: 2px;
+}
+
+.omSourceStack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.omSourcePrimary {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--od-text-primary);
+}
+
+.omSourceSub {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.omBadgeStack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+/* Status Badges (4px radius.detail, semantic pairs with icon/word) */
+.omBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--od-radius-detail);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.omBadgePublic {
+  background: var(--od-accent-subtle);
+  color: var(--od-text-accent);
+}
+
+.omBadgeInternal {
+  background: var(--od-info-subtle);
+  color: var(--od-text-info);
+}
+
+.omBadgeDraft {
+  background: var(--od-bg-neutral-subtle);
+  color: var(--od-text-secondary);
+}
+
+.omBadgeWarn {
+  background: var(--od-warning-subtle);
+  color: var(--od-text-warning);
+}
+
+.omViewCountBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--od-radius-control);
+  border: 1px solid var(--od-border-subtle);
+  background: var(--od-surface-raised);
+  color: var(--od-text-primary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    border-color 150ms var(--od-ease-standard),
+    color 150ms var(--od-ease-standard),
+    background-color 150ms var(--od-ease-standard),
+    transform 120ms var(--od-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omViewCountBtn:hover {
+    border-color: var(--od-border-accent);
+    background: var(--od-accent-subtle);
+    color: var(--od-text-accent);
+  }
+}
+
+.omRowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.omIconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--od-radius-control);
+  border: 1px solid var(--od-border-default);
+  background: var(--od-surface-raised);
+  color: var(--od-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    border-color 150ms var(--od-ease-standard),
+    color 150ms var(--od-ease-standard),
+    background-color 150ms var(--od-ease-standard),
+    transform 120ms var(--od-ease-standard);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omIconBtn:hover {
+    border-color: var(--od-border-input);
+    color: var(--od-text-primary);
+    background: var(--od-surface-sunken);
+  }
+
+  .omIconBtnDanger:hover {
+    border-color: var(--od-border-danger);
+    color: var(--od-text-danger);
+    background: var(--od-danger-subtle);
+  }
+}
+
+/* ==========================================================================
+   Modal & 2-Column Upload/Edit Dialog (radius.overlay 12px, nested 8px/6px/4px)
+   ========================================================================== */
+
+.omModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(36, 36, 36, 0.48);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.omModalDialog {
+  background: var(--od-surface-raised);
+  border-radius: var(--od-radius-overlay);
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 0 0 1px var(--od-border-subtle),
+    0 12px 32px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+}
+
+.omModalDialogWide {
+  max-width: 980px;
+}
+
+.omModalHeader {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--od-border-separator);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--od-surface-raised);
+}
+
+.omModalHeader h2 {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--od-text-primary);
+  margin: 0;
+}
+
+.omModalHeaderSub {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+  margin-top: 2px;
+}
+
+.omModalHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.omModalBody {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.omModalTwoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.omModalCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.omSectionCard {
+  background: var(--od-surface-sunken);
+  border: 1px solid var(--od-border-subtle);
+  border-radius: var(--od-radius-container);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.omSectionTitle {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--od-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.omModalFooter {
+  padding: 16px 24px;
+  border-top: 1px solid var(--od-border-separator);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--od-surface-raised);
+  flex-wrap: wrap;
+}
+
+.omModalFooterActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.omFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.omFieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.omLabel {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--od-text-primary);
+}
+
+.omHint {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+}
+
+/* Visual Selection Cards inside Modal (Unified single accent on selection) */
+.omChoiceGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.omChoiceGridThree {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.omChoiceCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--od-radius-control);
+  border: 1px solid var(--od-border-default);
+  background: var(--od-surface-raised);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms var(--od-ease-standard),
+    background-color 150ms var(--od-ease-standard),
+    box-shadow 150ms var(--od-ease-standard),
+    transform 120ms var(--od-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omChoiceCard:hover:not(:disabled) {
+    border-color: var(--od-border-input);
+  }
+}
+
+.omChoiceCard.active,
+.omChoiceCard.activeInternal {
+  border-color: var(--od-accent-bold);
+  box-shadow: inset 0 0 0 1px var(--od-accent-bold);
+  background: var(--od-accent-subtle);
+}
+
+.omChoiceCard:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.omChoiceHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--od-text-primary);
+}
+
+.omChoiceCard.active .omChoiceHead,
+.omChoiceCard.activeInternal .omChoiceHead {
+  color: var(--od-text-accent);
+}
+
+.omChoiceDesc {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+}
+
+/* Quick Category Inline Creator */
+.omCategoryRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.omQuickCatBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--od-radius-control);
+  background: var(--od-surface-raised);
+  border: 1px solid var(--od-border-subtle);
+}
+
+/* Dropzone & Real-Time Upload Telemetry */
+.omDropzone {
+  border: 1px dashed var(--od-border-input);
+  border-radius: var(--od-radius-control);
+  padding: 20px 16px;
+  background: var(--od-surface-raised);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  cursor: pointer;
+  transition:
+    border-color 150ms var(--od-ease-standard),
+    background-color 150ms var(--od-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omDropzone:hover,
+  .omDropzone.dragging {
+    border-color: var(--od-accent-bold);
+    background: var(--od-accent-subtle);
+  }
+}
+
+.omDropzoneIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--od-accent-subtle);
+  color: var(--od-text-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.omTelemetryCard {
+  background: var(--od-surface-raised);
+  border: 1px solid var(--od-border-subtle);
+  border-radius: var(--od-radius-control);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.omTelemetryCard.isDone {
+  border-color: var(--od-border-accent);
+  background: var(--od-accent-subtle);
+}
+
+.omTelemetryCard.isError {
+  border-color: var(--od-border-danger);
+  background: var(--od-danger-subtle);
+}
+
+.omTelemetryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.omTelemetryTitle {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--od-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omTelemetryPercent {
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--od-text-accent);
+}
+
+.omStepsPipeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.omStepItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+  padding: 4px 8px;
+  border-radius: var(--od-radius-detail);
+  background: var(--od-surface-sunken);
+  font-variant-numeric: tabular-nums;
+}
+
+.omStepItem.done {
+  color: var(--od-text-accent);
+  background: var(--od-accent-subtle);
+  font-weight: 600;
+}
+
+.omStepItem.current {
+  color: var(--od-text-info);
+  background: var(--od-info-subtle);
+  font-weight: 600;
+}
+
+.omProgressBar {
+  width: 100%;
+  height: 8px;
+  background: var(--od-bg-neutral-subtle);
+  border-radius: var(--od-radius-detail);
+  overflow: hidden;
+}
+
+.omProgressFill {
+  height: 100%;
+  background: var(--od-accent-bold);
+  transition: width 150ms linear;
+}
+
+.omTelemetryMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.omMetricBox {
+  background: var(--od-surface-sunken);
+  border: 1px solid var(--od-border-separator);
+  border-radius: var(--od-radius-detail);
+  padding: 8px 12px;
+}
+
+.omMetricLabel {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--od-text-secondary);
+}
+
+.omMetricValue {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--od-text-primary);
+  margin-top: 2px;
+}
+
+.omUploadedFileCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: var(--od-accent-subtle);
+  border: 1px solid var(--od-border-accent);
+  border-radius: var(--od-radius-control);
+}
+
+.omYoutubePreviewFrame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--od-radius-control);
+  overflow: hidden;
+  background: #000000;
+  border: 1px solid var(--od-border-subtle);
+}
+
+.omYoutubePreviewFrame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.omThumbPreviewBox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.omThumbPreviewImg {
+  width: 96px;
+  height: 56px;
+  border-radius: var(--od-radius-detail);
+  object-fit: cover;
+  border: 1px solid var(--od-border-subtle);
+  background: #242424;
+}
+
+/* Floating Minimized Upload Monitor */
+.omFloatingMonitor {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: var(--od-surface-raised);
+  border: 1px solid var(--od-border-subtle);
+  border-radius: var(--od-radius-overlay);
+  box-shadow:
+    0 0 0 1px var(--od-border-subtle),
+    0 12px 32px rgba(0, 0, 0, 0.16);
+  padding: 16px;
+  z-index: 9600;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.omCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--od-radius-control);
+  border: 1px solid var(--od-border-subtle);
+  background: var(--od-surface-raised);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--od-text-primary);
+}
+
+/* Action Buttons (40px height, 6px radius) */
+.omBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--od-radius-control);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid var(--od-border-default);
+  background: var(--od-surface-raised);
+  color: var(--od-text-primary);
+  transition:
+    background-color 150ms var(--od-ease-standard),
+    border-color 150ms var(--od-ease-standard),
+    transform 120ms var(--od-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omBtn:hover:not(:disabled) {
+    background: var(--od-surface-sunken);
+    border-color: var(--od-border-input);
+  }
+}
+
+.omBtnPrimary {
+  background: var(--od-accent-bold);
+  border-color: var(--od-accent-bold);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omBtnPrimary:hover:not(:disabled) {
+    background: var(--od-accent-hover);
+    border-color: var(--od-accent-hover);
+  }
+}
+
+.omBtnPrimary:active:not(:disabled) {
+  background: var(--od-accent-pressed);
+}
+
+.omBtnDanger {
+  background: var(--od-danger-bold);
+  border-color: var(--od-danger-bold);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omBtnDanger:hover:not(:disabled) {
+    background: var(--od-danger-hover);
+    border-color: var(--od-danger-hover);
+  }
+}
+
+.omBtnDangerOutline {
+  border-color: var(--od-border-danger);
+  color: var(--od-text-danger);
+  background: var(--od-surface-raised);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .omBtnDangerOutline:hover:not(:disabled) {
+    background: var(--od-danger-subtle);
+    border-color: var(--od-danger-bold);
+  }
+}
+
+.omBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.omBtnCompact {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 16px;
+  border-radius: var(--od-radius-detail);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .omBackBtn,
+  .omBtn,
+  .omTabBtn,
+  .omIconBtn,
+  .omChoiceCard,
+  .omViewCountBtn {
+    transition-duration: 0ms !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .omModalTwoCol {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .omFieldRow,
+  .omChoiceGrid,
+  .omChoiceGridThree,
+  .omStepsPipeline {
+    grid-template-columns: 1fr;
+  }
+
+  .omInput,
+  .omSelect,
+  .omTextarea {
+    font-size: 16px;
+  }
+}

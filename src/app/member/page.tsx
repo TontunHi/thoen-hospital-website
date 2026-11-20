@@ -22,6 +22,7 @@ export default async function MemberDashboardPage() {
   const isEthicsAuthorized = member.can('manage_ethics')
   const isLocationsAuthorized = member.can('manage_locations') || member.isAdmin
   const isAssetsAuthorized = member.can('manage_assets') || member.isAdmin
+  const isOnlineMediaAuthorized = member.can('manage_online_media') || member.isAdmin
   const isKpiAuthorized = member.hasAccess('feature_kpi') && (
     member.isAdmin || member.can('manage_kpi') || member.can('view_all_kpi')
   )
@@ -38,11 +39,13 @@ export default async function MemberDashboardPage() {
         hasInbox: member.hasAccess('feature_inbox'),
         hasRepair: member.hasAccess('feature_repair'),
         hasMediaRequest: member.hasAccess('feature_media_request'),
+        hasOnlineMedia: member.hasAccess('feature_online_media'),
         hasSalary: member.hasAccess('feature_salary'),
         hasSignature: member.hasAccess('feature_signature'),
         hasEquipmentBorrow: member.hasAccess('feature_equipment_borrow'),
         hasEvents: member.hasAccess('feature_events'),
         isAssetsAuthorized,
+        isOnlineMediaAuthorized,
         isNewsAuthorized,
         isItaAuthorized: isItaAuthorized && member.hasAccess('feature_ita'),
         isRduAuthorized: isRduAuthorized && member.hasAccess('feature_rdu'),

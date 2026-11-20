@@ -8,6 +8,10 @@ import {
   HeadBucketCommand,
   PutBucketPolicyCommand,
   ListBucketsCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import crypto from 'crypto'
@@ -107,6 +111,111 @@ export async function uploadToS3(params: {
 
   const res = await client.send(command)
   return { bucket, key: normalizedKey, eTag: res.ETag }
+}
+
+/**
+ * Initialize a multipart upload in S3 / MinIO for large files (up to 10GB).
+ */
+export async function createMultipartUploadS3(params: {
+  bucket?: string
+  key: string
+  contentType?: string
+}): Promise<{ bucket: string; key: string; uploadId: string }> {
+  const client = getS3Client()
+  const bucket = params.bucket || S3_CONFIG.publicBucket
+  const normalizedKey = normalizeS3Key(params.key)
+
+  const command = new CreateMultipartUploadCommand({
+    Bucket: bucket,
+    Key: normalizedKey,
+    ContentType: params.contentType || 'application/octet-stream',
+    CacheControl: bucket === S3_CONFIG.publicBucket ? 'public, max-age=31536000, immutable' : undefined,
+  })
+
+  const res = await client.send(command)
+  if (!res || !res.UploadId) {
+    throw new Error('Failed to initialize multipart upload on S3/MinIO')
+  }
+
+  return { bucket, key: normalizedKey, uploadId: res.UploadId }
+}
+
+/**
+ * Upload a single part in an S3 / MinIO multipart upload session.
+ */
+export async function uploadPartS3(params: {
+  bucket?: string
+  key: string
+  uploadId: string
+  partNumber: number
+  body: Buffer | Uint8Array
+}): Promise<{ eTag: string; partNumber: number }> {
+  const client = getS3Client()
+  const bucket = params.bucket || S3_CONFIG.publicBucket
+  const normalizedKey = normalizeS3Key(params.key)
+
+  const command = new UploadPartCommand({
+    Bucket: bucket,
+    Key: normalizedKey,
+    UploadId: params.uploadId,
+    PartNumber: params.partNumber,
+    Body: params.body,
+  })
+
+  const res = await client.send(command)
+  if (!res.ETag) {
+    throw new Error(`Missing ETag for part ${params.partNumber}`)
+  }
+
+  return { eTag: res.ETag, partNumber: params.partNumber }
+}
+
+/**
+ * Complete an S3 / MinIO multipart upload by assembling all uploaded parts.
+ */
+export async function completeMultipartUploadS3(params: {
+  bucket?: string
+  key: string
+  uploadId: string
+  parts: Array<{ ETag: string; PartNumber: number }>
+}): Promise<{ bucket: string; key: string; eTag?: string }> {
+  const client = getS3Client()
+  const bucket = params.bucket || S3_CONFIG.publicBucket
+  const normalizedKey = normalizeS3Key(params.key)
+  const sortedParts = [...params.parts].sort((a, b) => a.PartNumber - b.PartNumber)
+
+  const command = new CompleteMultipartUploadCommand({
+    Bucket: bucket,
+    Key: normalizedKey,
+    UploadId: params.uploadId,
+    MultipartUpload: {
+      Parts: sortedParts,
+    },
+  })
+
+  const res = await client.send(command)
+  return { bucket, key: normalizedKey, eTag: res.ETag }
+}
+
+/**
+ * Abort an in-progress S3 / MinIO multipart upload and clean up orphan parts.
+ */
+export async function abortMultipartUploadS3(params: {
+  bucket?: string
+  key: string
+  uploadId: string
+}): Promise<void> {
+  const client = getS3Client()
+  const bucket = params.bucket || S3_CONFIG.publicBucket
+  const normalizedKey = normalizeS3Key(params.key)
+
+  const command = new AbortMultipartUploadCommand({
+    Bucket: bucket,
+    Key: normalizedKey,
+    UploadId: params.uploadId,
+  })
+
+  await client.send(command)
 }
 
 /**

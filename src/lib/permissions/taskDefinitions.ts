@@ -672,6 +672,34 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
       },
     ],
   },
+  {
+    id: 'ONLINE_MEDIA',
+    name: 'ระบบคลังสื่อออนไลน์ (Online Media Library)',
+    shortName: 'คลังสื่อออนไลน์',
+    category: 'system',
+    categoryLabel: 'ระบบบริหาร & กำกับดูแล',
+    description:
+      'ระบบจัดการคลังสื่อออนไลน์บน MinIO และ YouTube แยกสิทธิ์สื่อสาธารณะและสื่อภายในบุคลากร พร้อมติดตามประวัติการเข้าชมรายบุคคล',
+    iconName: 'Monitor',
+    badgeColor: '#0284c7',
+    roles: [
+      {
+        roleType: 'manage',
+        label: 'ผู้ดูแลระบบคลังสื่อออนไลน์ (Manage Online Media)',
+        shortLabel: 'จัดการคลังสื่อออนไลน์',
+        description:
+          'สามารถสร้างหมวดหมู่ อัปโหลดวิดีโอ/อินโฟกราฟิก/PDF ขึ้น MinIO เพิ่มลิงก์ YouTube Unlisted ตั้งค่าการดาวน์โหลด และดูประวัติการเข้าชมของบุคลากรได้',
+        permissionKey: 'manage_online_media',
+        allowedActions: [
+          'สร้าง แก้ไข และจัดเรียงหมวดหมู่สื่อออนไลน์',
+          'อัปโหลดสื่อวิดีโอขนาดใหญ่ อินโฟกราฟิก และเอกสาร PDF ขึ้น MinIO',
+          'เพิ่มสื่อจากลิงก์ YouTube (รวมโหมดไม่เป็นสาธารณะ / Unlisted)',
+          'เปิด/ปิดสิทธิ์การดาวน์โหลดไฟล์และสถานะการเผยแพร่',
+          'ตรวจสอบรายชื่อและประวัติบุคลากรที่เข้าชมสื่อภายในแล้ว',
+        ],
+      },
+    ],
+  },
 ]
 
 
