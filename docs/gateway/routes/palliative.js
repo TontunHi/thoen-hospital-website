@@ -55,9 +55,9 @@ fastify.get('/api/v1/clinical/rcm/palliative-care', {
         IF(GROUP_CONCAT(DISTINCT IF(d.nhso_adp_code REGEXP '^M', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Drug,
         IFNULL(pt.death, 'N') AS death,
         DATE_FORMAT(pt.deathday, '%Y-%m-%d') AS death_date,
-        IF(e.hn IS NULL, ' ', 'Y') AS OK,
-        IFNULL(e.PallativeCare, 0) AS compensated,
-        CONCAT_WS('#', e.rep, e.id) AS rep_invoice,
+        IF(e.vn IS NULL AND rd.vn IS NULL, ' ', 'Y') AS OK,
+        COALESCE(e.PallativeCare, rd.PallativeCare, 0) AS compensated,
+        COALESCE(NULLIF(CONCAT_WS('#', e.rep, e.id), ''), NULLIF(CONCAT_WS('#', rd.rep, rd.id), ''), '') AS rep_invoice,
         CONCAT_WS('#', m.eclaim_no, m.id) AS eclaim_no,
         m.senddate,
         CASE 
@@ -75,7 +75,28 @@ fastify.get('/api/v1/clinical/rcm/palliative-care', {
       LEFT JOIN pttype ptt ON ptt.pttype = o.pttype 
       LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
       LEFT JOIN spclty sp ON sp.spclty = o.spclty
-      LEFT JOIN rcmdb.repeclaim e ON e.hn = o.hn AND e.PallativeCare > 0
+      LEFT JOIN (
+        SELECT
+          vn,
+          SUM(PallativeCare) AS PallativeCare,
+          SUBSTRING_INDEX(GROUP_CONCAT(rep ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+          SUBSTRING_INDEX(GROUP_CONCAT(id ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS id
+        FROM rcmdb.repeclaim
+        WHERE PallativeCare > 0
+          AND IFNULL(vn, '') <> ''
+        GROUP BY vn
+      ) e ON e.vn = o.vn
+      LEFT JOIN (
+        SELECT
+          vn,
+          SUM(PallativeCare) AS PallativeCare,
+          SUBSTRING_INDEX(GROUP_CONCAT(rep ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+          SUBSTRING_INDEX(GROUP_CONCAT(id ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS id
+        FROM rcmdb.repdata
+        WHERE PallativeCare > 0
+          AND IFNULL(vn, '') <> ''
+        GROUP BY vn
+      ) rd ON rd.vn = o.vn
       LEFT JOIN (
         SELECT 
           m.opdseq AS vn,

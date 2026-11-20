@@ -281,8 +281,23 @@ export class RcmAmedHomewardService {
           LEFT OUTER JOIN iptdiag idx ON i.an = idx.an AND idx.diagtype = 1
           LEFT OUTER JOIN visit_pttype cc ON cc.vn = i.vn
           ${amedJoin}
-          LEFT OUTER JOIN rcmdb.repdata r ON r.an = i.an
-          LEFT OUTER JOIN rcmdb.repeclaim re ON re.an = i.an
+          LEFT OUTER JOIN (
+            SELECT
+              an,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark
+            FROM rcmdb.repdata
+            WHERE IFNULL(an, '') <> ''
+            GROUP BY an
+          ) r ON r.an = i.an
+          LEFT OUTER JOIN (
+            SELECT
+              an,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep
+            FROM rcmdb.repeclaim
+            WHERE IFNULL(an, '') <> ''
+            GROUP BY an
+          ) re ON re.an = i.an
           LEFT OUTER JOIN nationality nat ON nat.nationality = pt.nationality
           LEFT OUTER JOIN ward w ON w.ward = i.ward
           LEFT OUTER JOIN iptadm adm ON adm.an = i.an

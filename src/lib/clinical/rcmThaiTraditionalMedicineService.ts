@@ -465,7 +465,15 @@ export class RcmThaiTraditionalMedicineService {
             WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
-          LEFT JOIN rcmdb.seamless sm ON sm.vn = o.vn AND sm.rep REGEXP 'DTTM'
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(payno, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS payno,
+              SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.seamless
+            WHERE IFNULL(vn, '') <> '' AND rep REGEXP 'DTTM'
+            GROUP BY vn
+          ) sm ON sm.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
           ORDER BY o.vstdate DESC, o.vsttime DESC;
         `

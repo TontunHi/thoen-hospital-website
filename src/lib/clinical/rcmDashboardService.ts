@@ -2230,9 +2230,9 @@ export class RcmDashboardService {
             IFNULL(dr.Drug, '') AS Drug,
             IFNULL(pt.death, 'N') AS death,
             DATE_FORMAT(pt.deathday, '%Y-%m-%d') AS death_date,
-            IF(e.hn IS NULL, ' ', 'Y') AS OK,
-            IFNULL(e.PallativeCare, 0) AS compensated,
-            CONCAT_WS('#', e.rep, e.id) AS rep_invoice,
+            IF(e.vn IS NULL AND rd.vn IS NULL, ' ', 'Y') AS OK,
+            COALESCE(e.PallativeCare, rd.PallativeCare, 0) AS compensated,
+            COALESCE(NULLIF(CONCAT_WS('#', e.rep, e.id), ''), NULLIF(CONCAT_WS('#', rd.rep, rd.id), ''), '') AS rep_invoice,
             CONCAT_WS('#', m.eclaim_no, m.id) AS eclaim_no,
             m.senddate,
             CASE 
@@ -2244,7 +2244,6 @@ export class RcmDashboardService {
           LEFT JOIN patient pt ON pt.hn = o.hn
           LEFT JOIN vn_stat v ON v.vn = o.vn 
           JOIN ovstdiag dx ON dx.vn = o.vn
-          LEFT JOIN opdscreen s ON s.vn = o.vn
           LEFT JOIN (
             SELECT DISTINCT oo.vn, 'Y' AS Drug
             FROM opitemrece oo
@@ -2252,15 +2251,32 @@ export class RcmDashboardService {
             WHERE d.nhso_adp_code REGEXP '^M'
               AND oo.vstdate BETWEEN ? AND ?
           ) dr ON dr.vn = o.vn
+          LEFT JOIN opdscreen s ON s.vn = o.vn
           LEFT JOIN pttype ptt ON ptt.pttype = o.pttype 
           LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
           LEFT JOIN spclty sp ON sp.spclty = o.spclty
           LEFT JOIN (
-            SELECT hn, MAX(PallativeCare) AS PallativeCare, MAX(rep) AS rep, MAX(id) AS id
+            SELECT
+              vn,
+              SUM(PallativeCare) AS PallativeCare,
+              SUBSTRING_INDEX(GROUP_CONCAT(rep ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUBSTRING_INDEX(GROUP_CONCAT(id ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS id
             FROM rcmdb.repeclaim
             WHERE PallativeCare > 0
-            GROUP BY hn
-          ) e ON e.hn = o.hn
+              AND IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) e ON e.vn = o.vn
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUM(PallativeCare) AS PallativeCare,
+              SUBSTRING_INDEX(GROUP_CONCAT(rep ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUBSTRING_INDEX(GROUP_CONCAT(id ORDER BY PallativeCare DESC, AdmDate DESC, id DESC), ',', 1) AS id
+            FROM rcmdb.repdata
+            WHERE PallativeCare > 0
+              AND IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) rd ON rd.vn = o.vn
           LEFT JOIN (
             SELECT 
               m.opdseq AS vn,
@@ -2528,13 +2544,38 @@ export class RcmDashboardService {
           LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
           LEFT JOIN spclty sp ON sp.spclty = o.spclty
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-          LEFT JOIN rcmdb.repdata rd ON rd.vn = o.vn
-          LEFT JOIN rcmdb.repeclaim re ON re.vn = o.vn
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(TransactionType, '') ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS TransactionType,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(subfund, '') ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS subfund,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(projectcode, '') ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS projectcode
+            FROM rcmdb.repdata
+            WHERE IFNULL(vn, '') <> ''
+              AND AdmDate >= DATE_SUB(?, INTERVAL 1 DAY)
+              AND AdmDate < DATE_ADD(?, INTERVAL 2 DAY)
+            GROUP BY vn
+          ) rd ON rd.vn = o.vn
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(resource, '') ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS resource
+            FROM rcmdb.repeclaim
+            WHERE IFNULL(vn, '') <> ''
+              AND AdmDate >= DATE_SUB(?, INTERVAL 1 DAY)
+              AND AdmDate < DATE_ADD(?, INTERVAL 2 DAY)
+            GROUP BY vn
+          ) re ON re.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
           GROUP BY o.vn
           ORDER BY o.hn ASC, o.vn ASC
         `
-        return (await executor(sql, [ds1, ds2, ds1, ds2], { timeoutMs: 120000 })) as any[]
+        return (await executor(sql, [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2], { timeoutMs: 120000 })) as any[]
       },
       300000 // Cache TTL 5 minutes
     )

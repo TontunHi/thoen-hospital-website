@@ -363,4 +363,19 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
     expect(z515NResult.items[0].z515).toBe('')
     expect(z515NResult.z515Status).toBe('N')
   })
+
+  it('joins rcmdb.repeclaim and rcmdb.repdata by VN instead of HN', async () => {
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    await RcmDashboardService.getPalliativeCareReport(
+      { ds1: '2024-10-01', ds2: '2025-09-30', ucOnly: false },
+      mockExecutor
+    )
+
+    const sql = String(mockExecutor.mock.calls[0][0])
+    expect(sql).toContain('e.vn = o.vn')
+    expect(sql).toContain('rd.vn = o.vn')
+    expect(sql).not.toMatch(/ON\s+e\.hn\s*=\s*o\.hn/i)
+    expect(sql).not.toMatch(/GROUP BY\s+hn\b/i)
+  })
 })

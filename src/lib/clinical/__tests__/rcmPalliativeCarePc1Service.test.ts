@@ -172,4 +172,19 @@ describe('RcmDashboardService.getPalliativeCarePc1Report', () => {
     expect(result.summary.totalPatients).toBe(0)
     expect(result.summary.totalCompensated).toBe(0)
   })
+
+  it('aggregates rcmdb.repdata and rcmdb.repeclaim by VN prioritizing compensated rows', async () => {
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    await RcmDashboardService.getPalliativeCarePc1Report(
+      { ds1: '2024-10-01', ds2: '2025-09-30' },
+      mockExecutor
+    )
+
+    const sql = String(mockExecutor.mock.calls[0][0])
+    expect(sql).toContain('GROUP BY vn')
+    expect(sql).toContain('ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC')
+    expect(sql).toContain('rd.vn = o.vn')
+    expect(sql).toContain('re.vn = o.vn')
+  })
 })

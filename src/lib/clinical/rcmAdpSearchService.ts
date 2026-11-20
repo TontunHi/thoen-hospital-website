@@ -637,9 +637,37 @@ export class RcmAdpSearchService {
           LEFT JOIN ovstist ovstist_lookup ON ovstist_lookup.ovstist = o.ovstist
           LEFT JOIN ovstost ovstost_lookup ON ovstost_lookup.ovstost = o.ovstost
           LEFT JOIN rcmdb.authencode au ON au.vn = o.vn
-          LEFT JOIN rcmdb.repdata rep_d ON rep_d.vn = o.vn
-          LEFT JOIN rcmdb.repeclaim rep_c ON rep_c.vn = o.vn
-          LEFT JOIN rcmdb.seamless se ON se.vn = o.vn
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(fund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS fund,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(subfund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS subfund,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(projectcode, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS projectcode,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark
+            FROM rcmdb.repdata
+            WHERE IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) rep_d ON rep_d.vn = o.vn
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.repeclaim
+            WHERE IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) rep_c ON rep_c.vn = o.vn
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.seamless
+            WHERE IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) se ON se.vn = o.vn
           LEFT JOIN rcmdb.ktb k ON k.vn = v.vn
           GROUP BY o.vn, target_rec.icode
           ORDER BY o.vstdate DESC, o.vn DESC;
@@ -833,8 +861,28 @@ export class RcmAdpSearchService {
           LEFT JOIN codeaccount ca ON ca.code = e.ar_ipd
           LEFT JOIN ward w ON w.ward = i.ward
           LEFT JOIN icd101 icd ON icd.code = a.pdx
-          LEFT JOIN rcmdb.repdata rep_d ON rep_d.an = i.an
-          LEFT JOIN rcmdb.repeclaim rep_c ON rep_c.an = i.an
+          LEFT JOIN (
+            SELECT
+              an,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(fund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS fund,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(subfund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS subfund,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(projectcode, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS projectcode,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark
+            FROM rcmdb.repdata
+            WHERE IFNULL(an, '') <> ''
+            GROUP BY an
+          ) rep_d ON rep_d.an = i.an
+          LEFT JOIN (
+            SELECT
+              an,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.repeclaim
+            WHERE IFNULL(an, '') <> ''
+            GROUP BY an
+          ) rep_c ON rep_c.an = i.an
           GROUP BY i.an, target_rec.icode
           ORDER BY i.dchdate DESC, i.an DESC;
         `

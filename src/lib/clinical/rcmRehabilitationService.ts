@@ -482,7 +482,18 @@ export class RcmRehabilitationService {
               LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
               LEFT JOIN visit_pttype vt ON vt.vn = o.vn
               ${includeRehabService ? 'LEFT JOIN rcmdb.rehab_service rs ON rs.vn = o.vn' : ''}
-              LEFT JOIN rcmdb.seamless sm ON sm.vn = o.vn
+              LEFT JOIN (
+                SELECT
+                  vn,
+                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(payno, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS payno,
+                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(type, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS type,
+                  SUM(IFNULL(compensated, 0)) AS compensated,
+                  SUM(IFNULL(noCompensated, 0)) AS noCompensated
+                FROM rcmdb.seamless
+                WHERE IFNULL(vn, '') <> ''
+                GROUP BY vn
+              ) sm ON sm.vn = o.vn
               WHERE o.vn IN (${vnPlaceholders})
               ORDER BY o.vstdate DESC, o.vsttime DESC;
             `

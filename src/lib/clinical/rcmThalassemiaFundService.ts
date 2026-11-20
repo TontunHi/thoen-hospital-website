@@ -295,10 +295,10 @@ export class RcmThalassemiaFundService {
             l.Hct_Result AS hct_result,
             l.Hct_Date AS hct_date,
             COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-            GROUP_CONCAT(DISTINCT r.rep SEPARATOR ', ') AS seamless,
-            GROUP_CONCAT(DISTINCT re.rep SEPARATOR ', ') AS rep,
-            MAX(IF(re.rep IS NOT NULL AND re.rep <> '', 'มี Rep แล้ว', IF(r.rep IS NOT NULL AND r.rep <> '', 'มี Seamless', 'รอส่งเบิก'))) AS status,
-            SUM(DISTINCT IFNULL(re.compensated, 0)) AS compensated
+            r.rep AS seamless,
+            re.rep AS rep,
+            IF(re.rep IS NOT NULL AND re.rep <> '', 'มี Rep แล้ว', IF(r.rep IS NOT NULL AND r.rep <> '', 'มี Seamless', 'รอส่งเบิก')) AS status,
+            IFNULL(re.compensated, 0) AS compensated
           FROM (
             SELECT 
               o.vn,
@@ -361,8 +361,20 @@ export class RcmThalassemiaFundService {
           ) l ON l.vn = t.vn
           LEFT JOIN rcmdb.authencode cc ON cc.vn = t.vn
           LEFT JOIN visit_pttype vt ON vt.vn = t.vn
-          LEFT JOIN rcmdb.seamless r ON r.vn = t.vn
-          LEFT JOIN rcmdb.repdata re ON re.vn = t.vn
+          LEFT JOIN (
+            SELECT vn, GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY rep SEPARATOR ', ') AS rep
+            FROM rcmdb.seamless
+            WHERE IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) r ON r.vn = t.vn
+          LEFT JOIN (
+            SELECT vn,
+                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
+                   SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.repdata
+            WHERE IFNULL(vn, '') <> ''
+            GROUP BY vn
+          ) re ON re.vn = t.vn
           WHERE (t.drugname IS NOT NULL OR b.vn IS NOT NULL)
           GROUP BY t.vn
           ORDER BY t.vstdate DESC, t.vsttime DESC;
@@ -616,10 +628,10 @@ export class RcmThalassemiaFundService {
             l.Hb_Date AS hb_date,
             l.Hct_Result AS hct_result,
             l.Hct_Date AS hct_date,
-            GROUP_CONCAT(DISTINCT r.rep SEPARATOR ', ') AS seamless,
-            GROUP_CONCAT(DISTINCT re.rep SEPARATOR ', ') AS rep,
-            MAX(IF(re.rep IS NOT NULL AND re.rep <> '', 'มี Rep แล้ว', IF(r.rep IS NOT NULL AND r.rep <> '', 'มี Seamless', 'รอส่งเบิก'))) AS status,
-            SUM(DISTINCT IFNULL(re.compensated, 0)) AS compensated
+            r.rep AS seamless,
+            re.rep AS rep,
+            IF(re.rep IS NOT NULL AND re.rep <> '', 'มี Rep แล้ว', IF(r.rep IS NOT NULL AND r.rep <> '', 'มี Seamless', 'รอส่งเบิก')) AS status,
+            IFNULL(re.compensated, 0) AS compensated
           FROM (
             SELECT 
               i.an,
@@ -677,8 +689,20 @@ export class RcmThalassemiaFundService {
             WHERE (l.provis_labcode IN ('0621401', '0621201') OR l.lab_items_name REGEXP 'ferritin')
             GROUP BY lh.vn
           ) l ON l.an = t.an
-          LEFT JOIN rcmdb.seamless r ON r.an = t.an
-          LEFT JOIN rcmdb.repdata re ON re.an = t.an
+          LEFT JOIN (
+            SELECT an, GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY rep SEPARATOR ', ') AS rep
+            FROM rcmdb.seamless
+            WHERE IFNULL(an, '') <> ''
+            GROUP BY an
+          ) r ON r.an = t.an
+          LEFT JOIN (
+            SELECT an,
+                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
+                   SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.repdata
+            WHERE IFNULL(an, '') <> ''
+            GROUP BY an
+          ) re ON re.an = t.an
           WHERE (t.icd9 REGEXP '9904' OR t.drugname IS NOT NULL OR b.an IS NOT NULL)
           GROUP BY t.an
           ORDER BY t.dchdate DESC, t.admdate DESC;

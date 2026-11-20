@@ -884,12 +884,12 @@ export class RcmFamilyPlanningService {
               COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-::ยังไม่ได้ส่ง') AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-              rd.TransactionType,
-              re.resource,
-              COALESCE(rd.fund, re.fund) AS fund,
-              COALESCE(rd.subfund, re.subfund) AS subfund,
-              rd.remark,
-              rd.projectcode
+              rep.TransactionType,
+              nhso.resource,
+              COALESCE(rep.fund, nhso.fund) AS fund,
+              COALESCE(rep.subfund, nhso.subfund) AS subfund,
+              rep.remark,
+              rep.projectcode
             FROM (
               SELECT DISTINCT vn FROM (
                 SELECT vn 
@@ -965,21 +965,22 @@ export class RcmFamilyPlanningService {
             LEFT JOIN visit_pttype vt ON vt.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
+                     MAX(resource) AS resource, MAX(fund) AS fund, MAX(subfund) AS subfund,
                      'NHSO :: มี Invoice แล้ว' AS statusname
               FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+              WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= DATE_SUB(?, INTERVAL 1 DAY) AND admdate < DATE_ADD(?, INTERVAL 2 DAY)
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
+                     MAX(TransactionType) AS TransactionType, MAX(fund) AS fund, MAX(subfund) AS subfund,
+                     MAX(remark) AS remark, MAX(projectcode) AS projectcode,
                      'Rep :: มี Rep แล้ว' AS statusname
               FROM rcmdb.repdata
-              WHERE department = 'OP' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+              WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= DATE_SUB(?, INTERVAL 1 DAY) AND admdate < DATE_ADD(?, INTERVAL 2 DAY)
               GROUP BY vn
             ) rep ON rep.vn = o.vn
             LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN rcmdb.repdata rd ON rd.vn = o.vn
-            LEFT JOIN rcmdb.repeclaim re ON re.vn = o.vn
             LEFT JOIN (
               SELECT m.opdseq AS vn,
                      SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,

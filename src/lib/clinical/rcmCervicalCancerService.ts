@@ -1536,11 +1536,11 @@ export class RcmCervicalCancerService {
             GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0048','1B0049','0320277_0','0320277_1'), t.pp_special_code, NULL)) AS other,
             GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0048','1B0049','0320277_0'), 'ปกติ', IF(t.pp_special_code IN ('0320277_1'), 'ผิดปกติ', NULL))) AS other_result,
             pap.checkup AS colposcopy,
-            GROUP_CONCAT(DISTINCT sm.type) AS type,
+            sm.type AS type,
             IF(rr.vn IS NOT NULL, rr.rep, sm.rep) AS rep,
             IF(rr.vn IS NOT NULL, rr.compensated, sm.compensated) AS compensated,
             sm.note,
-            DATE_FORMAT(sm.paydate, '%Y-%m-%d') AS paydate,
+            sm.paydate,
             c.name AS listname,
             COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
             COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep_nhso,
@@ -1555,8 +1555,27 @@ export class RcmCervicalCancerService {
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
           LEFT JOIN pp_special pp ON o.vn = pp.vn
           LEFT JOIN pp_special_type t ON t.pp_special_type_id = pp.pp_special_type_id
-          LEFT JOIN rcmdb.seamless sm ON sm.vn = o.vn AND sm.rep REGEXP 'CCS'
-          LEFT JOIN rcmdb.repeclaim rr ON rr.vn = o.vn AND rr.filename REGEXP 'HPV'
+          LEFT JOIN (
+            SELECT
+              vn,
+              GROUP_CONCAT(DISTINCT type ORDER BY type SEPARATOR ', ') AS type,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(note, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS note,
+              DATE_FORMAT(MAX(paydate), '%Y-%m-%d') AS paydate
+            FROM rcmdb.seamless
+            WHERE IFNULL(vn, '') <> '' AND rep REGEXP 'CCS'
+            GROUP BY vn
+          ) sm ON sm.vn = o.vn
+          LEFT JOIN (
+            SELECT
+              vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.repeclaim
+            WHERE IFNULL(vn, '') <> '' AND filename REGEXP 'HPV'
+            GROUP BY vn
+          ) rr ON rr.vn = o.vn
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
           LEFT JOIN visit_pttype vt ON vt.vn = o.vn
           LEFT JOIN (
