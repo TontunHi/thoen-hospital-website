@@ -92,6 +92,35 @@ describe('Palliative Care Registry API Route', () => {
     expect(json.items).toHaveLength(1)
   })
 
+  it('GET passes forceSync=true when refresh=true query param is present', async () => {
+    vi.mocked(getAuthenticatedMember).mockResolvedValue({
+      isAdmin: true,
+      username: 'admin',
+      role: 'admin',
+      email: 'admin@thoen.moph.go.th',
+      can: vi.fn().mockReturnValue(true),
+    } as any)
+
+    vi.mocked(PalliativeRegistryService.listRegistries).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 50,
+      totalPages: 1,
+      stats: { total: 0, registered: 0, pendingRegistration: 0, claimed: 0, paid: 0, deny: 0 },
+    })
+
+    const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry?refresh=true')
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+    expect(PalliativeRegistryService.listRegistries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        forceSync: true,
+      })
+    )
+  })
+
   it('POST returns 400 on invalid input', async () => {
     vi.mocked(getAuthenticatedMember).mockResolvedValue({
       isAdmin: true,

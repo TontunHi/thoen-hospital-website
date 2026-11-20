@@ -5,6 +5,7 @@ vi.mock('@/lib/apiGateway', () => {
     apiGateway: {
       app: {
         query: vi.fn(),
+        transaction: vi.fn(),
         getPalliativeRegistries: vi.fn(),
         getPalliativeRegistryById: vi.fn(),
         getPalliativeRegistryByHn: vi.fn(),
@@ -29,12 +30,16 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 import { PalliativeRegistryService } from '../palliativeRegistryService'
+import { LtcRegistryService } from '../ltcRegistryService'
 import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 
 describe('PalliativeRegistryService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    PalliativeRegistryService.invalidateCache()
+    PalliativeRegistryService.resetSyncState()
+    LtcRegistryService.invalidateCache()
   })
 
   it('lists registries with filters and returns stats from gateway', async () => {
@@ -387,6 +392,225 @@ describe('PalliativeRegistryService', () => {
         patientName: 'นายคนไข้ แอลทีซี',
       })
     ).rejects.toThrow('มีรายชื่อในทะเบียน Long Term Care (LTC) แล้ว ไม่สามารถลงทะเบียน Palliative Care ได้')
+  })
+
+  it('syncFromHosxp imports new Clinic 47 patients, excludes LTC patients, and updates existing status/regdate without touching visits', async () => {
+    vi.mocked(apiGateway.app.query).mockImplementation((sql: string) => {
+      if (sql.includes('FROM palliative_care_registries')) {
+        return Promise.resolve([
+          {
+            id: 1,
+            hn: '0000100',
+            registration_status: 'ยังไม่ได้ดำเนินการ',
+            registered_date: null,
+            death_date: null,
+          },
+        ] as any)
+      }
+      if (sql.includes('FROM long_term_care_registries')) {
+        return Promise.resolve([{ hn: '0000999' }] as any)
+      }
+      return Promise.resolve([] as any)
+    })
+    vi.mocked(apiGateway.app.transaction).mockResolvedValue([] as any)
+
+    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('FROM clinicmember cm')) {
+        return Promise.resolve([
+          // Existing website record missing regdate & status
+          {
+            hn: '0000100',
+            regdate: '2026-10-15',
+            note: 'CA lung',
+            ptname: 'นายเก่า รออัปเดต',
+            address: '1 ม.1',
+            phone: '0800000001',
+            death: 'N',
+            death_date: null,
+          },
+          // LTC patient -> MUST be skipped
+          {
+            hn: '0000999',
+            regdate: '2026-11-01',
+            note: 'Stroke',
+            ptname: 'นางแอลทีซี ข้ามเลย',
+            address: '2 ม.2',
+            phone: '0800000002',
+            death: 'N',
+            death_date: null,
+          },
+          // New non-LTC patient -> MUST be inserted with resolved ICD-10
+          {
+            hn: '0054921',
+            regdate: '2026-11-01',
+            note: null,
+            ptname: 'นายใหม่ พัลลิเอทีฟ',
+            address: '3 ม.3 ต.ล้อมแรด',
+            phone: '0811111111',
+            death: 'N',
+            death_date: null,
+          },
+        ])
+      }
+      if (sql.includes('FROM an_stat a')) {
+        return Promise.resolve([
+          { hn: '0054921', an: '690005467', pdx: 'C349', regdate: '2026-07-27', icd10: 'C349', diagtype: 1 },
+        ])
+      }
+      if (sql.includes('FROM vn_stat v')) {
+        return Promise.resolve([])
+      }
+      return Promise.resolve([])
+    })
+
+    const summary = await PalliativeRegistryService.syncFromHosxp({ actor: 'hosxp_autosync' }, mockExecutor)
+
+    expect(summary.totalClinicMembers).toBe(3)
+    expect(summary.insertedCount).toBe(1)
+    expect(summary.updatedCount).toBe(1)
+    expect(summary.visitsAddedCount).toBe(0)
+    expect(summary.skippedLtcCount).toBe(1)
+
+    expect(apiGateway.app.transaction).toHaveBeenCalledTimes(1)
+    const txCalls = vi.mocked(apiGateway.app.transaction).mock.calls[0][0] as Array<{ sql: string; params: unknown[] }>
+    expect(txCalls).toHaveLength(2)
+
+    const insertCall = txCalls.find((c) => c.sql.includes('INSERT INTO palliative_care_registries'))
+    expect(insertCall).toBeDefined()
+    expect(insertCall!.params[0]).toBe('0054921')
+    expect(insertCall!.params[4]).toBe('C349') // resolved icd10Principal
+    expect(insertCall!.params[7]).toBe('2026-11-01') // registered_date
+
+    // LTC patient 0000999 must never be inserted
+    expect(txCalls.some((c) => c.params.includes('0000999'))).toBe(false)
+
+    const updateCall = txCalls.find((c) => c.sql.includes('UPDATE palliative_care_registries'))
+    expect(updateCall).toBeDefined()
+    expect(updateCall!.params[3]).toBe(1) // existing id
+
+    expect(logAudit).toHaveBeenCalledWith(
+      'UPDATE',
+      'palliative_care_registries',
+      expect.stringContaining('inserted: 1, updated: 1, visitsAdded: 0, skippedLtc: 1')
+    )
+  })
+
+  it('syncFromHosxp appends missing ADP 30001 home visits across all history without overwriting existing visits', async () => {
+    let regQueryCalls = 0
+    vi.mocked(apiGateway.app.query).mockImplementation((sql: string) => {
+      if (sql.includes('FROM palliative_care_registries')) {
+        regQueryCalls++
+        if (regQueryCalls === 1) {
+          return Promise.resolve([
+            {
+              id: 1,
+              hn: '0000100',
+              registration_status: 'ดำเนินการเรียบร้อย',
+              registered_date: '2024-06-01',
+              death_date: null,
+              visit_1_date: '15/10/2026',
+            },
+          ] as any)
+        }
+        return Promise.resolve([
+          {
+            id: 1,
+            hn: '0000100',
+            visit_1_date: '15/10/2026',
+          },
+          {
+            id: 2,
+            hn: '0054921',
+            visit_1_date: null,
+          },
+        ] as any)
+      }
+      if (sql.includes('FROM palliative_care_registry_visits')) {
+        return Promise.resolve([
+          { registry_id: 1, visit_no: 1, visit_date: '15/10/2026' },
+        ] as any)
+      }
+      if (sql.includes('FROM long_term_care_registries')) {
+        return Promise.resolve([] as any)
+      }
+      return Promise.resolve([] as any)
+    })
+    vi.mocked(apiGateway.app.transaction).mockResolvedValue([] as any)
+
+    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('FROM clinicmember cm')) {
+        return Promise.resolve([
+          {
+            hn: '0054921',
+            regdate: '2026-11-01',
+            note: 'CA',
+            ptname: 'นายใหม่ พัลลิเอทีฟ',
+            address: '3 ม.3',
+            phone: '0811111111',
+            death: 'N',
+            death_date: null,
+          },
+        ])
+      }
+      if (sql.includes("d.nhso_adp_code = '30001'")) {
+        return Promise.resolve([
+          // Existing patient: 2026-10-15 already recorded -> skip; 2024-06-10 and 2026-11-19 -> append!
+          { hn: '0000100', vstdate: '2024-06-10' },
+          { hn: '0000100', vstdate: '2026-10-15' },
+          { hn: '0000100', vstdate: '2026-11-19' },
+          // Newly inserted patient: 2026-09-09 and 2026-11-19 -> visit 1 and visit 2!
+          { hn: '0054921', vstdate: '2026-09-09' },
+          { hn: '0054921', vstdate: '2026-11-19' },
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const summary = await PalliativeRegistryService.syncFromHosxp({ actor: 'hosxp_autosync' }, mockExecutor)
+
+    expect(summary.insertedCount).toBe(1)
+    expect(summary.visitsAddedCount).toBe(4)
+
+    // Transaction 1: patient insert; Transaction 2: visit inserts & slot updates
+    expect(apiGateway.app.transaction).toHaveBeenCalledTimes(2)
+    const visitTxCalls = vi.mocked(apiGateway.app.transaction).mock.calls[1][0] as Array<{
+      sql: string
+      params: unknown[]
+    }>
+
+    const visitInserts = visitTxCalls.filter((c) =>
+      c.sql.includes('INSERT IGNORE INTO palliative_care_registry_visits')
+    )
+    expect(visitInserts).toHaveLength(4)
+    expect(visitInserts.map((c) => c.params)).toEqual([
+      [1, 2, '10/06/2024'],
+      [1, 3, '19/11/2026'],
+      [2, 1, '09/09/2026'],
+      [2, 2, '19/11/2026'],
+    ])
+
+    const regSlotUpdates = visitTxCalls.filter((c) =>
+      c.sql.includes('UPDATE palliative_care_registries')
+    )
+    expect(regSlotUpdates).toHaveLength(2)
+    expect(regSlotUpdates[0].sql).toContain('visit_2_date = COALESCE')
+    expect(regSlotUpdates[0].sql).toContain('visit_3_date = COALESCE')
+    expect(regSlotUpdates[1].sql).toContain('visit_1_date = COALESCE')
+    expect(regSlotUpdates[1].sql).toContain('visit_2_date = COALESCE')
+  })
+
+  it('ensureAutoSynced respects cooldown unless force=true', async () => {
+    vi.mocked(apiGateway.app.query).mockResolvedValue([] as any)
+    const mockExecutor = vi.fn().mockResolvedValue([])
+
+    const first = await PalliativeRegistryService.ensureAutoSynced({}, mockExecutor)
+    const firstCallCount = mockExecutor.mock.calls.length
+    const second = await PalliativeRegistryService.ensureAutoSynced({}, mockExecutor)
+    expect(first).toEqual(second)
+    expect(mockExecutor).toHaveBeenCalledTimes(firstCallCount) // 2nd call hit cooldown
+
+    await PalliativeRegistryService.ensureAutoSynced({ force: true }, mockExecutor)
+    expect(mockExecutor).toHaveBeenCalledTimes(firstCallCount * 2) // forced re-sync ran
   })
 })
 

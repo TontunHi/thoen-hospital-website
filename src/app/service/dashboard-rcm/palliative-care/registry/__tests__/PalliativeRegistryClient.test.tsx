@@ -618,4 +618,41 @@ describe('PalliativeRegistryClient Component', () => {
     expect(screen.queryByTitle('แก้ไข / บันทึกการเยี่ยม')).not.toBeInTheDocument()
     expect(screen.queryByTitle('ลบเคส')).not.toBeInTheDocument()
   })
+
+  it('renders HOSxP auto-sync summary and supports manual sync refresh', async () => {
+    const ssrDataWithSync = {
+      ...mockData,
+      syncInfo: {
+        totalClinicMembers: 1395,
+        insertedCount: 46,
+        updatedCount: 2,
+        visitsAddedCount: 31,
+        skippedLtcCount: 7,
+        syncedAt: '2026-11-20T04:40:00.000Z',
+      },
+    }
+
+    render(
+      <PalliativeRegistryClient
+        userRole="admin"
+        initialData={ssrDataWithSync}
+        initialPermissions={{ canView: true, canEdit: true, canManage: true }}
+      />
+    )
+
+    expect(screen.getByText(/ซิงค์คลินิก 2423 อัตโนมัติ/)).toBeInTheDocument()
+    expect(screen.getByText(/เพิ่มใหม่ 46 ราย/)).toBeInTheDocument()
+    expect(screen.getByText(/เพิ่มวันเยี่ยม 31 ครั้ง/)).toBeInTheDocument()
+    expect(screen.getByText(/ข้าม LTC 7 ราย/)).toBeInTheDocument()
+
+    const syncBtn = screen.getByRole('button', { name: /ซิงค์ HOSxP/i })
+    fireEvent.click(syncBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('refresh=true'),
+        expect.anything()
+      )
+    })
+  })
 })

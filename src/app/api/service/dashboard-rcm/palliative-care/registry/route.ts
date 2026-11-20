@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
     const compAmount = searchParams.get('compAmount') || undefined
     const compVisits = searchParams.get('compVisits') || undefined
     const exportAll = searchParams.get('exportAll') === 'true'
+    const forceSync = searchParams.get('refresh') === 'true'
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '50', 10)
 
@@ -101,6 +102,7 @@ export async function GET(req: NextRequest) {
       compAmount,
       compVisits,
       exportAll,
+      forceSync,
       page,
       limit,
     })

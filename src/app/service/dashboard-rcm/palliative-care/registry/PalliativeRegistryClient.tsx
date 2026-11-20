@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import {
   PalliativeRegistryItem,
+  PalliativeSyncSummary,
   RegistryStats,
   VisitRepItem,
   ColorCounts,
@@ -350,6 +351,8 @@ export default function PalliativeRegistryClient({
     }
   )
   const [serverFiscalYears, setServerFiscalYears] = useState<number[]>(initialData?.availableFiscalYears || [])
+  const [syncInfo, setSyncInfo] = useState<PalliativeSyncSummary | null>(initialData?.syncInfo || null)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [loading, setLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
@@ -665,11 +668,12 @@ export default function PalliativeRegistryClient({
   const abortRef = useRef<AbortController | null>(null)
 
   // Fetch list with Server-side Two-Tier Query Architecture
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
 
+    if (forceRefresh) setIsSyncing(true)
     setLoading(true)
     setError(null)
     try {
@@ -680,6 +684,7 @@ export default function PalliativeRegistryClient({
       if (filterColor !== 'ALL') q.set('color', filterColor)
       if (filterCompAmount !== 'ALL') q.set('compAmount', filterCompAmount)
       if (filterCompVisits !== 'ALL') q.set('compVisits', filterCompVisits)
+      if (forceRefresh) q.set('refresh', 'true')
       q.set('page', page.toString())
       q.set('limit', '50')
 
@@ -700,12 +705,16 @@ export default function PalliativeRegistryClient({
       if (Array.isArray(data.availableFiscalYears) && data.availableFiscalYears.length > 0) {
         setServerFiscalYears(data.availableFiscalYears)
       }
+      if (data.syncInfo !== undefined) setSyncInfo(data.syncInfo)
       if (data.permissions) setPermissions(data.permissions)
     } catch (err: any) {
       if (err?.name === 'AbortError') return
       setError(err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
     } finally {
-      if (!controller.signal.aborted) setLoading(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+        setIsSyncing(false)
+      }
     }
   }, [search, filterFiscalYear, filterRegStatus, filterColor, filterCompAmount, filterCompVisits, page])
 
@@ -1197,8 +1206,17 @@ export default function PalliativeRegistryClient({
             <span className="pcr-badge">REGISTRY</span>
           </div>
           <p className="pcr-desc">
-            ระบบบันทึกและติดตามทะเบียนผู้ป่วย Palliative Care, ตรวจสอบคลินิก Palliative Care อัตโนมัติจาก HOSxP, ติดตามเยี่ยมบ้าน 1-6 และผลชดเชย Rep
+            ระบบบันทึกและติดตามทะเบียนผู้ป่วย Palliative Care, ซิงค์รายชื่อคลินิก 2423 และวันเยี่ยมบ้าน (ADP 30001) จาก HOSxP อัตโนมัติ (ไม่รวมผู้ป่วย LTC), ติดตามเยี่ยมบ้าน 1-6 และผลชดเชย Rep
           </p>
+          {syncInfo && (
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#0f766e', fontWeight: 500 }}>
+              ซิงค์คลินิก 2423 อัตโนมัติ: ใน HOSxP {syncInfo.totalClinicMembers.toLocaleString()} ราย
+              {syncInfo.insertedCount > 0 ? ` · เพิ่มใหม่ ${syncInfo.insertedCount} ราย` : ''}
+              {syncInfo.updatedCount > 0 ? ` · อัปเดต ${syncInfo.updatedCount} ราย` : ''}
+              {syncInfo.visitsAddedCount > 0 ? ` · เพิ่มวันเยี่ยม ${syncInfo.visitsAddedCount} ครั้ง` : ''}
+              {syncInfo.skippedLtcCount > 0 ? ` · ข้าม LTC ${syncInfo.skippedLtcCount} ราย` : ''}
+            </p>
+          )}
         </div>
 
         <div className="pcr-header-actions">
@@ -1220,6 +1238,17 @@ export default function PalliativeRegistryClient({
               </>
             )}
           </div>
+
+          <button
+            type="button"
+            className="pcr-btn pcr-btn-secondary"
+            onClick={() => fetchData(true)}
+            disabled={isSyncing || loading}
+            title="ซิงค์รายชื่อจาก HOSxP คลินิก 2423 และรีเฟรชผล Rep ทันที"
+          >
+            <RefreshCw size={15} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'กำลังซิงค์...' : 'ซิงค์ HOSxP'}
+          </button>
 
           <button
             type="button"
@@ -1458,7 +1487,7 @@ export default function PalliativeRegistryClient({
         <button
           type="button"
           className="pcr-btn pcr-btn-secondary"
-          onClick={fetchData}
+          onClick={() => fetchData()}
           title="รีเฟรชข้อมูล"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />

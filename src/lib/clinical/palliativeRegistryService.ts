@@ -75,6 +75,15 @@ export interface PalliativeRegistryItem {
   updatedAt: Date | string
 }
 
+export interface PalliativeSyncSummary {
+  totalClinicMembers: number
+  insertedCount: number
+  updatedCount: number
+  visitsAddedCount: number
+  skippedLtcCount: number
+  syncedAt: string
+}
+
 export interface ListRegistriesParams {
   search?: string
   registrationStatus?: string
@@ -85,8 +94,54 @@ export interface ListRegistriesParams {
   compAmount?: string
   compVisits?: string
   exportAll?: boolean
+  forceSync?: boolean
   page?: number
   limit?: number
+}
+
+const PALLIATIVE_DX_REGEX = /^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185/
+const DEFAULT_ICD10_PALLIATIVE = 'OPD (Z515 +Z718+Z636(เยี่ยมบ้าน) ใน Cormorbidประเภท 2)'
+const DEFAULT_PROJECT_CODE = '30001, Cons01'
+const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000
+
+export function normalizeHn(hn: string | null | undefined): string {
+  const raw = String(hn || '').trim()
+  if (!raw) return ''
+  return /^\d+$/.test(raw) ? raw.padStart(7, '0') : raw
+}
+
+export function normalizeRegistryDateToIso(d: string | null | undefined): string {
+  if (!d) return ''
+  const clean = d.trim()
+
+  const mYmd = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
+  if (mYmd) {
+    let yr = parseInt(mYmd[1], 10)
+    if (yr > 2500) yr -= 543
+    return `${yr}-${mYmd[2].padStart(2, '0')}-${mYmd[3].padStart(2, '0')}`
+  }
+
+  const mDmy = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
+  if (mDmy) {
+    let yr = parseInt(mDmy[3], 10)
+    if (yr > 2500) yr -= 543
+    return `${yr}-${mDmy[2].padStart(2, '0')}-${mDmy[1].padStart(2, '0')}`
+  }
+
+  const mDmy2 = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2})$/)
+  if (mDmy2) {
+    let yr = parseInt(mDmy2[3], 10)
+    yr = yr >= 50 ? 2500 + yr - 543 : 2000 + yr
+    return `${yr}-${mDmy2[2].padStart(2, '0')}-${mDmy2[1].padStart(2, '0')}`
+  }
+
+  return clean
+}
+
+function isoToDisplayDmy(isoDate: string): string {
+  const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return isoDate
+  return `${m[3]}/${m[2]}/${m[1]}`
 }
 
 export interface RegistryStats {
@@ -397,8 +452,571 @@ export class PalliativeRegistryService {
     timestamp: number
   } | null = null
 
+  private static get syncState(): {
+    lastSyncAt: number
+    lastSummary: PalliativeSyncSummary | null
+    inFlight: Promise<PalliativeSyncSummary> | null
+  } {
+    const g = globalThis as unknown as {
+      __palliativeRegistrySyncState?: {
+        lastSyncAt: number
+        lastSummary: PalliativeSyncSummary | null
+        inFlight: Promise<PalliativeSyncSummary> | null
+      }
+    }
+    if (!g.__palliativeRegistrySyncState) {
+      g.__palliativeRegistrySyncState = {
+        lastSyncAt: 0,
+        lastSummary: null,
+        inFlight: null,
+      }
+    }
+    return g.__palliativeRegistrySyncState
+  }
+
   public static invalidateCache() {
     PalliativeRegistryService.rcmCache = null
+  }
+
+  public static resetSyncState() {
+    const state = PalliativeRegistryService.syncState
+    state.lastSyncAt = 0
+    state.lastSummary = null
+    state.inFlight = null
+  }
+
+  /**
+   * Batch-resolve primary Palliative Care ICD-10 codes from HOSxP IPD/OPD/clinic notes.
+   * Avoids N+1 queries when syncing newly registered Clinic 2423 patients.
+   */
+  private static async resolvePrincipalIcd10Batch(
+    hns: string[],
+    clinicNoteMap: Map<string, string>,
+    executor: QueryExecutor
+  ): Promise<Map<string, string>> {
+    const result = new Map<string, string>()
+    if (hns.length === 0) return result
+
+    const ipdByHn = new Map<
+      string,
+      Array<{ an: string; pdx: string; regdate: string; diagnoses: Array<{ icd10: string; diagtype: number }> }>
+    >()
+    const opdByHn = new Map<string, Array<{ vn: string; pdx: string; icd10: string }>>()
+
+    const CHUNK_SIZE = 50
+    for (let i = 0; i < hns.length; i += CHUNK_SIZE) {
+      const chunk = hns.slice(i, i + CHUNK_SIZE)
+      const placeholders = chunk.map(() => '?').join(',')
+
+      const [ipdRows, opdRows] = await Promise.all([
+        executor(
+          `SELECT a.hn, a.an, a.pdx, DATE_FORMAT(a.regdate, '%Y-%m-%d') AS regdate, d.icd10, d.diagtype
+           FROM an_stat a
+           JOIN iptdiag d ON d.an = a.an
+           WHERE a.hn IN (${placeholders})
+           ORDER BY a.regdate DESC, a.an DESC, d.diagtype ASC`,
+          chunk
+        ).catch(() => []),
+        executor(
+          `SELECT v.hn, v.vn, v.pdx, d.icd10
+           FROM vn_stat v
+           JOIN ovstdiag d ON d.vn = v.vn
+           WHERE v.hn IN (${placeholders})
+             AND (v.pdx REGEXP '^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185' OR d.icd10 = 'Z515' OR v.pdx = 'Z515')
+           ORDER BY (d.icd10 = 'Z515' OR v.pdx = 'Z515') DESC, v.vstdate DESC`,
+          chunk
+        ).catch(() => []),
+      ])
+
+      if (Array.isArray(ipdRows)) {
+        for (const r of ipdRows) {
+          const hn = normalizeHn(r.hn)
+          if (!hn) continue
+          const anList = ipdByHn.get(hn) || []
+          let entry = anList.find((e) => e.an === String(r.an))
+          if (!entry) {
+            entry = {
+              an: String(r.an || ''),
+              pdx: String(r.pdx || '').trim(),
+              regdate: String(r.regdate || ''),
+              diagnoses: [],
+            }
+            anList.push(entry)
+            ipdByHn.set(hn, anList)
+          }
+          if (r.icd10) {
+            entry.diagnoses.push({
+              icd10: String(r.icd10).trim(),
+              diagtype: Number(r.diagtype || 99),
+            })
+          }
+        }
+      }
+
+      if (Array.isArray(opdRows)) {
+        for (const r of opdRows) {
+          const hn = normalizeHn(r.hn)
+          if (!hn) continue
+          const list = opdByHn.get(hn) || []
+          list.push({
+            vn: String(r.vn || ''),
+            pdx: String(r.pdx || '').trim(),
+            icd10: String(r.icd10 || '').trim(),
+          })
+          opdByHn.set(hn, list)
+        }
+      }
+    }
+
+    for (const hn of hns) {
+      let resolved = ''
+      const ipdList = ipdByHn.get(hn) || []
+
+      if (ipdList.length > 0) {
+        // Prioritize AN with Z515, then Palliative Dx, then latest regdate (already sorted regdate DESC)
+        const sortedAns = [...ipdList].sort((a, b) => {
+          const aHasZ515 = a.pdx === 'Z515' || a.diagnoses.some((d) => d.icd10 === 'Z515') ? 1 : 0
+          const bHasZ515 = b.pdx === 'Z515' || b.diagnoses.some((d) => d.icd10 === 'Z515') ? 1 : 0
+          if (aHasZ515 !== bHasZ515) return bHasZ515 - aHasZ515
+          const aHasPal =
+            PALLIATIVE_DX_REGEX.test(a.pdx) || a.diagnoses.some((d) => PALLIATIVE_DX_REGEX.test(d.icd10)) ? 1 : 0
+          const bHasPal =
+            PALLIATIVE_DX_REGEX.test(b.pdx) || b.diagnoses.some((d) => PALLIATIVE_DX_REGEX.test(d.icd10)) ? 1 : 0
+          return bHasPal - aHasPal
+        })
+
+        const bestAn = sortedAns[0]
+        if (bestAn.pdx && bestAn.pdx !== 'Z515' && PALLIATIVE_DX_REGEX.test(bestAn.pdx)) {
+          resolved = bestAn.pdx
+        } else if (
+          bestAn.pdx === 'Z515' ||
+          PALLIATIVE_DX_REGEX.test(bestAn.pdx) ||
+          bestAn.diagnoses.some((d) => d.icd10 === 'Z515' || PALLIATIVE_DX_REGEX.test(d.icd10))
+        ) {
+          const palDiag = bestAn.diagnoses.find((d) => d.icd10 !== 'Z515' && PALLIATIVE_DX_REGEX.test(d.icd10))
+          const otherDiag = bestAn.diagnoses.find((d) => d.icd10 !== 'Z515')
+          resolved = palDiag?.icd10 || otherDiag?.icd10 || bestAn.pdx
+        }
+      }
+
+      if (!resolved) {
+        const opdList = opdByHn.get(hn) || []
+        const opdMatch = opdList.find((o) => o.pdx && o.pdx !== 'Z515')
+        if (opdMatch) {
+          resolved = opdMatch.pdx
+        } else {
+          const opdSecondary = opdList.find((o) => o.icd10 && o.icd10 !== 'Z515')
+          if (opdSecondary) resolved = opdSecondary.icd10
+        }
+      }
+
+      if (!resolved && clinicNoteMap.get(hn)) {
+        resolved = clinicNoteMap.get(hn) || ''
+      }
+
+      if (!resolved && ipdList.length > 0 && ipdList[0].pdx) {
+        resolved = ipdList[0].pdx
+      }
+
+      if (resolved) {
+        result.set(hn, resolved.slice(0, 100))
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Synchronize HOSxP Clinic 47 (2423 : Palliative care) members and historical ADP 30001 home visits
+   * into `palliative_care_registries` and `palliative_care_registry_visits`.
+   * - Excludes any patient already registered in Long Term Care (LTC) per cross-system policy.
+   * - Append-only for visit dates: never overwrites or deletes existing website visit dates.
+   */
+  static async syncFromHosxp(
+    options: { force?: boolean; actor?: string } = {},
+    executor: QueryExecutor = queryClinicalDb
+  ): Promise<PalliativeSyncSummary> {
+    if (options.force) {
+      LtcRegistryService.invalidateCache()
+    }
+
+    const [existingRows, existingVisitRows, ltcHnSet, cmRows, hos30001Rows] = await Promise.all([
+      apiGateway.app.query<{
+        id: number
+        hn: string
+        registration_status: string | null
+        registered_date: string | null
+        death_date: string | null
+        visit_1_date: string | null
+        visit_2_date: string | null
+        visit_3_date: string | null
+        visit_4_date: string | null
+        visit_5_date: string | null
+        visit_6_date: string | null
+      }>(
+        `SELECT id, hn, registration_status, registered_date, death_date,
+                visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date
+         FROM palliative_care_registries`
+      ),
+      apiGateway.app.query<{
+        registry_id: number
+        visit_no: number
+        visit_date: string
+      }>(
+        'SELECT registry_id, visit_no, visit_date FROM palliative_care_registry_visits ORDER BY registry_id ASC, visit_no ASC'
+      ),
+      LtcRegistryService.getAllLtcHnSet(),
+      executor(
+        `SELECT
+           cm.hn,
+           DATE_FORMAT(cm.regdate, '%Y-%m-%d') AS regdate,
+           cm.note,
+           CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+           CONCAT(
+             IFNULL(pt.addrpart, ''),
+             IF(IFNULL(pt.moopart, '') != '', CONCAT(' ม.', pt.moopart), ''),
+             IF(IFNULL(pt.road, '') != '', CONCAT(' ถ.', pt.road), ''),
+             IF(t.name IS NOT NULL, CONCAT(' ต.', t.name), ''),
+             IF(a.name IS NOT NULL, CONCAT(' อ.', a.name), '')
+           ) AS address,
+           COALESCE(
+             NULLIF(TRIM(pt.mobile_phone_number), ''),
+             NULLIF(TRIM(pt.informtel), ''),
+             NULLIF(TRIM(pt.hometel), ''),
+             NULLIF(TRIM(pt.worktel), ''),
+             ''
+           ) AS phone,
+           IFNULL(pt.death, 'N') AS death,
+           DATE_FORMAT(pt.deathday, '%Y-%m-%d') AS death_date
+         FROM clinicmember cm
+         JOIN patient pt ON pt.hn = cm.hn
+         LEFT JOIN thaiaddress t ON t.chwpart = pt.chwpart AND t.amppart = pt.amppart AND t.tmbpart = pt.tmbpart
+         LEFT JOIN thaiaddress a ON a.chwpart = pt.chwpart AND a.amppart = pt.amppart AND a.tmbpart = '00'
+         WHERE cm.clinic = '47'
+         ORDER BY cm.regdate DESC`
+      ),
+      executor(
+        `SELECT DISTINCT o.hn, DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate
+         FROM opitemrece oo
+         JOIN s_drugitems d ON d.icode = oo.icode
+         JOIN ovst o ON o.vn = oo.vn
+         WHERE d.nhso_adp_code = '30001'
+         ORDER BY o.hn ASC, o.vstdate ASC`
+      ).catch(() => []),
+    ])
+
+    const existingByHn = new Map<
+      string,
+      {
+        id: number
+        hn: string
+        registration_status: string | null
+        registered_date: string | null
+        death_date: string | null
+        visit_1_date: string | null
+        visit_2_date: string | null
+        visit_3_date: string | null
+        visit_4_date: string | null
+        visit_5_date: string | null
+        visit_6_date: string | null
+      }
+    >()
+
+    if (Array.isArray(existingRows)) {
+      for (const r of existingRows) {
+        const raw = String(r.hn || '').trim()
+        const norm = normalizeHn(raw)
+        if (raw) existingByHn.set(raw, r)
+        if (norm) existingByHn.set(norm, r)
+      }
+    }
+
+    // Deduplicate HOSxP clinicmember rows by normalized HN (keep latest regdate)
+    const hosxpMembers = new Map<string, any>()
+    if (Array.isArray(cmRows)) {
+      for (const row of cmRows) {
+        const norm = normalizeHn(row.hn)
+        if (!norm || hosxpMembers.has(norm)) continue
+        hosxpMembers.set(norm, row)
+      }
+    }
+
+    let skippedLtcCount = 0
+    const toInsert: Array<{ normHn: string; row: any }> = []
+    const updateStatements: Array<{ sql: string; params: unknown[] }> = []
+    const clinicNoteMap = new Map<string, string>()
+
+    for (const [normHn, row] of hosxpMembers.entries()) {
+      const rawHn = String(row.hn || '').trim()
+      const isLtc = ltcHnSet.has(normHn) || (rawHn ? ltcHnSet.has(rawHn) : false)
+      const existing = existingByHn.get(normHn) || (rawHn ? existingByHn.get(rawHn) : undefined)
+
+      if (existing) {
+        // Keep existing website record synced for status, regdate, and death_date without overwriting visits or edits
+        const regDateVal = row.regdate ? String(row.regdate).trim() : null
+        const deathDateVal = row.death === 'Y' && row.death_date ? String(row.death_date).trim() : null
+        const needsStatusUpdate = existing.registration_status !== 'ดำเนินการเรียบร้อย'
+        const needsRegDate = Boolean(regDateVal && (!existing.registered_date || !existing.registered_date.trim()))
+        const needsDeathDate = Boolean(deathDateVal && (!existing.death_date || !existing.death_date.trim()))
+
+        if (needsStatusUpdate || needsRegDate || needsDeathDate) {
+          updateStatements.push({
+            sql: `UPDATE palliative_care_registries
+                  SET registration_status = 'ดำเนินการเรียบร้อย',
+                      registered_date = COALESCE(NULLIF(TRIM(registered_date), ''), ?),
+                      death_date = COALESCE(NULLIF(TRIM(death_date), ''), ?),
+                      updated_by = ?,
+                      updated_at = NOW()
+                  WHERE id = ?`,
+            params: [regDateVal, deathDateVal, options.actor || 'hosxp_autosync', existing.id],
+          })
+        }
+        continue
+      }
+
+      if (isLtc) {
+        skippedLtcCount++
+        continue
+      }
+
+      toInsert.push({ normHn, row })
+      if (row.note && String(row.note).trim()) {
+        clinicNoteMap.set(normHn, String(row.note).trim())
+      }
+    }
+
+    const resolvedDxMap =
+      toInsert.length > 0
+        ? await PalliativeRegistryService.resolvePrincipalIcd10Batch(
+            toInsert.map((item) => item.normHn),
+            clinicNoteMap,
+            executor
+          )
+        : new Map<string, string>()
+
+    const actor = options.actor || 'hosxp_autosync'
+    const insertStatements: Array<{ sql: string; params: unknown[] }> = toInsert.map(({ normHn, row }) => {
+      const ptName = String(row.ptname || '').trim().slice(0, 255) || `HN ${normHn}`
+      const address = String(row.address || '').trim().slice(0, 500) || null
+      const phone = String(row.phone || '').trim().slice(0, 100) || null
+      const icd10Principal = resolvedDxMap.get(normHn) || null
+      const regDate = row.regdate ? String(row.regdate).trim().slice(0, 20) : null
+      const deathDate = row.death === 'Y' && row.death_date ? String(row.death_date).trim().slice(0, 20) : null
+
+      return {
+        sql: `INSERT INTO palliative_care_registries (
+                hn, patient_name, address, phone, icd10_principal, icd10_palliative, project_code,
+                registration_status, registered_date, death_date,
+                created_by, updated_by, created_at, updated_at
+              )
+              SELECT ?, ?, ?, ?, ?, ?, ?, 'ดำเนินการเรียบร้อย', ?, ?, ?, ?, NOW(), NOW()
+              FROM DUAL
+              WHERE NOT EXISTS (
+                SELECT 1 FROM palliative_care_registries WHERE hn = ? OR TRIM(LEADING '0' FROM hn) = ?
+              )`,
+        params: [
+          normHn,
+          ptName,
+          address,
+          phone,
+          icd10Principal,
+          DEFAULT_ICD10_PALLIATIVE,
+          DEFAULT_PROJECT_CODE,
+          regDate,
+          deathDate,
+          actor,
+          actor,
+          normHn,
+          normHn.replace(/^0+/, '') || normHn,
+        ],
+      }
+    })
+
+    const allStatements = [...insertStatements, ...updateStatements]
+    if (allStatements.length > 0) {
+      const TX_BATCH_SIZE = 50
+      for (let i = 0; i < allStatements.length; i += TX_BATCH_SIZE) {
+        await apiGateway.app.transaction(allStatements.slice(i, i + TX_BATCH_SIZE))
+      }
+    }
+
+    // Step 2: Sync home visit dates (ADP 30001) across ALL history (append-only, never overwrite existing)
+    let visitsAddedCount = 0
+    const visitStatements: Array<{ sql: string; params: unknown[] }> = []
+
+    if (Array.isArray(hos30001Rows) && hos30001Rows.length > 0) {
+      // Group HOSxP 30001 visit dates per normalized HN
+      const hosVisitsByHn = new Map<string, string[]>()
+      for (const hv of hos30001Rows) {
+        const normHn = normalizeHn(hv.hn)
+        const isoDate = normalizeRegistryDateToIso(hv.vstdate)
+        if (!normHn || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) continue
+        const list = hosVisitsByHn.get(normHn) || []
+        if (!list.includes(isoDate)) list.push(isoDate)
+        hosVisitsByHn.set(normHn, list)
+      }
+
+      // Refresh registry IDs if new patients were just inserted so their visits sync in the same pass
+      let allRegRows: Array<{
+        id: number
+        hn: string
+        visit_1_date?: string | null
+        visit_2_date?: string | null
+        visit_3_date?: string | null
+        visit_4_date?: string | null
+        visit_5_date?: string | null
+        visit_6_date?: string | null
+      }> = Array.isArray(existingRows) ? existingRows : []
+
+      if (insertStatements.length > 0) {
+        const refreshedRows = await apiGateway.app.query<{
+          id: number
+          hn: string
+          visit_1_date: string | null
+          visit_2_date: string | null
+          visit_3_date: string | null
+          visit_4_date: string | null
+          visit_5_date: string | null
+          visit_6_date: string | null
+        }>(
+          `SELECT id, hn, visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date
+           FROM palliative_care_registries`
+        )
+        if (Array.isArray(refreshedRows) && refreshedRows.length > 0) {
+          allRegRows = refreshedRows
+        }
+      }
+
+      // Build existing visit date sets and max visit_no per registry_id
+      const visitsMetaByRegId = new Map<number, { datesIso: Set<string>; maxNo: number }>()
+      for (const r of allRegRows) {
+        const datesIso = new Set<string>()
+        let maxNo = 0
+        for (let slot = 1; slot <= 6; slot++) {
+          const val = (r as any)[`visit_${slot}_date`]
+          if (val && String(val).trim()) {
+            const iso = normalizeRegistryDateToIso(String(val))
+            if (iso) datesIso.add(iso)
+            if (slot > maxNo) maxNo = slot
+          }
+        }
+        visitsMetaByRegId.set(r.id, { datesIso, maxNo })
+      }
+
+      if (Array.isArray(existingVisitRows)) {
+        for (const ev of existingVisitRows) {
+          const meta = visitsMetaByRegId.get(ev.registry_id)
+          if (!meta) continue
+          const iso = normalizeRegistryDateToIso(ev.visit_date)
+          if (iso) meta.datesIso.add(iso)
+          const vNo = Number(ev.visit_no || 0)
+          if (vNo > meta.maxNo) meta.maxNo = vNo
+        }
+      }
+
+      for (const r of allRegRows) {
+        const normHn = normalizeHn(r.hn)
+        if (!normHn) continue
+        const hosDates = hosVisitsByHn.get(normHn)
+        if (!hosDates || hosDates.length === 0) continue
+
+        const meta = visitsMetaByRegId.get(r.id) || { datesIso: new Set<string>(), maxNo: 0 }
+        const missingDates = hosDates.filter((d) => !meta.datesIso.has(d)).sort()
+        if (missingDates.length === 0) continue
+
+        let nextNo = meta.maxNo + 1
+        const slotUpdates: Array<{ slot: number; dmy: string }> = []
+
+        for (const isoDate of missingDates) {
+          const visitNo = nextNo++
+          const dmy = isoToDisplayDmy(isoDate)
+          visitStatements.push({
+            sql: `INSERT IGNORE INTO palliative_care_registry_visits (registry_id, visit_no, visit_date)
+                  VALUES (?, ?, ?)`,
+            params: [r.id, visitNo, dmy],
+          })
+          if (visitNo <= 6) {
+            slotUpdates.push({ slot: visitNo, dmy })
+          }
+          meta.datesIso.add(isoDate)
+          visitsAddedCount++
+        }
+
+        if (slotUpdates.length > 0) {
+          const setClauses = slotUpdates.map(
+            (u) => `visit_${u.slot}_date = COALESCE(NULLIF(TRIM(visit_${u.slot}_date), ''), ?)`
+          )
+          visitStatements.push({
+            sql: `UPDATE palliative_care_registries
+                  SET ${setClauses.join(', ')},
+                      updated_by = ?,
+                      updated_at = NOW()
+                  WHERE id = ?`,
+            params: [...slotUpdates.map((u) => u.dmy), actor, r.id],
+          })
+        }
+      }
+
+      if (visitStatements.length > 0) {
+        const TX_BATCH_SIZE = 50
+        for (let i = 0; i < visitStatements.length; i += TX_BATCH_SIZE) {
+          await apiGateway.app.transaction(visitStatements.slice(i, i + TX_BATCH_SIZE))
+        }
+      }
+    }
+
+    if (allStatements.length > 0 || visitStatements.length > 0) {
+      PalliativeRegistryService.invalidateCache()
+
+      try {
+        await logAudit(
+          'UPDATE',
+          'palliative_care_registries',
+          `Auto-synced Palliative registry from HOSxP clinic 47 (inserted: ${insertStatements.length}, updated: ${updateStatements.length}, visitsAdded: ${visitsAddedCount}, skippedLtc: ${skippedLtcCount})`
+        )
+      } catch (auditErr) {
+        logger.error({ auditErr }, 'Failed to write audit log for HOSxP Palliative auto-sync')
+      }
+    }
+
+    const summary: PalliativeSyncSummary = {
+      totalClinicMembers: hosxpMembers.size,
+      insertedCount: insertStatements.length,
+      updatedCount: updateStatements.length,
+      visitsAddedCount,
+      skippedLtcCount,
+      syncedAt: new Date().toISOString(),
+    }
+
+    PalliativeRegistryService.syncState.lastSyncAt = Date.now()
+    PalliativeRegistryService.syncState.lastSummary = summary
+
+    return summary
+  }
+
+  /**
+   * Ensures HOSxP Clinic 47 registry sync runs automatically with cooldown & single-flight deduplication.
+   */
+  static async ensureAutoSynced(
+    options: { force?: boolean; actor?: string } = {},
+    executor: QueryExecutor = queryClinicalDb
+  ): Promise<PalliativeSyncSummary | null> {
+    const now = Date.now()
+    const { lastSyncAt, lastSummary, inFlight } = PalliativeRegistryService.syncState
+
+    if (!options.force && lastSummary && now - lastSyncAt < AUTO_SYNC_COOLDOWN_MS) {
+      return lastSummary
+    }
+
+    if (inFlight) {
+      return inFlight
+    }
+
+    const promise = PalliativeRegistryService.syncFromHosxp(options, executor).finally(() => {
+      PalliativeRegistryService.syncState.inFlight = null
+    })
+    PalliativeRegistryService.syncState.inFlight = promise
+    return promise
   }
 
   /**
@@ -417,47 +1035,30 @@ export class PalliativeRegistryService {
     stats: RegistryStats
     colorCounts?: ColorCounts
     availableFiscalYears?: number[]
+    syncInfo?: PalliativeSyncSummary | null
   }> {
-    const normalizeDateStr = (d: string | null | undefined): string => {
-      if (!d) return ''
-      const clean = d.trim()
+    const normalizeDateStr = normalizeRegistryDateToIso
 
-      // Case 1: YYYY-MM-DD or YYYY/MM/DD
-      const mYmd = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
-      if (mYmd) {
-        let yr = parseInt(mYmd[1], 10)
-        if (yr > 2500) yr -= 543
-        return `${yr}-${mYmd[2].padStart(2, '0')}-${mYmd[3].padStart(2, '0')}`
-      }
-
-      // Case 2: DD/MM/YYYY or DD-MM-YYYY (4-digit year)
-      const mDmy = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
-      if (mDmy) {
-        let yr = parseInt(mDmy[3], 10)
-        if (yr > 2500) yr -= 543
-        return `${yr}-${mDmy[2].padStart(2, '0')}-${mDmy[1].padStart(2, '0')}`
-      }
-
-      // Case 3: DD/MM/YY or DD-MM-YY (2-digit year e.g. 69 -> 2569 -> 2026)
-      const mDmy2 = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2})$/)
-      if (mDmy2) {
-        let yr = parseInt(mDmy2[3], 10)
-        if (yr >= 50) {
-          yr = 2500 + yr - 543
-        } else {
-          yr = 2000 + yr
-        }
-        return `${yr}-${mDmy2[2].padStart(2, '0')}-${mDmy2[1].padStart(2, '0')}`
-      }
-
-      return clean
-    }
-
-    // ── Production Branch: Direct Fast DB Query across all records ──
+    // ── Production Branch: Auto-sync HOSxP Clinic 47 (excluding LTC) & Direct Fast DB Query ──
     let rawRegs: any[] | null = null
     let rawVisits: any[] = []
+    let syncInfo: PalliativeSyncSummary | null = null
 
     if (process.env.NODE_ENV !== 'test') {
+      if (params.forceSync) {
+        PalliativeRegistryService.invalidateCache()
+      }
+      if (!params.exportAll) {
+        try {
+          syncInfo = await PalliativeRegistryService.ensureAutoSynced(
+            { force: params.forceSync },
+            executor
+          )
+        } catch (syncErr) {
+          logger.warn({ syncErr }, 'HOSxP Clinic 47 auto-sync failed; continuing with existing website registry data')
+        }
+      }
+
       try {
         const [regs, visits] = await Promise.all([
           apiGateway.app.query<any>(`
@@ -971,6 +1572,7 @@ export class PalliativeRegistryService {
         stats,
         colorCounts,
         availableFiscalYears,
+        syncInfo,
       }
     }
 
