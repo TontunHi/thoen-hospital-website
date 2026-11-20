@@ -33,6 +33,7 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
+import type { KpiAiAuditItem } from '@/lib/kpi/kpiAuditService'
 import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiDecimal, formatKpiNumber, shouldDisplayPerThousandDays, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
@@ -132,6 +133,34 @@ function formatAnswerDisplay(
   return { main, sub, fullSub }
 }
 
+function formatAiAuditNumbers(audit: KpiAiAuditItem, ind?: IndicatorMetricMeta | null): string {
+  if (audit.aiResult === null || audit.aiResult === undefined) {
+    return '-'
+  }
+  const main = formatKpiResultValue(audit.aiResult, ind)
+  if (audit.aiNumerator !== null && audit.aiDenominator !== null) {
+    return `${main} (${formatKpiNumber(audit.aiNumerator)}/${formatKpiNumber(audit.aiDenominator)})`
+  }
+  return main
+}
+
+function getAiAuditStatusLabel(status: KpiAiAuditItem['status']): string {
+  switch (status) {
+    case 'MATCH':
+      return 'AI ตรงกัน'
+    case 'MISMATCH':
+      return 'AI พบคลาดเคลื่อน'
+    case 'NO_HUMAN_ENTRY':
+      return 'HOSxP พร้อมตรวจ'
+    case 'MANUAL_OR_HYBRID':
+      return 'กึ่งอัตโนมัติ/Manual'
+    case 'SQL_ERROR':
+      return 'ตรวจ HOSxP ขัดข้อง'
+    default:
+      return 'ยังไม่ตั้ง Rule'
+  }
+}
+
 function evaluateTargetClient(
   val: number | null | undefined,
   operator: string | null | undefined,
@@ -172,7 +201,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [selectedFilledStatus, setSelectedFilledStatus] = useState<'ALL' | 'FILLED' | 'UNFILLED'>('ALL')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'ALL' | 'MY' | 'DUE'>('ALL')
+  const [activeTab, setActiveTab] = useState<'ALL' | 'MY' | 'DUE' | 'AI_MISMATCH'>('ALL')
   const [sortField, setSortField] = useState<'sequence' | 'title' | 'frequency' | 'status'>('sequence')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
@@ -595,6 +624,12 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       if (activeTab === 'DUE') {
         const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
         if (!dueStatus.isDue) {
+          return false
+        }
+      }
+      if (activeTab === 'AI_MISMATCH') {
+        const audit = ind.aiAudit
+        if (!audit || audit.status !== 'MISMATCH') {
           return false
         }
       }
@@ -1870,6 +1905,15 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
               >
                 ตัวที่ถึงเวลา ({dueIndicatorsCount})
               </button>
+              {indicators.some(ind => ind.aiAudit) && (
+                <button
+                  type="button"
+                  className={`kpiTabPill kpiTabPillAudit ${activeTab === 'AI_MISMATCH' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('AI_MISMATCH')}
+                >
+                  AI พบคลาดเคลื่อน ({indicators.filter(ind => ind.aiAudit?.status === 'MISMATCH').length})
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -2039,6 +2083,27 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           <span className={answerDisplay ? 'kpiResultValue' : ''}>
                             {answerDisplay ? `${answerDisplay.main} ${answerDisplay.sub || ''}`.trim() : '-'}
                           </span>
+                          {ind.aiAudit && (
+                            <button
+                              type="button"
+                              className={`kpiAiAuditBadge ${ind.aiAudit.status.toLowerCase()}`}
+                              onClick={() => handleOpenHistoryModal(ind)}
+                              title={ind.aiAudit.explanationTh || getAiAuditStatusLabel(ind.aiAudit.status)}
+                            >
+                              {ind.aiAudit.status === 'MATCH' && <ShieldCheck size={11} />}
+                              {ind.aiAudit.status === 'MISMATCH' && <AlertTriangle size={11} />}
+                              {(ind.aiAudit.status === 'NO_HUMAN_ENTRY' || ind.aiAudit.status === 'MANUAL_OR_HYBRID') && <Clock size={11} />}
+                              <span>
+                                {ind.aiAudit.status === 'MATCH'
+                                  ? 'AI ตรงกัน'
+                                  : ind.aiAudit.status === 'MISMATCH'
+                                    ? `AI: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
+                                    : ind.aiAudit.status === 'NO_HUMAN_ENTRY'
+                                      ? `HOSxP: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
+                                      : getAiAuditStatusLabel(ind.aiAudit.status)}
+                              </span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="kpiHistoryBtn"
@@ -2094,6 +2159,27 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           >
                             ตอบแล้ว {answeredRounds}/{totalRounds} รอบ
                           </span>
+                        )}
+                        {ind.aiAudit && (
+                          <button
+                            type="button"
+                            className={`kpiAiAuditBadge ${ind.aiAudit.status.toLowerCase()}`}
+                            onClick={() => handleOpenHistoryModal(ind)}
+                            title={ind.aiAudit.explanationTh || getAiAuditStatusLabel(ind.aiAudit.status)}
+                          >
+                            {ind.aiAudit.status === 'MATCH' && <ShieldCheck size={11} />}
+                            {ind.aiAudit.status === 'MISMATCH' && <AlertTriangle size={11} />}
+                            {(ind.aiAudit.status === 'NO_HUMAN_ENTRY' || ind.aiAudit.status === 'MANUAL_OR_HYBRID') && <Clock size={11} />}
+                            <span>
+                              {ind.aiAudit.status === 'MATCH'
+                                ? 'AI ตรงกัน'
+                                : ind.aiAudit.status === 'MISMATCH'
+                                  ? `AI: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
+                                  : ind.aiAudit.status === 'NO_HUMAN_ENTRY'
+                                    ? `HOSxP: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
+                                    : getAiAuditStatusLabel(ind.aiAudit.status)}
+                            </span>
+                          </button>
                         )}
                       </div>
 
@@ -2550,6 +2636,11 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     const dueStatus = checkIndicatorDueStatus(historyIndicator.frequency, selectedYear)
                     const isCurrentPeriod = matchesPeriodKey(p.key, dueStatus.relevantPeriod.key)
                     const canEdit = canAnswerIndicator(historyIndicator)
+                    const roundAiAudit =
+                      historyIndicator.aiAudits?.find(a => matchesPeriodKey(a.periodKey, p.key)) ||
+                      (historyIndicator.aiAudit && matchesPeriodKey(historyIndicator.aiAudit.periodKey, p.key)
+                        ? historyIndicator.aiAudit
+                        : null)
 
                     return (
                       <div
@@ -2638,6 +2729,39 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                             </div>
                           )}
                         </div>
+
+                        {roundAiAudit && (
+                          <div className={`kpiHistoryAiAuditBox ${roundAiAudit.status.toLowerCase()}`}>
+                            <div className="kpiHistoryAiAuditHeader">
+                              <span className="kpiHistoryAiAuditTitle">
+                                {roundAiAudit.status === 'MATCH' ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
+                                <span>ตรวจเทียบ AI / HOSxP (THIP 2026) — {getAiAuditStatusLabel(roundAiAudit.status)}</span>
+                              </span>
+                              {roundAiAudit.auditedAt && (
+                                <span className="kpiHistoryAiAuditTime">
+                                  ตรวจล่าสุด: {formatThaiDateTime(roundAiAudit.auditedAt)}
+                                </span>
+                              )}
+                            </div>
+
+                            {roundAiAudit.aiResult !== null && (
+                              <div className="kpiHistoryAiAuditNumbers">
+                                <span>
+                                  <strong>ผลจาก HOSxP:</strong> {formatAiAuditNumbers(roundAiAudit, historyIndicator)}
+                                </span>
+                                {roundAiAudit.thipManualRef && (
+                                  <span className="kpiHistoryAiRef">{roundAiAudit.thipManualRef}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {roundAiAudit.explanationTh && (
+                              <div className="kpiHistoryAiAuditExplain">
+                                {roundAiAudit.explanationTh}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Card Footer */}
                         <div className="kpiHistoryRoundFooter">

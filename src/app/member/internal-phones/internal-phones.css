@@ -1,0 +1,1319 @@
+/* Scoped to Internal Phones Directory — Light-mode locked, aligned with DESIGN.md & OpenDesigner tokens.css */
+.ipPage {
+  color-scheme: light;
+
+  --ds-color-surface-sunken: var(--ds-color-neutral-light-2);
+  --ds-color-surface-base: var(--ds-color-neutral-light-1);
+  --ds-color-surface-raised: var(--ds-color-white);
+  --ds-color-surface-overlay: var(--ds-color-white);
+  --ds-color-text-primary: var(--ds-color-neutral-light-12);
+  --ds-color-text-secondary: var(--ds-color-neutral-light-11);
+  --ds-color-text-tertiary: var(--ds-color-neutral-light-11);
+  --ds-color-text-disabled: var(--ds-color-neutral-light-8);
+  --ds-color-text-accent: var(--ds-color-accent-light-11);
+  --ds-color-text-on-action: var(--ds-color-white);
+  --ds-color-text-on-danger: var(--ds-color-white);
+  --ds-color-text-inverse: var(--ds-color-white);
+  --ds-color-text-success: var(--ds-color-success-light-11);
+  --ds-color-text-warning: var(--ds-color-warning-light-11);
+  --ds-color-text-danger: var(--ds-color-danger-light-11);
+  --ds-color-bg-neutral-subtle: var(--ds-color-neutral-light-3);
+  --ds-color-bg-neutral-subtle-hover: var(--ds-color-neutral-light-4);
+  --ds-color-bg-neutral-subtle-pressed: var(--ds-color-neutral-light-5);
+  --ds-color-bg-accent-subtle: var(--ds-color-accent-light-3);
+  --ds-color-bg-accent-subtle-hover: var(--ds-color-accent-light-4);
+  --ds-color-bg-action-primary: var(--ds-color-accent-light-9);
+  --ds-color-bg-action-primary-hover: var(--ds-color-accent-light-10);
+  --ds-color-bg-action-primary-pressed: var(--ds-color-accent-light-solid-pressed);
+  --ds-color-bg-success-subtle: var(--ds-color-success-light-3);
+  --ds-color-bg-warning-subtle: var(--ds-color-warning-light-3);
+  --ds-color-bg-danger-subtle: var(--ds-color-danger-light-3);
+  --ds-color-bg-danger-bold: var(--ds-color-danger-light-9);
+  --ds-color-bg-danger-bold-hover: var(--ds-color-danger-light-10);
+  --ds-color-bg-danger-bold-pressed: var(--ds-color-danger-light-solid-pressed);
+  --ds-color-bg-field: var(--ds-color-white);
+  --ds-color-bg-inverse: var(--ds-color-neutral-light-12);
+  --ds-color-border-subtle: var(--ds-color-neutral-light-6);
+  --ds-color-border-default: var(--ds-color-neutral-light-7);
+  --ds-color-border-input: var(--ds-color-neutral-light-8);
+  --ds-color-border-separator: var(--ds-color-neutral-light-4);
+  --ds-color-border-accent: var(--ds-color-accent-light-8);
+  --ds-color-border-success: var(--ds-color-success-light-8);
+  --ds-color-border-warning: var(--ds-color-warning-light-8);
+  --ds-color-border-danger: var(--ds-color-danger-light-8);
+  --ds-color-border-focus: var(--ds-color-accent-light-9);
+  --ds-color-icon-default: var(--ds-color-neutral-light-11);
+  --ds-color-icon-subtle: var(--ds-color-neutral-light-10);
+  --ds-color-icon-accent: var(--ds-color-accent-light-11);
+  --ds-color-overlay-scrim: var(--ds-color-neutral-alpha-light-8);
+  --ds-color-shadow-key: var(--ds-color-neutral-alpha-light-3);
+  --ds-color-shadow-ambient: var(--ds-color-neutral-alpha-light-2);
+  --ds-color-shadow-ring: var(--ds-color-neutral-alpha-light-3);
+
+  width: 100%;
+  min-height: 100svh;
+  background-color: var(--ds-color-surface-base);
+  color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-family-text);
+  font-size: var(--ds-font-size-14);
+  line-height: var(--ds-text-body-md-line-height);
+  padding: 1.25rem 1rem 3rem;
+}
+
+@media (min-width: 48rem) {
+  .ipPage {
+    padding: 1.5rem 1.5rem 4rem;
+  }
+}
+
+.ipContainer {
+  width: 100%;
+  max-width: var(--ds-layout-container-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ipTabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Toast (Inverted surface per DESIGN.md, CSS transition per STD-springs-gestures-15) ── */
+.ipToast {
+  position: fixed;
+  bottom: var(--ds-component-toast-offset-mobile);
+  right: var(--ds-component-toast-offset-mobile);
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--ds-radius-container);
+  background-color: var(--ds-color-bg-inverse);
+  color: var(--ds-color-text-inverse);
+  box-shadow: var(--ds-elevation-overlay);
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-body);
+  opacity: 0;
+  transform: translateY(0.5rem);
+  pointer-events: none;
+  transition:
+    opacity var(--ds-motion-duration-toast) var(--ds-motion-easing-toast),
+    transform var(--ds-motion-duration-toast) var(--ds-motion-easing-toast);
+}
+
+.ipToastVisible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+@media (min-width: 48rem) {
+  .ipToast {
+    bottom: var(--ds-component-toast-offset-desktop);
+    right: var(--ds-component-toast-offset-desktop);
+  }
+}
+
+.ipToastSuccess svg {
+  color: var(--ds-color-success-dark-11);
+  flex-shrink: 0;
+}
+
+.ipToastError svg {
+  color: var(--ds-color-danger-dark-11);
+  flex-shrink: 0;
+}
+
+.ipSpin {
+  animation: ipSpinAnim var(--ds-motion-duration-reveal) var(--ds-motion-easing-linear) infinite;
+}
+
+@keyframes ipSpinAnim {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Top Navigation & Header ── */
+.ipTopBar {
+  display: flex;
+  align-items: center;
+}
+
+.ipBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  padding: 0.25rem 0;
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-body);
+  color: var(--ds-color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--ds-radius-control-sm);
+  transition: color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipBackLink:hover {
+    color: var(--ds-color-text-accent);
+  }
+}
+
+.ipBackLink:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
+}
+
+.ipHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: var(--ds-layout-measure-prose);
+}
+
+.ipTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-24);
+  line-height: 1.33;
+  font-weight: var(--ds-font-weight-heading);
+  letter-spacing: 0em;
+  color: var(--ds-color-text-primary);
+}
+
+.ipSubtitle {
+  margin: 0;
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-body);
+  color: var(--ds-color-text-secondary);
+}
+
+.ipHeaderRight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Compact inline summary strip */
+.ipSummaryStrip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.5rem;
+  padding: 0.375rem 0.75rem;
+  background-color: var(--ds-color-surface-sunken);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  border-radius: var(--ds-radius-container);
+}
+
+.ipSummaryItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.ipSummaryValue {
+  font-size: var(--ds-font-size-17);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipSummaryLabel {
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-body);
+  color: var(--ds-color-text-secondary);
+}
+
+.ipSummaryDivider {
+  width: 0.0625rem;
+  height: 1rem;
+  background-color: var(--ds-color-border-subtle);
+}
+
+.ipHeaderActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ── Shared Buttons ── */
+.ipBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid var(--ds-color-border-default);
+  background-color: var(--ds-color-surface-raised);
+  color: var(--ds-color-text-primary);
+  font-family: inherit;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.43;
+  font-weight: var(--ds-font-weight-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    border-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    transform var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipBtn:hover:not(:disabled) {
+    background-color: var(--ds-color-bg-neutral-subtle);
+    border-color: var(--ds-color-border-input);
+  }
+}
+
+.ipBtn:active:not(:disabled) {
+  transform: scale(var(--ds-motion-scale-press));
+}
+
+.ipBtn:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ipBtnPrimary {
+  background-color: var(--ds-color-bg-action-primary);
+  border-color: var(--ds-color-bg-action-primary);
+  color: var(--ds-color-text-on-action);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipBtnPrimary:hover:not(:disabled) {
+    background-color: var(--ds-color-bg-action-primary-hover);
+    border-color: var(--ds-color-bg-action-primary-hover);
+  }
+}
+
+.ipBtnPrimary:active:not(:disabled) {
+  background-color: var(--ds-color-bg-action-primary-pressed);
+}
+
+.ipBtnDanger {
+  background-color: var(--ds-color-bg-danger-bold);
+  border-color: var(--ds-color-bg-danger-bold);
+  color: var(--ds-color-text-on-danger);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipBtnDanger:hover:not(:disabled) {
+    background-color: var(--ds-color-bg-danger-bold-hover);
+    border-color: var(--ds-color-bg-danger-bold-hover);
+  }
+}
+
+.ipBtnDanger:active:not(:disabled) {
+  background-color: var(--ds-color-bg-danger-bold-pressed);
+}
+
+.ipBtnSm {
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  font-size: var(--ds-font-size-12);
+}
+
+/* ── Alerts ── */
+.ipAlertError {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  background-color: var(--ds-color-bg-danger-subtle);
+  color: var(--ds-color-text-danger);
+  border: 0.0625rem solid var(--ds-color-border-danger);
+  border-radius: var(--ds-radius-container);
+  padding: 0.75rem 1rem;
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-body);
+}
+
+.ipAlertError svg {
+  flex-shrink: 0;
+}
+
+.ipAlertMessage {
+  flex: 1;
+}
+
+/* ── Search & Filter Toolbar ── */
+.ipFilterCard {
+  background-color: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ipSearchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ipSearchBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 16rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  gap: 0.5rem;
+  background-color: var(--ds-color-bg-field);
+  border: 0.0625rem solid var(--ds-color-border-input);
+  border-radius: var(--ds-radius-control);
+  transition: border-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+.ipSearchBar:focus-within {
+  border-color: var(--ds-color-border-focus);
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipSearchIcon {
+  color: var(--ds-color-icon-subtle);
+  flex-shrink: 0;
+}
+
+.ipSearchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--ds-font-size-input);
+  font-weight: var(--ds-font-weight-body);
+  color: var(--ds-color-text-primary);
+  min-height: 2.5rem;
+}
+
+.ipSearchInput::placeholder {
+  color: var(--ds-color-text-secondary);
+}
+
+.ipSearchInput::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.ipClearSearchBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: var(--ds-radius-control-sm);
+  background-color: var(--ds-color-bg-neutral-subtle);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipClearSearchBtn:hover {
+    background-color: var(--ds-color-bg-neutral-subtle-hover);
+    color: var(--ds-color-text-primary);
+  }
+}
+
+.ipClearSearchBtn:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipSearchShortcut {
+  display: none;
+}
+
+@media (min-width: 48rem) {
+  .ipSearchShortcut {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.375rem;
+    border-radius: var(--ds-radius-control-sm);
+    border: 0.0625rem solid var(--ds-color-border-subtle);
+    background-color: var(--ds-color-surface-sunken);
+    color: var(--ds-color-text-secondary);
+    font-family: var(--ds-font-family-mono);
+    font-size: var(--ds-font-size-12);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+}
+
+.ipSearchMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ipResultCount {
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text-secondary);
+  white-space: nowrap;
+}
+
+.ipResultCount strong {
+  color: var(--ds-color-text-primary);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+.ipClearAllBtn {
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--ds-radius-control-sm);
+  color: var(--ds-color-text-link);
+  font-family: inherit;
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipClearAllBtn:hover {
+    background-color: var(--ds-color-bg-accent-subtle);
+  }
+}
+
+.ipClearAllBtn:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipFilterRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 0.0625rem solid var(--ds-color-border-separator);
+}
+
+.ipFilterGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ipFilterGroupSub {
+  padding-top: 0.25rem;
+}
+
+.ipFilterLabel {
+  min-width: 3rem;
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-secondary);
+}
+
+.ipFilterList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.ipFilterBtn {
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid var(--ds-color-border-default);
+  background-color: var(--ds-color-surface-raised);
+  color: var(--ds-color-text-secondary);
+  font-family: inherit;
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-body);
+  cursor: pointer;
+  transition:
+    background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    border-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipFilterBtn:hover {
+    background-color: var(--ds-color-surface-sunken);
+    border-color: var(--ds-color-border-input);
+    color: var(--ds-color-text-primary);
+  }
+}
+
+.ipFilterBtn:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipFilterBtn.active {
+  background-color: var(--ds-color-bg-accent-subtle);
+  border-color: var(--ds-color-border-accent);
+  color: var(--ds-color-text-accent);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+/* ── Desktop Table ── */
+.ipTableCard {
+  background-color: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
+  overflow-x: auto;
+}
+
+.ipTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ipTable th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+  height: var(--ds-size-row-md);
+  padding: 0.5rem 1rem;
+  background-color: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  letter-spacing: var(--ds-font-tracking-small);
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
+  white-space: nowrap;
+}
+
+.ipThRight {
+  text-align: right !important;
+}
+
+.ipTable td {
+  min-height: var(--ds-size-row-md);
+  padding: 0.75rem 1rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
+  vertical-align: middle;
+  font-size: var(--ds-font-size-14);
+}
+
+.ipTable tbody tr {
+  transition: background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipTable tbody tr:hover {
+    background-color: var(--ds-color-surface-base);
+  }
+}
+
+.ipTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ipBuildingTag {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--ds-radius-control-sm);
+  background-color: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-secondary);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-body);
+  white-space: nowrap;
+}
+
+.ipFloorCell {
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-secondary);
+  white-space: nowrap;
+}
+
+.ipRoomCell {
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipNoteCell {
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text-secondary);
+}
+
+.ipMutedText {
+  color: var(--ds-color-text-disabled);
+}
+
+/* Extension display chips — tabular monospace, calm static presentation */
+.ipExtList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.ipExtTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  background-color: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-family-mono);
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-heading);
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+}
+
+.ipPendingTag {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--ds-radius-control-sm);
+  background-color: var(--ds-color-bg-warning-subtle);
+  color: var(--ds-color-text-warning);
+  border: 0.0625rem solid var(--ds-color-border-warning);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-body);
+}
+
+.ipRowActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.ipActionBtn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--ds-radius-control);
+  border: 0.0625rem solid var(--ds-color-border-subtle);
+  background-color: var(--ds-color-surface-raised);
+  color: var(--ds-color-icon-default);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    border-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipActionBtn:hover {
+    background-color: var(--ds-color-bg-neutral-subtle);
+    border-color: var(--ds-color-border-input);
+    color: var(--ds-color-text-primary);
+  }
+
+  .ipActionDelete:hover {
+    background-color: var(--ds-color-bg-danger-subtle);
+    border-color: var(--ds-color-border-danger);
+    color: var(--ds-color-text-danger);
+  }
+}
+
+.ipActionBtn:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+/* ── Mobile List ── */
+.ipMobileList {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ipMobileCard {
+  background-color: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ipMobileCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ipMobileMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ipMobileFloor {
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text-secondary);
+}
+
+.ipMobileRoom {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.4;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipMobileNote {
+  margin: 0;
+  font-size: var(--ds-font-size-12);
+  color: var(--ds-color-text-secondary);
+}
+
+/* ── Empty State ── */
+.ipEmptyState {
+  background-color: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ipEmptyIcon {
+  color: var(--ds-color-icon-subtle);
+  margin-bottom: 0.25rem;
+}
+
+.ipEmptyState h3 {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipEmptyState p {
+  margin: 0 0 0.5rem;
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-secondary);
+}
+
+/* ── Modals ── */
+.ipModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: var(--ds-color-overlay-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.ipModalCard {
+  width: 100%;
+  max-width: 34rem;
+  background-color: var(--ds-color-surface-overlay);
+  border: 0.0625rem solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-overlay);
+  box-shadow: var(--ds-elevation-overlay);
+  overflow: hidden;
+  max-height: 92svh;
+  overflow-y: auto;
+  animation: ipModalIn var(--ds-motion-duration-modal) var(--ds-motion-easing-enter);
+}
+
+@keyframes ipModalIn {
+  from {
+    opacity: 0;
+    transform: scale(var(--ds-motion-scale-enter-modal));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ipModalSmall {
+  max-width: 27.5rem;
+}
+
+.ipModalHeader {
+  padding: 1rem 1.25rem;
+  border-bottom: 0.0625rem solid var(--ds-color-border-separator);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ipModalHeader h2 {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipModalCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: none;
+  color: var(--ds-color-icon-subtle);
+  cursor: pointer;
+  border-radius: var(--ds-radius-control);
+  transition:
+    background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipModalCloseBtn:hover {
+    background-color: var(--ds-color-bg-neutral-subtle);
+    color: var(--ds-color-text-primary);
+  }
+}
+
+.ipModalCloseBtn:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipModalForm {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ipFormRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ipFormGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ipFormGroup label {
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipRequired {
+  color: var(--ds-color-text-danger);
+}
+
+.ipFormGroup input,
+.ipFormGroup select {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--ds-color-border-input);
+  border-radius: var(--ds-radius-control);
+  font-family: inherit;
+  font-size: var(--ds-font-size-input);
+  color: var(--ds-color-text-primary);
+  background-color: var(--ds-color-bg-field);
+  transition: border-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+.ipFormGroup input:focus,
+.ipFormGroup select:focus {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+  border-color: var(--ds-color-border-focus);
+}
+
+.ipModalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 0.0625rem solid var(--ds-color-border-separator);
+}
+
+.ipModalForm .ipModalFooter {
+  padding: 1rem 0 0;
+  margin-top: 0.25rem;
+}
+
+.ipDeleteBody {
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ipDeleteIcon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--ds-radius-full);
+  background-color: var(--ds-color-bg-danger-subtle);
+  color: var(--ds-color-text-danger);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ipDeleteBody p {
+  margin: 0;
+  color: var(--ds-color-text-secondary);
+  line-height: 1.55;
+  max-width: 36ch;
+}
+
+.ipDeleteBody strong {
+  color: var(--ds-color-text-primary);
+}
+
+/* ── Game-like Stage Selector (Building -> Floor -> Directory) ── */
+.ipStageSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ipStageHeader {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ipStageStepBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--ds-radius-full);
+  background-color: var(--ds-color-bg-action-primary);
+  color: var(--ds-color-text-on-action);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  letter-spacing: var(--ds-font-tracking-small);
+}
+
+.ipStageTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipStageSubtitle {
+  margin: 0.125rem 0 0;
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-secondary);
+}
+
+.ipGameGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.ipBuildingGrid {
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.ipFloorGrid {
+  grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr));
+}
+
+.ipGameCard {
+  text-align: left;
+  background-color: var(--ds-color-surface-raised);
+  border: 0.125rem solid var(--ds-color-border-subtle);
+  border-bottom-width: 0.3125rem;
+  border-bottom-color: var(--ds-color-border-default);
+  border-radius: var(--ds-radius-container);
+  padding: 1.25rem;
+  min-height: 10.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.875rem;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--ds-elevation-raised);
+  transition:
+    transform var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    border-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    background-color var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing),
+    box-shadow var(--ds-motion-transition-feedback-duration) var(--ds-motion-transition-feedback-easing);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ipGameCard:hover {
+    transform: translateY(-0.25rem);
+    border-color: var(--ds-color-border-accent);
+    border-bottom-color: var(--ds-color-bg-action-primary);
+    background-color: var(--ds-color-bg-accent-subtle);
+    box-shadow: var(--ds-elevation-overlay);
+  }
+}
+
+.ipGameCard:active {
+  transform: translateY(0.0625rem) scale(var(--ds-motion-scale-press));
+  border-bottom-width: 0.125rem;
+}
+
+.ipGameCard:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.ipGameCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ipGameCardIcon {
+  width: 3.125rem;
+  height: 3.125rem;
+  border-radius: var(--ds-radius-container);
+  background-color: var(--ds-color-bg-accent-subtle);
+  color: var(--ds-color-text-accent);
+  border: 0.0625rem solid var(--ds-color-border-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ipFloorNumberBadge {
+  min-width: 3.125rem;
+  height: 3.125rem;
+  padding: 0 0.75rem;
+  border-radius: var(--ds-radius-container);
+  background-color: var(--ds-color-bg-action-primary);
+  color: var(--ds-color-text-on-action);
+  font-family: var(--ds-font-family-mono);
+  font-size: var(--ds-font-size-24);
+  font-weight: var(--ds-font-weight-heading);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ipFloorAllBadge {
+  background-color: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-primary);
+  border: 0.0625rem solid var(--ds-color-border-default);
+}
+
+.ipFloorCardAll {
+  border-style: dashed;
+  border-bottom-style: solid;
+}
+
+.ipGamePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--ds-radius-full);
+  background-color: var(--ds-color-surface-sunken);
+  color: var(--ds-color-text-secondary);
+  border: 0.0625rem solid var(--ds-color-border-separator);
+  font-size: var(--ds-font-size-12);
+  font-weight: var(--ds-font-weight-heading);
+  white-space: nowrap;
+}
+
+.ipGameCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ipGameCardTitle {
+  margin: 0;
+  font-size: var(--ds-font-size-17);
+  line-height: 1.35;
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-primary);
+}
+
+.ipGameCardMeta,
+.ipGameCardPreview {
+  margin: 0;
+  font-size: var(--ds-font-size-14);
+  line-height: 1.45;
+  color: var(--ds-color-text-secondary);
+}
+
+.ipGameCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.625rem;
+  border-top: 0.0625rem solid var(--ds-color-border-separator);
+  font-size: var(--ds-font-size-14);
+  font-weight: var(--ds-font-weight-heading);
+  color: var(--ds-color-text-accent);
+}
+
+.ipStageFooterAction {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+.ipStageTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--ds-color-surface-raised);
+  border: 0.0625rem solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-container);
+  box-shadow: var(--ds-elevation-raised);
+}
+
+.ipStageNavRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ipStageCrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--ds-font-size-14);
+  color: var(--ds-color-text-secondary);
+  padding-left: 0.25rem;
+}
+
+.ipStageCrumb strong {
+  color: var(--ds-color-text-accent);
+  font-weight: var(--ds-font-weight-heading);
+}
+
+/* ── Touch Targets (STD-mobile-touch-09) ── */
+@media (pointer: coarse) {
+  .ipBtn,
+  .ipFilterBtn,
+  .ipActionBtn,
+  .ipModalCloseBtn,
+  .ipClearSearchBtn,
+  .ipBackLink {
+    min-height: var(--ds-size-target-touch);
+  }
+
+  .ipActionBtn,
+  .ipModalCloseBtn,
+  .ipClearSearchBtn {
+    min-width: var(--ds-size-target-touch);
+  }
+}
+
+/* ── Responsive Breakpoint ── */
+@media (max-width: 48rem) {
+  .ipTableCard {
+    display: none;
+  }
+
+  .ipMobileList {
+    display: flex;
+  }
+
+  .ipFormRow {
+    grid-template-columns: 1fr;
+  }
+
+  .ipHeaderRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ── Reduced Motion (STD-accessibility-motion-02) ── */
+@media (prefers-reduced-motion: reduce) {
+  .ipSpin {
+    animation: none;
+  }
+
+  .ipGameCard {
+    transition: none;
+  }
+
+  .ipGameCard:hover,
+  .ipGameCard:active {
+    transform: none;
+  }
+
+  .ipToast {
+    transform: none;
+    transition: opacity var(--ds-motion-duration-reduced-fade) var(--ds-motion-easing-hover);
+  }
+
+  .ipModalCard {
+    animation-name: ipReducedFade;
+    animation-duration: var(--ds-motion-duration-reduced-fade);
+    animation-timing-function: var(--ds-motion-easing-hover);
+  }
+
+  @keyframes ipReducedFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

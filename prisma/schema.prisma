@@ -955,8 +955,9 @@ model KpiIndicator {
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamp(0)
   updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
 
-  topic           KpiTopic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topic           KpiTopic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
   entries         KpiEntry[]
+  aiAudits        KpiAiAudit[]
 
   @@index([topicId], map: "idx_kpi_ind_topic")
   @@index([category], map: "idx_kpi_ind_cat")
@@ -992,6 +993,38 @@ model KpiEntry {
   @@index([fiscalYear, periodKey], map: "idx_kpi_entry_year_period")
   @@index([status], map: "idx_kpi_entry_status")
   @@map("kpi_entries")
+}
+
+/// ระบบ: ตรวจทานตัวชี้วัด KPI ด้วย THIP 2026 + HOSxP (Zero-PHI)
+/// หน้าเว็บ: /service/kpi-tracker
+/// หน้าที่: เก็บผลตรวจเทียบระหว่างค่าที่คนกรอกกับค่าที่คำนวณจาก HOSxP พร้อมคำอธิบายสาเหตุ
+model KpiAiAudit {
+  id               Int          @id @default(autoincrement())
+  indicatorId      Int          @map("indicator_id")
+  fiscalYear       String       @map("fiscal_year") @db.VarChar(10)
+  periodKey        String       @map("period_key") @db.VarChar(50)
+  ruleCode         String       @map("rule_code") @db.VarChar(50)
+  status           String       @db.VarChar(30)
+  humanNumerator   Decimal?     @map("human_numerator") @db.Decimal(14, 4)
+  humanDenominator Decimal?     @map("human_denominator") @db.Decimal(14, 4)
+  humanResult      Decimal?     @map("human_result") @db.Decimal(14, 4)
+  aiNumerator      Decimal?     @map("ai_numerator") @db.Decimal(14, 4)
+  aiDenominator    Decimal?     @map("ai_denominator") @db.Decimal(14, 4)
+  aiResult         Decimal?     @map("ai_result") @db.Decimal(14, 4)
+  diffNumerator    Decimal?     @map("diff_numerator") @db.Decimal(14, 4)
+  diffDenominator  Decimal?     @map("diff_denominator") @db.Decimal(14, 4)
+  diffResult       Decimal?     @map("diff_result") @db.Decimal(14, 4)
+  thipManualRef    String?      @map("thip_manual_ref") @db.VarChar(255)
+  explanationTh    String?      @map("explanation_th") @db.Text
+  diagnosticsJson  String?      @map("diagnostics_json") @db.LongText
+  auditedAt        DateTime     @default(now()) @map("audited_at") @db.DateTime(0)
+  updatedAt        DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  indicator        KpiIndicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+
+  @@unique([indicatorId, fiscalYear, periodKey], map: "uq_kpi_ai_audit_ind_fy_period")
+  @@index([fiscalYear, periodKey, status], map: "idx_kpi_ai_audit_fy_period_status")
+  @@map("kpi_ai_audits")
 }
 
 /// ระบบ: ติดตามแผนงานโครงการและงบประมาณรายไตรมาส
@@ -1255,4 +1288,26 @@ model OnlineMediaView {
   @@unique([mediaId, memberId], map: "uq_media_view_media_member")
   @@index([mediaId, lastViewedAt], map: "idx_media_view_last")
   @@map("online_media_views")
+}
+
+/// ระบบ: สมุดเบอร์โทรศัพท์ภายในโรงพยาบาล
+/// หน้าเว็บ: /member/internal-phones
+/// หน้าที่: เก็บข้อมูลอาคาร ชั้น ห้อง/หน่วยงาน เบอร์โทรภายใน และหมายเหตุ สำหรับค้นหาและจัดการ
+model HospitalInternalPhone {
+  id           Int      @id @default(autoincrement())
+  building     String   @db.VarChar(150)
+  floor        String?  @db.VarChar(50)
+  room         String   @db.VarChar(255)
+  phone        String   @default("") @db.VarChar(100)
+  note         String?  @db.VarChar(500)
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdBy    String?  @map("created_by") @db.VarChar(100)
+  updatedBy    String?  @map("updated_by") @db.VarChar(100)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([building, floor], map: "idx_internal_phone_building_floor")
+  @@index([isActive, displayOrder], map: "idx_internal_phone_active_order")
+  @@map("hospital_internal_phones")
 }

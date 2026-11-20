@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMemberSession, requireMemberApi } from '@/lib/memberAuth'
 import { KpiService } from '@/lib/kpi/kpiService'
+import { KpiAuditService } from '@/lib/kpi/kpiAuditService'
 import { z } from 'zod'
 
 export async function GET(req: NextRequest) {
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || undefined
     const periodKey = searchParams.get('periodKey') || undefined
 
-    const [indicators, categories, responsiblePersons] = await Promise.all([
+    const [indicators, categories, responsiblePersons, audits] = await Promise.all([
       KpiService.getIndicators({
         topicId,
         fiscalYear,
@@ -58,12 +59,15 @@ export async function GET(req: NextRequest) {
       }),
       KpiService.getCategories(topicId),
       KpiService.getResponsiblePersons(topicId),
+      KpiAuditService.getAuditsByTopic({ topicId, fiscalYear }).catch(() => []),
     ])
+
+    const enrichedIndicators = KpiAuditService.attachAuditsToIndicators(indicators, audits, periodKey)
 
     return NextResponse.json({
       success: true,
       data: {
-        indicators,
+        indicators: enrichedIndicators,
         categories,
         responsiblePersons,
       },

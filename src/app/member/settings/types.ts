@@ -21,6 +21,7 @@ import {
   Upload,
   ShieldCheck,
   Home,
+  Phone,
 } from 'lucide-react'
 import { PermRoleType, TaskRoleConfig, TaskDefinition } from '@/lib/permissions/taskDefinitions'
 
@@ -59,6 +60,7 @@ export const ICON_MAP: Record<string, React.ComponentType<{ size?: number; class
   Upload,
   ShieldCheck,
   Home,
+  Phone,
 }
 
 export const ROLE_TYPE_CONFIG: Record<

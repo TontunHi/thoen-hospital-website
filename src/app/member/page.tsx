@@ -44,6 +44,7 @@ export default async function MemberDashboardPage() {
         hasSignature: member.hasAccess('feature_signature'),
         hasEquipmentBorrow: member.hasAccess('feature_equipment_borrow'),
         hasEvents: member.hasAccess('feature_events'),
+        hasInternalPhones: member.hasAccess('feature_internal_phones'),
         isAssetsAuthorized,
         isOnlineMediaAuthorized,
         isNewsAuthorized,

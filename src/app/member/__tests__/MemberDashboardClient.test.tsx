@@ -37,6 +37,7 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
       hasEquipmentBorrow: true,
       hasEvents: true,
       hasOnlineMedia: true,
+      hasInternalPhones: true,
       isAssetsAuthorized: true,
       isOnlineMediaAuthorized: true,
       isNewsAuthorized: true,
@@ -103,6 +104,7 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
 
     expect(screen.getByRole('heading', { level: 3, name: 'ระบบสารสนเทศและเอกสาร' })).toBeInTheDocument()
 
+    expect(screen.getByText('สมุดเบอร์โทรศัพท์ภายในโรงพยาบาล')).toBeInTheDocument()
     expect(screen.getByText('ระบบจัดการข้อมูลครุภัณฑ์')).toBeInTheDocument()
     expect(screen.getByText('จัดการบทความ ITA')).toBeInTheDocument()
     expect(screen.getByText('ระบบจัดการเอกสาร RDU')).toBeInTheDocument()

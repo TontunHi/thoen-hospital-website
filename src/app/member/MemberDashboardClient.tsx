@@ -30,6 +30,7 @@ export interface MemberDashboardClientProps {
     hasSignature: boolean
     hasEquipmentBorrow: boolean
     hasEvents: boolean
+    hasInternalPhones?: boolean
     isAssetsAuthorized: boolean
     isOnlineMediaAuthorized?: boolean
     isNewsAuthorized: boolean
@@ -156,6 +157,17 @@ export default function MemberDashboardClient({
       },
 
       // ── Category 2: Information Systems & Documents (ระบบสารสนเทศและเอกสาร) ──
+      {
+        id: 'internal_phones',
+        title: 'สมุดเบอร์โทรศัพท์ภายในโรงพยาบาล',
+        shortDesc: 'ค้นหาเบอร์โทรภายในตามอาคาร ชั้น และห้อง/หน่วยงาน พร้อมระบบจัดการข้อมูล',
+        href: '/member/internal-phones',
+        icon: 'call',
+        category: 'system',
+        categoryLabel: 'ระบบสารสนเทศและเอกสาร',
+        keywords: ['เบอร์โทร', 'เบอร์ภายใน', 'โทรศัพท์', 'ต่อสาย', 'อาคาร', 'ห้อง', 'phone'],
+        visible: permissions.hasInternalPhones !== false,
+      },
       {
         id: 'assets',
         title: 'ระบบจัดการข้อมูลครุภัณฑ์',

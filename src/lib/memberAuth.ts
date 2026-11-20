@@ -62,6 +62,7 @@ export type MemberPermission =
   | 'manage_fct_home_visit'
   | 'manage_project_tracker'
   | 'manage_online_media'
+  | 'manage_internal_phones'
 
 export interface MemberDto {
   id: number

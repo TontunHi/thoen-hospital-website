@@ -107,15 +107,22 @@ export async function GET(req: NextRequest) {
       limit,
     })
 
-    return NextResponse.json({
-      success: true,
-      permissions: {
-        canView: true,
-        canEdit,
-        canManage,
+    return NextResponse.json(
+      {
+        success: true,
+        permissions: {
+          canView: true,
+          canEdit,
+          canManage,
+        },
+        ...data,
       },
-      ...data,
-    })
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
+    )
   } catch (error: any) {
     logger.error({ error: error?.message }, 'GET /api/service/dashboard-rcm/palliative-care/registry Error')
     return NextResponse.json(

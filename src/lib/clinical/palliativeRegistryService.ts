@@ -75,6 +75,35 @@ export interface PalliativeRegistryItem {
   updatedAt: Date | string
 }
 
+export interface PalliativeSyncInsertedItem {
+  hn: string
+  patientName: string
+  icd10Principal?: string | null
+  registeredDate?: string | null
+}
+
+export interface PalliativeSyncUpdatedItem {
+  hn: string
+  patientName: string
+  updatedFields: Array<'status' | 'registeredDate' | 'deathDate'>
+  registeredDate?: string | null
+  deathDate?: string | null
+}
+
+export interface PalliativeSyncVisitAddedItem {
+  hn: string
+  patientName: string
+  addedVisits: Array<{
+    visitNo: number
+    visitDate: string
+  }>
+}
+
+export interface PalliativeSyncSkippedLtcItem {
+  hn: string
+  patientName: string
+}
+
 export interface PalliativeSyncSummary {
   totalClinicMembers: number
   insertedCount: number
@@ -82,6 +111,10 @@ export interface PalliativeSyncSummary {
   visitsAddedCount: number
   skippedLtcCount: number
   syncedAt: string
+  insertedItems?: PalliativeSyncInsertedItem[]
+  updatedItems?: PalliativeSyncUpdatedItem[]
+  visitsAddedItems?: PalliativeSyncVisitAddedItem[]
+  skippedLtcItems?: PalliativeSyncSkippedLtcItem[]
 }
 
 export interface ListRegistriesParams {
@@ -644,6 +677,7 @@ export class PalliativeRegistryService {
       apiGateway.app.query<{
         id: number
         hn: string
+        patient_name?: string | null
         registration_status: string | null
         registered_date: string | null
         death_date: string | null
@@ -654,7 +688,7 @@ export class PalliativeRegistryService {
         visit_5_date: string | null
         visit_6_date: string | null
       }>(
-        `SELECT id, hn, registration_status, registered_date, death_date,
+        `SELECT id, hn, patient_name, registration_status, registered_date, death_date,
                 visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date
          FROM palliative_care_registries`
       ),
@@ -696,13 +730,19 @@ export class PalliativeRegistryService {
          ORDER BY cm.regdate DESC`
       ),
       executor(
-        `SELECT DISTINCT o.hn, DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate
+        `SELECT DISTINCT
+           COALESCE(NULLIF(TRIM(o.hn), ''), oo.hn) AS hn,
+           DATE_FORMAT(COALESCE(o.vstdate, oo.vstdate), '%Y-%m-%d') AS vstdate
          FROM opitemrece oo
          JOIN s_drugitems d ON d.icode = oo.icode
-         JOIN ovst o ON o.vn = oo.vn
+         LEFT JOIN ovst o ON o.vn = oo.vn
          WHERE d.nhso_adp_code = '30001'
-         ORDER BY o.hn ASC, o.vstdate ASC`
-      ).catch(() => []),
+           AND COALESCE(o.vstdate, oo.vstdate) IS NOT NULL
+         ORDER BY hn ASC, vstdate ASC`
+      ).catch((err) => {
+        logger.warn({ err }, 'Failed to query HOSxP ADP 30001 home visits during Palliative sync')
+        return []
+      }),
     ])
 
     const existingByHn = new Map<
@@ -710,6 +750,7 @@ export class PalliativeRegistryService {
       {
         id: number
         hn: string
+        patient_name?: string | null
         registration_status: string | null
         registered_date: string | null
         death_date: string | null
@@ -742,8 +783,10 @@ export class PalliativeRegistryService {
     }
 
     let skippedLtcCount = 0
+    const skippedLtcItems: PalliativeSyncSkippedLtcItem[] = []
     const toInsert: Array<{ normHn: string; row: any }> = []
     const updateStatements: Array<{ sql: string; params: unknown[] }> = []
+    const updatedItems: PalliativeSyncUpdatedItem[] = []
     const clinicNoteMap = new Map<string, string>()
 
     for (const [normHn, row] of hosxpMembers.entries()) {
@@ -759,7 +802,12 @@ export class PalliativeRegistryService {
         const needsRegDate = Boolean(regDateVal && (!existing.registered_date || !existing.registered_date.trim()))
         const needsDeathDate = Boolean(deathDateVal && (!existing.death_date || !existing.death_date.trim()))
 
-        if (needsStatusUpdate || needsRegDate || needsDeathDate) {
+        const updatedFields: Array<'status' | 'registeredDate' | 'deathDate'> = []
+        if (needsStatusUpdate) updatedFields.push('status')
+        if (needsRegDate) updatedFields.push('registeredDate')
+        if (needsDeathDate) updatedFields.push('deathDate')
+
+        if (updatedFields.length > 0) {
           updateStatements.push({
             sql: `UPDATE palliative_care_registries
                   SET registration_status = 'ดำเนินการเรียบร้อย',
@@ -770,12 +818,23 @@ export class PalliativeRegistryService {
                   WHERE id = ?`,
             params: [regDateVal, deathDateVal, options.actor || 'hosxp_autosync', existing.id],
           })
+          updatedItems.push({
+            hn: normHn,
+            patientName: String(row.ptname || existing.patient_name || '').trim() || `HN ${normHn}`,
+            updatedFields,
+            ...(needsRegDate && regDateVal ? { registeredDate: regDateVal } : {}),
+            ...(needsDeathDate && deathDateVal ? { deathDate: deathDateVal } : {}),
+          })
         }
         continue
       }
 
       if (isLtc) {
         skippedLtcCount++
+        skippedLtcItems.push({
+          hn: normHn,
+          patientName: String(row.ptname || '').trim() || `HN ${normHn}`,
+        })
         continue
       }
 
@@ -795,6 +854,7 @@ export class PalliativeRegistryService {
         : new Map<string, string>()
 
     const actor = options.actor || 'hosxp_autosync'
+    const insertedItems: PalliativeSyncInsertedItem[] = []
     const insertStatements: Array<{ sql: string; params: unknown[] }> = toInsert.map(({ normHn, row }) => {
       const ptName = String(row.ptname || '').trim().slice(0, 255) || `HN ${normHn}`
       const address = String(row.address || '').trim().slice(0, 500) || null
@@ -802,6 +862,13 @@ export class PalliativeRegistryService {
       const icd10Principal = resolvedDxMap.get(normHn) || null
       const regDate = row.regdate ? String(row.regdate).trim().slice(0, 20) : null
       const deathDate = row.death === 'Y' && row.death_date ? String(row.death_date).trim().slice(0, 20) : null
+
+      insertedItems.push({
+        hn: normHn,
+        patientName: ptName,
+        icd10Principal,
+        registeredDate: regDate,
+      })
 
       return {
         sql: `INSERT INTO palliative_care_registries (
@@ -842,6 +909,7 @@ export class PalliativeRegistryService {
 
     // Step 2: Sync home visit dates (ADP 30001) across ALL history (append-only, never overwrite existing)
     let visitsAddedCount = 0
+    const visitsAddedItems: PalliativeSyncVisitAddedItem[] = []
     const visitStatements: Array<{ sql: string; params: unknown[] }> = []
 
     if (Array.isArray(hos30001Rows) && hos30001Rows.length > 0) {
@@ -860,6 +928,7 @@ export class PalliativeRegistryService {
       let allRegRows: Array<{
         id: number
         hn: string
+        patient_name?: string | null
         visit_1_date?: string | null
         visit_2_date?: string | null
         visit_3_date?: string | null
@@ -872,6 +941,7 @@ export class PalliativeRegistryService {
         const refreshedRows = await apiGateway.app.query<{
           id: number
           hn: string
+          patient_name?: string | null
           visit_1_date: string | null
           visit_2_date: string | null
           visit_3_date: string | null
@@ -879,7 +949,7 @@ export class PalliativeRegistryService {
           visit_5_date: string | null
           visit_6_date: string | null
         }>(
-          `SELECT id, hn, visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date
+          `SELECT id, hn, patient_name, visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date
            FROM palliative_care_registries`
         )
         if (Array.isArray(refreshedRows) && refreshedRows.length > 0) {
@@ -926,6 +996,7 @@ export class PalliativeRegistryService {
 
         let nextNo = meta.maxNo + 1
         const slotUpdates: Array<{ slot: number; dmy: string }> = []
+        const addedVisits: Array<{ visitNo: number; visitDate: string }> = []
 
         for (const isoDate of missingDates) {
           const visitNo = nextNo++
@@ -939,7 +1010,17 @@ export class PalliativeRegistryService {
             slotUpdates.push({ slot: visitNo, dmy })
           }
           meta.datesIso.add(isoDate)
+          addedVisits.push({ visitNo, visitDate: dmy })
           visitsAddedCount++
+        }
+
+        if (addedVisits.length > 0) {
+          const hosMember = hosxpMembers.get(normHn)
+          visitsAddedItems.push({
+            hn: normHn,
+            patientName: String(r.patient_name || hosMember?.ptname || '').trim() || `HN ${normHn}`,
+            addedVisits,
+          })
         }
 
         if (slotUpdates.length > 0) {
@@ -986,6 +1067,10 @@ export class PalliativeRegistryService {
       visitsAddedCount,
       skippedLtcCount,
       syncedAt: new Date().toISOString(),
+      insertedItems,
+      updatedItems,
+      visitsAddedItems,
+      skippedLtcItems,
     }
 
     PalliativeRegistryService.syncState.lastSyncAt = Date.now()
@@ -1009,7 +1094,10 @@ export class PalliativeRegistryService {
     }
 
     if (inFlight) {
-      return inFlight
+      if (!options.force) {
+        return inFlight
+      }
+      await inFlight.catch(() => null)
     }
 
     const promise = PalliativeRegistryService.syncFromHosxp(options, executor).finally(() => {
@@ -1036,6 +1124,7 @@ export class PalliativeRegistryService {
     colorCounts?: ColorCounts
     availableFiscalYears?: number[]
     syncInfo?: PalliativeSyncSummary | null
+    syncError?: string | null
   }> {
     const normalizeDateStr = normalizeRegistryDateToIso
 
@@ -1043,6 +1132,7 @@ export class PalliativeRegistryService {
     let rawRegs: any[] | null = null
     let rawVisits: any[] = []
     let syncInfo: PalliativeSyncSummary | null = null
+    let syncError: string | null = null
 
     if (process.env.NODE_ENV !== 'test') {
       if (params.forceSync) {
@@ -1056,6 +1146,7 @@ export class PalliativeRegistryService {
           )
         } catch (syncErr) {
           logger.warn({ syncErr }, 'HOSxP Clinic 47 auto-sync failed; continuing with existing website registry data')
+          syncError = 'ไม่สามารถเชื่อมต่อ HOSxP เพื่อซิงค์ข้อมูลได้ในขณะนี้ ระบบแสดงข้อมูลล่าสุดที่มีอยู่ในทะเบียน'
         }
       }
 
@@ -1573,6 +1664,7 @@ export class PalliativeRegistryService {
         colorCounts,
         availableFiscalYears,
         syncInfo,
+        syncError,
       }
     }
 

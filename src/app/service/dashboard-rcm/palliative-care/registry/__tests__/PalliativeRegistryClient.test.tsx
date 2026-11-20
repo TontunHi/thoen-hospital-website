@@ -655,4 +655,171 @@ describe('PalliativeRegistryClient Component', () => {
       )
     })
   })
+
+  it('opens Sync Result popup showing added patients, updated fields, and added visits after clicking "ซิงค์ HOSxP"', async () => {
+    const detailedSyncResponse = {
+      ...mockData,
+      syncInfo: {
+        totalClinicMembers: 1400,
+        insertedCount: 1,
+        updatedCount: 1,
+        visitsAddedCount: 2,
+        skippedLtcCount: 1,
+        syncedAt: '2026-11-20T08:30:00.000Z',
+        insertedItems: [
+          {
+            hn: '0054921',
+            patientName: 'นายใหม่ พัลลิเอทีฟ',
+            icd10Principal: 'C349',
+            registeredDate: '2026-11-01',
+          },
+        ],
+        updatedItems: [
+          {
+            hn: '0000100',
+            patientName: 'นายเก่า อัปเดตแล้ว',
+            updatedFields: ['status', 'registeredDate', 'deathDate'],
+            registeredDate: '2026-10-15',
+            deathDate: '2026-11-18',
+          },
+        ],
+        visitsAddedItems: [
+          {
+            hn: '000206',
+            patientName: 'นางจันทนา ตันมา',
+            addedVisits: [
+              { visitNo: 2, visitDate: '10/11/2026' },
+              { visitNo: 3, visitDate: '19/11/2026' },
+            ],
+          },
+        ],
+        skippedLtcItems: [
+          {
+            hn: '0000999',
+            patientName: 'นางแอลทีซี ข้ามเลย',
+          },
+        ],
+      },
+    }
+
+    vi.mocked(global.fetch).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(detailedSyncResponse),
+      } as any)
+    )
+
+    render(
+      <PalliativeRegistryClient
+        userRole="admin"
+        initialData={mockData}
+        initialPermissions={{ canView: true, canEdit: true, canManage: true }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /ซิงค์ HOSxP/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText('ผลการซิงค์ข้อมูลจาก HOSxP (คลินิก 2423)')).toBeInTheDocument()
+    })
+
+    // Inserted patient
+    expect(screen.getByText('นายใหม่ พัลลิเอทีฟ')).toBeInTheDocument()
+    expect(screen.getByText('0054921')).toBeInTheDocument()
+    expect(screen.getByText('C349')).toBeInTheDocument()
+
+    // Updated patient & changed fields
+    expect(screen.getByText('นายเก่า อัปเดตแล้ว')).toBeInTheDocument()
+    expect(screen.getByText('สถานะ: ดำเนินการเรียบร้อย')).toBeInTheDocument()
+    expect(screen.getByText(/วันขึ้นทะเบียน: 15 ต\.ค\. 2569/)).toBeInTheDocument()
+    expect(screen.getByText(/วันเสียชีวิต: 18 พ\.ย\. 2569/)).toBeInTheDocument()
+
+    // Added home visits
+    expect(screen.getByText('เพิ่มวันเยี่ยมบ้านจาก HOSxP (ADP 30001)')).toBeInTheDocument()
+    expect(screen.getByText(/ครั้งที่ 2: 10 พ\.ย\. 2569/)).toBeInTheDocument()
+    expect(screen.getByText(/ครั้งที่ 3: 19 พ\.ย\. 2569/)).toBeInTheDocument()
+
+    // Close modal
+    fireEvent.click(screen.getByRole('button', { name: 'รับทราบ / ปิด' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows up-to-date message in Sync Result popup when no changes were found', async () => {
+    const noChangesResponse = {
+      ...mockData,
+      syncInfo: {
+        totalClinicMembers: 1400,
+        insertedCount: 0,
+        updatedCount: 0,
+        visitsAddedCount: 0,
+        skippedLtcCount: 0,
+        syncedAt: '2026-11-20T08:30:00.000Z',
+        insertedItems: [],
+        updatedItems: [],
+        visitsAddedItems: [],
+        skippedLtcItems: [],
+      },
+    }
+
+    vi.mocked(global.fetch).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(noChangesResponse),
+      } as any)
+    )
+
+    render(
+      <PalliativeRegistryClient
+        userRole="admin"
+        initialData={mockData}
+        initialPermissions={{ canView: true, canEdit: true, canManage: true }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /ซิงค์ HOSxP/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(
+        screen.getByText(/ข้อมูลในทะเบียนเป็นปัจจุบันแล้ว ไม่พบรายชื่อใหม่ ข้อมูลที่ต้องอัปเดต/)
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('shows warning message in Sync Result popup when HOSxP sync fails', async () => {
+    const syncErrorResponse = {
+      ...mockData,
+      syncInfo: null,
+      syncError: 'ไม่สามารถเชื่อมต่อ HOSxP เพื่อซิงค์ข้อมูลได้ในขณะนี้ ระบบแสดงข้อมูลล่าสุดที่มีอยู่ในทะเบียน',
+    }
+
+    vi.mocked(global.fetch).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(syncErrorResponse),
+      } as any)
+    )
+
+    render(
+      <PalliativeRegistryClient
+        userRole="admin"
+        initialData={mockData}
+        initialPermissions={{ canView: true, canEdit: true, canManage: true }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /ซิงค์ HOSxP/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'ไม่สามารถเชื่อมต่อ HOSxP เพื่อซิงค์ข้อมูลได้ในขณะนี้ ระบบแสดงข้อมูลล่าสุดที่มีอยู่ในทะเบียน'
+        )
+      ).toBeInTheDocument()
+    })
+  })
 })

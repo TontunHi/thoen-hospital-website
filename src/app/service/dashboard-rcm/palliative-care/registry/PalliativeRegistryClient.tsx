@@ -10,6 +10,7 @@ import {
   X,
   RefreshCw,
   AlertCircle,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -24,7 +25,7 @@ import {
   calculateFiscalYear,
   getItemFiscalYear,
 } from '@/lib/clinical/palliativeRegistryService'
-import { formatThaiDate } from '@/lib/formatters'
+import { formatThaiDate, formatThaiBuddhistDateTime } from '@/lib/formatters'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 
@@ -353,6 +354,9 @@ export default function PalliativeRegistryClient({
   const [serverFiscalYears, setServerFiscalYears] = useState<number[]>(initialData?.availableFiscalYears || [])
   const [syncInfo, setSyncInfo] = useState<PalliativeSyncSummary | null>(initialData?.syncInfo || null)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
+  const [syncModalResult, setSyncModalResult] = useState<PalliativeSyncSummary | null>(null)
+  const [syncModalError, setSyncModalError] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [loading, setLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
@@ -690,6 +694,7 @@ export default function PalliativeRegistryClient({
 
       const res = await fetch(`/api/service/dashboard-rcm/palliative-care/registry?${q.toString()}`, {
         signal: controller.signal,
+        cache: 'no-store',
       })
       const data = await res.json()
 
@@ -707,6 +712,11 @@ export default function PalliativeRegistryClient({
       }
       if (data.syncInfo !== undefined) setSyncInfo(data.syncInfo)
       if (data.permissions) setPermissions(data.permissions)
+      if (forceRefresh) {
+        setSyncModalResult(data.syncInfo ?? null)
+        setSyncModalError(data.syncError ?? null)
+        setIsSyncModalOpen(true)
+      }
     } catch (err: any) {
       if (err?.name === 'AbortError') return
       setError(err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
@@ -774,7 +784,7 @@ export default function PalliativeRegistryClient({
 
   // Lock background scrolling when any modal is open
   useEffect(() => {
-    const isAnyModalOpen = Boolean(isAddModalOpen || editingItem || deletingItem)
+    const isAnyModalOpen = Boolean(isAddModalOpen || editingItem || deletingItem || isSyncModalOpen)
     if (isAnyModalOpen) {
       const originalOverflow = document.body.style.overflow
       document.body.style.overflow = 'hidden'
@@ -782,7 +792,17 @@ export default function PalliativeRegistryClient({
         document.body.style.overflow = originalOverflow
       }
     }
-  }, [isAddModalOpen, editingItem, deletingItem])
+  }, [isAddModalOpen, editingItem, deletingItem, isSyncModalOpen])
+
+  // Close Sync Result modal on Escape key
+  useEffect(() => {
+    if (!isSyncModalOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsSyncModalOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isSyncModalOpen])
 
   // Handle Add Form Submit
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -1215,6 +1235,17 @@ export default function PalliativeRegistryClient({
               {syncInfo.updatedCount > 0 ? ` · อัปเดต ${syncInfo.updatedCount} ราย` : ''}
               {syncInfo.visitsAddedCount > 0 ? ` · เพิ่มวันเยี่ยม ${syncInfo.visitsAddedCount} ครั้ง` : ''}
               {syncInfo.skippedLtcCount > 0 ? ` · ข้าม LTC ${syncInfo.skippedLtcCount} ราย` : ''}
+              <button
+                type="button"
+                className="pcr-sync-link-btn"
+                onClick={() => {
+                  setSyncModalResult(syncInfo)
+                  setSyncModalError(null)
+                  setIsSyncModalOpen(true)
+                }}
+              >
+                ดูรายละเอียด
+              </button>
             </p>
           )}
         </div>
@@ -2326,6 +2357,346 @@ export default function PalliativeRegistryClient({
               >
                 <span className="pcr-symbol" aria-hidden="true">✕</span>
                 {isDeleting ? 'กำลังลบ...' : 'ยืนยันลบ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* Modal 4: สรุปผลการซิงค์ข้อมูลจาก HOSxP                  */}
+      {/* ======================================================== */}
+      {isSyncModalOpen && (
+        <div
+          className="pcr-modal-backdrop"
+          onClick={() => setIsSyncModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pcr-sync-modal-title"
+        >
+          <div
+            className="pcr-modal-card"
+            style={{ maxWidth: 780 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pcr-modal-header">
+              <div>
+                <h2
+                  id="pcr-sync-modal-title"
+                  className="pcr-modal-title"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  {syncModalError || !syncModalResult ? (
+                    <AlertCircle size={20} style={{ color: 'var(--pc-amber-text)' }} />
+                  ) : (
+                    <CheckCircle2 size={20} style={{ color: 'var(--pc-teal-text)' }} />
+                  )}
+                  ผลการซิงค์ข้อมูลจาก HOSxP (คลินิก 2423)
+                </h2>
+                {syncModalResult?.syncedAt && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--pc-muted)', marginTop: '0.2rem' }}>
+                    เวลาที่ซิงค์: {formatThaiBuddhistDateTime(syncModalResult.syncedAt)}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="pcr-modal-close-btn"
+                onClick={() => setIsSyncModalOpen(false)}
+                aria-label="ปิดหน้าต่าง"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="pcr-modal-body">
+              {syncModalError || !syncModalResult ? (
+                <div
+                  style={{
+                    background: 'var(--pc-amber-bg)',
+                    border: '1px solid var(--pc-amber-border)',
+                    color: 'var(--pc-amber-text)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: 8,
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                  }}
+                >
+                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                  <span>
+                    {syncModalError ||
+                      'ไม่สามารถซิงค์ข้อมูลจาก HOSxP ได้ในขณะนี้ ระบบแสดงข้อมูลล่าสุดที่มีอยู่ในทะเบียน'}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  {/* KPI Strip */}
+                  <div className="pcr-sync-kpi-grid">
+                    <div className="pcr-sync-kpi-card">
+                      <span className="pcr-sync-kpi-label">คลินิก 2423 ใน HOSxP</span>
+                      <span className="pcr-sync-kpi-val">
+                        {(syncModalResult.totalClinicMembers ?? 0).toLocaleString()} ราย
+                      </span>
+                    </div>
+                    <div
+                      className={`pcr-sync-kpi-card ${syncModalResult.insertedCount > 0 ? 'is-highlight-teal' : ''}`}
+                    >
+                      <span className="pcr-sync-kpi-label">เพิ่มผู้ป่วยใหม่</span>
+                      <span className="pcr-sync-kpi-val">
+                        {(syncModalResult.insertedCount ?? 0).toLocaleString()} ราย
+                      </span>
+                    </div>
+                    <div
+                      className={`pcr-sync-kpi-card ${syncModalResult.updatedCount > 0 ? 'is-highlight-blue' : ''}`}
+                    >
+                      <span className="pcr-sync-kpi-label">อัปเดตข้อมูลผู้ป่วย</span>
+                      <span className="pcr-sync-kpi-val">
+                        {(syncModalResult.updatedCount ?? 0).toLocaleString()} ราย
+                      </span>
+                    </div>
+                    <div
+                      className={`pcr-sync-kpi-card ${syncModalResult.visitsAddedCount > 0 ? 'is-highlight-teal' : ''}`}
+                    >
+                      <span className="pcr-sync-kpi-label">เพิ่มวันเยี่ยมบ้าน</span>
+                      <span className="pcr-sync-kpi-val">
+                        {(syncModalResult.visitsAddedCount ?? 0).toLocaleString()} ครั้ง
+                      </span>
+                    </div>
+                  </div>
+
+                  {syncModalResult.skippedLtcCount > 0 && (
+                    <div
+                      style={{
+                        background: 'var(--pc-surface-alt)',
+                        border: '1px solid var(--pc-border)',
+                        color: 'var(--pc-ink-2)',
+                        padding: '0.55rem 0.85rem',
+                        borderRadius: 8,
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      ข้ามผู้ป่วยที่อยู่ในทะเบียน Long Term Care (LTC):{' '}
+                      <strong>{syncModalResult.skippedLtcCount.toLocaleString()} ราย</strong>
+                    </div>
+                  )}
+
+                  {/* No changes message */}
+                  {syncModalResult.insertedCount === 0 &&
+                    syncModalResult.updatedCount === 0 &&
+                    syncModalResult.visitsAddedCount === 0 && (
+                      <div
+                        style={{
+                          background: 'var(--pc-teal-bg)',
+                          border: '1px solid var(--pc-teal-border)',
+                          color: 'var(--pc-teal-text)',
+                          padding: '0.9rem 1rem',
+                          borderRadius: 8,
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem',
+                        }}
+                      >
+                        <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+                        <span>
+                          ข้อมูลในทะเบียนเป็นปัจจุบันแล้ว ไม่พบรายชื่อใหม่ ข้อมูลที่ต้องอัปเดต
+                          หรือวันเยี่ยมบ้านเพิ่มเติมจาก HOSxP
+                        </span>
+                      </div>
+                    )}
+
+                  {/* Section 1: Newly inserted patients */}
+                  {((syncModalResult.insertedItems?.length ?? 0) > 0 ||
+                    syncModalResult.insertedCount > 0) && (
+                    <div className="pcr-sync-section">
+                      <div className="pcr-sync-section-header">
+                        <span>เพิ่มผู้ป่วยใหม่เข้าทะเบียน</span>
+                        <span className="pcr-tag pcr-tag-teal">
+                          {syncModalResult.insertedCount.toLocaleString()} ราย
+                        </span>
+                      </div>
+                      {syncModalResult.insertedItems && syncModalResult.insertedItems.length > 0 ? (
+                        <div className="pcr-sync-list-wrap">
+                          <table className="pcr-sync-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: 95 }}>HN</th>
+                                <th>ชื่อ-สกุลผู้ป่วย</th>
+                                <th style={{ width: 120 }}>ICD-10 หลัก</th>
+                                <th style={{ width: 130 }}>วันที่ขึ้นทะเบียน</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {syncModalResult.insertedItems.map((it) => (
+                                <tr key={`ins-${it.hn}`}>
+                                  <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{it.hn}</td>
+                                  <td>{it.patientName}</td>
+                                  <td>{it.icd10Principal || '—'}</td>
+                                  <td>
+                                    {it.registeredDate ? formatThaiDate(it.registeredDate) : '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.75rem', fontSize: '0.8125rem', color: 'var(--pc-muted)' }}>
+                          เพิ่มผู้ป่วยใหม่เข้าทะเบียนจำนวน {syncModalResult.insertedCount.toLocaleString()} ราย
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Section 2: Updated existing patients */}
+                  {((syncModalResult.updatedItems?.length ?? 0) > 0 ||
+                    syncModalResult.updatedCount > 0) && (
+                    <div className="pcr-sync-section">
+                      <div className="pcr-sync-section-header">
+                        <span>อัปเดตข้อมูลผู้ป่วยเดิม</span>
+                        <span className="pcr-tag pcr-tag-blue">
+                          {syncModalResult.updatedCount.toLocaleString()} ราย
+                        </span>
+                      </div>
+                      {syncModalResult.updatedItems && syncModalResult.updatedItems.length > 0 ? (
+                        <div className="pcr-sync-list-wrap">
+                          <table className="pcr-sync-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: 95 }}>HN</th>
+                                <th>ชื่อ-สกุลผู้ป่วย</th>
+                                <th>รายการที่อัปเดต</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {syncModalResult.updatedItems.map((it) => (
+                                <tr key={`upd-${it.hn}`}>
+                                  <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{it.hn}</td>
+                                  <td>{it.patientName}</td>
+                                  <td>
+                                    <div className="pcr-sync-chips-wrap">
+                                      {it.updatedFields.includes('status') && (
+                                        <span className="pcr-tag pcr-tag-teal">
+                                          สถานะ: ดำเนินการเรียบร้อย
+                                        </span>
+                                      )}
+                                      {it.updatedFields.includes('registeredDate') && (
+                                        <span className="pcr-tag pcr-tag-blue">
+                                          วันขึ้นทะเบียน:{' '}
+                                          {it.registeredDate
+                                            ? formatThaiDate(it.registeredDate)
+                                            : '—'}
+                                        </span>
+                                      )}
+                                      {it.updatedFields.includes('deathDate') && (
+                                        <span className="pcr-tag pcr-tag-rose">
+                                          วันเสียชีวิต:{' '}
+                                          {it.deathDate ? formatThaiDate(it.deathDate) : '—'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.75rem', fontSize: '0.8125rem', color: 'var(--pc-muted)' }}>
+                          อัปเดตข้อมูลผู้ป่วยเดิมจำนวน {syncModalResult.updatedCount.toLocaleString()} ราย
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Section 3: Added ADP 30001 home visits */}
+                  {((syncModalResult.visitsAddedItems?.length ?? 0) > 0 ||
+                    syncModalResult.visitsAddedCount > 0) && (
+                    <div className="pcr-sync-section">
+                      <div className="pcr-sync-section-header">
+                        <span>เพิ่มวันเยี่ยมบ้านจาก HOSxP (ADP 30001)</span>
+                        <span className="pcr-tag pcr-tag-teal">
+                          {syncModalResult.visitsAddedCount.toLocaleString()} ครั้ง
+                        </span>
+                      </div>
+                      {syncModalResult.visitsAddedItems &&
+                      syncModalResult.visitsAddedItems.length > 0 ? (
+                        <div className="pcr-sync-list-wrap">
+                          <table className="pcr-sync-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: 95 }}>HN</th>
+                                <th style={{ width: 190 }}>ชื่อ-สกุลผู้ป่วย</th>
+                                <th>วันเยี่ยมบ้านที่เพิ่ม</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {syncModalResult.visitsAddedItems.map((it) => (
+                                <tr key={`vis-${it.hn}`}>
+                                  <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{it.hn}</td>
+                                  <td>{it.patientName}</td>
+                                  <td>
+                                    <div className="pcr-sync-chips-wrap">
+                                      {it.addedVisits.map((v) => (
+                                        <span
+                                          key={`v-${it.hn}-${v.visitNo}`}
+                                          className="pcr-tag pcr-tag-teal"
+                                        >
+                                          ครั้งที่ {v.visitNo}: {formatThaiDate(v.visitDate)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.75rem', fontSize: '0.8125rem', color: 'var(--pc-muted)' }}>
+                          เพิ่มวันเยี่ยมบ้านจำนวน {syncModalResult.visitsAddedCount.toLocaleString()} ครั้ง
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Section 4: Collapsible skipped LTC list */}
+                  {syncModalResult.skippedLtcItems &&
+                    syncModalResult.skippedLtcItems.length > 0 && (
+                      <details className="pcr-sync-details">
+                        <summary>
+                          รายชื่อที่ข้ามเนื่องจากอยู่ในทะเบียน LTC (
+                          {syncModalResult.skippedLtcItems.length} ราย)
+                        </summary>
+                        <div
+                          style={{
+                            marginTop: '0.5rem',
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '0.4rem',
+                          }}
+                        >
+                          {syncModalResult.skippedLtcItems.map((it) => (
+                            <span key={`ltc-${it.hn}`} className="pcr-tag pcr-tag-neutral">
+                              {it.hn} · {it.patientName}
+                            </span>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                </>
+              )}
+            </div>
+
+            <div className="pcr-modal-footer">
+              <button
+                type="button"
+                className="pcr-btn pcr-btn-primary"
+                onClick={() => setIsSyncModalOpen(false)}
+              >
+                รับทราบ / ปิด
               </button>
             </div>
           </div>

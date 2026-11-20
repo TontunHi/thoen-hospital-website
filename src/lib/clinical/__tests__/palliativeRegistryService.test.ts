@@ -470,6 +470,29 @@ describe('PalliativeRegistryService', () => {
     expect(summary.updatedCount).toBe(1)
     expect(summary.visitsAddedCount).toBe(0)
     expect(summary.skippedLtcCount).toBe(1)
+    expect(summary.insertedItems).toEqual([
+      {
+        hn: '0054921',
+        patientName: 'นายใหม่ พัลลิเอทีฟ',
+        icd10Principal: 'C349',
+        registeredDate: '2026-11-01',
+      },
+    ])
+    expect(summary.updatedItems).toEqual([
+      {
+        hn: '0000100',
+        patientName: 'นายเก่า รออัปเดต',
+        updatedFields: ['status', 'registeredDate'],
+        registeredDate: '2026-10-15',
+      },
+    ])
+    expect(summary.skippedLtcItems).toEqual([
+      {
+        hn: '0000999',
+        patientName: 'นางแอลทีซี ข้ามเลย',
+      },
+    ])
+    expect(summary.visitsAddedItems).toEqual([])
 
     expect(apiGateway.app.transaction).toHaveBeenCalledTimes(1)
     const txCalls = vi.mocked(apiGateway.app.transaction).mock.calls[0][0] as Array<{ sql: string; params: unknown[] }>
@@ -570,6 +593,24 @@ describe('PalliativeRegistryService', () => {
 
     expect(summary.insertedCount).toBe(1)
     expect(summary.visitsAddedCount).toBe(4)
+    expect(summary.visitsAddedItems).toEqual([
+      {
+        hn: '0000100',
+        patientName: 'HN 0000100',
+        addedVisits: [
+          { visitNo: 2, visitDate: '10/06/2024' },
+          { visitNo: 3, visitDate: '19/11/2026' },
+        ],
+      },
+      {
+        hn: '0054921',
+        patientName: 'นายใหม่ พัลลิเอทีฟ',
+        addedVisits: [
+          { visitNo: 1, visitDate: '09/09/2026' },
+          { visitNo: 2, visitDate: '19/11/2026' },
+        ],
+      },
+    ])
 
     // Transaction 1: patient insert; Transaction 2: visit inserts & slot updates
     expect(apiGateway.app.transaction).toHaveBeenCalledTimes(2)

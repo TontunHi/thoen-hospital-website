@@ -17,6 +17,7 @@ import {
   Scale,
   FileSpreadsheet,
   Film,
+  Phone,
 } from 'lucide-react'
 
 export interface SystemModulesViewProps {
@@ -56,6 +57,9 @@ export default function SystemModulesView({
   const [featureOnlineMedia, setFeatureOnlineMedia] = useState(
     initialSettings['feature_online_media'] !== '0'
   )
+  const [featureInternalPhones, setFeatureInternalPhones] = useState(
+    initialSettings['feature_internal_phones'] !== '0'
+  )
 
   const [initialFeatureState, setInitialFeatureState] = useState({
     featureInbox: initialSettings['feature_inbox'] !== '0',
@@ -71,6 +75,7 @@ export default function SystemModulesView({
     featureEthics: initialSettings['feature_ethics'] !== '0',
     featureOutgoingDoc: initialSettings['feature_outgoing_doc'] !== '0',
     featureOnlineMedia: initialSettings['feature_online_media'] !== '0',
+    featureInternalPhones: initialSettings['feature_internal_phones'] !== '0',
   })
 
   const [isSavingSettings, setIsSavingSettings] = useState(false)
@@ -89,7 +94,8 @@ export default function SystemModulesView({
       featureEvents !== initialFeatureState.featureEvents ||
       featureEthics !== initialFeatureState.featureEthics ||
       featureOutgoingDoc !== initialFeatureState.featureOutgoingDoc ||
-      featureOnlineMedia !== initialFeatureState.featureOnlineMedia
+      featureOnlineMedia !== initialFeatureState.featureOnlineMedia ||
+      featureInternalPhones !== initialFeatureState.featureInternalPhones
     )
   }, [
     featureInbox,
@@ -105,6 +111,7 @@ export default function SystemModulesView({
     featureEthics,
     featureOutgoingDoc,
     featureOnlineMedia,
+    featureInternalPhones,
     initialFeatureState,
   ])
 
@@ -131,6 +138,7 @@ export default function SystemModulesView({
         feature_ethics: featureEthics ? '1' : '0',
         feature_outgoing_doc: featureOutgoingDoc ? '1' : '0',
         feature_online_media: featureOnlineMedia ? '1' : '0',
+        feature_internal_phones: featureInternalPhones ? '1' : '0',
       }
       const res = await fetch('/api/member/settings', {
         method: 'POST',
@@ -154,6 +162,7 @@ export default function SystemModulesView({
         featureEthics,
         featureOutgoingDoc,
         featureOnlineMedia,
+        featureInternalPhones,
       })
       addToast('บันทึกการตั้งค่าเปิด/ปิดโมดูลระบบเรียบร้อยแล้ว', 'success')
       onSaveSuccess?.()
@@ -477,6 +486,27 @@ export default function SystemModulesView({
               </label>
             </div>
             <p>คลังวิดีโออบรม คู่มือ อินโฟกราฟิก และเอกสารเผยแพร่สำหรับบุคลากรและประชาชน</p>
+          </div>
+        </div>
+
+        {/* Internal Phones Directory */}
+        <div className={`featureCard ${featureInternalPhones ? 'active' : ''}`}>
+          <div className="featureCardIconBox iconEmerald">
+            <Phone size={24} />
+          </div>
+          <div className="featureCardContent">
+            <div className="featureCardTitleRow">
+              <h3>สมุดเบอร์โทรศัพท์ภายในโรงพยาบาล (Internal Phones)</h3>
+              <label className="switchToggle">
+                <input
+                  type="checkbox"
+                  checked={featureInternalPhones}
+                  onChange={(e) => setFeatureInternalPhones(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+            <p>สมุดค้นหาเบอร์โทรภายในตามอาคาร ชั้น และห้อง/หน่วยงาน พร้อมระบบเพิ่ม-แก้ไขข้อมูล</p>
           </div>
         </div>
       </div>
