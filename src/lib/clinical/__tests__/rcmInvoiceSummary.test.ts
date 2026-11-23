@@ -109,8 +109,26 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
   })
 
   describe('getInvoiceDetails', () => {
-    it('executes count and paginated data queries correctly', async () => {
-      const mockCount = [{ total: 1 }]
+    it('executes count+summary and paginated data queries correctly', async () => {
+      const mockCount = [
+        {
+          total: 2,
+          compensated: 1572,
+          fund_money: 450,
+          income_hosxp: 2000,
+          rcpt_money: 100,
+          debit_hosxp: 1900,
+          hc: 100,
+          ae: 50,
+          inst: 80,
+          op: 120,
+          ip: 0,
+          drug: 60,
+          dmis: 40,
+          down: 120,
+          up: -448,
+        },
+      ]
       const mockItems = [
         {
           vnOrAn: '690813131739',
@@ -158,11 +176,29 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
       )
 
       expect(mockExecutor).toHaveBeenCalledTimes(2)
-      expect(result.totalCount).toBe(1)
+      expect(result.totalCount).toBe(2)
       expect(result.items.length).toBe(1)
       expect(result.items[0].no).toBe(1)
       expect(result.items[0].vnOrAn).toBe('690813131739')
       expect(result.items[0].cid).toBe('1234567890123')
+      expect(result.filteredSummary).toEqual({
+        totalVisits: 2,
+        compensated: 1572,
+        fund_money: 450,
+        income_hosxp: 2000,
+        rcpt_money: 100,
+        debit_hosxp: 1900,
+        hc: 100,
+        ae: 50,
+        inst: 80,
+        op: 120,
+        ip: 0,
+        drug: 60,
+        dmis: 40,
+        down: 120,
+        up: -448,
+        net_diff: -328,
+      })
     })
   })
 })

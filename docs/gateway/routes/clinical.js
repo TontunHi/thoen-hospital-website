@@ -1044,39 +1044,96 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
   }
 
   try {
-    // 1. Count query
-    let countSql = ''
+    // 1. Count + Filtered 3-category Reconciliation Summary query
+    const idCol = dept === 'OP' ? 't.vn' : 't.an'
+    const visitJoin = dept === 'OP'
+      ? `LEFT JOIN hos.ovst o ON o.vn = t.vn
+         LEFT JOIN hos.vn_stat v ON v.vn = o.vn
+         LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype`
+      : `LEFT JOIN hos.ipt i ON i.an = t.an
+         LEFT JOIN hos.an_stat v ON v.an = i.an
+         LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype`
+
+    const countSql = `
+      SELECT
+        COUNT(*) as total,
+        ROUND(COALESCE(SUM(sub.compensated), 0), 2) as compensated,
+        ROUND(COALESCE(SUM(sub.fund_money), 0), 2) as fund_money,
+        ROUND(COALESCE(SUM(sub.income_hosxp), 0), 2) as income_hosxp,
+        ROUND(COALESCE(SUM(sub.rcpt_money), 0), 2) as rcpt_money,
+        ROUND(COALESCE(SUM(sub.debit_hosxp), 0), 2) as debit_hosxp,
+        ROUND(COALESCE(SUM(sub.hc), 0), 2) as hc,
+        ROUND(COALESCE(SUM(sub.ae), 0), 2) as ae,
+        ROUND(COALESCE(SUM(sub.inst), 0), 2) as inst,
+        ROUND(COALESCE(SUM(sub.op), 0), 2) as op,
+        ROUND(COALESCE(SUM(sub.ip), 0), 2) as ip,
+        ROUND(COALESCE(SUM(sub.drug), 0), 2) as drug,
+        ROUND(COALESCE(SUM(sub.dmis), 0), 2) as dmis,
+        ROUND(COALESCE(SUM(sub.down), 0), 2) as down,
+        ROUND(COALESCE(SUM(sub.up), 0), 2) as up
+      FROM (
+        SELECT STRAIGHT_JOIN
+          ${idCol} as visit_key,
+          SUM(t.compensated) as compensated,
+          SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)) as fund_money,
+          v.income as income_hosxp,
+          v.rcpt_money as rcpt_money,
+          v.income - v.rcpt_money as debit_hosxp,
+          SUM(t.hc) as hc,
+          SUM(t.ae) as ae,
+          SUM(t.inst) as inst,
+          SUM(t.op) as op,
+          SUM(t.ip) as ip,
+          SUM(t.drug) as drug,
+          SUM(t.dmis) as dmis,
+          CASE
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (v.income - v.rcpt_money) > 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+            ELSE 0
+          END as down,
+          CASE
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (v.income - v.rcpt_money) < 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+            ELSE 0
+          END as up
+        FROM rcmdb.repeclaim t
+        ${visitJoin}
+        WHERE t.department = '${dept}'
+          AND t.${dateCol} BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause}
+        GROUP BY ${idCol}, v.income, v.rcpt_money
+      ) sub;
+    `
     const countParams = [filterStart, filterEnd]
     if (cleanPttype) countParams.push(cleanPttype)
     if (cleanSearch) countParams.push(...searchParams)
 
-    if (dept === 'OP') {
-      countSql = `
-        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.vn) as total
-        FROM rcmdb.repeclaim t
-        LEFT JOIN hos.ovst o ON o.vn = t.vn
-        LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
-        WHERE t.department = 'OP'
-          AND t.${dateCol} BETWEEN ? AND ?
-          ${pttypeClause}
-          ${searchClause};
-      `
-    } else {
-      countSql = `
-        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.an) as total
-        FROM rcmdb.repeclaim t
-        LEFT JOIN hos.ipt i ON i.an = t.an
-        LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
-        WHERE t.department = 'IP'
-          AND t.${dateCol} BETWEEN ? AND ?
-          ${pttypeClause}
-          ${searchClause};
-      `
-    }
-
     const [countRows] = await hosPool.query(countSql, countParams)
-    const totalCount = Number(countRows?.[0]?.total || 0)
+    const countRow = countRows?.[0] || {}
+    const totalCount = Number(countRow.total || 0)
     const totalPages = Math.ceil(totalCount / limitNum) || 1
+    const round2 = (v) => Math.round(Number(v || 0) * 100) / 100
+    const sumCompensated = round2(countRow.compensated)
+    const sumDebit = round2(countRow.debit_hosxp)
+    const filteredSummary = {
+      totalVisits: totalCount,
+      compensated: sumCompensated,
+      fund_money: round2(countRow.fund_money),
+      income_hosxp: round2(countRow.income_hosxp),
+      rcpt_money: round2(countRow.rcpt_money),
+      debit_hosxp: sumDebit,
+      hc: round2(countRow.hc),
+      ae: round2(countRow.ae),
+      inst: round2(countRow.inst),
+      op: round2(countRow.op),
+      ip: round2(countRow.ip),
+      drug: round2(countRow.drug),
+      dmis: round2(countRow.dmis),
+      down: round2(countRow.down),
+      up: round2(countRow.up),
+      net_diff: Math.round((sumCompensated - sumDebit) * 100) / 100,
+    }
 
     // 2. Data rows query
     let dataSql = ''
@@ -1224,13 +1281,15 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
       page: pageNum,
       pageSize: limitNum,
       dateType,
+      filteredSummary,
       data: {
         items,
         totalCount,
         totalPages,
         page: pageNum,
         pageSize: limitNum,
-        dateType
+        dateType,
+        filteredSummary
       }
     }
   } catch (err) {

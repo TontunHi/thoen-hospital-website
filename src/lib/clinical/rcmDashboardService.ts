@@ -495,6 +495,25 @@ export interface InvoiceDetailItem {
   pttype?: string
 }
 
+export interface InvoiceDetailFilteredSummary {
+  totalVisits: number
+  compensated: number
+  fund_money: number
+  income_hosxp: number
+  rcpt_money: number
+  debit_hosxp: number
+  hc: number
+  ae: number
+  inst: number
+  op: number
+  ip: number
+  drug: number
+  dmis: number
+  down: number
+  up: number
+  net_diff: number
+}
+
 export interface InvoiceDetailResult {
   department: 'OP' | 'IP'
   ds1: string
@@ -507,6 +526,107 @@ export interface InvoiceDetailResult {
   pageSize: number
   totalPages: number
   items: InvoiceDetailItem[]
+  filteredSummary?: InvoiceDetailFilteredSummary
+}
+
+/**
+ * Build aggregate count + 3-category reconciliation summary SQL across all matching visits/admissions.
+ */
+function buildInvoiceCountAndSummarySql(
+  department: 'OP' | 'IP',
+  dateCol: 'bill_date' | 'admdate',
+  pttypeClause: string,
+  searchClause: string
+): string {
+  const isOp = department === 'OP'
+  const idCol = isOp ? 't.vn' : 't.an'
+  const visitJoin = isOp
+    ? `LEFT JOIN hos.ovst o ON o.vn = t.vn
+       LEFT JOIN hos.vn_stat v ON v.vn = o.vn
+       LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype`
+    : `LEFT JOIN hos.ipt i ON i.an = t.an
+       LEFT JOIN hos.an_stat v ON v.an = i.an
+       LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype`
+
+  return `
+    SELECT
+      COUNT(*) as total,
+      ROUND(COALESCE(SUM(sub.compensated), 0), 2) as compensated,
+      ROUND(COALESCE(SUM(sub.fund_money), 0), 2) as fund_money,
+      ROUND(COALESCE(SUM(sub.income_hosxp), 0), 2) as income_hosxp,
+      ROUND(COALESCE(SUM(sub.rcpt_money), 0), 2) as rcpt_money,
+      ROUND(COALESCE(SUM(sub.debit_hosxp), 0), 2) as debit_hosxp,
+      ROUND(COALESCE(SUM(sub.hc), 0), 2) as hc,
+      ROUND(COALESCE(SUM(sub.ae), 0), 2) as ae,
+      ROUND(COALESCE(SUM(sub.inst), 0), 2) as inst,
+      ROUND(COALESCE(SUM(sub.op), 0), 2) as op,
+      ROUND(COALESCE(SUM(sub.ip), 0), 2) as ip,
+      ROUND(COALESCE(SUM(sub.drug), 0), 2) as drug,
+      ROUND(COALESCE(SUM(sub.dmis), 0), 2) as dmis,
+      ROUND(COALESCE(SUM(sub.down), 0), 2) as down,
+      ROUND(COALESCE(SUM(sub.up), 0), 2) as up
+    FROM (
+      SELECT STRAIGHT_JOIN
+        ${idCol} as visit_key,
+        SUM(t.compensated) as compensated,
+        SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)) as fund_money,
+        v.income as income_hosxp,
+        v.rcpt_money as rcpt_money,
+        v.income - v.rcpt_money as debit_hosxp,
+        SUM(t.hc) as hc,
+        SUM(t.ae) as ae,
+        SUM(t.inst) as inst,
+        SUM(t.op) as op,
+        SUM(t.ip) as ip,
+        SUM(t.drug) as drug,
+        SUM(t.dmis) as dmis,
+        CASE
+          WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+          WHEN SUM(t.compensated) - (v.income - v.rcpt_money) > 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+          ELSE 0
+        END as down,
+        CASE
+          WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+          WHEN SUM(t.compensated) - (v.income - v.rcpt_money) < 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+          ELSE 0
+        END as up
+      FROM rcmdb.repeclaim t
+      ${visitJoin}
+      WHERE t.department = '${department}'
+        AND t.${dateCol} BETWEEN ? AND ?
+        ${pttypeClause}
+        ${searchClause}
+      GROUP BY ${idCol}, v.income, v.rcpt_money
+    ) sub
+  `
+}
+
+/**
+ * Normalize an aggregate summary SQL row into InvoiceDetailFilteredSummary.
+ */
+function mapInvoiceFilteredSummary(row: Record<string, unknown> | undefined): InvoiceDetailFilteredSummary {
+  const round2 = (v: unknown) => Math.round(Number(v || 0) * 100) / 100
+  const compensated = round2(row?.compensated)
+  const debit_hosxp = round2(row?.debit_hosxp)
+
+  return {
+    totalVisits: Number(row?.total || row?.totalVisits || 0),
+    compensated,
+    fund_money: round2(row?.fund_money),
+    income_hosxp: round2(row?.income_hosxp),
+    rcpt_money: round2(row?.rcpt_money),
+    debit_hosxp,
+    hc: round2(row?.hc),
+    ae: round2(row?.ae),
+    inst: round2(row?.inst),
+    op: round2(row?.op),
+    ip: round2(row?.ip),
+    drug: round2(row?.drug),
+    dmis: round2(row?.dmis),
+    down: round2(row?.down),
+    up: round2(row?.up),
+    net_diff: Math.round((compensated - debit_hosxp) * 100) / 100,
+  }
 }
 
 /**
@@ -1931,39 +2051,6 @@ export class RcmDashboardService {
     const pageSize = params.exportAll ? 1000000 : Math.max(1, Number(params.pageSize || 50))
     const offset = (page - 1) * pageSize
 
-    // In production with default queryClinicalDb executor, use dedicated Gateway endpoint
-    if (executor === queryClinicalDb) {
-      try {
-        const gwRes = await apiGateway.clinical.getRcmInvoiceDetails({
-          department,
-          startDate: ds1,
-          endDate: ds2,
-          pttype: pttype || undefined,
-          search: search || undefined,
-          page,
-          pageSize,
-          exportAll: params.exportAll,
-          dateType,
-        })
-        if (gwRes && Array.isArray(gwRes.items)) {
-          return {
-            department,
-            ds1,
-            ds2,
-            dateType,
-            items: gwRes.items as InvoiceDetailItem[],
-            totalCount: Number(gwRes.totalCount || 0),
-            totalPages: Number(gwRes.totalPages || 1),
-            page: Number(gwRes.page || page),
-            pageSize: Number(gwRes.pageSize || pageSize),
-          }
-        }
-
-      } catch {
-        // Fall back to parameterized query via executor if dedicated endpoint is pending reload
-      }
-    }
-
     const pttypeClause = pttype ? 'AND ptt.pttype_eclaim_id = ?' : ''
     let searchClause = ''
     const searchParams: any[] = []
@@ -1981,46 +2068,67 @@ export class RcmDashboardService {
       searchParams.push(s, s, s, s, s, s)
     }
 
-    // 1. Count query
-    let countSql = ''
-    const countParams: any[] = [filterStart, filterEnd]
-    if (pttype) countParams.push(pttype)
-    if (search) countParams.push(...searchParams)
+    const filterParams: any[] = [filterStart, filterEnd]
+    if (pttype) filterParams.push(pttype)
+    if (search) filterParams.push(...searchParams)
 
-    if (department === 'OP') {
-      countSql = `
-        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.vn) as total
-        FROM rcmdb.repeclaim t
-        LEFT JOIN hos.ovst o ON o.vn = t.vn
-        LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
-        WHERE t.department = 'OP'
-          AND t.${dateCol} BETWEEN ? AND ?
-          ${pttypeClause}
-          ${searchClause};
-      `
-    } else {
-      countSql = `
-        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.an) as total
-        FROM rcmdb.repeclaim t
-        LEFT JOIN hos.ipt i ON i.an = t.an
-        LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
-        WHERE t.department = 'IP'
-          AND t.${dateCol} BETWEEN ? AND ?
-          ${pttypeClause}
-          ${searchClause};
-      `
+    const countAndSummarySql = buildInvoiceCountAndSummarySql(
+      department,
+      dateCol,
+      pttypeClause,
+      searchClause
+    )
+
+    // In production with default queryClinicalDb executor, use dedicated Gateway endpoint
+    if (executor === queryClinicalDb) {
+      try {
+        const gwRes = await apiGateway.clinical.getRcmInvoiceDetails({
+          department,
+          startDate: ds1,
+          endDate: ds2,
+          pttype: pttype || undefined,
+          search: search || undefined,
+          page,
+          pageSize,
+          exportAll: params.exportAll,
+          dateType,
+        })
+        if (gwRes && Array.isArray(gwRes.items)) {
+          let filteredSummary = gwRes.filteredSummary
+          if (!filteredSummary && !params.exportAll) {
+            const summaryCacheKey = `rcm-invoice-detail-summary-${department}-${dateType}-${ds1}-${ds2}-${pttype}-${search}`
+            filteredSummary = await getCachedData(
+              summaryCacheKey,
+              async () => {
+                const summaryRows = (await executor(countAndSummarySql, filterParams)) as Record<string, unknown>[]
+                return mapInvoiceFilteredSummary(summaryRows?.[0])
+              },
+              60_000 * 3
+            )
+          }
+
+          return {
+            department,
+            ds1,
+            ds2,
+            dateType,
+            pttype: pttype || undefined,
+            items: gwRes.items as InvoiceDetailItem[],
+            totalCount: Number(gwRes.totalCount || 0),
+            totalPages: Number(gwRes.totalPages || 1),
+            page: Number(gwRes.page || page),
+            pageSize: Number(gwRes.pageSize || pageSize),
+            filteredSummary,
+          }
+        }
+      } catch {
+        // Fall back to parameterized query via executor if dedicated endpoint is pending reload
+      }
     }
-
-    const countRes = (await executor(countSql, countParams)) as any[]
-    const totalCount = Number(countRes?.[0]?.total || 0)
-    const totalPages = Math.ceil(totalCount / pageSize) || 1
 
     // 2. Fetch data query
     let dataSql = ''
-    const dataParams: any[] = [filterStart, filterEnd]
-    if (pttype) dataParams.push(pttype)
-    if (search) dataParams.push(...searchParams)
-    dataParams.push(pageSize, offset)
+    const dataParams: any[] = [...filterParams, pageSize, offset]
 
     if (department === 'OP') {
       dataSql = `
@@ -2120,7 +2228,14 @@ export class RcmDashboardService {
       `
     }
 
-    const rows = (await executor(dataSql, dataParams)) as any[]
+    const [countRes, rows] = (await Promise.all([
+      executor(countAndSummarySql, filterParams),
+      executor(dataSql, dataParams),
+    ])) as [Record<string, unknown>[], any[]]
+
+    const totalCount = Number(countRes?.[0]?.total || 0)
+    const totalPages = Math.ceil(totalCount / pageSize) || 1
+    const filteredSummary = mapInvoiceFilteredSummary(countRes?.[0])
 
     const items: InvoiceDetailItem[] = rows.map((r, idx) => ({
       no: offset + idx + 1,
@@ -2164,6 +2279,7 @@ export class RcmDashboardService {
       pageSize,
       totalPages,
       items,
+      filteredSummary,
     }
   }
 

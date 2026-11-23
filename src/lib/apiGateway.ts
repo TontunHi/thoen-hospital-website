@@ -484,6 +484,24 @@ export class ApiGatewayClient {
         page: number
         pageSize: number
         dateType?: 'bill_date' | 'admdate'
+        filteredSummary?: {
+          totalVisits: number
+          compensated: number
+          fund_money: number
+          income_hosxp: number
+          rcpt_money: number
+          debit_hosxp: number
+          hc: number
+          ae: number
+          inst: number
+          op: number
+          ip: number
+          drug: number
+          dmis: number
+          down: number
+          up: number
+          net_diff: number
+        }
       }>(`/api/v1/clinical/rcm/invoice-details${qs}`)
     },
 

@@ -10,7 +10,6 @@ import {
   RefreshCw,
   AlertCircle,
   Search,
-  CheckCircle2,
   TrendingUp,
   TrendingDown,
   Layers,
@@ -19,9 +18,13 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileSpreadsheet,
+  FileText,
+  Building2,
+  Info,
   Landmark,
   Wallet,
   Check,
+  Minus,
   X,
 } from 'lucide-react'
 import {
@@ -29,6 +32,7 @@ import {
   InvoiceSummaryResult,
   InvoiceDetailItem,
   InvoiceDetailResult,
+  InvoiceDetailFilteredSummary,
 } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
@@ -161,6 +165,16 @@ export default function InvoiceSummaryClient({
     }
     setDs1(start)
     setDs2(end)
+    setPage(1)
+  }
+
+  const handleCustomStartDateChange = (newDate: string) => {
+    setDs1(newDate)
+    setPage(1)
+  }
+
+  const handleCustomEndDateChange = (newDate: string) => {
+    setDs2(newDate)
     setPage(1)
   }
 
@@ -503,6 +517,138 @@ export default function InvoiceSummaryClient({
     return Math.round((summaryData.grandTotal.compensated / summaryData.grandTotal.visit) * 100) / 100
   }, [summaryData])
 
+  // Filtered Patient Detail Summary (across ALL pages matching active filters)
+  const filteredSummary: InvoiceDetailFilteredSummary = useMemo(() => {
+    if (detailData?.filteredSummary) {
+      return detailData.filteredSummary
+    }
+
+    // Safe client fallback only when all matching records fit on the current response
+    const items = detailData?.items || []
+    if (detailData && items.length > 0 && items.length === detailData.totalCount) {
+      const sum = items.reduce(
+        (acc, row) => ({
+          totalVisits: acc.totalVisits + 1,
+          compensated: acc.compensated + (row.compensated || 0),
+          fund_money: acc.fund_money + (row.fund_money || 0),
+          income_hosxp: acc.income_hosxp + (row.income_hosxp || 0),
+          rcpt_money: acc.rcpt_money + (row.rcpt_money || 0),
+          debit_hosxp: acc.debit_hosxp + (row.debit_hosxp || 0),
+          hc: acc.hc + (row.hc || 0),
+          ae: acc.ae + (row.ae || 0),
+          inst: acc.inst + (row.inst || 0),
+          op: acc.op + (row.op || 0),
+          ip: acc.ip + (row.ip || 0),
+          drug: acc.drug + (row.drug || 0),
+          dmis: acc.dmis + (row.dmis || 0),
+          down: acc.down + (row.down || 0),
+          up: acc.up + (row.up || 0),
+          net_diff: 0,
+        }),
+        {
+          totalVisits: 0,
+          compensated: 0,
+          fund_money: 0,
+          income_hosxp: 0,
+          rcpt_money: 0,
+          debit_hosxp: 0,
+          hc: 0,
+          ae: 0,
+          inst: 0,
+          op: 0,
+          ip: 0,
+          drug: 0,
+          dmis: 0,
+          down: 0,
+          up: 0,
+          net_diff: 0,
+        }
+      )
+      const round2 = (v: number) => Math.round(v * 100) / 100
+      const compensated = round2(sum.compensated)
+      const debit_hosxp = round2(sum.debit_hosxp)
+      return {
+        totalVisits: sum.totalVisits,
+        compensated,
+        fund_money: round2(sum.fund_money),
+        income_hosxp: round2(sum.income_hosxp),
+        rcpt_money: round2(sum.rcpt_money),
+        debit_hosxp,
+        hc: round2(sum.hc),
+        ae: round2(sum.ae),
+        inst: round2(sum.inst),
+        op: round2(sum.op),
+        ip: round2(sum.ip),
+        drug: round2(sum.drug),
+        dmis: round2(sum.dmis),
+        down: round2(sum.down),
+        up: round2(sum.up),
+        net_diff: round2(compensated - debit_hosxp),
+      }
+    }
+
+    return {
+      totalVisits: detailData?.totalCount || 0,
+      compensated: 0,
+      fund_money: 0,
+      income_hosxp: 0,
+      rcpt_money: 0,
+      debit_hosxp: 0,
+      hc: 0,
+      ae: 0,
+      inst: 0,
+      op: 0,
+      ip: 0,
+      drug: 0,
+      dmis: 0,
+      down: 0,
+      up: 0,
+      net_diff: 0,
+    }
+  }, [detailData])
+
+  const filteredSubFunds = useMemo(() => {
+    const items = [
+      { key: 'hc', code: 'HC', label: 'บริการสุขภาพ', value: filteredSummary.hc },
+      { key: 'ae', code: 'AE', label: 'อุบัติเหตุ/ฉุกเฉิน', value: filteredSummary.ae },
+      { key: 'inst', code: 'INST', label: 'อุปกรณ์/อวัยวะเทียม', value: filteredSummary.inst },
+      { key: 'op', code: 'OP', label: 'ผู้ป่วยนอก', value: filteredSummary.op },
+      { key: 'ip', code: 'IP', label: 'ผู้ป่วยใน', value: filteredSummary.ip },
+      { key: 'drug', code: 'Drug', label: 'ค่ายา', value: filteredSummary.drug },
+      { key: 'dmis', code: 'DMIS', label: 'โรคเฉพาะทาง', value: filteredSummary.dmis },
+    ]
+    const total = items.reduce((acc, item) => acc + item.value, 0)
+    return { items, total: Math.round(total * 100) / 100 }
+  }, [filteredSummary])
+
+  const filteredRecoveryRate = useMemo(() => {
+    if (!filteredSummary.debit_hosxp) return 0
+    return Math.round((filteredSummary.compensated / filteredSummary.debit_hosxp) * 1000) / 10
+  }, [filteredSummary])
+
+  const filteredReconcileNet = useMemo(() => {
+    return Math.round((filteredSummary.down + filteredSummary.up) * 100) / 100
+  }, [filteredSummary])
+
+  const filteredAvgComp = useMemo(() => {
+    if (!filteredSummary.totalVisits) return 0
+    return Math.round((filteredSummary.compensated / filteredSummary.totalVisits) * 100) / 100
+  }, [filteredSummary])
+
+  const fmtBaht = (val: number) =>
+    (val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  const fmtSignedBaht = (val: number) => {
+    const safe = val ?? 0
+    const formatted = Math.abs(safe).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    if (safe > 0) return `+${formatted}`
+    if (safe < 0) return `-${formatted}`
+    return formatted
+  }
+
   return (
     <div className="invoice-summary-container">
       {/* ── 1. Top Header Banner (Hospital Authority Theme) ───────────── */}
@@ -513,10 +659,10 @@ export default function InvoiceSummaryClient({
           </div>
           <div>
             <div className="invoice-header-meta-row">
-              <span className="invoice-badge-tag">รายงาน 5.2.2.1 • RCM RECONCILIATION</span>
+              <span className="invoice-badge-tag">รายงาน 5.2.2.1 · RCM Reconciliation</span>
               <span className="invoice-live-status-pill">
                 <span className="invoice-status-dot" />
-                <span>Live Data • HOSxP & RCM</span>
+                <span>HOSxP &amp; RCM</span>
               </span>
             </div>
             <h2 className="rcm-header-h2">
@@ -592,7 +738,7 @@ export default function InvoiceSummaryClient({
               onClick={() => setDateMode('custom')}
               className={`invoice-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
             >
-              กำหนดเอง (วันถึงวัน)
+              กำหนดเอง
             </button>
             <button
               type="button"
@@ -624,7 +770,8 @@ export default function InvoiceSummaryClient({
               className={`invoice-mode-btn ${dateType === 'bill_date' ? 'active' : ''}`}
               title="ค้นหาตามวันที่ออก Invoice / Statement ของ e-Claim (Bill Date)"
             >
-              📄 วันที่ออก Invoice
+              <FileText size={15} strokeWidth={1.6} />
+              <span>วันที่ออก Invoice</span>
             </button>
             <button
               type="button"
@@ -635,7 +782,8 @@ export default function InvoiceSummaryClient({
               className={`invoice-mode-btn ${dateType === 'admdate' ? 'active' : ''}`}
               title="ค้นหาตามวันที่ผู้ป่วยมารับบริการ (Visit Date / AdmDate)"
             >
-              🏥 วันที่รับบริการ
+              <Building2 size={15} strokeWidth={1.6} />
+              <span>วันที่รับบริการ</span>
             </button>
           </div>
         </div>
@@ -739,7 +887,7 @@ export default function InvoiceSummaryClient({
                 <label>วันเริ่มต้น Statement:</label>
                 <ThaiDatePicker
                   value={ds1}
-                  onChange={setDs1}
+                  onChange={handleCustomStartDateChange}
                   maxDate={ds2}
                   aria-label="วันเริ่มต้น Statement"
                 />
@@ -748,12 +896,13 @@ export default function InvoiceSummaryClient({
                 <label>วันสิ้นสุด Statement:</label>
                 <ThaiDatePicker
                   value={ds2}
-                  onChange={setDs2}
+                  onChange={handleCustomEndDateChange}
                   minDate={ds1}
                   aria-label="วันสิ้นสุด Statement"
                 />
               </div>
               <button
+                type="button"
                 onClick={() => {
                   setPage(1)
                   fetchSummary()
@@ -950,8 +1099,8 @@ export default function InvoiceSummaryClient({
           </div>
         )}
 
-        <div className="invoice-table-wrapper">
-          <table className="invoice-table">
+        <div className="invoice-table-wrapper invoice-summary-table-wrapper">
+          <table className="invoice-table invoice-summary-table">
             <thead>
               <tr>
                 <th style={{ width: '70px' }} className="text-center">รหัส</th>
@@ -1090,21 +1239,276 @@ export default function InvoiceSummaryClient({
           </div>
         )}
 
-        <div className="invoice-table-wrapper">
+        {/* ── Filtered Reconciliation Dashboard (3 Categories) ──────────── */}
+        <section
+          className={`invoice-filtered-dashboard ${detailLoading ? 'is-loading' : ''}`}
+          aria-label="สรุปผลตามตัวกรองรายละเอียดผู้ป่วย"
+        >
+          <div className="ifd-context-bar">
+            <div className="ifd-context-meta">
+              <span className="ifd-context-title">สรุปยอดรวมตามตัวกรองปัจจุบัน</span>
+              <span className="ifd-context-sep" aria-hidden="true">·</span>
+              <span className="ifd-context-fact">
+                {department === 'OP' ? 'ผู้ป่วยนอก (OP)' : 'ผู้ป่วยใน (IP)'}
+              </span>
+              <span className="ifd-context-sep" aria-hidden="true">·</span>
+              <span className="ifd-context-fact">{activePttypeName}</span>
+              {debouncedSearch && (
+                <>
+                  <span className="ifd-context-sep" aria-hidden="true">·</span>
+                  <span className="ifd-context-chip">
+                    ค้นหา: &ldquo;{debouncedSearch}&rdquo;
+                  </span>
+                </>
+              )}
+              <span className="ifd-context-sep" aria-hidden="true">·</span>
+              <span className="ifd-context-count font-mono">
+                {filteredSummary.totalVisits.toLocaleString('th-TH')} รายการ
+              </span>
+            </div>
+
+            <div className="ifd-context-actions">
+              {detailLoading && (
+                <span className="ifd-updating-pill">
+                  <RefreshCw size={13} className="animate-spin" />
+                  <span>กำลังอัปเดต...</span>
+                </span>
+              )}
+              {(selectedPttype || search) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPttype('')
+                    setSearch('')
+                    setDebouncedSearch('')
+                    setPage(1)
+                  }}
+                  className="ifd-clear-btn"
+                >
+                  <X size={13} />
+                  <span>ล้างตัวกรองรายละเอียด</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="ifd-grid">
+            {/* หมวด 1: เปรียบเทียบการเงิน & ลูกหนี้ HOSxP */}
+            <article className="ifd-card" aria-labelledby="ifd-cat-finance">
+              <header className="ifd-card-header">
+                <h3 id="ifd-cat-finance" className="ifd-card-title">
+                  เปรียบเทียบการเงิน &amp; ลูกหนี้ HOSxP
+                </h3>
+                <span className="ifd-meta-badge font-mono">
+                  ชดเชย {filteredRecoveryRate.toFixed(1)}%
+                </span>
+              </header>
+
+              <div className="ifd-compare-hero">
+                <div className="ifd-compare-pair">
+                  <div className="ifd-compare-col">
+                    <span className="ifd-sub-label">ชดเชยจริง</span>
+                    <strong className="ifd-hero-num ifd-num-accent font-mono">
+                      {fmtBaht(filteredSummary.compensated)}
+                    </strong>
+                  </div>
+                  <div className="ifd-compare-col text-right">
+                    <span className="ifd-sub-label">ลูกหนี้ รพ. (HOSxP)</span>
+                    <strong className="ifd-hero-num font-mono">
+                      {fmtBaht(filteredSummary.debit_hosxp)}
+                    </strong>
+                  </div>
+                </div>
+                <div
+                  className="ifd-progress-track"
+                  role="progressbar"
+                  aria-valuenow={Math.min(100, Math.max(0, Math.round(filteredRecoveryRate)))}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="สัดส่วนเงินชดเชยจริงเทียบลูกหนี้ HOSxP"
+                >
+                  <div
+                    className={`ifd-progress-fill ${filteredRecoveryRate >= 100 ? 'is-surplus' : ''}`}
+                    style={{ width: `${Math.min(100, Math.max(0, filteredRecoveryRate))}%` }}
+                  />
+                </div>
+              </div>
+
+              <dl className="ifd-ledger-list">
+                <div className="ifd-ledger-row">
+                  <dt>ชดเชยจริง</dt>
+                  <dd className="font-mono font-semibold ifd-num-accent">
+                    {fmtBaht(filteredSummary.compensated)}
+                  </dd>
+                </div>
+                <div className="ifd-ledger-row">
+                  <dt>รายรับกองทุนย่อย</dt>
+                  <dd className="font-mono">{fmtBaht(filteredSummary.fund_money)}</dd>
+                </div>
+                <div className="ifd-ledger-row">
+                  <dt>ค่ารักษา HOSxP</dt>
+                  <dd className="font-mono">{fmtBaht(filteredSummary.income_hosxp)}</dd>
+                </div>
+                <div className="ifd-ledger-row">
+                  <dt>ชำระเอง</dt>
+                  <dd className="font-mono">{fmtBaht(filteredSummary.rcpt_money)}</dd>
+                </div>
+                <div className="ifd-ledger-row is-emphasis">
+                  <dt>ลูกหนี้ รพ. (ค่ารักษา − ชำระเอง)</dt>
+                  <dd className="font-mono font-semibold">{fmtBaht(filteredSummary.debit_hosxp)}</dd>
+                </div>
+              </dl>
+            </article>
+
+            {/* หมวด 2: หมวดกองทุนย่อย (Sub-funds 7 หมวด) */}
+            <article className="ifd-card" aria-labelledby="ifd-cat-subfunds">
+              <header className="ifd-card-header">
+                <h3 id="ifd-cat-subfunds" className="ifd-card-title">
+                  หมวดกองทุนย่อย (Sub-funds 7 หมวด)
+                </h3>
+                <span className="ifd-meta-badge font-mono">
+                  รวม {fmtBaht(filteredSubFunds.total)}
+                </span>
+              </header>
+
+              <div className="ifd-subfund-list">
+                {filteredSubFunds.items.map((sf) => {
+                  const sharePct =
+                    filteredSubFunds.total > 0 ? (sf.value / filteredSubFunds.total) * 100 : 0
+                  const shareLabel =
+                    sharePct > 0 && sharePct < 0.1 ? '<0.1%' : `${sharePct.toFixed(1)}%`
+                  return (
+                    <div key={sf.key} className="ifd-subfund-row">
+                      <div className="ifd-subfund-top">
+                        <span className="ifd-subfund-name">
+                          <span className="ifd-subfund-code font-mono">{sf.code}</span>
+                          <span className="ifd-subfund-desc">{sf.label}</span>
+                        </span>
+                        <span className="ifd-subfund-metrics font-mono">
+                          <span className="ifd-subfund-pct">{shareLabel}</span>
+                          <span className="ifd-subfund-val">{fmtBaht(sf.value)}</span>
+                        </span>
+                      </div>
+                      <div className="ifd-share-track">
+                        <div
+                          className="ifd-share-fill"
+                          style={{ width: `${Math.min(100, Math.max(0, sharePct))}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </article>
+
+            {/* หมวด 3: ผลต่าง (กระทบยอด) */}
+            <article className="ifd-card" aria-labelledby="ifd-cat-diff">
+              <header className="ifd-card-header">
+                <h3 id="ifd-cat-diff" className="ifd-card-title">
+                  ผลต่าง (กระทบยอด)
+                </h3>
+                <span
+                  className={`ifd-status-pill ${
+                    filteredSummary.net_diff > 0
+                      ? 'is-gain'
+                      : filteredSummary.net_diff < 0
+                        ? 'is-loss'
+                        : 'is-neutral'
+                  }`}
+                >
+                  {filteredSummary.net_diff > 0 ? (
+                    <TrendingUp size={13} strokeWidth={1.75} />
+                  ) : filteredSummary.net_diff < 0 ? (
+                    <TrendingDown size={13} strokeWidth={1.75} />
+                  ) : (
+                    <Minus size={13} strokeWidth={1.75} />
+                  )}
+                  <span>
+                    {filteredSummary.net_diff > 0
+                      ? 'เกินลูกหนี้'
+                      : filteredSummary.net_diff < 0
+                        ? 'ต่ำกว่าลูกหนี้'
+                        : 'สมดุล'}
+                  </span>
+                </span>
+              </header>
+
+              <div className="ifd-diff-hero">
+                <span className="ifd-sub-label">ผลต่างสุทธิ (ชดเชยจริง − ลูกหนี้ รพ.)</span>
+                <div className="ifd-diff-value-row">
+                  <strong
+                    className={`ifd-diff-figure font-mono ${
+                      filteredSummary.net_diff > 0
+                        ? 'is-gain'
+                        : filteredSummary.net_diff < 0
+                          ? 'is-loss'
+                          : ''
+                    }`}
+                  >
+                    {fmtSignedBaht(filteredSummary.net_diff)}
+                  </strong>
+                  <span className="ifd-unit">บาท</span>
+                </div>
+              </div>
+
+              <dl className="ifd-ledger-list">
+                <div className="ifd-ledger-row is-gain-row">
+                  <dt>ส่วนต่ำ (+กำไร)</dt>
+                  <dd className="font-mono font-semibold is-gain">
+                    {filteredSummary.down > 0 ? `+${fmtBaht(filteredSummary.down)}` : '0.00'}
+                  </dd>
+                </div>
+                <div className="ifd-ledger-row is-loss-row">
+                  <dt>ส่วนสูง (−ขาดทุน)</dt>
+                  <dd className="font-mono font-semibold is-loss">
+                    {filteredSummary.up < 0 ? fmtSignedBaht(filteredSummary.up) : '0.00'}
+                  </dd>
+                </div>
+                <div className="ifd-ledger-row">
+                  <dt>กระทบยอดเฉพาะเคสชดเชย (ส่วนต่ำ + ส่วนสูง)</dt>
+                  <dd
+                    className={`font-mono font-semibold ${
+                      filteredReconcileNet > 0
+                        ? 'is-gain'
+                        : filteredReconcileNet < 0
+                          ? 'is-loss'
+                          : ''
+                    }`}
+                  >
+                    {fmtSignedBaht(filteredReconcileNet)}
+                  </dd>
+                </div>
+                <div className="ifd-ledger-row">
+                  <dt>เฉลี่ยเงินชดเชยต่อราย</dt>
+                  <dd className="font-mono">{fmtBaht(filteredAvgComp)} บ./ราย</dd>
+                </div>
+                <div className="ifd-ledger-row is-emphasis">
+                  <dt>จำนวนรายการที่กรอง</dt>
+                  <dd className="font-mono font-semibold">
+                    {filteredSummary.totalVisits.toLocaleString('th-TH')} ราย
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          </div>
+        </section>
+
+        <div className="invoice-table-wrapper invoice-detail-table-wrapper">
           <table className="invoice-table invoice-detail-table">
             <thead>
               {/* Grouped Header row */}
               <tr className="invoice-header-grouped">
-                <th colSpan={8} className="group-left">ข้อมูลผู้ป่วยและการรับบริการ</th>
+                <th colSpan={3} className="group-left-sticky">ข้อมูลหลัก</th>
+                <th colSpan={5} className="group-left">ข้อมูลผู้ป่วยและการรับบริการ</th>
                 <th colSpan={5} className="group-finance">เปรียบเทียบการเงิน & ลูกหนี้ HOSxP</th>
                 <th colSpan={7} className="group-subfunds">หมวดกองทุนย่อย (Sub-funds 7 หมวด)</th>
                 <th colSpan={2} className="group-diff">ผลต่าง (กระทบยอด)</th>
                 <th colSpan={3} className="group-ref">เลขอ้างอิง Statement กองทุน</th>
               </tr>
               <tr>
-                <th style={{ width: '50px' }} className="sub-th col-sticky-1 text-center">No.</th>
-                <th style={{ width: '65px' }} className="sub-th col-sticky-2 text-center">รหัส</th>
-                <th style={{ width: '115px' }} className="sub-th col-sticky-3">{department === 'OP' ? 'VN' : 'AN'}</th>
+                <th className="sub-th col-sticky-1 text-center">No.</th>
+                <th className="sub-th col-sticky-2 text-center">รหัส</th>
+                <th className="sub-th col-sticky-3">{department === 'OP' ? 'VN' : 'AN'}</th>
                 <th style={{ width: '135px' }} className="sub-th">เลขบัตร ปชช.</th>
                 <th style={{ width: '80px' }} className="sub-th">HN</th>
                 <th style={{ width: '170px', textAlign: 'left' }} className="sub-th">ชื่อ-สกุล</th>
@@ -1143,8 +1547,11 @@ export default function InvoiceSummaryClient({
                     <div style={{ padding: '24px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <p style={{ fontWeight: 600, color: '#475569' }}>ไม่พบรายการผู้ป่วยตามเงื่อนไขที่เลือก</p>
                       {dateType === 'bill_date' && (
-                        <p style={{ fontSize: '13px', color: '#92400e', background: '#fef3c7', padding: '8px 16px', borderRadius: '6px', border: '1px solid #fde68a' }}>
-                          💡 <b>หมายเหตุ:</b> ปัจจุบันเลือกกรองตาม <b>วันที่ออก Invoice (Bill Date)</b> หากต้องการค้นหาผู้ป่วยที่มารับบริการในเดือนนี้ที่ สปสช. ยังไม่ออกบิล Statement สามารถสลับตัวเลือกด้านบนเป็น <b>วันที่รับบริการ</b>
+                        <p className="invoice-empty-hint">
+                          <Info size={16} strokeWidth={1.75} />
+                          <span>
+                            <b>หมายเหตุ:</b> ปัจจุบันเลือกกรองตาม <b>วันที่ออก Invoice (Bill Date)</b> หากต้องการค้นหาผู้ป่วยที่มารับบริการในเดือนนี้ที่ สปสช. ยังไม่ออกบิล Statement สามารถสลับตัวเลือกด้านบนเป็น <b>วันที่รับบริการ</b>
+                          </span>
                         </p>
                       )}
                     </div>
