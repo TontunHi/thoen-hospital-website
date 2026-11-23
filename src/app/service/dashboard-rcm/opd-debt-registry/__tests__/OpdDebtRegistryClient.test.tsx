@@ -227,6 +227,8 @@ describe('OpdDebtRegistryClient Component (2.1.1.3)', () => {
     expect(screen.getByText(/9999999999999/)).toBeInTheDocument()
     expect(screen.getByText('AUTH-NHSO-01')).toBeInTheDocument()
     expect(screen.getByText('R69/001#900.00')).toBeInTheDocument()
+    expect(screen.queryByText(/1102050101\.201 ·/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('ลูกหนี้ค่ารักษา UC').length).toBeGreaterThan(0)
   })
 
   it('triggers fetch with AbortController signal when toggling บริการทั้งหมด', async () => {

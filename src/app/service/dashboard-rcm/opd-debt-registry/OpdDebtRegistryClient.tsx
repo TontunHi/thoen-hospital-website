@@ -598,9 +598,11 @@ export default function OpdDebtRegistryClient({
       const label =
         breakdownTab === 'vstdate'
           ? formatThaiDate(r.code)
-          : r.code !== 'NONE'
-            ? `${r.code} · ${r.name}`
-            : r.name
+          : breakdownTab === 'account'
+            ? r.name
+            : r.code !== 'NONE'
+              ? `${r.code} · ${r.name}`
+              : r.name
       return {
         id: r.code,
         label,
@@ -843,8 +845,10 @@ export default function OpdDebtRegistryClient({
                   <table className="dd-table">
                     <thead>
                       <tr>
-                        <th className="is-left">รหัส</th>
-                        <th className="is-left">ชื่อกลุ่ม</th>
+                        {breakdownTab !== 'account' && <th className="is-left">รหัส</th>}
+                        <th className="is-left">
+                          {breakdownTab === 'account' ? 'ชื่อผังบัญชี' : 'ชื่อกลุ่ม'}
+                        </th>
                         {breakdownTab === 'account' && <th className="is-left">GFMIS</th>}
                         <th>คน (HN)</th>
                         <th>ครั้ง (VN)</th>
@@ -857,7 +861,7 @@ export default function OpdDebtRegistryClient({
                     <tbody>
                       {activeBreakdownRows.length === 0 ? (
                         <tr>
-                          <td colSpan={breakdownTab === 'account' ? 9 : 8}>
+                          <td colSpan={8}>
                             <div className="dd-empty-box">
                               <p className="dd-empty-title">ไม่มีข้อมูลสรุปในช่วงเวลาที่เลือก</p>
                             </div>
@@ -873,9 +877,11 @@ export default function OpdDebtRegistryClient({
                               className={`odr-clickable-row ${isSelected ? 'is-highlighted' : ''}`}
                               title="คลิกเพื่อกรองรายชื่อผู้ป่วยในกลุ่มนี้"
                             >
-                              <td className="is-left dd-tnum" style={{ fontWeight: 600 }}>
-                                {breakdownTab === 'vstdate' ? formatThaiDate(row.code) : row.code}
-                              </td>
+                              {breakdownTab !== 'account' && (
+                                <td className="is-left dd-tnum" style={{ fontWeight: 600 }}>
+                                  {breakdownTab === 'vstdate' ? formatThaiDate(row.code) : row.code}
+                                </td>
+                              )}
                               <td className="is-left">
                                 <span className="odr-ellipsis" title={row.name}>
                                   {breakdownTab === 'vstdate' ? formatThaiDate(row.name) : row.name}
@@ -977,7 +983,11 @@ export default function OpdDebtRegistryClient({
             )}
             {query.accountFilter && (
               <span className="dd-chip">
-                <span>ผังบัญชี: {query.accountFilter}</span>
+                <span>
+                  ผังบัญชี:{' '}
+                  {breakdowns.account.find((g) => g.code === query.accountFilter)?.name ||
+                    query.accountFilter}
+                </span>
                 <button
                   type="button"
                   className="dd-chip-remove"
@@ -1060,7 +1070,7 @@ export default function OpdDebtRegistryClient({
                 <option value="">ทุกผังบัญชี ({breakdowns.account.length})</option>
                 {breakdowns.account.map((g) => (
                   <option key={g.code} value={g.code}>
-                    {g.code !== 'NONE' ? `${g.code} · ${g.name}` : g.name} ({formatInt(g.visits)})
+                    {g.name} ({formatInt(g.visits)})
                   </option>
                 ))}
               </select>
@@ -1366,19 +1376,16 @@ export default function OpdDebtRegistryClient({
                         </div>
                       </td>
                       <td className="is-left">
-                        <div className="odr-subcell-primary dd-tnum">
-                          {item.accountcode || '—'}
-                          {item.gfmis ? (
-                            <span className="odr-badge odr-badge-neutral" style={{ marginLeft: 4 }}>
-                              {item.gfmis}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="odr-subcell-meta">
-                          <span className="odr-ellipsis" title={item.accountname}>
+                        <div className="odr-subcell-primary">
+                          <span className="odr-ellipsis" title={item.accountname || item.accountcode}>
                             {item.accountname || '—'}
                           </span>
                         </div>
+                        {item.gfmis ? (
+                          <div className="odr-subcell-meta dd-tnum">
+                            <span className="odr-badge odr-badge-neutral">{item.gfmis}</span>
+                          </div>
+                        ) : null}
                       </td>
                       <td>{formatMoney(item.income)}</td>
                       <td>{formatMoneyOrDash(item.uc_money)}</td>
