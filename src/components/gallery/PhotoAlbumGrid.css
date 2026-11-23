@@ -1,0 +1,211 @@
+.photoAlbumGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6, 1.5rem);
+}
+
+.photoAlbumCard {
+  background: var(--white, #ffffff);
+  border: 1px solid var(--gray-200, #e2e8e4);
+  border-radius: var(--radius-lg, 8px);
+  overflow: hidden;
+  box-shadow: var(--shadow-card, 0 1px 3px rgba(0, 0, 0, 0.06));
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  width: 100%;
+  transition: border-color var(--dur-fast, 150ms) var(--ease-out, ease),
+              box-shadow var(--dur-fast, 150ms) var(--ease-out, ease);
+}
+
+.photoAlbumCard:hover {
+  border-color: var(--primary, #0d7446);
+  box-shadow: var(--shadow-hover, 0 8px 24px rgba(13, 116, 70, 0.08));
+}
+
+.photoAlbumCard:focus-visible {
+  outline: 2px solid var(--primary, #0d7446);
+  outline-offset: 2px;
+}
+
+.photoAlbumCoverWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--gray-100, #f1f5f3);
+  overflow: hidden;
+}
+
+.photoAlbumCoverImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.photoAlbumCard:hover .photoAlbumCoverImg {
+  transform: scale(1.03);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photoAlbumCoverImg {
+    transition: none;
+  }
+  .photoAlbumCard:hover .photoAlbumCoverImg {
+    transform: none;
+  }
+}
+
+.photoAlbumPinBadge {
+  position: absolute;
+  top: 0.625rem;
+  left: 0.625rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  background: rgba(13, 116, 70, 0.92);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.photoAlbumCountBadge {
+  position: absolute;
+  bottom: 0.625rem;
+  right: 0.625rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  background: rgba(17, 30, 20, 0.78);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.photoAlbumBody {
+  padding: 1rem 1.125rem 1.125rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.photoAlbumDate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--gray-500, #6b7b70);
+}
+
+.photoAlbumTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-900, #111e14);
+  line-height: 1.45;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.photoAlbumDesc {
+  font-size: 0.875rem;
+  color: var(--gray-600, #4e5e53);
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.photoAlbumFooter {
+  margin-top: auto;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--gray-100, #f1f5f3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary, #0d7446);
+  min-height: 32px;
+}
+
+.photoAlbumFooterAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.photoAlbumEmpty {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: var(--gray-50, #f8faf9);
+  border: 1px dashed var(--gray-300, #c5cfc8);
+  border-radius: var(--radius-lg, 8px);
+  color: var(--gray-600, #4e5e53);
+}
+
+.photoAlbumSwipeHint {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .photoAlbumGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .photoAlbumGrid.archiveVariant {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  /* Horizontal snap-scroll on mobile homepage so Facebook section stays easy to reach */
+  .photoAlbumGrid.homepageVariant {
+    display: grid;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 82%;
+    gap: 0.875rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 0.75rem;
+    margin-right: -0.5rem;
+    padding-right: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .photoAlbumGrid.homepageVariant::-webkit-scrollbar {
+    display: none;
+  }
+
+  .photoAlbumGrid.homepageVariant .photoAlbumCard {
+    scroll-snap-align: start;
+  }
+
+  .photoAlbumSwipeHint {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--gray-500, #6b7b70);
+  }
+}

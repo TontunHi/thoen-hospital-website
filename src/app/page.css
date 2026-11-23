@@ -449,6 +449,11 @@
   }
 }
 
+/* ===== PHOTO NEWS & GALLERY SECTION ===== */
+.photo-news-section {
+  padding: var(--space-12) 0;
+}
+
 /* ===== SOCIAL & FACEBOOK SECTION ===== */
 .social-map-section {
   padding: var(--space-12) 0;

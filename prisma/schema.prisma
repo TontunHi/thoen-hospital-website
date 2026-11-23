@@ -85,6 +85,45 @@ model HeroSlide {
   @@map("hero_slides")
 }
 
+/// ระบบ: อัลบั้มภาพข่าวและกิจกรรมโรงพยาบาล
+/// หน้าเว็บ: /, /gallery, /member/news/gallery
+/// หน้าที่: เก็บหัวข้อกิจกรรม วันที่จัดงาน ภาพหน้าปก สถานะการเผยแพร่ และการปักหมุดหน้าแรก
+model PhotoAlbum {
+  id            Int               @id @default(autoincrement())
+  title         String            @db.VarChar(500)
+  slug          String            @unique(map: "uq_photo_albums_slug") @db.VarChar(255)
+  description   String?           @db.Text
+  eventDate     DateTime          @map("event_date") @db.Date
+  coverImageUrl String?           @map("cover_image_url") @db.VarChar(1000)
+  status        String            @default("PUBLISHED") @db.VarChar(20)
+  isPinned      Boolean           @default(false) @map("is_pinned")
+  viewCount     Int               @default(0) @map("view_count")
+  createdBy     String?           @map("created_by") @db.VarChar(100)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt     DateTime          @default(now()) @map("updated_at") @db.Timestamp(0)
+  images        PhotoAlbumImage[]
+
+  @@index([status, isPinned, eventDate, id], map: "idx_album_status_pinned_date")
+  @@index([eventDate], map: "idx_album_event_date")
+  @@map("photo_albums")
+}
+
+/// ระบบ: รูปภาพภายในอัลบั้มภาพข่าวและกิจกรรม
+/// หน้าเว็บ: /, /gallery, /member/news/gallery
+/// หน้าที่: เก็บรายการรูปภาพ ลำดับการแสดงผล และคำบรรยายภาพ (เชื่อมกับ photo_albums)
+model PhotoAlbumImage {
+  id           Int        @id @default(autoincrement())
+  albumId      Int        @map("album_id")
+  imageUrl     String     @map("image_url") @db.VarChar(1000)
+  caption      String?    @db.VarChar(500)
+  displayOrder Int        @default(0) @map("display_order")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(0)
+  album        PhotoAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "photo_album_images_ibfk_1")
+
+  @@index([albumId, displayOrder, id], map: "idx_album_images_order")
+  @@map("photo_album_images")
+}
+
 /// [DEPRECATED] ระบบ: ข้อความติดต่อ/ร้องเรียนเดิม (ลบฟีเจอร์ออกจาก UI และ API ถาวรแล้วตาม AGENTS.md)
 /// หน้าเว็บ: /contact (เดิม)
 /// หน้าที่: ตารางคงค้างจากระบบส่งข้อความติดต่อสอบถามในอดีต

@@ -1146,6 +1146,98 @@ export class ApiGatewayClient {
       return this.delete<{ success: boolean; message: string }>(`/api/v1/app/news/${id}`)
     },
 
+    // ── Photo News Albums ──
+    getAlbums: (params?: {
+      all?: boolean
+      page?: number
+      limit?: number
+      year?: number
+      month?: number
+      search?: string
+    }) => {
+      const qs = new URLSearchParams()
+      if (params?.all) qs.set('all', 'true')
+      if (params?.page) qs.set('page', String(params.page))
+      if (params?.limit) qs.set('limit', String(params.limit))
+      if (params?.year) qs.set('year', String(params.year))
+      if (params?.month) qs.set('month', String(params.month))
+      if (params?.search) qs.set('search', params.search)
+      const q = qs.toString()
+      return this.get<{
+        success: boolean
+        albums: Array<Record<string, any>>
+        availableMonths?: Array<{ year: number; month: number; count: number }>
+        pagination: { page: number; limit: number; total: number; totalPages: number }
+      }>(`/api/v1/app/albums${q ? `?${q}` : ''}`)
+    },
+
+    getAlbumById: (idOrSlug: string | number) => {
+      return this.get<{ success: boolean; data: Record<string, any> }>(
+        `/api/v1/app/albums/${encodeURIComponent(String(idOrSlug))}`
+      )
+    },
+
+    createAlbum: (album: {
+      title: string
+      slug: string
+      description?: string | null
+      eventDate: string
+      coverImageUrl?: string | null
+      status?: 'PUBLISHED' | 'DRAFT'
+      isPinned?: boolean
+      createdBy?: string | null
+      images: Array<{
+        imageUrl: string
+        caption?: string | null
+        displayOrder?: number
+      }>
+    }) => {
+      return this.post<{
+        success: boolean
+        insertId: number
+        data?: Record<string, any>
+      }>('/api/v1/app/albums', album)
+    },
+
+    updateAlbum: (
+      id: string | number,
+      album: Partial<{
+        title: string
+        description: string | null
+        eventDate: string
+        coverImageUrl: string | null
+        status: 'PUBLISHED' | 'DRAFT'
+        isPinned: boolean
+        images: Array<{
+          imageUrl: string
+          caption?: string | null
+          displayOrder?: number
+        }>
+      }>
+    ) => {
+      return this.put<{
+        success: boolean
+        message: string
+        previousImageUrls?: string[]
+        data?: Record<string, any>
+      }>(`/api/v1/app/albums/${id}`, album)
+    },
+
+    deleteAlbum: (id: string | number) => {
+      return this.delete<{
+        success: boolean
+        message: string
+        deletedImageUrls?: string[]
+      }>(`/api/v1/app/albums/${id}`)
+    },
+
+    incrementAlbumView: (idOrSlug: string | number) => {
+      return this.post<{ success: boolean }>(
+        `/api/v1/app/albums/${encodeURIComponent(String(idOrSlug))}/view`,
+        {}
+      )
+    },
+
     // ── Hero Slides ──
     getSlides: async (all = false) => {
       const qs = all ? '?all=true' : ''

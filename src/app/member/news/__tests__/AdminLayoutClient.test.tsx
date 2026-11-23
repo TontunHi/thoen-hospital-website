@@ -28,9 +28,10 @@ describe('AdminLayoutClient Component', () => {
     expect(screen.getByText('ดูหน้าเว็บข่าวจริง')).toBeDefined()
     expect(screen.getByText('เขียนข่าวใหม่')).toBeDefined()
 
-    // Check Hallmark subnav horizontal tabs (3 core tabs)
+    // Check Hallmark subnav horizontal tabs (4 core tabs)
     expect(screen.getByText('ภาพรวมแดชบอร์ด')).toBeDefined()
     expect(screen.getByText('ข่าวสารและกิจกรรม')).toBeDefined()
+    expect(screen.getByText('อัลบั้มภาพข่าวหน้าแรก')).toBeDefined()
     expect(screen.getByText('ป้ายสไลด์ประชาสัมพันธ์')).toBeDefined()
 
     // Contacts tab should NOT be rendered

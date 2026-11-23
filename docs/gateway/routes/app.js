@@ -2854,5 +2854,476 @@ fastify.delete('/api/v1/app/outgoing-documents/:id', {
   }
 })
 
+// ==================================================================
+// 4.19 Photo News Albums (ภาพข่าวและกิจกรรมโรงพยาบาล)
+// ==================================================================
+
+// 4.19.1 List Photo Albums (supports pagination, year/month filter, search, all=true)
+fastify.get('/api/v1/app/albums', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการอัลบั้มภาพข่าวและกิจกรรม (รองรับกรองรายเดือน/ปี, ค้นหา, และแบ่งหน้า)',
+    querystring: {
+      type: 'object',
+      properties: {
+        all: { type: 'string', default: 'false' },
+        page: { type: 'integer', default: 1 },
+        limit: { type: 'integer', default: 12 },
+        year: { type: 'integer' },
+        month: { type: 'integer' },
+        search: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { all = 'false', page = 1, limit = 12, year, month, search } = req.query || {}
+  const pageNum = Math.max(1, parseInt(page, 10) || 1)
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 12))
+  const offset = (pageNum - 1) * limitNum
+
+  const where = []
+  const params = []
+
+  if (all !== 'true') {
+    where.push("status = 'PUBLISHED'")
+  }
+  if (year && !isNaN(parseInt(year, 10))) {
+    where.push('YEAR(event_date) = ?')
+    params.push(parseInt(year, 10))
+  }
+  if (month && !isNaN(parseInt(month, 10))) {
+    where.push('MONTH(event_date) = ?')
+    params.push(parseInt(month, 10))
+  }
+  if (search && String(search).trim()) {
+    where.push('(title LIKE ? OR description LIKE ?)')
+    const q = `%${String(search).trim()}%`
+    params.push(q, q)
+  }
+
+  const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''
+
+  try {
+    const [countRows] = await appPool.query(`SELECT COUNT(*) AS total FROM photo_albums ${whereSql}`, params)
+    const total = countRows[0]?.total || 0
+
+    const [rows] = await appPool.query(
+      `SELECT id, title, slug, description,
+              DATE_FORMAT(event_date, '%Y-%m-%d') AS eventDate,
+              cover_image_url AS coverImageUrl,
+              status, is_pinned AS isPinned, view_count AS viewCount,
+              created_by AS createdBy, created_at AS createdAt, updated_at AS updatedAt
+       FROM photo_albums
+       ${whereSql}
+       ORDER BY is_pinned DESC, event_date DESC, id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limitNum, offset]
+    )
+
+    const albumIds = rows.map(r => r.id)
+    const imagesByAlbumId = new Map()
+    if (albumIds.length > 0) {
+      const placeholders = albumIds.map(() => '?').join(',')
+      const [imgRows] = await appPool.query(
+        `SELECT id, album_id AS albumId, image_url AS imageUrl, caption, display_order AS displayOrder
+         FROM photo_album_images
+         WHERE album_id IN (${placeholders})
+         ORDER BY display_order ASC, id ASC`,
+        albumIds
+      )
+      for (const img of imgRows) {
+        const list = imagesByAlbumId.get(img.albumId) || []
+        list.push(img)
+        imagesByAlbumId.set(img.albumId, list)
+      }
+    }
+
+    const albums = rows.map(album => {
+      const imgs = imagesByAlbumId.get(album.id) || []
+      return {
+        ...album,
+        isPinned: Boolean(album.isPinned),
+        imageCount: imgs.length,
+        coverImageUrl: album.coverImageUrl || (imgs[0] ? imgs[0].imageUrl : null),
+        images: imgs
+      }
+    })
+
+    const monthWhere = all === 'true' ? '' : "WHERE status = 'PUBLISHED'"
+    const [monthRows] = await appPool.query(
+      `SELECT YEAR(event_date) AS year, MONTH(event_date) AS month, COUNT(*) AS count
+       FROM photo_albums
+       ${monthWhere}
+       GROUP BY YEAR(event_date), MONTH(event_date)
+       ORDER BY year DESC, month DESC`
+    )
+
+    return {
+      success: true,
+      albums,
+      data: albums,
+      availableMonths: monthRows,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum) || 1
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.19.2 Get Single Photo Album by ID or Slug
+fastify.get('/api/v1/app/albums/:idOrSlug', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายละเอียดอัลบั้มภาพข่าวและรูปภาพทั้งหมดภายในอัลบั้ม',
+    params: {
+      type: 'object',
+      properties: { idOrSlug: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { idOrSlug } = req.params
+  const decoded = decodeURIComponent(String(idOrSlug || ''))
+  const isNumeric = /^\d+$/.test(decoded)
+
+  try {
+    const [rows] = await appPool.query(
+      `SELECT id, title, slug, description,
+              DATE_FORMAT(event_date, '%Y-%m-%d') AS eventDate,
+              cover_image_url AS coverImageUrl,
+              status, is_pinned AS isPinned, view_count AS viewCount,
+              created_by AS createdBy, created_at AS createdAt, updated_at AS updatedAt
+       FROM photo_albums
+       WHERE ${isNumeric ? 'id = ?' : 'slug = ?'}
+       LIMIT 1`,
+      [isNumeric ? parseInt(decoded, 10) : decoded]
+    )
+
+    if (rows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบอัลบั้มภาพข่าวที่ต้องการ' }
+    }
+
+    const album = rows[0]
+    const [images] = await appPool.query(
+      `SELECT id, album_id AS albumId, image_url AS imageUrl, caption, display_order AS displayOrder
+       FROM photo_album_images
+       WHERE album_id = ?
+       ORDER BY display_order ASC, id ASC`,
+      [album.id]
+    )
+
+    return {
+      success: true,
+      data: {
+        ...album,
+        isPinned: Boolean(album.isPinned),
+        imageCount: images.length,
+        coverImageUrl: album.coverImageUrl || (images[0] ? images[0].imageUrl : null),
+        images
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.19.3 Create Photo Album
+fastify.post('/api/v1/app/albums', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'สร้างอัลบั้มภาพข่าวและกิจกรรมใหม่',
+    body: {
+      type: 'object',
+      required: ['title', 'slug', 'eventDate', 'images'],
+      properties: {
+        title: { type: 'string' },
+        slug: { type: 'string' },
+        description: { type: ['string', 'null'] },
+        eventDate: { type: 'string' },
+        coverImageUrl: { type: ['string', 'null'] },
+        status: { type: 'string', default: 'PUBLISHED' },
+        isPinned: { type: 'boolean', default: false },
+        createdBy: { type: ['string', 'null'] },
+        images: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['imageUrl'],
+            properties: {
+              imageUrl: { type: 'string' },
+              caption: { type: ['string', 'null'] },
+              displayOrder: { type: 'integer' }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const {
+    title,
+    slug,
+    description = null,
+    eventDate,
+    coverImageUrl = null,
+    status = 'PUBLISHED',
+    isPinned = false,
+    createdBy = null,
+    images = []
+  } = req.body || {}
+
+  if (!Array.isArray(images) || images.length === 0) {
+    reply.code(400); return { success: false, error: 'กรุณาแนบรูปภาพอย่างน้อย 1 รูป' }
+  }
+
+  const finalCover = coverImageUrl || images[0].imageUrl
+  const conn = await appPool.getConnection()
+  try {
+    await conn.beginTransaction()
+    await conn.query('SET NAMES utf8mb4')
+
+    const [existingSlugRows] = await conn.query(
+      'SELECT id, view_count AS viewCount FROM photo_albums WHERE slug = ? LIMIT 1',
+      [slug]
+    )
+
+    let insertId
+    let viewCount = 0
+    let isUpdate = false
+
+    if (existingSlugRows.length > 0) {
+      isUpdate = true
+      insertId = existingSlugRows[0].id
+      viewCount = existingSlugRows[0].viewCount || 0
+      await conn.query(
+        `UPDATE photo_albums
+         SET title = ?, description = ?, event_date = ?, cover_image_url = ?, status = ?, is_pinned = ?, updated_at = NOW()
+         WHERE id = ?`,
+        [title, description || null, eventDate, finalCover, status, isPinned ? 1 : 0, insertId]
+      )
+      await conn.query('DELETE FROM photo_album_images WHERE album_id = ?', [insertId])
+    } else {
+      const [res] = await conn.query(
+        `INSERT INTO photo_albums
+         (title, slug, description, event_date, cover_image_url, status, is_pinned, view_count, created_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, NOW(), NOW())`,
+        [title, slug, description || null, eventDate, finalCover, status, isPinned ? 1 : 0, createdBy]
+      )
+      insertId = res.insertId
+    }
+
+    const insertedImages = []
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i]
+      const orderVal = typeof img.displayOrder === 'number' ? img.displayOrder : i
+      const [imgRes] = await conn.query(
+        'INSERT INTO photo_album_images (album_id, image_url, caption, display_order, created_at) VALUES (?, ?, ?, ?, NOW())',
+        [insertId, img.imageUrl, img.caption || null, orderVal]
+      )
+      insertedImages.push({
+        id: imgRes.insertId,
+        albumId: insertId,
+        imageUrl: img.imageUrl,
+        caption: img.caption || null,
+        displayOrder: orderVal
+      })
+    }
+
+    await conn.commit()
+
+    reply.code(isUpdate ? 200 : 201)
+    return {
+      success: true,
+      insertId,
+      data: {
+        id: insertId,
+        title,
+        slug,
+        description: description || null,
+        eventDate,
+        coverImageUrl: finalCover,
+        status,
+        isPinned: Boolean(isPinned),
+        viewCount,
+        createdBy,
+        imageCount: insertedImages.length,
+        images: insertedImages
+      }
+    }
+  } catch (err) {
+    await conn.rollback()
+    reply.code(500); return { success: false, error: err.message }
+  } finally {
+    conn.release()
+  }
+})
+
+// 4.19.4 Update Photo Album
+fastify.put('/api/v1/app/albums/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขอัลบั้มภาพข่าวและเรียงลำดับ/เปลี่ยนรูปภาพ',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const body = req.body || {}
+  const conn = await appPool.getConnection()
+
+  try {
+    const [existingRows] = await conn.query('SELECT id, cover_image_url AS coverImageUrl FROM photo_albums WHERE id = ? LIMIT 1', [id])
+    if (existingRows.length === 0) {
+      conn.release()
+      reply.code(404); return { success: false, error: 'ไม่พบอัลบั้มภาพข่าวที่ต้องการแก้ไข' }
+    }
+
+    const [oldImagesRows] = await conn.query('SELECT image_url AS imageUrl FROM photo_album_images WHERE album_id = ?', [id])
+    const previousImageUrls = oldImagesRows.map(r => r.imageUrl)
+
+    await conn.beginTransaction()
+    await conn.query('SET NAMES utf8mb4')
+
+    const updates = []
+    const params = []
+    if (body.title !== undefined) { updates.push('title = ?'); params.push(body.title) }
+    if (body.description !== undefined) { updates.push('description = ?'); params.push(body.description || null) }
+    if (body.eventDate !== undefined) { updates.push('event_date = ?'); params.push(body.eventDate) }
+    if (body.status !== undefined) { updates.push('status = ?'); params.push(body.status) }
+    if (body.isPinned !== undefined) { updates.push('is_pinned = ?'); params.push(body.isPinned ? 1 : 0) }
+
+    let nextCover = body.coverImageUrl
+    if (Array.isArray(body.images)) {
+      if (body.images.length === 0) {
+        await conn.rollback()
+        reply.code(400); return { success: false, error: 'อัลบั้มต้องมีรูปภาพอย่างน้อย 1 รูป' }
+      }
+      const hasCoverInImages = nextCover && body.images.some(img => img.imageUrl === nextCover)
+      if (!hasCoverInImages) {
+        const existingCoverValid = existingRows[0].coverImageUrl && body.images.some(img => img.imageUrl === existingRows[0].coverImageUrl)
+        nextCover = existingCoverValid ? existingRows[0].coverImageUrl : body.images[0].imageUrl
+      }
+    }
+
+    if (nextCover !== undefined) {
+      updates.push('cover_image_url = ?')
+      params.push(nextCover || null)
+    }
+
+    if (updates.length > 0) {
+      updates.push('updated_at = NOW()')
+      params.push(id)
+      await conn.query(`UPDATE photo_albums SET ${updates.join(', ')} WHERE id = ?`, params)
+    }
+
+    if (Array.isArray(body.images)) {
+      await conn.query('DELETE FROM photo_album_images WHERE album_id = ?', [id])
+      for (let i = 0; i < body.images.length; i++) {
+        const img = body.images[i]
+        const orderVal = typeof img.displayOrder === 'number' ? img.displayOrder : i
+        await conn.query(
+          'INSERT INTO photo_album_images (album_id, image_url, caption, display_order, created_at) VALUES (?, ?, ?, ?, NOW())',
+          [id, img.imageUrl, img.caption || null, orderVal]
+        )
+      }
+    }
+
+    await conn.commit()
+
+    const [updatedRows] = await conn.query(
+      `SELECT id, title, slug, description,
+              DATE_FORMAT(event_date, '%Y-%m-%d') AS eventDate,
+              cover_image_url AS coverImageUrl,
+              status, is_pinned AS isPinned, view_count AS viewCount,
+              created_by AS createdBy, created_at AS createdAt, updated_at AS updatedAt
+       FROM photo_albums WHERE id = ? LIMIT 1`,
+      [id]
+    )
+    const [newImages] = await conn.query(
+      'SELECT id, album_id AS albumId, image_url AS imageUrl, caption, display_order AS displayOrder FROM photo_album_images WHERE album_id = ? ORDER BY display_order ASC, id ASC',
+      [id]
+    )
+
+    const album = updatedRows[0]
+    return {
+      success: true,
+      message: 'อัปเดตอัลบั้มภาพข่าวสำเร็จ',
+      previousImageUrls,
+      data: {
+        ...album,
+        isPinned: Boolean(album.isPinned),
+        imageCount: newImages.length,
+        coverImageUrl: album.coverImageUrl || (newImages[0] ? newImages[0].imageUrl : null),
+        images: newImages
+      }
+    }
+  } catch (err) {
+    await conn.rollback()
+    reply.code(500); return { success: false, error: err.message }
+  } finally {
+    conn.release()
+  }
+})
+
+// 4.19.5 Delete Photo Album
+fastify.delete('/api/v1/app/albums/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบอัลบั้มภาพข่าวและรูปภาพในอัลบั้ม',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [existing] = await appPool.query('SELECT id, title FROM photo_albums WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบอัลบั้มที่ต้องการลบ' }
+    }
+    const [imgRows] = await appPool.query('SELECT image_url AS imageUrl FROM photo_album_images WHERE album_id = ?', [id])
+    await appPool.query('DELETE FROM photo_albums WHERE id = ?', [id])
+    return {
+      success: true,
+      message: 'ลบอัลบั้มภาพข่าวสำเร็จ',
+      deletedImageUrls: imgRows.map(r => r.imageUrl)
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.19.6 Increment View Count
+fastify.post('/api/v1/app/albums/:idOrSlug/view', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'เพิ่มยอดเข้าชมอัลบั้มภาพข่าว',
+    params: {
+      type: 'object',
+      properties: { idOrSlug: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { idOrSlug } = req.params
+  const decoded = decodeURIComponent(String(idOrSlug || ''))
+  const isNumeric = /^\d+$/.test(decoded)
+  try {
+    const sql = isNumeric
+      ? 'UPDATE photo_albums SET view_count = view_count + 1 WHERE id = ?'
+      : 'UPDATE photo_albums SET view_count = view_count + 1 WHERE slug = ?'
+    await appPool.query(sql, [isNumeric ? parseInt(decoded, 10) : decoded])
+    return { success: true }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
 }
 

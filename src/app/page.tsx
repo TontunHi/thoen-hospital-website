@@ -13,6 +13,8 @@ import { FacebookIcon } from '@/components/common/Icons';
 import { services, relatedOrgs } from '@/config/home';
 import { siteConfig } from '@/config/site';
 import { NewsListItem } from '@/types/news';
+import { photoAlbumService } from '@/lib/cms/PhotoAlbumService';
+import HomepagePhotoShowcase from '@/components/gallery/HomepagePhotoShowcase';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,10 +97,18 @@ async function getActiveSlides(): Promise<Array<{
 }
 
 export default async function HomePage() {
-  const [latestNews, activeSlides] = await Promise.all([
+  const [latestNews, activeSlides, albumResult] = await Promise.all([
     getLatestNews(),
     getActiveSlides(),
+    photoAlbumService
+      .listAlbums({ all: false, page: 1, limit: 1 })
+      .catch(() => ({
+        albums: [],
+        availableMonths: [],
+        pagination: { page: 1, limit: 1, total: 0, totalPages: 1 },
+      })),
   ]);
+  const initialAlbum = albumResult.albums[0] || null;
   const siteUrl = siteConfig.url;
 
   // Schema.org structured data for Hospital (W4)
@@ -299,8 +309,18 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ===== PHOTO NEWS & GALLERY SECTION ===== */}
+      <section className="section photo-news-section" aria-label="ภาพข่าวและกิจกรรมโรงพยาบาลเถิน">
+        <div className="container">
+          <HomepagePhotoShowcase
+            initialAlbum={initialAlbum}
+            availableMonths={albumResult.availableMonths}
+          />
+        </div>
+      </section>
+
       {/* ===== SOCIAL & FACEBOOK SECTION ===== */}
-      <section className="section social-map-section">
+      <section className="section social-map-section bg-gray-50">
         <div className="container">
           <div className="social-map-grid full-width">
             <div className="facebook-embed-card card">
@@ -328,7 +348,7 @@ export default async function HomePage() {
       </section>
 
       {/* ===== RELATED ORGANIZATIONS SECTION ===== */}
-      <section className="section related-orgs-section bg-gray-50">
+      <section className="section related-orgs-section">
         <div className="container">
           <div className="section-header">
             <h2>หน่วยงานที่เกี่ยวข้อง</h2>

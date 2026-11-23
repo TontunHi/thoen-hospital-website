@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Clock,
   ExternalLink,
-  Loader2
+  Loader2,
+  Images
 } from 'lucide-react'
 import './page.css'
 
@@ -158,6 +159,10 @@ export default function AdminDashboard() {
             <Link href="/member/news/news/create" className="quickActionChip primary">
               <Plus size={14} />
               <span>เขียนข่าวประชาสัมพันธ์ใหม่</span>
+            </Link>
+            <Link href="/member/news/gallery" className="quickActionChip">
+              <Images size={14} />
+              <span>จัดการอัลบั้มภาพข่าวหน้าแรก</span>
             </Link>
             <Link href="/member/news/slides" className="quickActionChip">
               <ImageIcon size={14} />

@@ -6,6 +6,7 @@ import {
   LayoutDashboard, 
   Newspaper, 
   Image as ImageIcon, 
+  Images,
   ArrowLeft,
   Globe,
   Plus
@@ -22,6 +23,7 @@ export default function AdminLayoutClient({
   const navTabs = [
     { href: '/member/news', label: 'ภาพรวมแดชบอร์ด', icon: LayoutDashboard },
     { href: '/member/news/news', label: 'ข่าวสารและกิจกรรม', icon: Newspaper },
+    { href: '/member/news/gallery', label: 'อัลบั้มภาพข่าวหน้าแรก', icon: Images },
     { href: '/member/news/slides', label: 'ป้ายสไลด์ประชาสัมพันธ์', icon: ImageIcon },
   ]
 

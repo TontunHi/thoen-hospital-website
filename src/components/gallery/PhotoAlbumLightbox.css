@@ -1,0 +1,294 @@
+.albumLightboxBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #151515;
+  color: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+  animation: albumLightboxFadeIn var(--dur-fast, 200ms) var(--ease-out, ease);
+}
+
+@keyframes albumLightboxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .albumLightboxBackdrop {
+    animation: none;
+  }
+}
+
+.albumLightboxHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: #1d1d1d;
+  border-bottom: 1px solid #363636;
+  flex-shrink: 0;
+}
+
+.albumLightboxTitleGroup {
+  min-width: 0;
+  flex: 1;
+}
+
+.albumLightboxTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fdfdfd;
+  margin: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.albumLightboxMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  color: #ababab;
+}
+
+.albumLightboxCounter {
+  font-variant-numeric: tabular-nums;
+  color: #6bbc8d;
+  font-weight: 600;
+}
+
+.albumLightboxActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.albumLightboxActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border-radius: 6px;
+  border: 1px solid #484848;
+  background: #2d2d2d;
+  color: #f4f4f4;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.albumLightboxActionBtn:hover {
+  background: #3f3f3f;
+  border-color: #6bbc8d;
+  color: #ffffff;
+}
+
+.albumLightboxActionBtn:focus-visible {
+  outline: 2px solid #6bbc8d;
+  outline-offset: 2px;
+}
+
+.albumLightboxActionBtn.copied {
+  background: #1c2b1f;
+  border-color: #469159;
+  color: #6bbc8d;
+}
+
+.albumLightboxCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  border: 1px solid #484848;
+  background: #2d2d2d;
+  color: #fdfdfd;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.albumLightboxCloseBtn:hover {
+  background: #484848;
+}
+
+.albumLightboxCloseBtn:focus-visible {
+  outline: 2px solid #6bbc8d;
+  outline-offset: 2px;
+}
+
+.albumLightboxStage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 4.25rem;
+  overflow: hidden;
+  user-select: none;
+}
+
+.albumLightboxImageWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.albumLightboxImg {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.albumLightboxNavBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  border: 1px solid #484848;
+  background: rgba(29, 29, 29, 0.85);
+  color: #fdfdfd;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.albumLightboxNavBtn:hover {
+  background: #389363;
+  border-color: #6bbc8d;
+  color: #ffffff;
+}
+
+.albumLightboxNavBtn:focus-visible {
+  outline: 2px solid #6bbc8d;
+  outline-offset: 2px;
+}
+
+.albumLightboxNavBtn.prev {
+  left: 1rem;
+}
+
+.albumLightboxNavBtn.next {
+  right: 1rem;
+}
+
+.albumLightboxCaptionBar {
+  padding: 0.5rem 1.25rem;
+  background: #1d1d1d;
+  border-top: 1px solid #2d2d2d;
+  font-size: 0.875rem;
+  color: #d2d2d2;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.albumLightboxThumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: #1d1d1d;
+  border-top: 1px solid #363636;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #484848 #1d1d1d;
+}
+
+.albumLightboxThumbBtn {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 50px;
+  padding: 0;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  overflow: hidden;
+  background: #2d2d2d;
+  cursor: pointer;
+  opacity: 0.58;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.albumLightboxThumbBtn:hover {
+  opacity: 0.9;
+}
+
+.albumLightboxThumbBtn.active {
+  opacity: 1;
+  border-color: #389363;
+}
+
+.albumLightboxThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .albumLightboxHeader {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .albumLightboxActionLabel {
+    display: none;
+  }
+
+  .albumLightboxActionBtn {
+    padding: 0;
+    width: 44px;
+  }
+
+  .albumLightboxStage {
+    padding: 0.5rem 0.5rem;
+  }
+
+  .albumLightboxNavBtn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .albumLightboxNavBtn.prev {
+    left: 0.5rem;
+  }
+
+  .albumLightboxNavBtn.next {
+    right: 0.5rem;
+  }
+
+  .albumLightboxThumbs {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .albumLightboxThumbBtn {
+    width: 58px;
+    height: 44px;
+  }
+}
