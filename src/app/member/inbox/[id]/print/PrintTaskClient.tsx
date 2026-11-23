@@ -116,7 +116,9 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
   }
 
   const { task, steps, repairDetail } = data
-  const isRepair = Boolean(repairDetail)
+  const isRepair =
+    Boolean(repairDetail) ||
+    ['IT_REPAIR', 'GENERAL_REPAIR', 'MEDICAL_REPAIR'].includes(task.task_type)
   const isMediaRequest = task.task_type === 'MEDIA_REQUEST'
   const mediaPrintSteps = isMediaRequest 
     ? steps.filter((st: any) => st.assigned_role !== 'นักประชาสัมพันธ์' && !st.step_name.includes('นักประชาสัมพันธ์'))
@@ -235,6 +237,31 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
             border-top: 2px dashed #94a3b8;
           }
         }
+
+        /* Enforce pure black & white for IT / General / Medical repair print forms */
+        .repair-print-form,
+        .repair-print-form * {
+          color: #000000 !important;
+          border-color: #000000 !important;
+        }
+
+        .repair-print-form img {
+          filter: grayscale(100%) contrast(1.4) !important;
+        }
+
+        @media print {
+          .repair-print-form,
+          .repair-print-form * {
+            color: #000000 !important;
+            border-color: #000000 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .repair-print-form img {
+            filter: grayscale(100%) contrast(1.4) !important;
+          }
+        }
       `}</style>
 
       <div className="no-print" style={{ backgroundColor: '#0f172a', padding: '0.75rem 1.5rem', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -263,7 +290,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
       </div>
 
       {/* Printable Sheet */}
-      <div className="print-container" style={{ maxWidth: '800px', margin: '1.75rem auto', padding: '2rem 2.5rem', backgroundColor: '#ffffff', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)', color: '#0f172a', fontFamily: 'Sarabun, "IBM Plex Sans Thai", system-ui, sans-serif' }}>
+      <div className="print-container" style={{ maxWidth: '800px', margin: '1.75rem auto', padding: '2rem 2.5rem', backgroundColor: '#ffffff', borderRadius: '0.5rem', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)', color: isRepair ? '#000000' : '#0f172a', fontFamily: 'Sarabun, "IBM Plex Sans Thai", system-ui, sans-serif' }}>
         
         {isMediaRequest ? (
           /* ── LAYOUT 3: OFFICIAL MEDIA REQUEST FORM (แบบฟอร์มขอรับบริการงานสื่อประชาสัมพันธ์) ── */
@@ -554,26 +581,26 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
             )}
           </div>
         ) : isRepair ? (
-          /* ── LAYOUT 1: HOSPITAL REPAIR FORM (EXACTLY MATCHING document.pdf) ── */
-          <div>
+          /* ── LAYOUT 1: HOSPITAL REPAIR FORM (Monochrome, unticked technician/approval fields for manual/typed entry) ── */
+          <div className="repair-print-form" style={{ color: '#000000' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#000000' }}>
                 {getRepairTitleHeader()}
               </h2>
-              <div style={{ textAlign: 'right', fontSize: '0.9rem', lineHeight: '1.5' }}>
+              <div style={{ textAlign: 'right', fontSize: '0.9rem', lineHeight: '1.5', color: '#000000' }}>
                 <div>ใบแจ้งซ่อมเลขที่ <strong>{task.task_no}</strong></div>
                 <div>วันที่ส่งซ่อม <strong>{formatThaiDateTime(task.created_at)}</strong></div>
               </div>
             </div>
 
             {/* Recipient */}
-            <div style={{ fontSize: '1rem', marginBottom: '0.85rem' }}>
+            <div style={{ fontSize: '1rem', marginBottom: '0.85rem', color: '#000000' }}>
               <strong>เรียน</strong> {getLearnedRecipient()}
             </div>
 
             {/* Section 1: Request Details */}
-            <div style={{ fontSize: '0.95rem', lineHeight: '1.9', textIndent: '2.5rem', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.95rem', lineHeight: '1.9', textIndent: '2.5rem', marginBottom: '1rem', color: '#000000' }}>
               ด้วยหน่วยงาน <u>{task.requester_dept || 'โรงพยาบาลเถิน'}</u> สถานที่ <u>{repairDetail?.location_full_name || '-'}</u>
               <br />
               <span style={{ textIndent: 0, display: 'inline-block' }}>
@@ -594,7 +621,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
             </div>
 
             {/* Signatures of Requester & Head */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', marginBottom: '1rem', color: '#000000' }}>
               <div style={{ width: '280px', textAlign: 'center', fontSize: '0.85rem', lineHeight: '1.5' }}>
                 {task.requester_signature_path ? (
                   <div style={{ marginBottom: '0.15rem' }}>
@@ -602,7 +629,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                       <img
                         src={`/api/signatures/image?path=${encodeURIComponent(task.requester_signature_path)}`}
                         alt="ลายเซ็นผู้แจ้งซ่อม"
-                        style={{ maxHeight: '46px', maxWidth: '140px', objectFit: 'contain' }}
+                        style={{ maxHeight: '46px', maxWidth: '140px', objectFit: 'contain', filter: 'grayscale(100%) contrast(1.4)' }}
                       />
                     </div>
                     <div>ลงชื่อ ................................................................</div>
@@ -611,34 +638,34 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                   <div>ลงชื่อ ................................................................</div>
                 )}
                 <div style={{ marginTop: '0.15rem' }}>ผู้แจ้งซ่อม</div>
-                <div style={{ color: '#334155', fontWeight: 600 }}>({task.requester_name})</div>
+                <div style={{ color: '#000000', fontWeight: 600 }}>({task.requester_name})</div>
                 <div style={{ marginTop: '0.85rem' }}>ลงชื่อ ................................................................</div>
                 <div style={{ marginTop: '0.15rem' }}>หัวหน้างาน</div>
-                <div style={{ color: '#64748b' }}>(................................................................)</div>
+                <div style={{ color: '#000000' }}>(................................................................)</div>
               </div>
             </div>
 
-            <hr style={{ border: 'none', borderTop: '1px solid #94a3b8', margin: '1rem 0 0.75rem 0' }} />
+            <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '1rem 0 0.75rem 0' }} />
 
-            {/* Section 2: Technician Notes */}
-            <div style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
+            {/* Section 2: Technician Notes (Unchecked & blank for manual/typed entry) */}
+            <div style={{ fontSize: '0.85rem', lineHeight: '1.6', color: '#000000' }}>
               <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>หมายเหตุ</div>
               <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.5rem' }}>
                 <div>
-                  [{repairDetail?.repair_nature === 'NORMAL' ? ' ✓ ' : '   '}] ส่งซ่อมปกติ
+                  <span style={{ whiteSpace: 'pre' }}>[   ]</span> ส่งซ่อมปกติ
                 </div>
                 <div>
-                  [{repairDetail?.repair_nature === 'RETROACTIVE' ? ' ✓ ' : '   '}] ส่งซ่อมย้อนหลัง ช่างดำเนินการซ่อมให้ก่อน
+                  <span style={{ whiteSpace: 'pre' }}>[   ]</span> ส่งซ่อมย้อนหลัง ช่างดำเนินการซ่อมให้ก่อน
                 </div>
               </div>
 
               <div style={{ fontWeight: 700, margin: '0.4rem 0' }}>บันทึกงานซ่อม</div>
               <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.4rem' }}>
                 <div>
-                  ({repairDetail?.cost_type === 'NO_COST' ? ' • ' : '   '}) ไม่มีค่าใช้จ่าย
+                  <span style={{ whiteSpace: 'pre' }}>(   )</span> ไม่มีค่าใช้จ่าย
                 </div>
                 <div>
-                  ({repairDetail?.cost_type === 'HAS_COST' ? ' • ' : '   '}) มีค่าใช้จ่าย มูลค่า : <u>{repairDetail?.cost_amount ? Number(repairDetail.cost_amount).toLocaleString() : '........................'}</u> บาท
+                  <span style={{ whiteSpace: 'pre' }}>(   )</span> มีค่าใช้จ่าย มูลค่า : <u>........................</u> บาท
                 </div>
               </div>
 
@@ -651,17 +678,17 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
             </div>
 
             {/* Signatures of Technician & Head of Tech */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.25rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.25rem', marginBottom: '1rem', color: '#000000' }}>
               <div style={{ textAlign: 'center', width: '45%', fontSize: '0.85rem', lineHeight: '1.5' }}>
                 <div>
                   ลงชื่อ ................................................................
                 </div>
                 <div style={{ marginTop: '0.15rem' }}>ผู้รับซ่อม</div>
-                <div style={{ color: '#0f172a', fontWeight: 600, marginTop: '0.15rem' }}>
+                <div style={{ color: '#000000', fontWeight: 600, marginTop: '0.15rem' }}>
                   ({repairDetail?.assigned_technician_name || '................................................................'})
                 </div>
                 {repairDetail?.co_workers && repairDetail.co_workers.length > 0 && (
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#000000', marginTop: '0.15rem' }}>
                     ผู้ร่วมงาน: {repairDetail.co_workers.map((cw: any) => cw.name).join(', ')}
                   </div>
                 )}
@@ -672,35 +699,35 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                   ลงชื่อ ................................................................
                 </div>
                 <div style={{ marginTop: '0.15rem' }}>หัวหน้าผู้รับซ่อม</div>
-                <div style={{ color: '#64748b', marginTop: '0.15rem' }}>
+                <div style={{ color: '#000000', marginTop: '0.15rem' }}>
                   (................................................................)
                 </div>
               </div>
             </div>
 
-            <hr style={{ border: 'none', borderTop: '1px solid #94a3b8', margin: '1.5rem 0 1rem 0' }} />
+            <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '1.5rem 0 1rem 0' }} />
 
             {/* Section 3: General Administration & Director Approval */}
-            <div style={{ fontSize: '0.9rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#000000' }}>
               <div style={{ fontWeight: 700, marginBottom: '0.5rem' }}>บันทึกฝ่ายบริหารทั่วไป</div>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
                 <div style={{ width: '45%', textAlign: 'center', paddingTop: '3.5rem' }}>
                   <div>ลงชื่อ ................................................................</div>
                   <div style={{ fontWeight: 600, marginTop: '0.25rem' }}>(น.ส.พิณญาดา ดวงสาร)</div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>นักจัดการงานทั่วไปปฏิบัติการ</div>
+                  <div style={{ fontSize: '0.8rem', color: '#000000' }}>นักจัดการงานทั่วไปปฏิบัติการ</div>
                 </div>
 
                 <div style={{ width: '50%', textAlign: 'left', paddingLeft: '1.5rem' }}>
                   <div style={{ marginBottom: '0.35rem' }}>เรียน ผู้อำนวยการโรงพยาบาลเถิน</div>
                   <div style={{ display: 'flex', gap: '1.5rem', margin: '0.35rem 0' }}>
-                    <div>[   ] อนุมัติ</div>
-                    <div>[   ] ไม่อนุมัติ</div>
+                    <div><span style={{ whiteSpace: 'pre' }}>[   ]</span> อนุมัติ</div>
+                    <div><span style={{ whiteSpace: 'pre' }}>[   ]</span> ไม่อนุมัติ</div>
                   </div>
                   <div style={{ textAlign: 'center', marginTop: '2rem' }}>
                     <div>ลงชื่อ ................................................................</div>
                     <div style={{ fontWeight: 600, marginTop: '0.25rem' }}>(น.ส.นฤนาท จอมภาปิน)</div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>ผู้อำนวยการโรงพยาบาลเถิน</div>
+                    <div style={{ fontSize: '0.8rem', color: '#000000' }}>ผู้อำนวยการโรงพยาบาลเถิน</div>
                   </div>
                 </div>
               </div>
