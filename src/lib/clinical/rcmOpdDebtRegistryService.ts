@@ -288,48 +288,45 @@ export class RcmOpdDebtRegistryService {
     }
 
     if (executor === queryClinicalDb) {
-      const namedFetcher = async (): Promise<OpdDebtRegistryResult | null> => {
-        try {
-          const gwRes = await apiGateway.clinical.getRcmOpdDebtRegistry({
-            ds1,
-            ds2,
-            includeAdmitted,
-            cardFilter,
-            eclaimFilter: eclaimFilter || undefined,
-            accountFilter: accountFilter || undefined,
-            pttypeFilter: pttypeFilter || undefined,
-            vstdateFilter: vstdateFilter || undefined,
-            search: search || undefined,
-            sortBy,
-            sortOrder,
-            page,
-            pageSize,
-            exportAll,
-            refresh,
-          })
-          const payload = (gwRes?.data ?? gwRes) as OpdDebtRegistryResult | undefined
-          if (payload && Array.isArray(payload.items) && payload.summary) {
+      const namedKey = `named:${tier2Key}`
+      if (refresh) {
+        invalidateCacheKey(namedKey)
+      }
+      try {
+        const namedResult = await getSwrCachedData<OpdDebtRegistryResult>(
+          namedKey,
+          async () => {
+            const gwRes = await apiGateway.clinical.getRcmOpdDebtRegistry({
+              ds1,
+              ds2,
+              includeAdmitted,
+              cardFilter,
+              eclaimFilter: eclaimFilter || undefined,
+              accountFilter: accountFilter || undefined,
+              pttypeFilter: pttypeFilter || undefined,
+              vstdateFilter: vstdateFilter || undefined,
+              search: search || undefined,
+              sortBy,
+              sortOrder,
+              page,
+              pageSize,
+              exportAll,
+              refresh,
+            })
+            const payload = (gwRes?.data ?? gwRes) as OpdDebtRegistryResult | undefined
+            if (!payload || !Array.isArray(payload.items) || !payload.summary) {
+              throw new GatewayNotFoundError('Invalid Named API payload')
+            }
             return payload
-          }
-          return null
-        } catch (err: unknown) {
-          if (err instanceof GatewayNotFoundError) {
-            return null
-          }
+          },
+          { staleTtlMs: 20_000, maxTtlMs: 60_000, forceRefresh: refresh || exportAll }
+        )
+        return namedResult
+      } catch (err: unknown) {
+        if (!(err instanceof GatewayNotFoundError)) {
           throw err
         }
-      }
-
-      const namedResult = exportAll
-        ? await namedFetcher()
-        : await getSwrCachedData<OpdDebtRegistryResult | null>(tier2Key, namedFetcher, {
-            staleTtlMs: 20_000,
-            maxTtlMs: 60_000,
-            forceRefresh: refresh,
-          })
-
-      if (namedResult) {
-        return namedResult
+        // Fallback to queryClinicalDb SQL queries if Gateway Named API is not yet deployed
       }
     }
 
