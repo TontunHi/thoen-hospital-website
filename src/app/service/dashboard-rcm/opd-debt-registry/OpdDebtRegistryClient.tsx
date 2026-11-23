@@ -849,7 +849,6 @@ export default function OpdDebtRegistryClient({
                         <th className="is-left">
                           {breakdownTab === 'account' ? 'ชื่อผังบัญชี' : 'ชื่อกลุ่ม'}
                         </th>
-                        {breakdownTab === 'account' && <th className="is-left">GFMIS</th>}
                         <th>คน (HN)</th>
                         <th>ครั้ง (VN)</th>
                         <th>ค่ารักษา</th>
@@ -861,7 +860,7 @@ export default function OpdDebtRegistryClient({
                     <tbody>
                       {activeBreakdownRows.length === 0 ? (
                         <tr>
-                          <td colSpan={8}>
+                          <td colSpan={breakdownTab === 'account' ? 7 : 8}>
                             <div className="dd-empty-box">
                               <p className="dd-empty-title">ไม่มีข้อมูลสรุปในช่วงเวลาที่เลือก</p>
                             </div>
@@ -887,9 +886,6 @@ export default function OpdDebtRegistryClient({
                                   {breakdownTab === 'vstdate' ? formatThaiDate(row.name) : row.name}
                                 </span>
                               </td>
-                              {breakdownTab === 'account' && (
-                                <td className="is-left dd-tnum">{row.gfmis || '—'}</td>
-                              )}
                               <td>{formatInt(row.cases)}</td>
                               <td>{formatInt(row.visits)}</td>
                               <td>{formatMoney(row.income)}</td>
@@ -1201,7 +1197,7 @@ export default function OpdDebtRegistryClient({
                     onClick={() => handleSort('accountcode')}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      ผังบัญชี / GFMIS {renderSortIcon('accountcode')}
+                      ผังบัญชี {renderSortIcon('accountcode')}
                     </span>
                   </th>
                   <th
@@ -1381,11 +1377,6 @@ export default function OpdDebtRegistryClient({
                             {item.accountname || '—'}
                           </span>
                         </div>
-                        {item.gfmis ? (
-                          <div className="odr-subcell-meta dd-tnum">
-                            <span className="odr-badge odr-badge-neutral">{item.gfmis}</span>
-                          </div>
-                        ) : null}
                       </td>
                       <td>{formatMoney(item.income)}</td>
                       <td>{formatMoneyOrDash(item.uc_money)}</td>
