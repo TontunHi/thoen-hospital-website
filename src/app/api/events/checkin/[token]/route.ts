@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server'
-import { queryMemberDb } from '@/lib/memberDb'
-import { getThaidConfig, generateEventOAuthState, buildThaidAuthorizeUrl } from '@/lib/thaidAuth'
-import { validateCheckinWindow, toBangkokIsoString } from '@/lib/events/eventTimeUtils'
+import {
+  getThaidConfig,
+  generateEventOAuthState,
+  buildThaidAuthorizeUrl,
+} from '@/lib/thaidAuth'
+import {
+  validateCheckinWindow,
+  toBangkokIsoString,
+} from '@/lib/events/eventTimeUtils'
+import { HospitalEventService } from '@/lib/events/hospitalEventService'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params
@@ -19,14 +26,8 @@ export async function GET(
     return NextResponse.redirect(errUrl)
   }
 
-  const eventRows = await queryMemberDb(`
-    SELECT id, title, qr_token AS qrToken, checkin_open_time AS checkinOpenTime, checkin_close_time AS checkinCloseTime
-    FROM hospital_events
-    WHERE qr_token = ?
-    LIMIT 1
-  `, [token])
-
-  const event = eventRows.length > 0 ? eventRows[0] : null
+  const eventService = new HospitalEventService()
+  const event = await eventService.getEventCheckinTargetByQrToken(token)
 
   if (!event) {
     const errUrl = new URL('/member/events/checkin-status', baseUrl)
@@ -35,16 +36,20 @@ export async function GET(
     return NextResponse.redirect(errUrl)
   }
 
-  const now = new Date()
-
-  // 1. Validate Time-gated window
-  const windowCheck = validateCheckinWindow(event.checkinOpenTime, event.checkinCloseTime, now)
+  const windowCheck = validateCheckinWindow(
+    event.checkinOpenTime,
+    event.checkinCloseTime,
+    new Date()
+  )
   if (windowCheck.isEarly) {
     const errUrl = new URL('/member/events/checkin-status', baseUrl)
     errUrl.searchParams.set('status', 'time_error')
     errUrl.searchParams.set('type', 'early')
     errUrl.searchParams.set('event', event.title)
-    errUrl.searchParams.set('openTime', toBangkokIsoString(event.checkinOpenTime) || String(event.checkinOpenTime))
+    errUrl.searchParams.set(
+      'openTime',
+      toBangkokIsoString(event.checkinOpenTime) || String(event.checkinOpenTime)
+    )
     return NextResponse.redirect(errUrl)
   }
 
@@ -53,18 +58,21 @@ export async function GET(
     errUrl.searchParams.set('status', 'time_error')
     errUrl.searchParams.set('type', 'late')
     errUrl.searchParams.set('event', event.title)
-    errUrl.searchParams.set('closeTime', toBangkokIsoString(event.checkinCloseTime) || String(event.checkinCloseTime))
+    errUrl.searchParams.set(
+      'closeTime',
+      toBangkokIsoString(event.checkinCloseTime) || String(event.checkinCloseTime)
+    )
     return NextResponse.redirect(errUrl)
   }
 
-  // 2. Redirect to ThaID OAuth
   const config = getThaidConfig()
-
   if (!config) {
-    // If ThaID credentials are not configured in environment, redirect to demo check-in fallback
     const errUrl = new URL('/member/events/checkin-status', baseUrl)
     errUrl.searchParams.set('status', 'error')
-    errUrl.searchParams.set('message', 'ระบบยังไม่ได้ตั้งค่าเชื่อมต่อกับ ThaID ของกรมการปกครอง (DOPA)')
+    errUrl.searchParams.set(
+      'message',
+      'ระบบยังไม่ได้ตั้งค่าเชื่อมต่อกับ ThaID ของกรมการปกครอง (DOPA)'
+    )
     return NextResponse.redirect(errUrl)
   }
 

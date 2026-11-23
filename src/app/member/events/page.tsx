@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
-import { queryMemberDb } from '@/lib/memberDb'
 import EventsClient from './EventsClient'
 
 export const metadata = {
@@ -18,24 +17,22 @@ export default async function MemberEventsPage() {
     redirect('/member/login')
   }
 
-  // Fetch initial events and user's score on server side
   let initialEvents: any[] = []
   let userTotalPoints = 0
   let registeredEventsCount = 0
 
   try {
-    const [eventsRes, pointsRows, regRows] = await Promise.all([
+    const [eventsRes, stats] = await Promise.all([
       eventService.getEvents({
         memberId: member.id,
         limit: 30,
       }),
-      queryMemberDb('SELECT COUNT(*) AS count FROM event_attendances WHERE member_id = ?', [member.id]),
-      queryMemberDb('SELECT COUNT(*) AS count FROM event_registrations WHERE member_id = ?', [member.id]),
+      eventService.getMemberEventParticipationStats(member.id),
     ])
 
     initialEvents = eventsRes.events || []
-    userTotalPoints = Number(pointsRows[0]?.count ?? 0)
-    registeredEventsCount = Number(regRows[0]?.count ?? 0)
+    userTotalPoints = stats.totalPoints
+    registeredEventsCount = stats.registeredCount
   } catch (err) {
     console.error('Error fetching initial events:', err)
   }

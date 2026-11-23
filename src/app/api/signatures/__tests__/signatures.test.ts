@@ -1,39 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST as signaturePostHandler } from '../route'
-import fs from 'fs'
+import { GET as signatureGetHandler, POST as signaturePostHandler } from '../route'
+import { GET as signatureImageGetHandler } from '../image/route'
 
 const mockVerifyMemberSession = vi.fn()
 const mockQueryMemberDb = vi.fn()
 const mockLogAudit = vi.fn()
+const mockStorageSave = vi.fn()
+const mockStorageReadBuffer = vi.fn()
 
 vi.mock('@/lib/memberAuth', () => ({
   verifyMemberSession: () => mockVerifyMemberSession(),
 }))
 
 vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: (...args: any[]) => mockQueryMemberDb(...args),
+  queryMemberDb: (...args: unknown[]) => mockQueryMemberDb(...args),
 }))
 
 vi.mock('@/lib/audit', () => ({
-  logAudit: (...args: any[]) => mockLogAudit(...args),
+  logAudit: (...args: unknown[]) => mockLogAudit(...args),
 }))
 
-vi.mock('fs', async (importOriginal) => {
-  const actual: any = await importOriginal()
-  return {
-    ...actual,
-    default: {
-      ...actual.default,
-      existsSync: vi.fn().mockReturnValue(true),
-      mkdirSync: vi.fn(),
-      promises: {
-        writeFile: vi.fn().mockResolvedValue(undefined),
-      },
-    },
-  }
-})
+vi.mock('@/lib/storage/documentStorage', () => ({
+  DocumentStorage: {
+    save: (...args: unknown[]) => mockStorageSave(...args),
+    readBuffer: (...args: unknown[]) => mockStorageReadBuffer(...args),
+  },
+}))
 
-describe('Signatures API Route Handler - Security Controls', () => {
+describe('Signatures API Route Handlers & Service Seam - Security Controls', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockVerifyMemberSession.mockResolvedValue({
@@ -43,9 +37,17 @@ describe('Signatures API Route Handler - Security Controls', () => {
       role: 'member',
     })
     mockQueryMemberDb.mockResolvedValue([])
+    mockStorageSave.mockResolvedValue({
+      publicUrl: '/storage/doctor_somchai/signature.png',
+      relativePath: 'storage/doctor_somchai/signature.png',
+      diskPath: '/app/storage/doctor_somchai/signature.png',
+      fileName: 'signature.png',
+      fileSize: 16,
+      mimeType: 'image/png',
+    })
   })
 
-  it('rejects request if member is not logged in', async () => {
+  it('rejects POST request if member is not logged in', async () => {
     mockVerifyMemberSession.mockResolvedValue(null)
     const req = new Request('http://localhost:3000/api/signatures', {
       method: 'POST',
@@ -55,7 +57,7 @@ describe('Signatures API Route Handler - Security Controls', () => {
     expect(res.status).toBe(401)
   })
 
-  it('rejects request if imageBase64 format is invalid', async () => {
+  it('rejects POST request if imageBase64 format is invalid', async () => {
     const req = new Request('http://localhost:3000/api/signatures', {
       method: 'POST',
       body: JSON.stringify({ imageBase64: 'data:image/jpeg;base64,abc' }),
@@ -67,7 +69,6 @@ describe('Signatures API Route Handler - Security Controls', () => {
   })
 
   it('rejects oversized payload exceeding 2MB limit (A04: Insecure Design)', async () => {
-    // 3MB string
     const largePayload = 'A'.repeat(3 * 1024 * 1024)
     const req = new Request('http://localhost:3000/api/signatures', {
       method: 'POST',
@@ -80,7 +81,6 @@ describe('Signatures API Route Handler - Security Controls', () => {
   })
 
   it('rejects files without valid PNG magic bytes (A04: Insecure Design)', async () => {
-    // Malicious text disguised as PNG base64
     const fakeContent = Buffer.from('<?php echo "evil"; ?>').toString('base64')
     const req = new Request('http://localhost:3000/api/signatures', {
       method: 'POST',
@@ -92,8 +92,7 @@ describe('Signatures API Route Handler - Security Controls', () => {
     expect(data.error).toBe('ไฟล์ลายเซ็นไม่ใช่รูปภาพ PNG ที่ถูกต้อง')
   })
 
-  it('accepts valid PNG bytes, saves file, and records audit log', async () => {
-    // PNG Header: 89 50 4E 47 0D 0A 1A 0A followed by dummy data
+  it('accepts valid PNG bytes, saves via DocumentStorage seam, and records audit log', async () => {
     const validPngBuffer = Buffer.from([
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
       0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -108,16 +107,53 @@ describe('Signatures API Route Handler - Security Controls', () => {
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.success).toBe(true)
+    expect(data.path).toBe('storage/doctor_somchai/signature.png')
 
-    // Verify fs write
-    expect(fs.promises.writeFile).toHaveBeenCalled()
+    expect(mockStorageSave).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      expect.objectContaining({
+        destinationDir: 'storage/doctor_somchai',
+        baseName: 'signature.png',
+        collisionStrategy: 'fixed',
+        allowedRootPrefixes: ['storage'],
+      })
+    )
 
-    // Verify audit log
     expect(mockLogAudit).toHaveBeenCalledWith(
       'UPDATE',
       'members',
       'บันทึกหรืออัปเดตลายเซ็นอิเล็กทรอนิกส์ (E-Signature)',
       { username: 'doctor_somchai', email: 'somchai@thoen.moph.go.th' }
     )
+  })
+
+  it('returns signature status via GET /api/signatures', async () => {
+    mockQueryMemberDb
+      .mockResolvedValueOnce([]) // feature_signature check
+      .mockResolvedValueOnce([
+        { signature_path: 'storage/doctor_somchai/signature.png', updated_at: '2026-01-01T00:00:00Z' },
+      ])
+
+    const res = await signatureGetHandler()
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data).toEqual({
+      success: true,
+      exists: true,
+      updatedAt: '2026-01-01T00:00:00Z',
+    })
+  })
+
+  it('blocks non-admin from reading another user signature path via GET /api/signatures/image', async () => {
+    mockQueryMemberDb.mockResolvedValueOnce([
+      { signature_path: 'storage/doctor_somchai/signature.png' },
+    ])
+
+    const req = new Request(
+      'http://localhost:3000/api/signatures/image?path=storage/other_user/signature.png'
+    )
+    const res = await signatureImageGetHandler(req)
+    expect(res.status).toBe(403)
+    expect(mockStorageReadBuffer).not.toHaveBeenCalled()
   })
 })

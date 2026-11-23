@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
-import { logAudit } from '@/lib/audit'
-import { DocumentStorage, StorageValidationError } from '@/lib/storage/documentStorage'
-import path from 'path'
+import { StorageValidationError } from '@/lib/storage/documentStorage'
 import { z } from 'zod'
-import { EthicsDocumentService } from '@/lib/cms/EthicsDocumentService'
+import {
+  EthicsDocumentService,
+  EthicsServiceError,
+} from '@/lib/cms/EthicsDocumentService'
+import { logger } from '@/lib/logger'
 
 const documentSchema = z.object({
   yearId: z.coerce.number().int(),
@@ -15,7 +16,6 @@ const documentSchema = z.object({
   isActive: z.boolean().default(true),
 })
 
-// POST: Upload a PDF file or create document entry
 export async function POST(request: Request) {
   try {
     const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
@@ -29,43 +29,46 @@ export async function POST(request: Request) {
     const isActiveStr = formData.get('isActive') as string
     const file = formData.get('file') as File | null
 
-    const yearId = parseInt(yearIdStr, 10)
-    const parentId = parentIdStr && parentIdStr !== '' && parentIdStr !== 'null' ? parseInt(parentIdStr, 10) : null
-    const displayOrder = displayOrderStr ? parseInt(displayOrderStr, 10) : 0
-    const isActive = isActiveStr !== 'false'
-
     const parsed = documentSchema.safeParse({
-      yearId,
-      parentId,
+      yearId: parseInt(yearIdStr, 10),
+      parentId:
+        parentIdStr && parentIdStr !== '' && parentIdStr !== 'null'
+          ? parseInt(parentIdStr, 10)
+          : null,
       title,
-      displayOrder,
-      isActive,
+      displayOrder: displayOrderStr ? parseInt(displayOrderStr, 10) : 0,
+      isActive: isActiveStr !== 'false',
     })
 
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues.map(i => i.message).join(', ') }, { status: 400 })
+      return NextResponse.json(
+        { error: parsed.error.issues.map((i) => i.message).join(', ') },
+        { status: 400 }
+      )
     }
 
     const created = await EthicsDocumentService.createDocument(
-      parsed.data, 
+      { ...parsed.data, file },
       { username: member.username, session: member.session }
     )
 
     return NextResponse.json({
       success: true,
       document: created,
-      message: 'บันทึกเอกสารสำเร็จ'
+      message: 'บันทึกเอกสารสำเร็จ',
     })
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof StorageValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    console.error('Create ethics document error:', error)
+    if (error instanceof EthicsServiceError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    logger.error({ err: error }, 'Create ethics document error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการบันทึกเอกสาร' }, { status: 500 })
   }
 }
 
-// PUT: Update an existing document (title, displayOrder, isActive, or replace file)
 export async function PUT(request: Request) {
   try {
     const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
@@ -73,9 +76,9 @@ export async function PUT(request: Request) {
 
     const formData = await request.formData()
     const idStr = formData.get('id') as string
-    const title = formData.get('title') as string
-    const displayOrderStr = formData.get('displayOrder') as string
-    const isActiveStr = formData.get('isActive') as string
+    const title = formData.get('title') as string | null
+    const displayOrderStr = formData.get('displayOrder') as string | null
+    const isActiveStr = formData.get('isActive') as string | null
     const file = formData.get('file') as File | null
 
     const id = parseInt(idStr, 10)
@@ -83,71 +86,34 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'รหัสเอกสารไม่ถูกต้อง' }, { status: 400 })
     }
 
-    const existingRows = await queryMemberDb(`
-      SELECT d.id, d.title, d.file_path AS filePath, d.file_size AS fileSize, d.display_order AS displayOrder, d.is_active AS isActive, y.year
-      FROM ethics_documents d
-      JOIN ethics_years y ON d.year_id = y.id
-      WHERE d.id = ?
-    `, [id])
-    const existing = existingRows[0]
-    if (!existing) {
-      return NextResponse.json({ error: 'ไม่พบเอกสารที่ต้องการแก้ไข' }, { status: 404 })
-    }
-
-    let filePath = existing.filePath
-    let fileSize = existing.fileSize
-
-    if (file && file.size > 0) {
-      const saved = await DocumentStorage.replace(existing.filePath, file, {
-        destinationDir: `public/documents/ethics/${existing.year}`,
-        allowedMimeTypes: ['application/pdf'],
-        allowedExtensions: ['.pdf'],
-        maxSizeBytes: 25 * 1024 * 1024,
-        collisionStrategy: 'timestamp',
-      })
-      filePath = saved.publicUrl
-      fileSize = BigInt(saved.fileSize)
-    }
-
-    const newTitle = title || existing.title
-    const newDisplayOrder = displayOrderStr ? parseInt(displayOrderStr, 10) : existing.displayOrder
-    const newIsActive = isActiveStr !== undefined ? isActiveStr !== 'false' : Boolean(existing.isActive)
-
-    await queryMemberDb(`
-      UPDATE ethics_documents
-      SET title = ?, display_order = ?, is_active = ?, file_path = ?, file_size = ?, updated_at = NOW()
-      WHERE id = ?
-    `, [newTitle, newDisplayOrder, newIsActive ? 1 : 0, filePath, fileSize ? Number(fileSize) : null, id])
-
-    await logAudit(
-      'UPDATE',
-      'ethics_documents',
-      `แก้ไขเอกสารจริยธรรม ID: ${id} ("${newTitle}") โดย ${member.username}`,
-      member.session
+    const updated = await EthicsDocumentService.updateDocument(
+      {
+        id,
+        title,
+        displayOrder: displayOrderStr ? parseInt(displayOrderStr, 10) : null,
+        isActive: isActiveStr !== null ? isActiveStr !== 'false' : undefined,
+        file,
+      },
+      { username: member.username, session: member.session }
     )
 
     return NextResponse.json({
       success: true,
-      document: {
-        id,
-        title: newTitle,
-        displayOrder: newDisplayOrder,
-        isActive: newIsActive,
-        filePath,
-        fileSize: fileSize ? fileSize.toString() : null
-      },
-      message: 'อัปเดตข้อมูลสำเร็จ'
+      document: updated,
+      message: 'อัปเดตข้อมูลสำเร็จ',
     })
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof StorageValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    console.error('Update ethics document error:', error)
+    if (error instanceof EthicsServiceError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    logger.error({ err: error }, 'Update ethics document error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการอัปเดตเอกสาร' }, { status: 500 })
   }
 }
 
-// DELETE: Delete a document (and its children)
 export async function DELETE(request: Request) {
   try {
     const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
@@ -165,11 +131,13 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'ลบเอกสารสำเร็จ'
+      message: 'ลบเอกสารสำเร็จ',
     })
-  } catch (error: any) {
-    console.error('Delete ethics document error:', error)
+  } catch (error) {
+    if (error instanceof EthicsServiceError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    logger.error({ err: error }, 'Delete ethics document error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการลบเอกสาร' }, { status: 500 })
   }
 }
-

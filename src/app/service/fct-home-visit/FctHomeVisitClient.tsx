@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import ExcelJS from 'exceljs'
 import {
   ArrowLeft,
   Plus,
@@ -581,6 +580,7 @@ export default function FctHomeVisitClient({
     if (!data || data.items.length === 0) return
     setExporting(true)
     try {
+      const { default: ExcelJS } = await import('exceljs')
       const workbook = new ExcelJS.Workbook()
       workbook.creator = 'โรงพยาบาลเถิน (Thoen Hospital)'
       workbook.created = new Date()

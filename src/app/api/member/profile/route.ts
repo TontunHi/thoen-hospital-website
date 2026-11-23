@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
-import { logAudit } from '@/lib/audit'
-import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
+import { StorageValidationError } from '@/lib/storage/documentStorage'
+import {
+  MemberProfileError,
+  MemberProfileService,
+} from '@/lib/auth/memberProfileService'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
@@ -12,54 +15,27 @@ export async function POST(request: Request) {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
 
-    if (!file) {
-      return NextResponse.json(
-        { error: 'ไม่พบไฟล์ที่อัปโหลด' },
-        { status: 400 }
-      )
-    }
-
-    const safeUsername = sanitizeName(member.username)
-
-    const saved = await DocumentStorage.save(file, {
-      destinationDir: `storage/${safeUsername}`,
-      baseName: 'profile',
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
-      allowedExtensions: ['.png', '.jpg', '.jpeg', '.webp'],
-      maxSizeBytes: 5 * 1024 * 1024,
-      collisionStrategy: 'fixed',
-      allowedRootPrefixes: ['storage'],
-    })
-
-    const relativePath = saved.relativePath
-
-    // Update profile_path in members table
-    await queryMemberDb(
-      'UPDATE members SET profile_path = ? WHERE username = ?',
-      [relativePath, member.username]
-    )
-
-    await logAudit(
-      'UPDATE',
-      'members',
-      'อัปเดตรูปภาพโปรไฟล์ผู้ใช้งาน (Profile Picture)',
-      { username: member.username, email: member.email }
+    const result = await MemberProfileService.uploadProfilePicture(
+      { username: member.username, email: member.email },
+      file
     )
 
     return NextResponse.json({
       success: true,
       message: 'อัปโหลดรูปโปรไฟล์เรียบร้อยแล้ว',
-      path: relativePath
+      path: result.path,
     })
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof StorageValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    console.error('Upload profile picture error:', error)
+    if (error instanceof MemberProfileError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    logger.error({ err: error }, 'Upload profile picture error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์' },
       { status: 500 }
     )
   }
 }
-

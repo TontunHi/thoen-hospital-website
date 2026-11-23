@@ -541,9 +541,8 @@ describe('PalliativeRegistryClient Component', () => {
   })
 
   it('automatically opens Add Patient modal and looks up patient demographics when addHn query param is present', async () => {
-    const originalLocation = window.location
-    delete (window as any).location
-    window.location = new URL('http://localhost/service/dashboard-rcm/palliative-care/registry?addHn=0074679') as any
+    const originalHref = window.location.pathname + window.location.search + window.location.hash
+    window.history.replaceState({}, '', '/service/dashboard-rcm/palliative-care/registry?addHn=0074679')
 
     try {
       render(<PalliativeRegistryClient userRole="admin" />)
@@ -565,7 +564,7 @@ describe('PalliativeRegistryClient Component', () => {
         expect(screen.getByText(/พบใน HOSxP คลินิก Palliative Care/)).toBeInTheDocument()
       })
     } finally {
-      window.location = originalLocation as any
+      window.history.replaceState({}, '', originalHref || '/')
     }
   })
 

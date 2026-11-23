@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import ExcelJS from 'exceljs'
 import { FileSpreadsheet, Upload, X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import {
   formatThaiShortDate,
@@ -134,6 +133,7 @@ async function readMatrixFromFile(file: File): Promise<unknown[][]> {
 
   if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
     try {
+      const { default: ExcelJS } = await import('exceljs')
       const workbook = new ExcelJS.Workbook()
       await workbook.xlsx.load(buffer)
       const sheet = workbook.worksheets[0]

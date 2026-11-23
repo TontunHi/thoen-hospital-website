@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
-import { executeRepairAction } from '@/lib/taskInboxService'
+import {
+  TaskInboxApiError,
+  TaskInboxApiService,
+} from '@/lib/inbox/taskInboxApiService'
+import { logger } from '@/lib/logger'
 
 export async function POST(
   request: Request,
@@ -14,42 +17,42 @@ export async function POST(
     }
 
     const { id: taskId } = await params
-    const body = await request.json()
+    const body = (await request.json()) as { action?: string } & Record<string, unknown>
     const { action, ...payload } = body
 
     if (!action) {
-      return NextResponse.json({ error: 'กรุณาระบุ Action ที่ต้องการดำเนินการ' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'กรุณาระบุ Action ที่ต้องการดำเนินการ' },
+        { status: 400 }
+      )
     }
 
-    // Fetch current member record
-    const members = await queryMemberDb(
-      'SELECT id, username, name, department, position, role FROM members WHERE username = ? LIMIT 1',
-      [session.username]
-    )
-    if (!members || members.length === 0) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลสมาชิก' }, { status: 404 })
-    }
-    const currentMember = members[0]
-
-    const result = await executeRepairAction({
+    const result = await TaskInboxApiService.performTaskRepairAction({
+      username: session.username,
       taskId,
       action,
-      performer: currentMember,
       payload,
     })
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: result.statusCode || 400 })
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.statusCode || 400 }
+      )
     }
 
     return NextResponse.json({
       success: true,
       message: result.message,
     })
-  } catch (error: any) {
-    console.error('Repair action error:', error)
+  } catch (error: unknown) {
+    if (error instanceof TaskInboxApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    logger.error({ err: error }, 'Repair action error')
+    const msg = error instanceof Error ? error.message : ''
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการทำรายการ: ' + (error?.message || '') },
+      { error: 'เกิดข้อผิดพลาดในการทำรายการ: ' + msg },
       { status: 500 }
     )
   }

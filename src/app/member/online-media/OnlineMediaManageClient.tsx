@@ -46,159 +46,25 @@ export interface OnlineMediaManageClientProps {
   initialItems: OnlineMediaViewerItem[]
 }
 
-interface AttachmentFormItem {
-  id?: number
-  title: string
-  s3Bucket: string
-  s3Key: string
-  fileName: string
-  fileSize?: number | null
-  mimeType?: string | null
-  displayOrder: number
-}
-
-interface MediaFormState {
-  id?: number
-  title: string
-  description: string
-  categoryId: number
-  visibility: MediaVisibility
-  mediaType: MediaType
-  sourceType: MediaSourceType
-  s3Bucket: string
-  s3Key: string
-  youtubeUrl: string
-  thumbnailS3Key: string
-  fileName: string
-  fileSize: number | null
-  mimeType: string
-  allowDownload: boolean
-  isPublished: boolean
-  attachments: AttachmentFormItem[]
-}
-
-type UploadPhase =
-  | 'initializing'
-  | 'uploading'
-  | 'completing'
-  | 'completed'
-  | 'error'
-  | 'cancelled'
-
-interface UploadTelemetryState {
-  active: boolean
-  target: 'primary' | 'thumbnail' | 'attachment'
-  fileName: string
-  totalBytes: number
-  uploadedBytes: number
-  percent: number
-  currentPart: number
-  totalParts: number
-  speedBytesPerSec: number
-  etaSeconds: number | null
-  elapsedSeconds: number
-  phase: UploadPhase
-  message: string
-}
-
-const MULTIPART_THRESHOLD_BYTES = 20 * 1024 * 1024 // 20 MB
-const CHUNK_SIZE_UNDER_1GB = 8 * 1024 * 1024 // 8 MB
-const CHUNK_SIZE_OVER_1GB = 16 * 1024 * 1024 // 16 MB for 1GB-10GB files
-const MAX_MEDIA_FILE_BYTES = 10 * 1024 * 1024 * 1024 // 10 GB
-
-function formatBytes(bytes?: number | null): string {
-  if (!bytes || bytes <= 0) return '0 B'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
-
-function formatDurationThai(totalSeconds: number | null): string {
-  if (totalSeconds === null || !Number.isFinite(totalSeconds) || totalSeconds < 0) return '-'
-  const secs = Math.round(totalSeconds)
-  if (secs < 60) return `${secs} วินาที`
-  const mins = Math.floor(secs / 60)
-  const remSecs = secs % 60
-  if (mins < 60) return `${mins} นาที ${remSecs} วินาที`
-  const hrs = Math.floor(mins / 60)
-  const remMins = mins % 60
-  return `${hrs} ชม. ${remMins} นาที`
-}
-
-function extractYoutubeEmbedPreview(urlOrId: string): string | null {
-  const trimmed = urlOrId.trim()
-  if (!trimmed) return null
-  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
-    return `https://www.youtube.com/embed/${trimmed}?rel=0&modestbranding=1`
-  }
-  const match = trimmed.match(/(?:v=|\/embed\/|\/shorts\/|\/live\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-  return match?.[1] ? `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1` : null
-}
-
-function sendXhrWithProgress(
-  url: string,
-  body: Document | XMLHttpRequestBodyInit,
-  headers: Record<string, string>,
-  onProgress: (loadedBytes: number) => void,
-  onRegisterXhr: (xhr: XMLHttpRequest) => void
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    onRegisterXhr(xhr)
-    xhr.open('POST', url, true)
-    for (const [k, v] of Object.entries(headers)) {
-      xhr.setRequestHeader(k, v)
-    }
-
-    xhr.upload.onprogress = (evt) => {
-      if (evt.lengthComputable) {
-        onProgress(evt.loaded)
-      }
-    }
-
-    xhr.onload = () => {
-      try {
-        const parsed = JSON.parse(xhr.responseText || '{}')
-        if (xhr.status >= 200 && xhr.status < 300 && parsed.success) {
-          resolve(parsed)
-        } else {
-          reject(new Error(parsed.error || `Upload failed with status ${xhr.status}`))
-        }
-      } catch {
-        reject(new Error(`Invalid server response (${xhr.status})`))
-      }
-    }
-
-    xhr.onerror = () => reject(new Error('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายระหว่างอัปโหลด'))
-    xhr.onabort = () => reject(new DOMException('Upload aborted by user', 'AbortError'))
-    xhr.send(body)
-  })
-}
-
-function uploadFormDataWithProgress(
-  url: string,
-  formData: FormData,
-  onProgress: (loadedBytes: number) => void,
-  onRegisterXhr: (xhr: XMLHttpRequest) => void
-): Promise<any> {
-  return sendXhrWithProgress(url, formData, {}, onProgress, onRegisterXhr)
-}
-
-function uploadBinaryChunkWithProgress(
-  url: string,
-  chunk: Blob,
-  onProgress: (loadedBytes: number) => void,
-  onRegisterXhr: (xhr: XMLHttpRequest) => void
-): Promise<any> {
-  return sendXhrWithProgress(
-    url,
-    chunk,
-    { 'Content-Type': 'application/octet-stream' },
-    onProgress,
-    onRegisterXhr
-  )
-}
+import {
+  type AttachmentFormItem,
+  type MediaFormState,
+  type UploadPhase,
+  type UploadTelemetryState,
+  MULTIPART_THRESHOLD_BYTES,
+  CHUNK_SIZE_UNDER_1GB,
+  CHUNK_SIZE_OVER_1GB,
+  MAX_MEDIA_FILE_BYTES,
+  formatBytes,
+  formatDurationThai,
+  extractYoutubeEmbedPreview,
+  uploadFormDataWithProgress,
+  uploadBinaryChunkWithProgress,
+} from './components/onlineMediaHelpers'
+import {
+  OnlineMediaSupplementsSection,
+  OnlineMediaAuxModals,
+} from './components/OnlineMediaModalsAndSupplements'
 
 export default function OnlineMediaManageClient({
   initialCategories,
@@ -1950,169 +1816,16 @@ export default function OnlineMediaManageClient({
                       )}
                     </div>
 
-                    {/* Thumbnail Preview & Upload */}
-                    <div className="omSectionCard">
-                      <div className="omSectionTitle">
-                        <ImageIcon size={15} />
-                        <span>4. ภาพหน้าปกสื่อ (Thumbnail - ไม่บังคับ)</span>
-                      </div>
-
-                      <div className="omThumbPreviewBox">
-                        {thumbnailPreviewUrl ? (
-                          <img
-                            src={thumbnailPreviewUrl}
-                            alt="Thumbnail preview"
-                            className="omThumbPreviewImg"
-                          />
-                        ) : (
-                          <div
-                            className="omThumbPreviewImg"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#94a3b8',
-                            }}
-                          >
-                            <ImageIcon size={20} />
-                          </div>
-                        )}
-
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <div className="omHint">
-                            {itemForm.thumbnailS3Key
-                              ? 'อัปโหลดภาพปกแล้ว'
-                              : 'รองรับ JPG, PNG, WebP ขนาดไม่เกิน 10MB'}
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <label className="omBtn omBtnCompact" style={{ cursor: 'pointer' }}>
-                              {isUploadingThumb ? <RefreshCw size={14} /> : <Upload size={14} />}
-                              <span>{isUploadingThumb ? 'กำลังอัปโหลด...' : 'เลือกภาพปก'}</span>
-                              <input
-                                type="file"
-                                hidden
-                                accept="image/jpeg,image/png,image/webp,image/gif"
-                                disabled={isUploadingThumb}
-                                onChange={(e) => {
-                                  const f = e.target.files?.[0]
-                                  if (f) handleThumbnailUpload(f)
-                                  e.target.value = ''
-                                }}
-                              />
-                            </label>
-                            {itemForm.thumbnailS3Key && (
-                              <button
-                                type="button"
-                                className="omBtn omBtnCompact"
-                                onClick={() => {
-                                  setThumbnailPreviewUrl(null)
-                                  setItemForm((p) => ({ ...p, thumbnailS3Key: '' }))
-                                }}
-                              >
-                                ล้างภาพปก
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Supplementary Attachments */}
-                    <div className="omSectionCard">
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          gap: 8,
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        <div className="omSectionTitle">
-                          <Paperclip size={15} />
-                          <span>5. เอกสาร / ภาพประกอบเพิ่มเติม</span>
-                        </div>
-
-                        <label className="omBtn omBtnCompact" style={{ cursor: 'pointer' }}>
-                          {isUploadingAtt ? <RefreshCw size={14} /> : <Plus size={14} />}
-                          <span>{isUploadingAtt ? 'กำลังอัปโหลด...' : 'แนบไฟล์เสริม'}</span>
-                          <input
-                            type="file"
-                            hidden
-                            multiple
-                            accept=".pdf,application/pdf,image/jpeg,image/png,image/webp"
-                            disabled={isUploadingAtt}
-                            onChange={(e) => {
-                              if (e.target.files) handleAttachmentFilesUpload(e.target.files)
-                              e.target.value = ''
-                            }}
-                          />
-                        </label>
-                      </div>
-
-                      {itemForm.attachments.length === 0 ? (
-                        <div className="omHint">
-                          แนบไฟล์ PDF สไลด์บรรยายหรือใบงานประกอบเพื่อให้ดูควบคู่กับคลิปได้ (เลือกได้หลายไฟล์)
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {itemForm.attachments.map((att, idx) => (
-                            <div
-                              key={`${att.s3Key}-${idx}`}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                background: '#ffffff',
-                                padding: '0.45rem 0.65rem',
-                                borderRadius: 8,
-                                border: '1px solid #e2e8f0',
-                              }}
-                            >
-                              <input
-                                type="text"
-                                className="omInput"
-                                value={att.title}
-                                onChange={(e) => {
-                                  const nextTitle = e.target.value
-                                  const extMatch = (att.fileName || att.s3Key).match(/(\.[a-zA-Z0-9]{1,10})$/)
-                                  const ext = extMatch ? extMatch[1].toLowerCase() : ''
-                                  const nextFileName = nextTitle.trim()
-                                    ? `${nextTitle.trim().replace(/[\\/:*?"<>|\r\n\t]+/g, '_')}${ext}`
-                                    : att.fileName
-                                  setItemForm((p) => ({
-                                    ...p,
-                                    attachments: p.attachments.map((a, i) =>
-                                      i === idx ? { ...a, title: nextTitle, fileName: nextFileName } : a
-                                    ),
-                                  }))
-                                }}
-                                aria-label="ชื่อไฟล์แนบ"
-                              />
-                              <span
-                                className="omHint"
-                                style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
-                              >
-                                {formatBytes(att.fileSize)}
-                              </span>
-                              <button
-                                type="button"
-                                className="omIconBtn omIconBtnDanger"
-                                onClick={() =>
-                                  setItemForm((p) => ({
-                                    ...p,
-                                    attachments: p.attachments.filter((_, i) => i !== idx),
-                                  }))
-                                }
-                                aria-label="ลบไฟล์แนบ"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <OnlineMediaSupplementsSection
+                      thumbnailPreviewUrl={thumbnailPreviewUrl}
+                      setThumbnailPreviewUrl={setThumbnailPreviewUrl}
+                      itemForm={itemForm}
+                      setItemForm={setItemForm}
+                      isUploadingThumb={isUploadingThumb}
+                      isUploadingAtt={isUploadingAtt}
+                      handleThumbnailUpload={handleThumbnailUpload}
+                      handleAttachmentFilesUpload={handleAttachmentFilesUpload}
+                    />
                   </div>
                 </div>
               </div>
@@ -2158,272 +1871,30 @@ export default function OnlineMediaManageClient({
         </div>
       )}
 
-      {/* Floating Minimized Upload Monitor */}
-      {isItemModalOpen && isModalMinimized && (
-        <div className="omFloatingMonitor" role="status" aria-live="polite">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#0f172a', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {telemetry ? telemetry.fileName : itemForm.title || 'ร่างสื่อออนไลน์'}
-            </div>
-            <button
-              type="button"
-              className="omBtn omBtnCompact"
-              onClick={() => setIsModalMinimized(false)}
-            >
-              <Maximize2 size={13} />
-              <span>เปิดหน้าต่าง</span>
-            </button>
-          </div>
-
-          {telemetry ? (
-            <>
-              <div className="omProgressBar">
-                <div className="omProgressFill" style={{ width: `${telemetry.percent}%` }} />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '0.78rem',
-                  color: '#475569',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                <span>
-                  {telemetry.percent}% · {formatBytes(telemetry.uploadedBytes)} /{' '}
-                  {formatBytes(telemetry.totalBytes)}
-                </span>
-                <span>
-                  {telemetry.active && telemetry.speedBytesPerSec > 0
-                    ? `${formatBytes(telemetry.speedBytesPerSec)}/s`
-                    : telemetry.phase === 'completed'
-                    ? 'พร้อมบันทึก'
-                    : telemetry.message}
-                </span>
-              </div>
-            </>
-          ) : (
-            <div className="omHint">ย่อหน้าต่างชั่วคราว คลิกเปิดหน้าต่างเพื่อกรอกข้อมูลต่อ</div>
-          )}
-        </div>
-      )}
-
-      {/* Category Modal */}
-      {isCatModalOpen && (
-        <div className="omModalOverlay" onClick={() => !isSavingCat && setIsCatModalOpen(false)}>
-          <div className="omModalDialog" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
-            <div className="omModalHeader">
-              <h2>{catForm.id ? 'แก้ไขหมวดหมู่สื่อ' : 'เพิ่มหมวดหมู่สื่อใหม่'}</h2>
-              <button
-                type="button"
-                className="omIconBtn"
-                onClick={() => !isSavingCat && setIsCatModalOpen(false)}
-                aria-label="ปิดหน้าต่าง"
-              >
-                <X size={17} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveCategory}>
-              <div className="omModalBody">
-                <div className="omFieldGroup">
-                  <label className="omLabel" htmlFor="cat-name">
-                    ชื่อหมวดหมู่ *
-                  </label>
-                  <input
-                    id="cat-name"
-                    type="text"
-                    required
-                    className="omInput"
-                    value={catForm.name}
-                    onChange={(e) => setCatForm((p) => ({ ...p, name: e.target.value }))}
-                  />
-                </div>
-                <div className="omFieldRow">
-                  <div className="omFieldGroup">
-                    <label className="omLabel" htmlFor="cat-vis">
-                      ขอบเขตที่แสดง
-                    </label>
-                    <select
-                      id="cat-vis"
-                      className="omSelect"
-                      value={catForm.visibility}
-                      onChange={(e) =>
-                        setCatForm((p) => ({ ...p, visibility: e.target.value as CategoryVisibility }))
-                      }
-                    >
-                      <option value="ALL">ทั้งหมด (สาธารณะ + ภายใน)</option>
-                      <option value="PUBLIC">เฉพาะสื่อสาธารณะ</option>
-                      <option value="INTERNAL">เฉพาะสื่อภายในบุคลากร</option>
-                    </select>
-                  </div>
-                  <div className="omFieldGroup">
-                    <label className="omLabel" htmlFor="cat-order">
-                      ลำดับการแสดงผล
-                    </label>
-                    <input
-                      id="cat-order"
-                      type="number"
-                      className="omInput"
-                      value={catForm.displayOrder}
-                      onChange={(e) =>
-                        setCatForm((p) => ({ ...p, displayOrder: Number(e.target.value) }))
-                      }
-                    />
-                  </div>
-                </div>
-                <label className="omCheckRow">
-                  <input
-                    type="checkbox"
-                    checked={catForm.isActive}
-                    onChange={(e) => setCatForm((p) => ({ ...p, isActive: e.target.checked }))}
-                  />
-                  <span>เปิดใช้งานหมวดหมู่นี้</span>
-                </label>
-              </div>
-              <div className="omModalFooter">
-                <div className="omModalFooterActions">
-                  <button type="button" className="omBtn" onClick={() => setIsCatModalOpen(false)}>
-                    ยกเลิก
-                  </button>
-                  <button type="submit" className="omBtn omBtnPrimary" disabled={isSavingCat}>
-                    {isSavingCat ? 'กำลังบันทึก...' : 'บันทึกหมวดหมู่'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Staff Viewer History Modal */}
-      {viewerModalItem && (
-        <div className="omModalOverlay" onClick={() => setViewerModalItem(null)}>
-          <div className="omModalDialog" onClick={(e) => e.stopPropagation()}>
-            <div className="omModalHeader">
-              <div>
-                <h2>ประวัติบุคลากรที่เข้าชมสื่อ</h2>
-                <div className="omHint">{viewerModalItem.title}</div>
-              </div>
-              <button
-                type="button"
-                className="omIconBtn"
-                onClick={() => setViewerModalItem(null)}
-                aria-label="ปิดหน้าต่าง"
-              >
-                <X size={17} />
-              </button>
-            </div>
-            <div className="omModalBody">
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                  ผู้เข้าชมที่มีบัญชีบุคลากร: {viewerList.length} คน (ยอดดูรวมทั้งหมด{' '}
-                  {viewerModalItem.viewCount.toLocaleString()} ครั้ง)
-                </span>
-                <input
-                  type="text"
-                  className="omInput"
-                  style={{ maxWidth: 250 }}
-                  placeholder="ค้นหาชื่อ หรือกลุ่มงาน..."
-                  value={viewerSearch}
-                  onChange={(e) => setViewerSearch(e.target.value)}
-                />
-              </div>
-
-              {loadingViewers ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                  กำลังโหลดประวัติการเข้าชม...
-                </div>
-              ) : filteredViewers.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                  ยังไม่มีประวัติบุคลากรที่เข้าชมสื่อรายการนี้
-                </div>
-              ) : (
-                <div className="omTableCard">
-                  <table className="omTable" style={{ minWidth: 520 }}>
-                    <thead>
-                      <tr>
-                        <th>ชื่อ-สกุลบุคลากร</th>
-                        <th>กลุ่มงาน / หน่วยงาน</th>
-                        <th className="omNumCol">จำนวนครั้ง</th>
-                        <th>เข้าชมครั้งแรก</th>
-                        <th>เข้าชมล่าสุด</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredViewers.map((v) => (
-                        <tr key={v.id}>
-                          <td style={{ fontWeight: 600 }}>{v.memberName}</td>
-                          <td>{v.memberDepartment || '-'}</td>
-                          <td className="omNumCol">{v.viewCount} ครั้ง</td>
-                          <td className="omDateCol">{formatThaiBuddhistDateTime(v.firstViewedAt)}</td>
-                          <td className="omDateCol">{formatThaiBuddhistDateTime(v.lastViewedAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirm Modal */}
-      {deleteTarget && (
-        <div className="omModalOverlay" onClick={() => !isDeleting && setDeleteTarget(null)}>
-          <div className="omModalDialog" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
-            <div className="omModalHeader">
-              <h2>ยืนยันการลบข้อมูล</h2>
-              <button
-                type="button"
-                className="omIconBtn"
-                onClick={() => !isDeleting && setDeleteTarget(null)}
-                aria-label="ปิด"
-              >
-                <X size={17} />
-              </button>
-            </div>
-            <div className="omModalBody">
-              <p style={{ margin: 0 }}>
-                คุณต้องการลบ <strong>{deleteTarget.label}</strong> ใช่หรือไม่
-                {deleteTarget.type === 'item'
-                  ? ' ไฟล์สื่อและเอกสารแนบที่เก็บบน MinIO จะถูกลบออกอย่างถาวร'
-                  : ''}
-              </p>
-            </div>
-            <div className="omModalFooter">
-              <div className="omModalFooterActions">
-                <button
-                  type="button"
-                  className="omBtn"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={isDeleting}
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="button"
-                  className="omBtn omBtnDanger"
-                  onClick={handleConfirmDelete}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? 'กำลังลบ...' : 'ยืนยันการลบ'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      <OnlineMediaAuxModals
+        isItemModalOpen={isItemModalOpen}
+        isModalMinimized={isModalMinimized}
+        setIsModalMinimized={setIsModalMinimized}
+        telemetry={telemetry}
+        itemFormTitle={itemForm.title}
+        isCatModalOpen={isCatModalOpen}
+        setIsCatModalOpen={setIsCatModalOpen}
+        isSavingCat={isSavingCat}
+        catForm={catForm}
+        setCatForm={setCatForm}
+        handleSaveCategory={handleSaveCategory}
+        viewerModalItem={viewerModalItem}
+        setViewerModalItem={setViewerModalItem}
+        viewerSearch={viewerSearch}
+        setViewerSearch={setViewerSearch}
+        viewerList={viewerList}
+        filteredViewers={filteredViewers}
+        loadingViewers={loadingViewers}
+        deleteTarget={deleteTarget}
+        setDeleteTarget={setDeleteTarget}
+        isDeleting={isDeleting}
+        handleConfirmDelete={handleConfirmDelete}
+      />
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )

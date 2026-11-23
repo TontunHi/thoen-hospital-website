@@ -1,5 +1,5 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { SalaryPortalService } from '@/lib/salary/salaryPortalService'
 import { redirect } from 'next/navigation'
 import SalaryDashboardPage from './SalaryDashboardClient'
 
@@ -19,12 +19,9 @@ export default async function SalaryPage() {
     redirect('/member')
   }
 
-  if (session.role !== 'admin') {
-    const settingsRows = await queryMemberDb("SELECT config_value FROM member_system_settings WHERE config_key = 'feature_salary'")
-    const isEnabled = settingsRows.length === 0 || settingsRows[0].config_value !== '0'
-    if (!isEnabled) {
-      redirect('/unauthorized')
-    }
+  const isEnabled = await SalaryPortalService.isSalaryFeatureEnabled(session.role)
+  if (!isEnabled) {
+    redirect('/unauthorized')
   }
 
   return <SalaryDashboardPage />

@@ -1093,4 +1093,101 @@ export class KpiService {
       categoryBreakdown
     }
   }
+
+  static async importTopicAndIndicators(
+    input: {
+      fiscalYear: string
+      code: string
+      title: string
+      description?: string | null
+      rows: Array<{
+        sequence?: string | null
+        category?: string | null
+        subcategory?: string | null
+        code?: string | null
+        oldCode?: string | null
+        frequency?: string | null
+        title: string
+        numeratorName?: string | null
+        denominatorName?: string | null
+        targetRaw?: string | null
+        targetOperator?: string | null
+        targetValue?: number | null
+        targetUnit?: string | null
+        responsibleName?: string | null
+        indicatorType?: string | null
+      }>
+      actorName: string
+    },
+    executor: QueryExecutor = queryMemberDb
+  ): Promise<{
+    topicId: number
+    fiscalYear: string
+    code: string
+    inserted: number
+  }> {
+    const { apiGateway } = await import('@/lib/apiGateway')
+
+    const existingTopic = await executor(
+      'SELECT id FROM kpi_topics WHERE fiscal_year = ? AND code = ?',
+      [input.fiscalYear, input.code]
+    )
+
+    let topicId: number
+    if (existingTopic.length > 0) {
+      topicId = existingTopic[0].id
+      await executor(
+        'UPDATE kpi_topics SET title = ?, description = ?, is_active = 1 WHERE id = ?',
+        [input.title, input.description ?? null, topicId]
+      )
+      await executor('DELETE FROM kpi_indicators WHERE topic_id = ?', [topicId])
+    } else {
+      const insertTopic = (await executor(
+        'INSERT INTO kpi_topics (fiscal_year, code, title, description, is_active) VALUES (?, ?, ?, ?, 1)',
+        [input.fiscalYear, input.code, input.title, input.description ?? null]
+      )) as unknown as { insertId: number }
+      topicId = insertTopic.insertId
+    }
+
+    const kpiPayload = input.rows.map((row, i) => ({
+      sequence: row.sequence ?? null,
+      category: row.category || 'ทั่วไป',
+      subcategory: row.subcategory ?? null,
+      code: row.code ?? null,
+      oldCode: row.oldCode ?? null,
+      frequency: row.frequency || 'ราย 6 เดือน',
+      title: row.title,
+      numeratorName: row.numeratorName ?? null,
+      denominatorName: row.denominatorName ?? null,
+      targetRaw: row.targetRaw ?? null,
+      targetOperator: row.targetOperator ?? null,
+      targetValue: row.targetValue ?? null,
+      targetUnit: row.targetUnit ?? null,
+      responsibleName: row.responsibleName ?? null,
+      indicatorType: row.indicatorType || 'HA',
+      displayOrder: i + 1,
+    }))
+
+    const batchRes = await apiGateway.app.importKpiBatch(topicId, kpiPayload)
+    const inserted = batchRes.insertedCount || input.rows.length
+
+    logAudit(
+      'CREATE',
+      'kpi_topics',
+      JSON.stringify({
+        topicId,
+        fiscalYear: input.fiscalYear,
+        code: input.code,
+        insertedCount: inserted,
+        by: input.actorName,
+      })
+    ).catch(() => {})
+
+    return {
+      topicId,
+      fiscalYear: input.fiscalYear,
+      code: input.code,
+      inserted,
+    }
+  }
 }

@@ -541,4 +541,41 @@ export class TaskPermissionService {
       members: formattedMembers,
     }
   }
+
+  static async listPositionPermissions() {
+    const mappings = await queryMemberDb<{
+      id: number
+      permission_key: string
+      position_name: string
+    }>(
+      'SELECT id, permission_key, position_name FROM position_permissions ORDER BY permission_key, position_name'
+    )
+    const positionsResult = await queryMemberDb<{ position: string }>(
+      'SELECT DISTINCT TRIM(position) as position FROM members WHERE position IS NOT NULL AND TRIM(position) != "" ORDER BY position'
+    )
+    return {
+      mappings,
+      availablePositions: positionsResult.map((r) => r.position),
+    }
+  }
+
+  static async addPositionPermissionMapping(
+    permissionKey: string,
+    positionName: string
+  ): Promise<void> {
+    await queryMemberDb(
+      'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
+      [permissionKey, positionName.trim()]
+    )
+  }
+
+  static async removePositionPermissionMapping(
+    permissionKey: string,
+    positionName: string
+  ): Promise<void> {
+    await queryMemberDb(
+      'DELETE FROM position_permissions WHERE permission_key = ? AND position_name = ?',
+      [permissionKey, positionName]
+    )
+  }
 }

@@ -13,8 +13,17 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: [
+    '@aws-sdk/client-s3',
+    '@aws-sdk/s3-request-presigner',
+    '@prisma/client',
+    'nodemailer',
+    'pino',
+    'sharp',
+  ],
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts'],
+    optimizePackageImports: ['lucide-react', 'recharts', 'three'],
+    turbopackFileSystemCacheForBuild: true,
   },
   allowedDevOrigins: [
     '172.16.0.*',

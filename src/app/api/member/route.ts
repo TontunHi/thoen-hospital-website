@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
-import { logAudit, maskAuditIdentifier } from '@/lib/audit'
+import {
+  MemberProfileError,
+  MemberProfileService,
+} from '@/lib/auth/memberProfileService'
+import { logger } from '@/lib/logger'
 
-// GET: Retrieve all members (admin only)
 export async function GET() {
   try {
     const { error } = await requireMemberApi({ requiredRole: 'admin' })
     if (error) return error
 
-    const members = await queryMemberDb(
-      "SELECT id, username, email, name, department, position, salary_user, IF(salary_pass IS NULL OR salary_pass = '', NULL, '********') AS salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC"
-    )
-
+    const members = await MemberProfileService.listAllMembersForAdmin()
     return NextResponse.json({ success: true, members })
-  } catch (error: any) {
-    console.error('Fetch members error:', error)
+  } catch (error) {
+    logger.error({ err: error }, 'Fetch members error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสมาชิก' },
       { status: 500 }
@@ -23,87 +22,26 @@ export async function GET() {
   }
 }
 
-async function validateUpdateMember(body: any, sessionUsername: string) {
-  const { id, username, email, role } = body
-
-  if (!id || !username || !email || !role) {
-    return { error: 'ข้อมูลไม่ครบถ้วน กรุณากรอกข้อมูลที่จำเป็น', status: 400 }
-  }
-
-  let finalRole = role
-  if (sessionUsername) {
-    const targetUser = await queryMemberDb('SELECT username, role FROM members WHERE id = ?', [id])
-    if (targetUser && targetUser.length > 0 && targetUser[0].username === sessionUsername) {
-      // Force role to remain unchanged when editing self
-      finalRole = targetUser[0].role
-    }
-  }
-
-  if (finalRole !== 'member' && finalRole !== 'admin' && finalRole !== 'subdistrict') {
-    return { error: 'สิทธิ์การใช้งานไม่ถูกต้อง', status: 400 }
-  }
-
-  // Check for duplicate username or email (excluding current user ID)
-  const duplicates = await queryMemberDb(
-    'SELECT id FROM members WHERE (username = ? OR email = ?) AND id != ?',
-    [username.trim(), email.trim(), id]
-  )
-
-  if (duplicates && duplicates.length > 0) {
-    return { error: 'ชื่อผู้ใช้งานหรืออีเมลนี้ถูกใช้งานแล้วในระบบ', status: 400 }
-  }
-
-  return { finalRole }
-}
-
-// PUT: Update member details (admin only)
 export async function PUT(request: Request) {
   try {
     const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
     if (error || !member) return error
 
     const body = await request.json()
-    const validation = await validateUpdateMember(body, member.username || '')
-    if (validation.error) {
-      return NextResponse.json({ error: validation.error }, { status: validation.status })
+    await MemberProfileService.updateMemberByAdmin(body, {
+      username: member.username || '',
+      email: member.email || '',
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'แก้ไขข้อมูลสมาชิกเรียบร้อยแล้ว',
+    })
+  } catch (error) {
+    if (error instanceof MemberProfileError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
     }
-
-    const { finalRole } = validation
-    const { id, username, email, name, department, position, salary_user, salary_pass } = body
-
-    // Retrieve existing salary password to preserve it if not changed (sent as '********')
-    const existing = await queryMemberDb('SELECT salary_pass FROM members WHERE id = ? LIMIT 1', [id])
-    const oldPass = existing.length > 0 ? existing[0].salary_pass : null
-    const finalSalaryPass = (salary_pass === '********') ? oldPass : (salary_pass ? salary_pass.trim() : null)
-
-    // Update member details
-    await queryMemberDb(
-      `UPDATE members 
-       SET username = ?, email = ?, name = ?, department = ?, position = ?, salary_user = ?, salary_pass = ?, role = ?
-       WHERE id = ?`,
-       [
-         username.trim(),
-         email.trim(),
-         name ? name.trim() : null,
-         department ? department.trim() : null,
-         position ? position.trim() : null,
-         salary_user ? salary_user.trim() : null,
-         finalSalaryPass,
-         finalRole,
-         id
-       ]
-     )
-
-    await logAudit(
-      'UPDATE',
-      'members',
-      `Admin updated member ID ${id} (${maskAuditIdentifier(username.trim())}): role=${finalRole}`,
-      { username: member.username, email: member.email }
-    )
-
-    return NextResponse.json({ success: true, message: 'แก้ไขข้อมูลสมาชิกเรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Update member error:', error)
+    logger.error({ err: error }, 'Update member error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลสมาชิก' },
       { status: 500 }
@@ -111,39 +49,26 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE: Remove member (admin only)
 export async function DELETE(request: Request) {
   try {
     const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
     if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    await MemberProfileService.deleteMemberByAdmin(searchParams.get('id'), {
+      username: member.username || '',
+      email: member.email || '',
+    })
 
-    if (!id) {
-      return NextResponse.json({ error: 'ไม่พบ ID สมาชิกที่จะลบ' }, { status: 400 })
+    return NextResponse.json({
+      success: true,
+      message: 'ลบสมาชิกเรียบร้อยแล้ว',
+    })
+  } catch (error) {
+    if (error instanceof MemberProfileError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
     }
-
-    const targetUser = await queryMemberDb('SELECT username FROM members WHERE id = ?', [id])
-    const targetUsername = targetUser && targetUser.length > 0 ? targetUser[0].username : null
-
-    // Prevent admin from deleting themselves
-    if (member.username && targetUsername === member.username) {
-      return NextResponse.json({ error: 'ไม่สามารถลบบัญชีของตัวเองได้' }, { status: 400 })
-    }
-
-    await queryMemberDb('DELETE FROM members WHERE id = ?', [id])
-
-    await logAudit(
-      'DELETE',
-      'members',
-      `Admin deleted member ID ${id} (${maskAuditIdentifier(targetUsername || id)})`,
-      { username: member.username, email: member.email }
-    )
-
-    return NextResponse.json({ success: true, message: 'ลบสมาชิกเรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Delete member error:', error)
+    logger.error({ err: error }, 'Delete member error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการลบข้อมูลสมาชิก' },
       { status: 500 }
@@ -151,68 +76,26 @@ export async function DELETE(request: Request) {
   }
 }
 
-// POST: Create a new member (admin only)
 export async function POST(request: Request) {
   try {
     const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
     if (error || !member) return error
 
     const body = await request.json()
-    const { username, email, name, department, position, salary_user, salary_pass, role } = body
+    await MemberProfileService.createMemberByAdmin(body, {
+      username: member.username || '',
+      email: member.email || '',
+    })
 
-    if (!username || !email || !role) {
-      return NextResponse.json(
-        { error: 'ข้อมูลไม่ครบถ้วน กรุณากรอกข้อมูลที่จำเป็น' },
-        { status: 400 }
-      )
+    return NextResponse.json({
+      success: true,
+      message: 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว',
+    })
+  } catch (error) {
+    if (error instanceof MemberProfileError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
     }
-
-    if (role !== 'member' && role !== 'admin' && role !== 'subdistrict') {
-      return NextResponse.json(
-        { error: 'สิทธิ์การใช้งานไม่ถูกต้อง' },
-        { status: 400 }
-      )
-    }
-
-    // Check for duplicate username or email
-    const duplicates = await queryMemberDb(
-      'SELECT id FROM members WHERE username = ? OR email = ?',
-      [username.trim(), email.trim()]
-    )
-
-    if (duplicates && duplicates.length > 0) {
-      return NextResponse.json(
-        { error: 'ชื่อผู้ใช้งานหรืออีเมลนี้ถูกใช้งานแล้วในระบบ' },
-        { status: 400 }
-      )
-    }
-
-    // Insert new member
-    await queryMemberDb(
-      `INSERT INTO members (username, email, name, department, position, salary_user, salary_pass, role) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        username.trim(),
-        email.trim(),
-        name ? name.trim() : null,
-        department ? department.trim() : null,
-        position ? position.trim() : null,
-        salary_user ? salary_user.trim() : null,
-        salary_pass ? salary_pass.trim() : null,
-        role
-      ]
-    )
-
-    await logAudit(
-      'CREATE',
-      'members',
-      `Admin created new member: ${maskAuditIdentifier(username.trim())} (role: ${role}, department: ${department ? department.trim() : '-'})`,
-      { username: member.username, email: member.email }
-    )
-
-    return NextResponse.json({ success: true, message: 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Create member error:', error)
+    logger.error({ err: error }, 'Create member error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการสร้างสมาชิกใหม่' },
       { status: 500 }

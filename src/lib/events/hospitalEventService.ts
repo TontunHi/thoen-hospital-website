@@ -1678,4 +1678,74 @@ export class HospitalEventService {
 
     return { success: true, message: 'ลบเอกสารหรือไฟล์แนบเรียบร้อยแล้ว' }
   }
+
+  async getEventCheckinTargetByQrToken(token: string): Promise<{
+    id: number
+    title: string
+    qrToken: string
+    checkinOpenTime: Date | string
+    checkinCloseTime: Date | string
+  } | null> {
+    const eventRows = await this.queryExecutor(
+      `
+      SELECT id, title, qr_token AS qrToken, checkin_open_time AS checkinOpenTime, checkin_close_time AS checkinCloseTime
+      FROM hospital_events
+      WHERE qr_token = ?
+      LIMIT 1
+    `,
+      [token]
+    )
+    return eventRows.length > 0 ? eventRows[0] : null
+  }
+
+  async getMemberEventParticipationStats(memberId: number): Promise<{
+    totalPoints: number
+    registeredCount: number
+  }> {
+    const [pointsRows, regRows] = await Promise.all([
+      this.queryExecutor(
+        'SELECT COUNT(*) AS count FROM event_attendances WHERE member_id = ?',
+        [memberId]
+      ),
+      this.queryExecutor(
+        'SELECT COUNT(*) AS count FROM event_registrations WHERE member_id = ?',
+        [memberId]
+      ),
+    ])
+    return {
+      totalPoints: Number(pointsRows[0]?.count ?? 0),
+      registeredCount: Number(regRows[0]?.count ?? 0),
+    }
+  }
+
+  async getEventCreationPreloadData(excludeMemberId: number): Promise<{
+    loanableMaterials: any[]
+    loanableAssets: any[]
+    hospitalMembers: any[]
+  }> {
+    const [materials, assets, members] = await Promise.all([
+      this.queryExecutor(
+        'SELECT id, name, category, available_qty AS availableQty, unit FROM hospital_materials WHERE is_active = 1 ORDER BY name ASC'
+      ),
+      this.queryExecutor(
+        'SELECT id, article_num AS articleNum, name, category FROM hospital_assets WHERE is_loanable = 1 AND status = "ACTIVE" ORDER BY name ASC'
+      ),
+      this.queryExecutor(
+        'SELECT id, name, department, position FROM members ORDER BY name ASC'
+      ),
+    ])
+    return {
+      loanableMaterials: materials,
+      loanableAssets: assets,
+      hospitalMembers: members.filter((m: any) => m.name && m.id !== excludeMemberId),
+    }
+  }
+
+  async listAvailableMembersForPicker(): Promise<any[]> {
+    return this.queryExecutor(`
+      SELECT id, name, department, position
+      FROM members
+      ORDER BY name ASC
+    `)
+  }
 }

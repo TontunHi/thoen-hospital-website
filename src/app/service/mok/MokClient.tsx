@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import ExcelJS from 'exceljs'
 import {
   ArrowLeft,
   Search,
@@ -345,6 +344,7 @@ export default function MokClient({ user: _user }: Props) {
   const handleExportExcel = async () => {
     if (filteredRecords.length === 0) return
 
+    const { default: ExcelJS } = await import('exceljs')
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'Thoen Hospital MOK System'
     workbook.created = new Date()

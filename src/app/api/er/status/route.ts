@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { apiGateway } from '@/lib/apiGateway'
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { getCachedData } from '@/lib/cache'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import { fetchErLiveStatusData, formatErStatusForViewer } from '@/lib/erDb'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const isTvMode = searchParams.get('mode') === 'tv'
 
-    // Check if user is an authenticated clinical staff / member
     const memberSession = await verifyMemberSession()
-    const isStaff = memberSession && ['doctor', 'nurse', 'admin', 'member'].includes(memberSession.role)
+    const isStaff = Boolean(
+      memberSession && ['doctor', 'nurse', 'admin', 'member'].includes(memberSession.role)
+    )
 
     if (memberSession && isStaff) {
       logThrottledAudit(
@@ -21,181 +20,19 @@ export async function GET(req: NextRequest) {
         'er_regist',
         'Viewed ER live status and active patient registry',
         { username: memberSession.username, email: memberSession.email }
-      ).catch(err => logger.error({ err }, 'ER status audit log failed'))
+      ).catch((err) => logger.error({ err }, 'ER status audit log failed'))
     } else if (isTvMode) {
       logThrottledAudit(
         'READ',
         'er_regist',
         'Viewed ER live status via TV display mode (unauthenticated)',
         { username: 'TV_DISPLAY', email: '' }
-      ).catch(err => logger.error({ err }, 'ER status TV mode audit log failed'))
+      ).catch((err) => logger.error({ err }, 'ER status TV mode audit log failed'))
     }
 
-    // Fetch raw status with 8s in-memory cache to prevent HOSxP replica overload
-    const erData = await getCachedData('er-live-status-data', async () => {
-      // 1. Fetch current active ER patients & level counts
-      let activePatients: any[] | null = null
-      let criticalCount = 0
-      let emergencyCount = 0
-      let urgencyCount = 0
-      let semiUrgencyCount = 0
-      let nonUrgencyCount = 0
-
-      try {
-        const gwRes = await apiGateway.clinical.getErStatus('tv')
-        if (gwRes && Array.isArray(gwRes.activePatients)) {
-          activePatients = gwRes.activePatients
-          if (Array.isArray(gwRes.levels)) {
-            criticalCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 1)?.total) || 0
-            emergencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 2)?.total) || 0
-            urgencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 3)?.total) || 0
-            semiUrgencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 4)?.total) || 0
-            nonUrgencyCount = Number(gwRes.levels.find((l: any) => l.er_emergency_level_id === 5)?.total) || 0
-          }
-        }
-      } catch {
-        // Fallback to queryClinicalDb
-      }
-
-      if (activePatients === null) {
-        const activePatientsQuery = `
-          SELECT 
-            pt.hn,
-            er.vn,
-            concat(coalesce(pt.pname, ''), coalesce(pt.fname, ''), ' ', coalesce(pt.lname, '')) as ptname,
-            YEAR(current_date)-YEAR(pt.birthday) as age,
-            i.bedno,
-            time(er.enter_er_time) as enter_time,
-            er.er_list,
-            eel.er_emergency_level_name,
-            er.er_emergency_level_id,
-            er.observe,
-            edt.name as dch_type_name,
-            w.name as wardname,
-            h.name as hosname 
-          FROM er_regist er 
-          left outer join vn_stat vn on er.vn=vn.vn 
-          left outer join patient pt on vn.hn=pt.hn 
-          left outer join er_emergency_level eel on er.er_emergency_level_id=eel.er_emergency_level_id 
-          left outer join er_dch_type edt on er.er_dch_type=edt.er_dch_type 
-          left outer join an_stat an on er.vn=an.vn 
-          left outer join iptadm i on an.an=i.an  
-          left outer join ward w on an.ward=w.ward   
-          left outer join referout r on vn.vn=r.vn 
-          left outer join hospcode h on r.refer_hospcode=h.hospcode 
-          WHERE er.vstdate = current_date 
-            and ((er.er_dch_type in ('2','3','5','6','7','8','9') and w.name is null) and h.name is null) 
-          ORDER BY er.enter_er_time DESC
-        `
-        activePatients = await queryClinicalDb(activePatientsQuery)
-        criticalCount = activePatients.filter((p: any) => p.er_emergency_level_id === 1 || p.er_emergency_level_id === '1').length
-        emergencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 2 || p.er_emergency_level_id === '2').length
-        urgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 3 || p.er_emergency_level_id === '3').length
-        semiUrgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 4 || p.er_emergency_level_id === '4').length
-        nonUrgencyCount = activePatients.filter((p: any) => p.er_emergency_level_id === 5 || p.er_emergency_level_id === '5').length
-      }
-
-      // 3. Fetch monthly statistics: Patient types
-      const ptTypesQuery = `
-        select count(er.vn) as v, ept.name 
-        from er_regist er 
-        left outer join er_period ep on er.er_period=ep.er_period 
-        left outer join er_pt_type ept on er.er_pt_type=ept.er_pt_type 
-        where er.vstdate BETWEEN DATE_ADD(DATE_ADD(LAST_DAY(now()),INTERVAL 1 DAY),INTERVAL - 1 MONTH) and CURRENT_DATE() 
-        group by er.er_pt_type
-      `
-      const ptTypes = await queryClinicalDb(ptTypesQuery)
-
-      // 4. Fetch monthly statistics: Emergency levels
-      const emergencyLevelsQuery = `
-        select count(er.vn) as v, ept.er_emergency_level_name 
-        from er_regist er 
-        left outer join er_period ep on er.er_period=ep.er_period 
-        left outer join er_emergency_level ept on er.er_emergency_level_id=ept.er_emergency_level_id 
-        where er.vstdate BETWEEN DATE_ADD(DATE_ADD(LAST_DAY(now()),INTERVAL 1 DAY),INTERVAL - 1 MONTH) and CURRENT_DATE() 
-          and er.er_emergency_level_id is not null 
-        group by ept.er_emergency_level_name 
-        order by ept.er_emergency_level_id
-      `
-      const emergencyLevels = await queryClinicalDb(emergencyLevelsQuery)
-
-      // 5. Fetch monthly statistics: Discharge types
-      const dischargeTypesQuery = `
-        select count(er.vn) as v, ept.name 
-        from er_regist er 
-        left outer join er_period ep on er.er_period=ep.er_period 
-        left outer join er_dch_type ept on er.er_dch_type=ept.er_dch_type 
-        where er.vstdate BETWEEN DATE_ADD(DATE_ADD(LAST_DAY(now()),INTERVAL 1 DAY),INTERVAL - 1 MONTH) and CURRENT_DATE() 
-          and ept.er_dch_type is not null 
-        group by ept.name 
-        order by ept.er_dch_type
-      `
-      const dischargeTypes = await queryClinicalDb(dischargeTypesQuery)
-
-      // 6. Fetch error status patients (past 7 months to yesterday with er_dch_type IN ('5','6','7','8','9'))
-      const errorStatusQuery = `
-        SELECT 
-          d.\`name\` as nname,
-          er.vstdate,
-          pt.hn,
-          er.vn,
-          edt.name as status_name
-        FROM er_regist er 
-        left outer join vn_stat vn on er.vn=vn.vn 
-        left outer join patient pt on vn.hn=pt.hn 
-        left outer join er_dch_type edt on er.er_dch_type=edt.er_dch_type 
-        left outer join doctor d on er.er_doctor=d.\`code\` 
-        WHERE (er.vstdate between DATE_ADD(DATE_ADD(LAST_DAY(now()),INTERVAL 1 day),INTERVAL - 7 MONTH) 
-               and DATE_ADD(DATE_ADD(CURDATE(),INTERVAL -1 day),INTERVAL 0 MONTH) ) 
-          and (er.er_dch_type in ('5','6','7','8','9')) 
-        ORDER BY er.vstdate DESC
-      `
-      const errorStatusRows = await queryClinicalDb(errorStatusQuery)
-
-      return {
-        activePatients,
-        errorStatusList: {
-          total: errorStatusRows.length,
-          list: errorStatusRows,
-        },
-        summary: {
-          totalActive: activePatients.length,
-          critical: criticalCount,
-          emergency: emergencyCount,
-          urgency: urgencyCount,
-          semiUrgency: semiUrgencyCount,
-          nonUrgency: nonUrgencyCount,
-        },
-        stats: {
-          ptTypes,
-          emergencyLevels,
-          dischargeTypes,
-        },
-      }
-    }, 8000)
-
-    const activePatients = (isStaff || isTvMode)
-      ? erData.activePatients.map((p: any) => {
-          if (isStaff) return p
-          // For unauthenticated public TV displays: protect PHI (mask HN, VN, surname)
-          const nameParts = (p.ptname || '').trim().split(/\s+/)
-          const maskedName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : p.ptname
-          return {
-            ...p,
-            hn: p.hn ? `xxxx${String(p.hn).slice(-4)}` : '',
-            vn: p.vn ? `xxxx${String(p.vn).slice(-4)}` : '',
-            ptname: maskedName,
-          }
-        })
-      : []
-
-    return NextResponse.json({
-      activePatients,
-      errorStatusList: isStaff ? erData.errorStatusList : { total: erData.errorStatusList?.total || 0, list: [] },
-      summary: erData.summary,
-      stats: erData.stats,
-    })
-  } catch (error: any) {
+    const erData = await fetchErLiveStatusData()
+    return NextResponse.json(formatErStatusForViewer(erData, { isStaff, isTvMode }))
+  } catch (error) {
     logger.error({ error }, 'ER Status API Error')
     return NextResponse.json(
       { error: 'ไม่สามารถดึงข้อมูลสถานะห้องฉุกเฉินได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
@@ -203,5 +40,3 @@ export async function GET(req: NextRequest) {
     )
   }
 }
-
-

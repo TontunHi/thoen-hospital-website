@@ -1,7 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
-import { queryMemberDb } from '@/lib/memberDb'
 import EventDetailClient from './EventDetailClient'
 
 export const metadata = {
@@ -34,15 +33,10 @@ export default async function EventDetailPage({
 
   const canManage = Boolean(event.canManage || member.isAdmin)
 
-  // Preload hospital staff for manual check-in if user is organizer or admin
   let availableMembers: any[] = []
   if (canManage) {
     try {
-      availableMembers = await queryMemberDb(`
-        SELECT id, name, department, position
-        FROM members
-        ORDER BY name ASC
-      `)
+      availableMembers = await eventService.listAvailableMembersForPicker()
     } catch (err) {
       console.error('Error fetching members for attendee picker:', err)
     }

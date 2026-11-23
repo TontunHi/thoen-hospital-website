@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
-import { executeWorkflowAction } from '@/lib/taskInboxService'
+import {
+  TaskInboxApiError,
+  TaskInboxApiService,
+} from '@/lib/inbox/taskInboxApiService'
+import { logger } from '@/lib/logger'
 import { z } from 'zod'
 
 const actionSchema = z.object({
@@ -28,51 +31,32 @@ export async function POST(
     const { id: taskId } = await params
     const body = await request.json()
     const parsed = actionSchema.safeParse(body)
-    
+
     if (!parsed.success) {
       return NextResponse.json({ error: 'Action ไม่ถูกต้อง' }, { status: 400 })
     }
-    
-    const { action, comment, nextAssigneeId, partialEdits, holdReason, holdDetails, targetStepNo, sendToRequester } = parsed.data
 
-    const members = await queryMemberDb(
-      'SELECT id, username, name, department, position, role, signature_path FROM members WHERE username = ? LIMIT 1',
-      [session.username]
-    )
-    if (!members || members.length === 0) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลสมาชิก' }, { status: 404 })
-    }
-    const currentMember = members[0]
-
-    const result = await executeWorkflowAction({
+    const result = await TaskInboxApiService.performTaskWorkflowAction({
+      username: session.username,
       taskId,
-      action,
-      comment,
-      nextAssigneeId: nextAssigneeId || null,
-      partialEdits,
-      holdReason,
-      holdDetails,
-      targetStepNo: targetStepNo ?? null,
-      sendToRequester: Boolean(sendToRequester),
-      actorMemberId: currentMember.id,
-      actorUsername: currentMember.username,
-      actorName: currentMember.name,
-      actorPosition: currentMember.position,
-      actorRole: currentMember.role,
-      signaturePath: currentMember.signature_path,
+      ...parsed.data,
     })
 
     return NextResponse.json(result)
-  } catch (error: any) {
-    console.error('Task action error:', error)
-    if (error.message.includes('ไม่มีสิทธิ์')) {
-      return NextResponse.json({ error: error.message }, { status: 403 })
+  } catch (error: unknown) {
+    if (error instanceof TaskInboxApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
     }
-    if (error.message.includes('ไม่พบ')) {
-      return NextResponse.json({ error: error.message }, { status: 404 })
+    const msg = error instanceof Error ? error.message : ''
+    logger.error({ err: error }, 'Task action error')
+    if (msg.includes('ไม่มีสิทธิ์')) {
+      return NextResponse.json({ error: msg }, { status: 403 })
     }
-    if (error.message.includes('ไม่อยู่ในสถานะ')) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    if (msg.includes('ไม่พบ')) {
+      return NextResponse.json({ error: msg }, { status: 404 })
+    }
+    if (msg.includes('ไม่อยู่ในสถานะ')) {
+      return NextResponse.json({ error: msg }, { status: 400 })
     }
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการประมวลผลคำสั่ง' }, { status: 500 })
   }

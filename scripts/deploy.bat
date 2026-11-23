@@ -60,6 +60,11 @@ echo.
 :: ขั้นตอนที่ 3: คอมไพล์โปรเจกต์ Next.js (Fast Build)
 :: -----------------------------------------------------------------
 echo [3/4] กำลังคอมไพล์โปรเจกต์ (Next.js Build)...
+:: ล้างเฉพาะ .next\dev ที่อาจค้างจากการพัฒนา โดยเก็บ .next\cache ไว้เพื่อเร่งความเร็ว Turbopack Incremental Build
+if exist ".next\dev" (
+    echo      - กำลังล้างแคชฝั่ง Dev (.next\dev) เพื่อประหยัดพื้นที่...
+    rmdir /s /q ".next\dev" >nul 2>&1
+)
 :: จัดสรร Heap Memory 4GB และเปิดโหมด Fast Build เพื่อข้าม Lint/TypeCheck ซ้ำซ้อนบน Server
 set "NODE_OPTIONS=--max-old-space-size=4096"
 set "FAST_BUILD=true"

@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
-import { apiGateway } from '@/lib/apiGateway'
-import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
-import { buildStatementData, StatementRange } from '@/lib/salary/salaryStatementService'
+import { StatementRange } from '@/lib/salary/salaryStatementService'
 import { generateStatementExcel } from '@/lib/salary/statementExcelExporter'
+import {
+  SalaryPortalError,
+  SalaryPortalService,
+} from '@/lib/salary/salaryPortalService'
 
 export async function GET(request: Request) {
   try {
-    // 1. Verify caller session
     const session = await verifyMemberSession()
     if (!session) {
       return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
     }
 
-    // 2. Check permission (admin or position has 'view_all_salary')
     const isAuthorized =
       session.role === 'admin' ||
       (await checkPositionPermission(session.username, 'view_all_salary'))
@@ -46,86 +45,47 @@ export async function GET(request: Request) {
       ? (rawRange as StatementRange)
       : '6m'
 
-    // 3. Find target member in memberDb (optional augmentation)
-    const memberRows = await queryMemberDb(
-      'SELECT id, username, email, name, department, position, salary_user FROM members WHERE username = ? OR salary_user = ? LIMIT 1',
-      [targetUsername, targetUsername]
-    )
+    const { resolvedMember, statementData } =
+      await SalaryPortalService.buildEmployeeSalaryStatement({
+        targetUsername,
+        range,
+        fromPeriod,
+        toPeriod,
+        format,
+        actor: { username: session.username, email: session.email },
+      })
 
-    const targetMember = memberRows && memberRows.length > 0 ? memberRows[0] : null
-    const salaryLookupId = targetMember?.salary_user || targetUsername
-
-    // 4. Query salary and ot records
-    let salaryRows: any[] = []
-    let otRows: any[] = []
-
-    try {
-      const records = await apiGateway.salary.getRecords(salaryLookupId)
-      salaryRows = records?.salary || []
-      otRows = records?.ot || []
-    } catch (dbError: any) {
-      console.error('Failed to query salary database for statement:', dbError)
-      return NextResponse.json(
-        { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลเงินเดือนได้ในขณะนี้' },
-        { status: 500 }
-      )
-    }
-
-    if ((!salaryRows || salaryRows.length === 0) && (!otRows || otRows.length === 0)) {
-      return NextResponse.json(
-        { error: `ไม่พบข้อมูลเงินเดือนสำหรับรหัส "${targetUsername}"` },
-        { status: 404 }
-      )
-    }
-
-    const resolvedMember = {
-      id: targetMember?.id || 0,
-      username: targetMember?.username || targetUsername,
-      name: targetMember?.name || salaryRows[0]?.c4?.trim() || otRows[0]?.c4?.trim() || targetUsername,
-      department: targetMember?.department || '-',
-      position: targetMember?.position || '-',
-      salary_user: targetMember?.salary_user || targetUsername
-    }
-
-    // 5. Build statement data
-    const statementData = buildStatementData(resolvedMember, salaryRows, otRows, {
-      range,
-      fromPeriod,
-      toPeriod
-    })
-
-    // 6. Audit Logging (Tier 1)
-    logAudit(
-      'READ',
-      'salary',
-      `Exported salary statement (${statementData.rangeLabel}, format: ${format}) for employee: ${resolvedMember.username}`,
-      { username: session.username, email: session.email }
-    ).catch((err) => logger.error({ err }, 'Salary statement audit log failed'))
-
-    // 7. Return Excel binary or JSON response
     if (format === 'excel') {
       const buffer = await generateStatementExcel(statementData)
-      const fileNameSuffix = statementData.range === 'custom'
-        ? `${statementData.summary.fromPeriod}_${statementData.summary.toPeriod}`.replace(/\s+/g, '_')
-        : statementData.range
+      const fileNameSuffix =
+        statementData.range === 'custom'
+          ? `${statementData.summary.fromPeriod}_${statementData.summary.toPeriod}`.replace(
+              /\s+/g,
+              '_'
+            )
+          : statementData.range
       const fileName = `salary_statement_${resolvedMember.username}_${fileNameSuffix}.xlsx`
 
       return new Response(new Uint8Array(buffer), {
         status: 200,
         headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Type':
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'Content-Disposition': `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
-          'Cache-Control': 'no-store, no-cache, must-revalidate'
-        }
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
       })
     }
 
     return NextResponse.json({
       success: true,
-      statement: statementData
+      statement: statementData,
     })
-  } catch (error: any) {
-    console.error('Statement API error:', error)
+  } catch (error) {
+    if (error instanceof SalaryPortalError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    logger.error({ err: error }, 'Statement API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ขณะสร้างเอกสาร Statement' },
       { status: 500 }

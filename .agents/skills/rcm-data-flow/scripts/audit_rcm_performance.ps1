@@ -73,7 +73,7 @@ foreach ($r in $routes) {
     $ssrPrefetch = $false
     if ($pageExists) {
         $pageCode = Get-Content -Path $pagePath -Raw
-        $ssrPrefetch = ($pageCode -match "initialData\s*=") -or ($pageCode -match "await\s+[A-Za-z0-9_.]+(Report|Summary|Items)")
+        $ssrPrefetch = ($pageCode -match "initial(Data|Summary)\s*=") -or ($pageCode -match "await\s+[A-Za-z0-9_.]+(Report|Summary|Items)")
     }
 
     $hasAbort = $false
@@ -97,6 +97,18 @@ foreach ($r in $routes) {
     $hasCache = $false
     if ($serviceExists) {
         $serviceCode = Get-Content -Path $servicePath -Raw
+        # Also include modularized submodule files when a service facade delegates to a subdirectory
+        foreach ($subDir in @("rcm-dashboard", "cervical-cancer", "family-planning")) {
+            if ($serviceCode -match "\./$subDir/") {
+                $subDirPath = Join-Path "src/lib/clinical" $subDir
+                if (Test-Path $subDirPath) {
+                    $subFiles = Get-ChildItem -Path $subDirPath -Filter "*.ts" -File
+                    foreach ($sf in $subFiles) {
+                        $serviceCode += "`n" + (Get-Content -Path $sf.FullName -Raw)
+                    }
+                }
+            }
+        }
         $hasCache = ($serviceCode -match "getCachedData") -or ($serviceCode -match "getSwrCachedData")
         $hasServerPagination = ($serviceCode -match "pageSize") -or ($serviceCode -match "OFFSET") -or ($serviceCode -match "LIMIT") -or ($serviceCode -match "slice\(")
     }

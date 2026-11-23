@@ -14,7 +14,7 @@ function normalizeDbParam(p: any): any {
  * Fully decoupled from direct MySQL database connections (Zero-DB Architecture).
  * Strict fail-closed: Throws GatewayUnavailableError if the Gateway is down.
  */
-export async function queryMemberDb(sql: string, params: any[] = []): Promise<any[]> {
+export async function queryMemberDb<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
   const safeParams = Array.isArray(params) ? params.map(normalizeDbParam) : []
   const trimmedSql = sql.trim().toUpperCase()
   const isSelect = trimmedSql.startsWith('SELECT') || trimmedSql.startsWith('EXPLAIN') || trimmedSql.startsWith('SHOW')
@@ -66,5 +66,5 @@ export async function queryMemberDb(sql: string, params: any[] = []): Promise<an
     ).catch(err => logger.error({ err }, 'Failed to write CRUD audit log'))
   }
 
-  return results as any[]
+  return results as T[]
 }
