@@ -773,9 +773,9 @@
   font-weight: 600;
 }
 
-/* Code Column (44px fixed width, monospace) */
+/* Code Column (54px fixed width, monospace for full 4-part codes) */
 .rcm-row-code {
-  width: 44px;
+  width: 54px;
   flex-shrink: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.75rem; /* 12px */
@@ -966,7 +966,7 @@
 }
 
 .rcm-rail-link {
-  width: 44px;
+  width: 54px;
   height: 38px;
   display: flex;
   align-items: center;
@@ -981,7 +981,7 @@
 
 .rcm-rail-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: -0.02em;
 }

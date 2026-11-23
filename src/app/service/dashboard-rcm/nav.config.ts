@@ -31,21 +31,21 @@ export const RCM_NAV_CONFIG: NavGroup[] = [
     modules: [
       {
         id: 'sss-dental',
-        code: '2.1.1',
+        code: '2.1.1.1',
         label: 'ประกันสังคมทำฟัน',
         href: '/service/dashboard-rcm/sss-dental',
         keywords: ['ประกันสังคม', 'ทำฟัน', 'ทันตกรรม', '2.1.1.1'],
       },
       {
         id: 'opd-doctor',
-        code: '2.1.2',
+        code: '2.1.1.2',
         label: 'OPD ตามสิทธิ์',
         href: '/service/dashboard-rcm/opd-doctor',
         keywords: ['opd', 'แพทย์', 'สิทธิ์', '2.1.1.2'],
       },
       {
         id: 'opd',
-        code: '2.1.3',
+        code: '2.1.1.3',
         label: 'สรุปผู้ป่วยนอก (OPD)',
         href: '/service/dashboard-rcm/opd',
         keywords: ['opd', 'ผู้ป่วยนอก', '2.1.1.3'],
@@ -58,7 +58,7 @@ export const RCM_NAV_CONFIG: NavGroup[] = [
     modules: [
       {
         id: 'ipd',
-        code: '2.2.1',
+        code: '2.1.2.1',
         label: 'สรุปผู้ป่วยใน (IPD)',
         href: '/service/dashboard-rcm/ipd',
         keywords: ['ipd', 'ผู้ป่วยใน', '2.1.2.1'],
@@ -84,7 +84,7 @@ export const RCM_NAV_CONFIG: NavGroup[] = [
     modules: [
       {
         id: 'invoice-summary',
-        code: '5.2.2',
+        code: '5.2.2.1',
         label: 'สรุปรายรับจาก Invoice',
         href: '/service/dashboard-rcm/invoice-summary',
         keywords: ['invoice', 'รายรับ', 'การเงิน', '5.2.2.1'],

@@ -110,8 +110,12 @@ describe('DashboardRcmShell Redesign Plan Compliance', () => {
     const sidebar = screen.getByRole('complementary', { name: 'Dashboard RCM Navigation' })
     expect(sidebar.className).toContain('collapsed')
 
-    // In rail mode, items render only codes
-    expect(screen.getByText('2.1.1')).toBeInTheDocument()
+    // In rail mode, items render only codes (including full 4-part codes)
+    expect(screen.getByText('2.1.1.1')).toBeInTheDocument()
+    expect(screen.getByText('2.1.1.2')).toBeInTheDocument()
+    expect(screen.getByText('2.1.1.3')).toBeInTheDocument()
+    expect(screen.getByText('2.1.2.1')).toBeInTheDocument()
+    expect(screen.getByText('5.2.2.1')).toBeInTheDocument()
     expect(screen.getByText('11')).toBeInTheDocument()
 
     // Hover over rail item "11"
