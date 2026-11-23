@@ -3,6 +3,7 @@
 
 $routes = @(
     @{ Name = "opd"; Route = "src/app/service/dashboard-rcm/opd"; Client = "OpdClient.tsx"; Service = "rcmDashboardService.ts"; Api = "src/app/api/service/dashboard-rcm/opd-dept-summary/route.ts" },
+    @{ Name = "opd-debt-registry"; Route = "src/app/service/dashboard-rcm/opd-debt-registry"; Client = "OpdDebtRegistryClient.tsx"; Service = "rcmOpdDebtRegistryService.ts"; Api = "src/app/api/service/dashboard-rcm/opd-debt-registry/route.ts" },
     @{ Name = "opd-doctor"; Route = "src/app/service/dashboard-rcm/opd-doctor"; Client = "OpdDoctorClient.tsx"; Service = "rcmDashboardService.ts"; Api = "src/app/api/service/dashboard-rcm/opd-doctor-summary/route.ts" },
     @{ Name = "sss-dental"; Route = "src/app/service/dashboard-rcm/sss-dental"; Client = "SssDentalClient.tsx"; Service = "rcmDashboardService.ts"; Api = "src/app/api/service/dashboard-rcm/sss-dental/route.ts" },
     @{ Name = "ipd"; Route = "src/app/service/dashboard-rcm/ipd"; Client = "IpdClient.tsx"; Service = "rcmDashboardService.ts"; Api = "src/app/api/service/dashboard-rcm/ipd-report/route.ts" },

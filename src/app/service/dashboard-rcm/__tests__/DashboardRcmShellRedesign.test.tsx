@@ -113,7 +113,7 @@ describe('DashboardRcmShell Redesign Plan Compliance', () => {
     // In rail mode, items render only codes (including full 4-part codes)
     expect(screen.getByText('2.1.1.1')).toBeInTheDocument()
     expect(screen.getByText('2.1.1.2')).toBeInTheDocument()
-    expect(screen.getByText('2.1.1.3')).toBeInTheDocument()
+    expect(screen.getAllByText('2.1.1.3').length).toBe(2)
     expect(screen.getByText('2.1.2.1')).toBeInTheDocument()
     expect(screen.getByText('5.2.2.1')).toBeInTheDocument()
     expect(screen.getByText('11')).toBeInTheDocument()

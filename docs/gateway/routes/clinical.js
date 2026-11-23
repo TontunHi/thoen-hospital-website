@@ -1546,6 +1546,449 @@ fastify.get('/api/v1/clinical/records/visit-details', {
   }
 })
 
+// 1.16 RCM 2.1.1.3 OPD Debt Registry (ทะเบียนตั้งหนี้ผู้ป่วยนอก)
+fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: '2.1.1.3 รายชื่อผู้ป่วยนอก รับบริการ (ทะเบียนตั้งหนี้) — Pattern A Two-Tier Summary & Paginated Ledger',
+    querystring: {
+      type: 'object',
+      properties: {
+        ds1: { type: 'string' },
+        ds2: { type: 'string' },
+        includeAdmitted: { type: 'string' },
+        cardFilter: { type: 'string' },
+        eclaimFilter: { type: 'string' },
+        accountFilter: { type: 'string' },
+        pttypeFilter: { type: 'string' },
+        vstdateFilter: { type: 'string' },
+        search: { type: 'string' },
+        sortBy: { type: 'string' },
+        sortOrder: { type: 'string' },
+        page: { type: 'string' },
+        pageSize: { type: 'string' },
+        exportAll: { type: 'string' },
+        refresh: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  reply.header('Cache-Control', 'no-store')
+  const q = req.query || {}
+  const now = new Date()
+  const fiscalYear = (now.getMonth() + 1) >= 10 ? now.getFullYear() + 1 : now.getFullYear()
+  const ds1 = (q.ds1 || `${fiscalYear - 1}-10-01`).trim()
+  const ds2 = (q.ds2 || `${fiscalYear}-09-30`).trim()
+  const includeAdmitted = q.includeAdmitted === 'true' || q.includeAdmitted === '1'
+  const cardFilter = ['ALL', 'WITH_DEBIT', 'WITH_RCPT', 'WITH_AUTHEN', 'NO_AUTHEN'].includes(q.cardFilter) ? q.cardFilter : 'ALL'
+  const eclaimFilter = (q.eclaimFilter || '').trim()
+  const accountFilter = (q.accountFilter || '').trim()
+  const pttypeFilter = (q.pttypeFilter || '').trim()
+  const vstdateFilter = (q.vstdateFilter || '').trim()
+  const search = (q.search || '').trim()
+  const exportAll = q.exportAll === 'true' || q.exportAll === '1'
+  const page = exportAll ? 1 : Math.max(1, parseInt(q.page || '1', 10) || 1)
+  const pageSize = exportAll ? 50000 : Math.max(1, parseInt(q.pageSize || '50', 10) || 50)
+  const offset = (page - 1) * pageSize
+  const refresh = q.refresh === 'true' || q.refresh === '1'
 
+  const SORT_MAP = {
+    vstdate: 'o.vstdate',
+    hn: 'o.hn',
+    vn: 'o.vn',
+    cid: 'pt.cid',
+    ptname: 'pt.fname',
+    pttype: 'o.pttype',
+    pttype_eclaim_id: 'ptt.pttype_eclaim_id',
+    accountcode: 'e.ar_opd',
+    income: 'v.income',
+    uc_money: 'v.uc_money',
+    discount_money: 'v.discount_money',
+    paid_money: 'v.paid_money',
+    rcpt_money: 'v.rcpt_money',
+    debit: '(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0))'
+  }
+  const sortBy = SORT_MAP[q.sortBy] ? q.sortBy : 'vstdate'
+  const sortOrder = q.sortOrder === 'asc' ? 'asc' : 'desc'
+
+  const PT_SUBTYPE_LABELS = {
+    '0': 'ตรวจโรคทั่วไป',
+    '1': 'ส่งเสริมสุขภาพ',
+    '2': 'ฝากครรภ์ (ANC)',
+    '3': 'คลินิกเด็กดี (WBC)',
+    '4': 'สร้างเสริมภูมิคุ้มกัน (EPI)',
+    '5': 'วางแผนครอบครัว (FP)',
+    '6': 'เยี่ยมบ้าน / ชุมชน'
+  }
+  const round2 = (n) => {
+    const num = Number(n ?? 0)
+    return Number.isFinite(num) ? Math.round(num * 100) / 100 : 0
+  }
+
+  const AUTHEN_EXISTS_SQL = `(
+    EXISTS (SELECT 1 FROM rcmdb.authencode cc WHERE cc.vn = o.vn AND NULLIF(TRIM(cc.AuthenCode), '') IS NOT NULL)
+    OR EXISTS (SELECT 1 FROM visit_pttype vt WHERE vt.vn = o.vn AND (NULLIF(TRIM(vt.auth_code), '') IS NOT NULL OR NULLIF(TRIM(vt.claim_code), '') IS NOT NULL))
+  )`
+
+  try {
+    const anClause = includeAdmitted ? '' : "AND IFNULL(o.an, '') = ''"
+
+    const loadTier1 = async () => {
+      const dateParams = [ds1, ds2]
+      const summarySql = `
+        SELECT
+          COUNT(DISTINCT o.hn) AS total_cases,
+          COUNT(DISTINCT o.vn) AS total_visits,
+          SUM(IFNULL(v.income, 0)) AS total_income,
+          SUM(IFNULL(v.uc_money, 0)) AS total_uc_money,
+          SUM(IFNULL(v.discount_money, 0)) AS total_discount_money,
+          SUM(IFNULL(v.paid_money, 0)) AS total_paid_money,
+          SUM(IFNULL(v.rcpt_money, 0)) AS total_rcpt_money,
+          SUM(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) AS total_debit,
+          SUM(CASE WHEN (IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) > 0 THEN 1 ELSE 0 END) AS with_debit_count,
+          SUM(CASE WHEN IFNULL(v.rcpt_money, 0) > 0 THEN 1 ELSE 0 END) AS with_rcpt_count,
+          SUM(CASE WHEN ${AUTHEN_EXISTS_SQL} THEN 1 ELSE 0 END) AS with_authen_count
+        FROM ovst o
+        LEFT JOIN vn_stat v ON v.vn = o.vn
+        WHERE o.vstdate BETWEEN ? AND ?
+          ${anClause}
+      `
+      const eclaimSql = `
+        SELECT
+          COALESCE(NULLIF(TRIM(ptt.pttype_eclaim_id), ''), 'NONE') AS code,
+          COALESCE(NULLIF(TRIM(e.name), ''), '') AS name,
+          COUNT(DISTINCT o.hn) AS cases,
+          COUNT(DISTINCT o.vn) AS visits,
+          SUM(IFNULL(v.income, 0)) AS income,
+          SUM(IFNULL(v.discount_money, 0)) AS discount_money,
+          SUM(IFNULL(v.rcpt_money, 0)) AS rcpt_money,
+          SUM(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) AS debit
+        FROM ovst o
+        LEFT JOIN vn_stat v ON v.vn = o.vn
+        LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+        LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
+        WHERE o.vstdate BETWEEN ? AND ?
+          ${anClause}
+        GROUP BY COALESCE(NULLIF(TRIM(ptt.pttype_eclaim_id), ''), 'NONE'), COALESCE(NULLIF(TRIM(e.name), ''), '')
+        ORDER BY debit DESC, income DESC
+      `
+      const accountSql = `
+        SELECT
+          COALESCE(NULLIF(TRIM(e.ar_opd), ''), 'NONE') AS code,
+          COALESCE(NULLIF(TRIM(ca.name), ''), NULLIF(TRIM(e.ar_opd), ''), '') AS name,
+          MAX(IFNULL(e.gf_opd, '')) AS gfmis,
+          COUNT(DISTINCT o.hn) AS cases,
+          COUNT(DISTINCT o.vn) AS visits,
+          SUM(IFNULL(v.income, 0)) AS income,
+          SUM(IFNULL(v.discount_money, 0)) AS discount_money,
+          SUM(IFNULL(v.rcpt_money, 0)) AS rcpt_money,
+          SUM(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) AS debit
+        FROM ovst o
+        LEFT JOIN vn_stat v ON v.vn = o.vn
+        LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+        LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
+        LEFT JOIN codeaccount ca ON ca.code = e.ar_opd
+        WHERE o.vstdate BETWEEN ? AND ?
+          ${anClause}
+        GROUP BY COALESCE(NULLIF(TRIM(e.ar_opd), ''), 'NONE'), COALESCE(NULLIF(TRIM(ca.name), ''), NULLIF(TRIM(e.ar_opd), ''), '')
+        ORDER BY debit DESC, income DESC
+      `
+      const pttypeSql = `
+        SELECT
+          COALESCE(NULLIF(TRIM(o.pttype), ''), 'NONE') AS code,
+          COALESCE(NULLIF(TRIM(ptt.name), ''), NULLIF(TRIM(o.pttype), ''), '') AS name,
+          MAX(IFNULL(ptt.hipdata_code, '')) AS hipdata_code,
+          COUNT(DISTINCT o.hn) AS cases,
+          COUNT(DISTINCT o.vn) AS visits,
+          SUM(IFNULL(v.income, 0)) AS income,
+          SUM(IFNULL(v.discount_money, 0)) AS discount_money,
+          SUM(IFNULL(v.rcpt_money, 0)) AS rcpt_money,
+          SUM(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) AS debit
+        FROM ovst o
+        LEFT JOIN vn_stat v ON v.vn = o.vn
+        LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+        WHERE o.vstdate BETWEEN ? AND ?
+          ${anClause}
+        GROUP BY COALESCE(NULLIF(TRIM(o.pttype), ''), 'NONE'), COALESCE(NULLIF(TRIM(ptt.name), ''), NULLIF(TRIM(o.pttype), ''), '')
+        ORDER BY debit DESC, income DESC
+      `
+      const vstdateSql = `
+        SELECT
+          DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS code,
+          DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS name,
+          COUNT(DISTINCT o.hn) AS cases,
+          COUNT(DISTINCT o.vn) AS visits,
+          SUM(IFNULL(v.income, 0)) AS income,
+          SUM(IFNULL(v.discount_money, 0)) AS discount_money,
+          SUM(IFNULL(v.rcpt_money, 0)) AS rcpt_money,
+          SUM(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) AS debit
+        FROM ovst o
+        LEFT JOIN vn_stat v ON v.vn = o.vn
+        WHERE o.vstdate BETWEEN ? AND ?
+          ${anClause}
+        GROUP BY DATE_FORMAT(o.vstdate, '%Y-%m-%d')
+        ORDER BY code DESC
+      `
+
+      const [[summaryRows], [eclaimRows], [accountRows], [pttypeRows], [vstdateRows]] = await Promise.all([
+        hosPool.query(summarySql, dateParams),
+        hosPool.query(eclaimSql, dateParams),
+        hosPool.query(accountSql, dateParams),
+        hosPool.query(pttypeSql, dateParams),
+        hosPool.query(vstdateSql, dateParams),
+      ])
+
+      const sr = summaryRows?.[0] || {}
+      const totalVisits = Number(sr.total_visits ?? 0)
+      const withAuthenCount = Number(sr.with_authen_count ?? 0)
+      const withoutAuthenCount = Math.max(0, totalVisits - withAuthenCount)
+      const authenRate = totalVisits > 0 ? Math.round((withAuthenCount / totalVisits) * 1000) / 10 : 0
+
+      const mapBreakdown = (rows, fallbackName) =>
+        (rows || []).map((r) => {
+          const code = String(r.code || 'NONE').trim()
+          const rawName = String(r.name || '').trim()
+          return {
+            code,
+            name: rawName || (code === 'NONE' ? fallbackName : code),
+            gfmis: r.gfmis ? String(r.gfmis).trim() : undefined,
+            hipdata_code: r.hipdata_code ? String(r.hipdata_code).trim() : undefined,
+            cases: Number(r.cases ?? 0),
+            visits: Number(r.visits ?? 0),
+            income: round2(r.income),
+            discount_money: round2(r.discount_money),
+            rcpt_money: round2(r.rcpt_money),
+            debit: round2(r.debit),
+          }
+        })
+
+      return {
+        summary: {
+          totalCases: Number(sr.total_cases ?? 0),
+          totalVisits,
+          totalIncome: round2(sr.total_income),
+          totalUcMoney: round2(sr.total_uc_money),
+          totalDiscountMoney: round2(sr.total_discount_money),
+          totalPaidMoney: round2(sr.total_paid_money),
+          totalRcptMoney: round2(sr.total_rcpt_money),
+          totalDebit: round2(sr.total_debit),
+          withDebitCount: Number(sr.with_debit_count ?? 0),
+          withRcptCount: Number(sr.with_rcpt_count ?? 0),
+          withAuthenCount,
+          withoutAuthenCount,
+          authenRate,
+        },
+        breakdowns: {
+          eclaim: mapBreakdown(eclaimRows, 'ไม่ระบุสิทธิ e-Claim'),
+          account: mapBreakdown(accountRows, 'ไม่ระบุผังบัญชี'),
+          pttype: mapBreakdown(pttypeRows, 'ไม่ระบุสิทธิ'),
+          vstdate: mapBreakdown(vstdateRows, 'ไม่ระบุวันที่'),
+        },
+      }
+    }
+
+    const tier1Key = `opd-debt-tier1:${ds1}:${ds2}:${includeAdmitted ? 'all' : 'opd'}`
+    const tier1Promise = refresh
+      ? loadTier1()
+      : getCached(tier1Key, 30000, loadTier1)
+
+    const whereClauses = ['o.vstdate BETWEEN ? AND ?']
+    const whereParams = [ds1, ds2]
+    if (!includeAdmitted) whereClauses.push("IFNULL(o.an, '') = ''")
+    if (eclaimFilter) {
+      if (eclaimFilter === 'NONE') whereClauses.push("(ptt.pttype_eclaim_id IS NULL OR TRIM(ptt.pttype_eclaim_id) = '')")
+      else { whereClauses.push('ptt.pttype_eclaim_id = ?'); whereParams.push(eclaimFilter) }
+    }
+    if (accountFilter) {
+      if (accountFilter === 'NONE') whereClauses.push("(e.ar_opd IS NULL OR TRIM(e.ar_opd) = '')")
+      else { whereClauses.push('e.ar_opd = ?'); whereParams.push(accountFilter) }
+    }
+    if (pttypeFilter) {
+      if (pttypeFilter === 'NONE') whereClauses.push("(o.pttype IS NULL OR TRIM(o.pttype) = '')")
+      else { whereClauses.push('o.pttype = ?'); whereParams.push(pttypeFilter) }
+    }
+    if (vstdateFilter) {
+      whereClauses.push('o.vstdate = ?'); whereParams.push(vstdateFilter)
+    }
+    if (cardFilter === 'WITH_DEBIT') {
+      whereClauses.push('(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) > 0')
+    } else if (cardFilter === 'WITH_RCPT') {
+      whereClauses.push('IFNULL(v.rcpt_money, 0) > 0')
+    } else if (cardFilter === 'WITH_AUTHEN') {
+      whereClauses.push(AUTHEN_EXISTS_SQL)
+    } else if (cardFilter === 'NO_AUTHEN') {
+      whereClauses.push(`NOT ${AUTHEN_EXISTS_SQL}`)
+    }
+    if (search) {
+      const like = `%${search}%`
+      whereClauses.push(`(
+        o.hn LIKE ? OR o.vn LIKE ? OR o.an LIKE ? OR pt.cid LIKE ? OR
+        CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) LIKE ? OR
+        ptt.name LIKE ? OR e.name LIKE ? OR e.ar_opd LIKE ? OR v.pdx LIKE ? OR v.rcpno_list LIKE ? OR
+        EXISTS (SELECT 1 FROM rcmdb.authencode cc WHERE cc.vn = o.vn AND cc.AuthenCode LIKE ?) OR
+        EXISTS (SELECT 1 FROM visit_pttype vt WHERE vt.vn = o.vn AND (vt.auth_code LIKE ? OR vt.claim_code LIKE ?))
+      )`)
+      for (let i = 0; i < 13; i++) whereParams.push(like)
+    }
+
+    const whereSql = whereClauses.join(' AND ')
+    const dir = sortOrder === 'asc' ? 'ASC' : 'DESC'
+    const orderBySql = sortBy === 'vstdate'
+      ? `o.vstdate ${dir}, o.vsttime ${dir}, o.vn ${dir}`
+      : `${SORT_MAP[sortBy]} ${dir}, o.vn DESC`
+
+    const countSql = `
+      SELECT COUNT(DISTINCT o.vn) AS total
+      FROM ovst o
+      LEFT JOIN vn_stat v ON v.vn = o.vn
+      LEFT JOIN patient pt ON pt.hn = o.hn
+      LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+      LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
+      WHERE ${whereSql}
+    `
+    const dataSql = `
+      SELECT
+        o.vn, IFNULL(o.an, '') AS an, o.hn, IFNULL(pt.cid, '') AS cid,
+        CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
+        DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+        TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
+        IFNULL(o.pt_subtype, '') AS pt_subtype,
+        IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
+        IFNULL(e.name, '') AS pttype_eclaim_name,
+        IFNULL(o.pttype, '') AS pttype,
+        IFNULL(ptt.hipdata_code, '') AS hipdata_code,
+        IFNULL(ptt.name, '') AS pttypename,
+        IFNULL(e.gf_opd, '') AS gfmis,
+        IFNULL(e.ar_opd, '') AS accountcode,
+        IFNULL(ca.name, '') AS accountname,
+        IFNULL(dep.department, IFNULL(o.main_dep, '')) AS department,
+        IFNULL(spc.name, IFNULL(o.spclty, '')) AS clinic,
+        IFNULL(v.pdx, '') AS pdx,
+        IFNULL(v.income, 0) AS income,
+        IFNULL(v.uc_money, 0) AS uc_money,
+        IFNULL(v.discount_money, 0) AS discount_money,
+        IFNULL(v.paid_money, 0) AS paid_money,
+        IFNULL(v.rcpt_money, 0) AS rcpt_money,
+        IFNULL(v.rcpno_list, '') AS rcpno_list,
+        (IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) AS debit
+      FROM ovst o
+      LEFT JOIN vn_stat v ON v.vn = o.vn
+      LEFT JOIN patient pt ON pt.hn = o.hn
+      LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+      LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
+      LEFT JOIN codeaccount ca ON ca.code = e.ar_opd
+      LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
+      LEFT JOIN spclty spc ON spc.spclty = o.spclty
+      WHERE ${whereSql}
+      ORDER BY ${orderBySql}
+      LIMIT ? OFFSET ?
+    `
+
+    const [tier1, [countRows], [rawRows]] = await Promise.all([
+      tier1Promise,
+      hosPool.query(countSql, whereParams),
+      hosPool.query(dataSql, [...whereParams, pageSize, offset])
+    ])
+
+    const totalCount = Number(countRows?.[0]?.total ?? 0)
+    const rows = Array.isArray(rawRows) ? rawRows : []
+    const rcptMap = new Map()
+    const authenMap = new Map()
+    const vtMap = new Map()
+
+    if (rows.length > 0) {
+      const vns = Array.from(new Set(rows.map((r) => String(r.vn || '').trim()).filter(Boolean)))
+      for (let i = 0; i < vns.length; i += 500) {
+        const chunk = vns.slice(i, i + 500)
+        const ph = chunk.map(() => '?').join(',')
+        const safeExec = async (sql) => {
+          try {
+            const [res] = await hosPool.query(sql, chunk)
+            return Array.isArray(res) ? res : []
+          } catch {
+            return []
+          }
+        }
+        const [rcptRows, authenRows, vtRows] = await Promise.all([
+          safeExec(`SELECT b.vn, GROUP_CONCAT(CONCAT(b.rcpno, '#', FORMAT(IFNULL(b.total_amount, 0), 2)) ORDER BY b.finance_number SEPARATOR ', ') AS rcpno, GROUP_CONCAT(DATE_FORMAT(b.bill_date_time, '%Y-%m-%d %H:%i') ORDER BY b.finance_number SEPARATOR ', ') AS rcpnodate FROM rcpt_print b WHERE b.vn IN (${ph}) AND IFNULL(b.status, '') NOT REGEXP 'Abort' GROUP BY b.vn`),
+          safeExec(`SELECT cc.vn, MAX(NULLIF(TRIM(cc.AuthenCode), '')) AS authencode, MAX(NULLIF(TRIM(cc.AuthenMethod), '')) AS authen_method FROM rcmdb.authencode cc WHERE cc.vn IN (${ph}) GROUP BY cc.vn`),
+          safeExec(`SELECT vt.vn, MAX(NULLIF(TRIM(vt.auth_code), '')) AS auth_code, MAX(NULLIF(TRIM(vt.claim_code), '')) AS claim_code, MAX(vt.max_debt_amount) AS max_debt_amount FROM visit_pttype vt WHERE vt.vn IN (${ph}) GROUP BY vt.vn`)
+        ])
+        for (const r of rcptRows) { if (r.vn) rcptMap.set(String(r.vn).trim(), { rcpno: String(r.rcpno || '').trim(), rcpnodate: String(r.rcpnodate || '').trim() }) }
+        for (const r of authenRows) { if (r.vn) authenMap.set(String(r.vn).trim(), { authencode: r.authencode ? String(r.authencode).trim() : null, authenMethod: r.authen_method ? String(r.authen_method).trim() : null }) }
+        for (const r of vtRows) { if (r.vn) vtMap.set(String(r.vn).trim(), { authCode: r.auth_code ? String(r.auth_code).trim() : null, claimCode: r.claim_code ? String(r.claim_code).trim() : null, maxDebtAmount: r.max_debt_amount != null ? Number(r.max_debt_amount) : null }) }
+      }
+    }
+
+    const items = rows.map((r, idx) => {
+      const vn = String(r.vn || '').trim()
+      const rcptInfo = rcptMap.get(vn)
+      const authenInfo = authenMap.get(vn)
+      const vtInfo = vtMap.get(vn)
+      const ptSubtypeCode = r.pt_subtype != null ? String(r.pt_subtype).trim() : ''
+      const rawRcpno = (rcptInfo && rcptInfo.rcpno) || r.rcpno_list || ''
+      return {
+        no: offset + idx + 1,
+        vn,
+        an: String(r.an || '').trim(),
+        hn: String(r.hn || '').trim(),
+        cid: String(r.cid || '').trim(),
+        ptname: String(r.ptname || '').trim(),
+        vstdate: String(r.vstdate || '').trim(),
+        vsttime: String(r.vsttime || '').trim(),
+        ptsubtypeCode,
+        ptsubtype: PT_SUBTYPE_LABELS[ptSubtypeCode] || ptSubtypeCode,
+        authencode: (authenInfo && authenInfo.authencode) || (vtInfo && vtInfo.authCode) || (vtInfo && vtInfo.claimCode) || null,
+        authenMethod: (authenInfo && authenInfo.authenMethod) || null,
+        pttype_eclaim_id: String(r.pttype_eclaim_id || '').trim(),
+        pttype_eclaim_name: String(r.pttype_eclaim_name || '').trim(),
+        pttype: String(r.pttype || '').trim(),
+        hipdata_code: String(r.hipdata_code || '').trim(),
+        pttypename: String(r.pttypename || '').trim(),
+        gfmis: String(r.gfmis || '').trim(),
+        accountcode: String(r.accountcode || '').trim(),
+        accountname: String(r.accountname || '').trim(),
+        department: String(r.department || '').trim(),
+        clinic: String(r.clinic || '').trim(),
+        pdx: String(r.pdx || '').trim(),
+        income: round2(r.income),
+        uc_money: round2(r.uc_money),
+        discount_money: round2(r.discount_money),
+        paid_money: round2(r.paid_money),
+        rcpt_money: round2(r.rcpt_money),
+        rcpno: String(rawRcpno).replace(/["']/g, '').trim(),
+        rcpnodate: String((rcptInfo && rcptInfo.rcpnodate) || '').trim(),
+        debit: round2(r.debit),
+        max_debt_amount: vtInfo && vtInfo.maxDebtAmount != null ? round2(vtInfo.maxDebtAmount) : null
+      }
+    })
+
+    return {
+      success: true,
+      data: {
+        ds1,
+        ds2,
+        includeAdmitted,
+        cardFilter,
+        eclaimFilter,
+        accountFilter,
+        pttypeFilter,
+        vstdateFilter,
+        search,
+        sortBy,
+        sortOrder,
+        page,
+        pageSize,
+        totalCount,
+        totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+        summary: tier1.summary,
+        breakdowns: tier1.breakdowns,
+        items
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
 
 }

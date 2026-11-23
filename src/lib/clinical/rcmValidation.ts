@@ -62,6 +62,57 @@ export const opdReportQuerySchema = baseFiscalDateSchema
   .merge(paginationSchema.partial())
 
 /**
+ * OPD Debt Registry (2.1.1.3 ทะเบียนตั้งหนี้ผู้ป่วยนอก) Query Schema
+ */
+export const opdDebtRegistryQuerySchema = baseFiscalDateSchema
+  .extend({
+    includeAdmitted: z
+      .union([
+        z.boolean(),
+        z.enum(['true', 'false']).transform((v) => v === 'true'),
+        z.literal('1').transform(() => true),
+        z.literal('0').transform(() => false),
+      ])
+      .optional(),
+    cardFilter: z
+      .enum(['ALL', 'WITH_DEBIT', 'WITH_RCPT', 'WITH_AUTHEN', 'NO_AUTHEN'])
+      .default('ALL'),
+    eclaimFilter: z.string().max(50).optional(),
+    accountFilter: z.string().max(80).optional(),
+    pttypeFilter: z.string().max(30).optional(),
+    vstdateFilter: z
+      .union([z.literal(''), z.string().regex(rcmDateRegex, 'รูปแบบวันที่ต้องเป็น YYYY-MM-DD')])
+      .optional(),
+    sortBy: z
+      .enum([
+        'vstdate',
+        'hn',
+        'vn',
+        'cid',
+        'ptname',
+        'pttype',
+        'pttype_eclaim_id',
+        'accountcode',
+        'income',
+        'uc_money',
+        'discount_money',
+        'paid_money',
+        'rcpt_money',
+        'debit',
+      ])
+      .default('vstdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([
+        z.boolean(),
+        z.enum(['true', 'false']).transform((v) => v === 'true'),
+        z.literal('1').transform(() => true),
+      ])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
  * IPD Department AdjRW Query Schema
  */
 export const ipdDeptAdjrwQuerySchema = baseFiscalDateSchema.extend({

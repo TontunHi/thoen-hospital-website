@@ -487,6 +487,47 @@ export class ApiGatewayClient {
       }>(`/api/v1/clinical/rcm/invoice-details${qs}`)
     },
 
+    getRcmOpdDebtRegistry: (params?: {
+      ds1?: string
+      ds2?: string
+      includeAdmitted?: boolean
+      cardFilter?: string
+      eclaimFilter?: string
+      accountFilter?: string
+      pttypeFilter?: string
+      vstdateFilter?: string
+      search?: string
+      sortBy?: string
+      sortOrder?: 'asc' | 'desc'
+      page?: number
+      pageSize?: number
+      exportAll?: boolean
+      refresh?: boolean
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.ds1) q.set('ds1', params.ds1)
+      if (params?.ds2) q.set('ds2', params.ds2)
+      if (params?.includeAdmitted !== undefined) q.set('includeAdmitted', String(params.includeAdmitted))
+      if (params?.cardFilter) q.set('cardFilter', params.cardFilter)
+      if (params?.eclaimFilter) q.set('eclaimFilter', params.eclaimFilter)
+      if (params?.accountFilter) q.set('accountFilter', params.accountFilter)
+      if (params?.pttypeFilter) q.set('pttypeFilter', params.pttypeFilter)
+      if (params?.vstdateFilter) q.set('vstdateFilter', params.vstdateFilter)
+      if (params?.search) q.set('search', params.search)
+      if (params?.sortBy) q.set('sortBy', params.sortBy)
+      if (params?.sortOrder) q.set('sortOrder', params.sortOrder)
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.pageSize) q.set('pageSize', String(params.pageSize))
+      if (params?.exportAll) q.set('exportAll', 'true')
+      if (params?.refresh) q.set('refresh', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        success?: boolean
+        data?: any
+        ds1?: string
+      }>(`/api/v1/clinical/rcm/opd-debt-registry${qs}`, { timeoutMs: 90000 })
+    },
+
     getRcmPalliativeReport: (params?: {
       startDate?: string
       endDate?: string

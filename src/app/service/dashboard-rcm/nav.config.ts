@@ -50,6 +50,13 @@ export const RCM_NAV_CONFIG: NavGroup[] = [
         href: '/service/dashboard-rcm/opd',
         keywords: ['opd', 'ผู้ป่วยนอก', '2.1.1.3'],
       },
+      {
+        id: 'opd-debt-registry',
+        code: '2.1.1.3',
+        label: 'รายชื่อผู้ป่วยนอก (ทะเบียนตั้งหนี้)',
+        href: '/service/dashboard-rcm/opd-debt-registry',
+        keywords: ['opd', 'ผู้ป่วยนอก', 'ทะเบียนตั้งหนี้', 'ตั้งหนี้', 'ลูกหนี้', 'รับบริการ', '2.1.1.3'],
+      },
     ],
   },
   {
