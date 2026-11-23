@@ -1936,7 +1936,7 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
         ptname: String(r.ptname || '').trim(),
         vstdate: String(r.vstdate || '').trim(),
         vsttime: String(r.vsttime || '').trim(),
-        ptsubtypeCode,
+        ptsubtypeCode: ptSubtypeCode,
         ptsubtype: PT_SUBTYPE_LABELS[ptSubtypeCode] || ptSubtypeCode,
         authencode: (authenInfo && authenInfo.authencode) || (vtInfo && vtInfo.authCode) || (vtInfo && vtInfo.claimCode) || null,
         authenMethod: (authenInfo && authenInfo.authenMethod) || null,
