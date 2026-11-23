@@ -42,7 +42,8 @@ function createInMemoryDeps(initialRows: InternalPhoneRecordRaw[] = []): {
     }
 
     if (normalized.startsWith('INSERT INTO HOSPITAL_INTERNAL_PHONES_META')) {
-      meta.set('initial_seed_v1', 'done')
+      const key = String(params[0] ?? 'initial_seed_v2')
+      meta.set(key, 'done')
       return { affectedRows: 1, insertId: null }
     }
 
@@ -107,6 +108,12 @@ function createInMemoryDeps(initialRows: InternalPhoneRecordRaw[] = []): {
       return { affectedRows: 1, insertId: null }
     }
 
+    if (normalized === 'DELETE FROM HOSPITAL_INTERNAL_PHONES') {
+      const count = rows.length
+      rows.length = 0
+      return { affectedRows: count, insertId: null }
+    }
+
     if (normalized.startsWith('DELETE FROM HOSPITAL_INTERNAL_PHONES WHERE ID =')) {
       const id = Number(params[0])
       const idx = rows.findIndex((r) => r.id === id)
@@ -151,9 +158,9 @@ function createInMemoryDeps(initialRows: InternalPhoneRecordRaw[] = []): {
 }
 
 describe('internalPhoneDomain', () => {
-  it('normalizes legacy building aliases ("ตึกเก่า", "ตึกใหม่") to "อาคารร่มฉัตร"', () => {
+  it('normalizes legacy building aliases ("ตึกเก่า" -> "อาคารร่มฉัตร", "ตึกใหม่" -> "อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น")', () => {
     expect(normalizeBuildingName('ตึกเก่า')).toBe('อาคารร่มฉัตร')
-    expect(normalizeBuildingName('ตึกใหม่')).toBe('อาคารร่มฉัตร')
+    expect(normalizeBuildingName('ตึกใหม่')).toBe('อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น')
     expect(normalizeBuildingName('  อาคารร่มบุญ  ')).toBe('อาคารร่มบุญ')
   })
 
@@ -164,11 +171,13 @@ describe('internalPhoneDomain', () => {
     expect(normalizePhoneString('1100,1101')).toBe('1100, 1101')
   })
 
-  it('contains 62 clean initial records including fixed entries', () => {
+  it('contains 62 clean initial records with separate old/new buildings', () => {
     expect(INITIAL_INTERNAL_PHONES).toHaveLength(62)
     const adminRow = INITIAL_INTERNAL_PHONES.find((r) => r.room === 'บริหารฯ')
     expect(adminRow?.phone).toBe('2100, 2400')
     expect(adminRow?.building).toBe('อาคารร่มฉัตร')
+    const erRow = INITIAL_INTERNAL_PHONES.find((r) => r.room === 'ER / ฉุกเฉิน')
+    expect(erRow?.building).toBe('อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น')
     const thaiMedRow = INITIAL_INTERNAL_PHONES.find((r) => r.phone === '2108')
     expect(thaiMedRow?.room).toBe('แพทย์แผนไทย')
   })
@@ -246,10 +255,40 @@ describe('InternalPhoneService', () => {
 
     const result = await service.listPhones()
     expect(rows).toHaveLength(62)
-    expect(meta.get('initial_seed_v1')).toBe('done')
+    expect(meta.get('initial_seed_v2')).toBe('done')
     expect(result.items).toHaveLength(62)
+    expect(result.buildings).toContain('อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น')
     expect(result.buildings).toContain('อาคารร่มฉัตร')
     expect(result.stats.totalCount).toBe(62)
+  })
+
+  it('replaces legacy v1 rows completely when initial_seed_v2 has not run yet', async () => {
+    const { deps, rows, meta } = createInMemoryDeps([
+      {
+        id: 999,
+        building: 'อาคารร่มฉัตร',
+        floor: '1',
+        room: 'รายการเก่าที่ต้องถูกลบ',
+        phone: '9999',
+        note: null,
+        displayOrder: 1,
+        isActive: 1,
+        createdBy: 'system-seed',
+        updatedBy: 'system-seed',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ])
+    meta.set('initial_seed_v1', 'done')
+    const service = new InternalPhoneService(deps)
+
+    const result = await service.listPhones()
+    expect(meta.get('initial_seed_v2')).toBe('done')
+    expect(rows).toHaveLength(62)
+    expect(result.items.find((r) => r.room === 'รายการเก่าที่ต้องถูกลบ')).toBeUndefined()
+    expect(result.items.find((r) => r.room === 'ER / ฉุกเฉิน')?.building).toBe(
+      'อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น'
+    )
   })
 
   it('creates, updates, and deletes entries and writes audit logs', async () => {
@@ -267,7 +306,7 @@ describe('InternalPhoneService', () => {
       { username: 'admin_test', email: 'admin@thoen.local' }
     )
 
-    expect(created.building).toBe('อาคารร่มฉัตร')
+    expect(created.building).toBe('อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น')
     expect(created.phone).toBe('1399, 1398')
     expect(logAudit).toHaveBeenCalledWith(
       'CREATE',

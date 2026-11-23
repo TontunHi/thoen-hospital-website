@@ -115,6 +115,8 @@ function mapRow(raw: InternalPhoneRecordRaw): InternalPhoneRecord {
   }
 }
 
+const SEED_VERSION_KEY = 'initial_seed_v2'
+
 export class InternalPhoneService {
   private readonly deps: InternalPhoneDbDeps
   private initPromise: Promise<void> | null = null
@@ -128,8 +130,9 @@ export class InternalPhoneService {
   }
 
   /**
-   * Ensures tables exist and seeds initial 62 directory entries once (only when
-   * `initial_seed_v1` marker is absent and table is empty).
+   * Ensures tables exist and replaces any older seed data with the v2 directory
+   * (splitting "ตึกเก่า" -> อาคารร่มฉัตร and "ตึกใหม่" -> อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น)
+   * when `initial_seed_v2` marker is absent.
    */
   async ensureTablesAndSeed(): Promise<void> {
     if (!this.initPromise) {
@@ -150,58 +153,41 @@ export class InternalPhoneService {
 
     const metaRows = await this.deps.appQuery<{ meta_value: string }>(
       'SELECT meta_value FROM hospital_internal_phones_meta WHERE meta_key = ?',
-      ['initial_seed_v1']
+      [SEED_VERSION_KEY]
     )
     if (metaRows.length > 0) return
 
-    const countRows = await this.deps.appQuery<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM hospital_internal_phones'
-    )
-    const existingCount = Number(countRows[0]?.total ?? 0)
-
-    if (existingCount === 0) {
-      const statements: Array<{ sql: string; params?: unknown[] }> = [
-        { sql: 'SET NAMES utf8mb4' },
-        ...INITIAL_INTERNAL_PHONES.map((item, idx) => ({
-          sql: `
-            INSERT INTO hospital_internal_phones
-              (building, floor, room, phone, note, display_order, is_active, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          params: [
-            normalizeBuildingName(item.building),
-            normalizeOptionalText(item.floor),
-            item.room.trim(),
-            normalizePhoneString(item.phone),
-            normalizeOptionalText(item.note),
-            item.displayOrder ?? idx + 1,
-            item.isActive === false ? 0 : 1,
-            'system-seed',
-            'system-seed',
-          ],
-        })),
-        {
-          sql: `
-            INSERT INTO hospital_internal_phones_meta (meta_key, meta_value)
-            VALUES ('initial_seed_v1', 'done')
-            ON DUPLICATE KEY UPDATE meta_value = 'done'
-          `,
-        },
-      ]
-      await this.deps.appTransaction(statements)
-      return
-    }
-
-    await this.deps.appTransaction([
+    const statements: Array<{ sql: string; params?: unknown[] }> = [
       { sql: 'SET NAMES utf8mb4' },
+      { sql: 'DELETE FROM hospital_internal_phones' },
+      ...INITIAL_INTERNAL_PHONES.map((item, idx) => ({
+        sql: `
+          INSERT INTO hospital_internal_phones
+            (building, floor, room, phone, note, display_order, is_active, created_by, updated_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        params: [
+          normalizeBuildingName(item.building),
+          normalizeOptionalText(item.floor),
+          item.room.trim(),
+          normalizePhoneString(item.phone),
+          normalizeOptionalText(item.note),
+          item.displayOrder ?? idx + 1,
+          item.isActive === false ? 0 : 1,
+          'system-seed',
+          'system-seed',
+        ],
+      })),
       {
         sql: `
           INSERT INTO hospital_internal_phones_meta (meta_key, meta_value)
-          VALUES ('initial_seed_v1', 'done')
+          VALUES (?, 'done')
           ON DUPLICATE KEY UPDATE meta_value = 'done'
         `,
+        params: [SEED_VERSION_KEY],
       },
-    ])
+    ]
+    await this.deps.appTransaction(statements)
   }
 
   async listPhones(filters: InternalPhoneListFilters = {}): Promise<InternalPhoneListResult> {

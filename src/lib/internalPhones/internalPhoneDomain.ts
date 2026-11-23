@@ -4,21 +4,30 @@ import type {
   InternalPhoneSummaryStats,
 } from './internalPhoneTypes'
 
+export const OLD_BUILDING_NAME = 'อาคารร่มฉัตร'
+export const NEW_BUILDING_NAME = 'อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น'
+
 const PREFERRED_BUILDING_ORDER = [
-  'อาคารร่มฉัตร',
+  NEW_BUILDING_NAME,
+  OLD_BUILDING_NAME,
   'อาคารร่มบุญ',
   'อาคารซักฟอก',
   'อาคาร/หน่วยงานอื่นๆ',
 ]
 
 /**
- * Normalizes legacy building aliases ("ตึกเก่า" / "ตึกใหม่") to "อาคารร่มฉัตร"
+ * Normalizes legacy building aliases:
+ * - "ตึกเก่า" -> "อาคารร่มฉัตร"
+ * - "ตึกใหม่" -> "อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น"
  * and collapses extra whitespace.
  */
 export function normalizeBuildingName(building: string): string {
   const cleaned = building.replace(/\s+/g, ' ').trim()
-  if (cleaned === 'ตึกเก่า' || cleaned === 'ตึกใหม่') {
-    return 'อาคารร่มฉัตร'
+  if (cleaned === 'ตึกเก่า') {
+    return OLD_BUILDING_NAME
+  }
+  if (cleaned === 'ตึกใหม่') {
+    return NEW_BUILDING_NAME
   }
   return cleaned
 }
