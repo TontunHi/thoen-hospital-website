@@ -1,11 +1,13 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 
-export type MemberQueryExecutor = <T = Record<string, unknown>>(
-  sql: string,
-  params?: unknown[]
-) => Promise<T[]>
+export interface SignatureGatewayDeps {
+  isSignatureFeatureEnabled: typeof apiGateway.app.isSignatureFeatureEnabled
+  getMemberSignaturePath: typeof apiGateway.app.getMemberSignaturePath
+  updateMemberSignaturePath: typeof apiGateway.app.updateMemberSignaturePath
+  resolveMemberSignatureAccess: typeof apiGateway.app.resolveMemberSignatureAccess
+}
 
 export interface SignatureSessionContext {
   id?: number
@@ -29,31 +31,13 @@ const MAX_SIGNATURE_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
 const MAX_BASE64_LENGTH = Math.ceil((MAX_SIGNATURE_SIZE_BYTES * 4) / 3) + 100
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
-interface ConfigRow {
-  config_value: string | null
-}
-
-interface MemberSignatureRow {
-  signature_path: string | null
-  updated_at?: string | Date | null
-}
-
-interface MemberIdentityRow {
-  id: number
-  username: string
-  role: string
-}
-
 export async function assertSignatureFeatureEnabled(
   role: string,
-  query: MemberQueryExecutor = queryMemberDb
+  gw: Pick<SignatureGatewayDeps, 'isSignatureFeatureEnabled'> = apiGateway.app
 ): Promise<void> {
   if (role === 'admin') return
-  const settingsRows = await query<ConfigRow>(
-    "SELECT config_value FROM member_system_settings WHERE config_key = 'feature_signature'"
-  )
-  const isEnabled = settingsRows.length === 0 || settingsRows[0].config_value !== '0'
-  if (!isEnabled) {
+  const res = await gw.isSignatureFeatureEnabled()
+  if (!res.enabled) {
     throw new SignatureServiceError(
       'ระบบจัดการลายเซ็นอิเล็กทรอนิกส์ถูกปิดใช้งานชั่วคราว',
       403,
@@ -64,22 +48,18 @@ export async function assertSignatureFeatureEnabled(
 
 export async function getMemberSignatureStatus(
   session: SignatureSessionContext,
-  query: MemberQueryExecutor = queryMemberDb
+  gw: Pick<SignatureGatewayDeps, 'isSignatureFeatureEnabled' | 'getMemberSignaturePath'> = apiGateway.app
 ): Promise<{ exists: boolean; updatedAt?: string | Date | null }> {
-  await assertSignatureFeatureEnabled(session.role, query)
+  await assertSignatureFeatureEnabled(session.role, gw)
 
-  const members = await query<MemberSignatureRow>(
-    'SELECT signature_path, updated_at FROM members WHERE username = ? LIMIT 1',
-    [session.username]
-  )
-
-  if (members.length === 0 || !members[0].signature_path) {
+  const info = await gw.getMemberSignaturePath(session.username)
+  if (!info || !info.signaturePath) {
     return { exists: false }
   }
 
   return {
     exists: true,
-    updatedAt: members[0].updated_at,
+    updatedAt: info.updatedAt,
   }
 }
 
@@ -87,14 +67,14 @@ export async function saveMemberSignature(
   session: SignatureSessionContext,
   imageBase64: unknown,
   deps: {
-    query?: MemberQueryExecutor
+    gw?: Pick<SignatureGatewayDeps, 'isSignatureFeatureEnabled' | 'updateMemberSignaturePath'>
     storage?: Pick<typeof DocumentStorage, 'save'>
   } = {}
 ): Promise<{ path: string }> {
-  const query = deps.query ?? queryMemberDb
+  const gw = deps.gw ?? apiGateway.app
   const storage = deps.storage ?? DocumentStorage
 
-  await assertSignatureFeatureEnabled(session.role, query)
+  await assertSignatureFeatureEnabled(session.role, gw)
 
   if (
     !imageBase64 ||
@@ -146,10 +126,7 @@ export async function saveMemberSignature(
     allowedRootPrefixes: ['storage'],
   })
 
-  await query(
-    'UPDATE members SET signature_path = ? WHERE username = ?',
-    [stored.relativePath, session.username]
-  )
+  await gw.updateMemberSignaturePath(session.username, stored.relativePath)
 
   await logAudit(
     'UPDATE',
@@ -165,20 +142,17 @@ export async function readMemberSignatureImage(
   session: SignatureSessionContext,
   params: { path?: string | null; userId?: string | null },
   deps: {
-    query?: MemberQueryExecutor
+    gw?: Pick<SignatureGatewayDeps, 'getMemberSignaturePath' | 'resolveMemberSignatureAccess'>
     storage?: Pick<typeof DocumentStorage, 'readBuffer'>
   } = {}
 ): Promise<Buffer> {
-  const query = deps.query ?? queryMemberDb
+  const gw = deps.gw ?? apiGateway.app
   const storage = deps.storage ?? DocumentStorage
 
   if (params.path) {
     if (session.role !== 'admin') {
-      const ownMembers = await query<MemberSignatureRow>(
-        'SELECT signature_path FROM members WHERE username = ? LIMIT 1',
-        [session.username]
-      )
-      const ownSignature = ownMembers[0]?.signature_path
+      const ownInfo = await gw.getMemberSignaturePath(session.username)
+      const ownSignature = ownInfo?.signaturePath
       if (!ownSignature || ownSignature !== params.path) {
         throw new SignatureServiceError(
           'คุณไม่มีสิทธิ์เข้าถึงลายเซ็นนี้',
@@ -209,21 +183,19 @@ export async function readMemberSignatureImage(
 
   let targetUsername = session.username
   if (params.userId) {
-    const sessionUsers = await query<MemberIdentityRow>(
-      'SELECT id, username, role FROM members WHERE username = ? AND email = ? LIMIT 1',
-      [session.username, session.email]
-    )
-    if (sessionUsers.length === 0) {
+    const resolved = await gw.resolveMemberSignatureAccess({
+      sessionUsername: session.username,
+      sessionEmail: session.email || '',
+      targetUserId: params.userId,
+    })
+
+    if (!resolved.sessionUser) {
       throw new SignatureServiceError('ไม่พบผู้ใช้ของคุณในระบบ', 404, 'SESSION_USER_NOT_FOUND')
     }
-    const currentUser = sessionUsers[0]
+    const currentUser = resolved.sessionUser
     const targetUserIdParsed = Number.parseInt(params.userId, 10)
 
-    const users = await query<MemberIdentityRow>(
-      'SELECT id, username, role FROM members WHERE id = ? LIMIT 1',
-      [params.userId]
-    )
-    if (users.length === 0) {
+    if (!resolved.targetUser) {
       throw new SignatureServiceError('ไม่พบผู้ใช้ที่ระบุ', 404, 'TARGET_USER_NOT_FOUND')
     }
 
@@ -234,19 +206,16 @@ export async function readMemberSignatureImage(
         'FORBIDDEN_USER_SIGNATURE'
       )
     }
-    targetUsername = users[0].username
+    targetUsername = resolved.targetUser.username
   }
 
-  const members = await query<MemberSignatureRow>(
-    'SELECT signature_path FROM members WHERE username = ? LIMIT 1',
-    [targetUsername]
-  )
-  if (members.length === 0 || !members[0].signature_path) {
+  const info = await gw.getMemberSignaturePath(targetUsername)
+  if (!info || !info.signaturePath) {
     throw new SignatureServiceError('ไม่พบลายเซ็นดิจิทัล', 404, 'SIGNATURE_NOT_FOUND')
   }
 
   try {
-    return await storage.readBuffer(members[0].signature_path)
+    return await storage.readBuffer(info.signaturePath)
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code
     if (code === 'FILE_NOT_FOUND') {

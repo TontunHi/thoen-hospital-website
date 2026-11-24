@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { MemberAuthService } from '../MemberAuthService'
+import { MemberAuthService, type MemberAuthGatewayDeps } from '../MemberAuthService'
 import * as providerIdAuth from '@/lib/providerIdAuth'
 import * as audit from '@/lib/audit'
 
@@ -18,13 +18,19 @@ vi.mock('@/lib/audit', () => ({
 }))
 
 describe('MemberAuthService.exchangeProviderIdCode and exchangeHealthIdCode', () => {
-  let mockDb: any
+  let mockGw: {
+    getAuthMemberByUsername: ReturnType<typeof vi.fn<MemberAuthGatewayDeps['getAuthMemberByUsername']>>
+    getAuthMemberByHashCid: ReturnType<typeof vi.fn<MemberAuthGatewayDeps['getAuthMemberByHashCid']>>
+  }
   let authService: MemberAuthService
 
   beforeEach(() => {
     process.env.MEMBER_SESSION_SECRET = 'test-secret-at-least-32-chars-long-123456'
-    mockDb = vi.fn()
-    authService = new MemberAuthService(mockDb)
+    mockGw = {
+      getAuthMemberByUsername: vi.fn(),
+      getAuthMemberByHashCid: vi.fn(),
+    }
+    authService = new MemberAuthService(mockGw)
     vi.clearAllMocks()
   })
 
@@ -84,14 +90,13 @@ describe('MemberAuthService.exchangeProviderIdCode and exchangeHealthIdCode', ()
         provider_id: '0111111111X21',
         name_th: 'นายแพทย์ บุคลากร สาธารณสุข',
       })
-      mockDb.mockResolvedValue([])
+      mockGw.getAuthMemberByHashCid.mockResolvedValue(null)
 
       await expect(authService.exchangeProviderIdCode('code', 'state')).rejects.toThrow(
         'Provider ID citizen ID not registered in hospital members'
       )
-      expect(mockDb).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT id, username, email, role, name FROM members WHERE SHA2(username, 256) = ?'),
-        ['a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3']
+      expect(mockGw.getAuthMemberByHashCid).toHaveBeenCalledWith(
+        'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3'
       )
       expect(audit.logAudit).toHaveBeenCalledWith(
         'LOGIN',
@@ -118,15 +123,13 @@ describe('MemberAuthService.exchangeProviderIdCode and exchangeHealthIdCode', ()
         provider_id: '0111111111X21',
         name_th: 'นายแพทย์ สมชาย ใจดี',
       })
-      mockDb.mockResolvedValue([
-        {
-          id: 10,
-          username: '3520100123456',
-          email: 'somchai@thoenhospital.go.th',
-          role: 'doctor',
-          name: 'นายแพทย์ สมชาย ใจดี',
-        },
-      ])
+      mockGw.getAuthMemberByHashCid.mockResolvedValue({
+        id: 10,
+        username: '3520100123456',
+        email: 'somchai@thoenhospital.go.th',
+        role: 'doctor',
+        name: 'นายแพทย์ สมชาย ใจดี',
+      })
 
       const sessionPayload = await authService.exchangeProviderIdCode('valid-code', 'valid-state')
       expect(sessionPayload).toEqual({
@@ -160,15 +163,13 @@ describe('MemberAuthService.exchangeProviderIdCode and exchangeHealthIdCode', ()
         accountId: 'acc-123',
         name: 'พยาบาล ทดสอบ',
       })
-      mockDb.mockResolvedValue([
-        {
-          id: 12,
-          username: '3520100123456',
-          email: 'nurse@thoenhospital.go.th',
-          role: 'nurse',
-          name: 'พยาบาล ทดสอบ',
-        },
-      ])
+      mockGw.getAuthMemberByUsername.mockResolvedValue({
+        id: 12,
+        username: '3520100123456',
+        email: 'nurse@thoenhospital.go.th',
+        role: 'nurse',
+        name: 'พยาบาล ทดสอบ',
+      })
 
       const sessionPayload = await authService.exchangeHealthIdCode('code', 'state')
       expect(sessionPayload).toEqual({
@@ -200,7 +201,7 @@ describe('MemberAuthService.exchangeProviderIdCode and exchangeHealthIdCode', ()
         accountId: 'acc-unknown',
         name: 'บุคคล ภายนอก',
       })
-      mockDb.mockResolvedValue([])
+      mockGw.getAuthMemberByUsername.mockResolvedValue(null)
 
       await expect(authService.exchangeHealthIdCode('code', 'state')).rejects.toThrow(
         'Health ID citizen ID not registered in hospital members'

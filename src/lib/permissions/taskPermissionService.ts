@@ -1,4 +1,4 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway, GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import {
   TASK_DEFINITIONS,
@@ -38,12 +38,9 @@ export interface TaskAssignmentSummary {
 
 /**
  * Task Permission Domain Service
- * Single source of truth for task-centric permission management
+ * Single source of truth for task-centric permission management (Zero-SQL via API Gateway)
  */
 export class TaskPermissionService {
-  /**
-   * Get all tasks with their currently assigned members and positions
-   */
   static async getTaskCentricData(): Promise<{
     tasks: TaskDefinition[]
     assignments: TaskAssignmentSummary[]
@@ -63,124 +60,74 @@ export class TaskPermissionService {
       positionName: string
     }>
   }> {
-    // 1. Fetch all members, member permissions, and position permissions via Gateway
-    const [members, permissionRows, positionPerms] = await Promise.all([
-      queryMemberDb(`
-        SELECT id, username, name, department, position, role
-        FROM members
-        ORDER BY department ASC, name ASC
-      `),
-      queryMemberDb(`
-        SELECT member_id AS memberId, permission_key AS permissionKey
-        FROM member_permissions
-      `),
-      queryMemberDb(`
-        SELECT id, permission_key AS permissionKey, position_name AS positionName
-        FROM position_permissions
-        ORDER BY permission_key ASC, position_name ASC
-      `),
-    ])
+    const { members, permissionRows, positionPerms } =
+      await apiGateway.app.getTaskCentricPermissionsRaw()
 
     const permsByMemberId = new Map<number, string[]>()
-    for (const p of permissionRows) {
+    for (const p of permissionRows || []) {
       const list = permsByMemberId.get(p.memberId) || []
       list.push(p.permissionKey)
       permsByMemberId.set(p.memberId, list)
     }
 
-    const formattedMembers = members.map(
-      (m: {
-        id: number
-        username: string
-        name: string | null
-        department: string | null
-        position: string | null
-        role: string | null
-      }) => ({
-        id: m.id,
-        username: m.username,
-        name: m.name ?? '',
-        department: m.department ?? '',
-        position: m.position ?? '',
-        role: m.role ?? 'member',
-        permissions: permsByMemberId.get(m.id) || [],
-      })
-    )
+    const formattedMembers = (members || []).map((m) => ({
+      id: m.id,
+      username: m.username,
+      name: m.name ?? '',
+      department: m.department ?? '',
+      position: m.position ?? '',
+      role: m.role ?? 'member',
+      permissions: permsByMemberId.get(m.id) || [],
+    }))
 
-    // 2. Fetch unique positions from members and mappings
     const uniquePositionsSet = new Set<string>()
-    members.forEach((m: { position: string | null }) => {
-      if (m.position && m.position.trim()) {
-        uniquePositionsSet.add(m.position.trim())
-      }
-    })
-    positionPerms.forEach((p: { positionName: string }) => {
-      if (p.positionName && p.positionName.trim()) {
-        uniquePositionsSet.add(p.positionName.trim())
-      }
-    })
+    for (const m of members || []) {
+      if (m.position && m.position.trim()) uniquePositionsSet.add(m.position.trim())
+    }
+    for (const p of positionPerms || []) {
+      if (p.positionName && p.positionName.trim()) uniquePositionsSet.add(p.positionName.trim())
+    }
     const availablePositions = Array.from(uniquePositionsSet).sort((a, b) =>
       a.localeCompare(b, 'th')
     )
 
-    // 3. Build Task Assignments summary
-    const assignments: TaskAssignmentSummary[] = TASK_DEFINITIONS.map((task: TaskDefinition) => {
-      return {
-        taskId: task.id,
-        taskName: task.name,
-        roles: task.roles.map((role: TaskRoleConfig) => {
-          const permKey = role.permissionKey
+    const assignments: TaskAssignmentSummary[] = TASK_DEFINITIONS.map((task: TaskDefinition) => ({
+      taskId: task.id,
+      taskName: task.name,
+      roles: task.roles.map((role: TaskRoleConfig) => {
+        const permKey = role.permissionKey
+        const assignedMembers = formattedMembers.filter((m) => m.permissions.includes(permKey))
+        const assignedPositions = (positionPerms || [])
+          .filter((p) => p.permissionKey === permKey)
+          .map((p) => p.positionName)
 
-          // Members with this permission
-          const assignedMembers = formattedMembers.filter((m: { permissions: string[] }) =>
-            m.permissions.includes(permKey)
-          )
-
-          // Positions with this permission
-          const assignedPositions = positionPerms
-            .filter((p: { permissionKey: string }) => p.permissionKey === permKey)
-            .map((p: { positionName: string }) => p.positionName)
-
-          return {
-            roleType: role.roleType,
-            permissionKey: permKey,
-            label: role.label,
-            shortLabel: role.shortLabel,
-            assignedMembers: assignedMembers.map(
-              (m: {
-                id: number
-                username: string
-                name: string
-                department: string
-                position: string
-                role: string
-              }) => ({
-                id: m.id,
-                username: m.username,
-                name: m.name,
-                department: m.department,
-                position: m.position,
-                role: m.role,
-              })
-            ),
-            assignedPositions,
-          }
-        }),
-      }
-    })
+        return {
+          roleType: role.roleType,
+          permissionKey: permKey,
+          label: role.label,
+          shortLabel: role.shortLabel,
+          assignedMembers: assignedMembers.map((m) => ({
+            id: m.id,
+            username: m.username,
+            name: m.name,
+            department: m.department,
+            position: m.position,
+            role: m.role,
+          })),
+          assignedPositions,
+        }
+      }),
+    }))
 
     return {
       tasks: TASK_DEFINITIONS,
       assignments,
       members: formattedMembers,
       availablePositions,
-      positionMappings: positionPerms,
+      positionMappings: positionPerms || [],
     }
   }
 
-  /**
-   * Grant a permission key to a specific member
-   */
   static async grantMemberPermission(
     session: AdminActorSession,
     memberId: number,
@@ -191,21 +138,21 @@ export class TaskPermissionService {
       throw new Error('รหัสสิทธิ์ไม่ถูกต้อง')
     }
 
-    const rows = await queryMemberDb('SELECT id, name, username FROM members WHERE id = ?', [memberId])
-    const member = rows[0]
-
-    if (!member) {
-      throw new Error('ไม่พบบุคลากรที่ระบุ')
+    let member: { id: number; name?: string | null; username: string }
+    try {
+      const res = await apiGateway.app.grantMemberPermissionV2({
+        memberId,
+        permissionKey: cleanKey,
+        actorUsername: session.username || 'admin',
+      })
+      member = res.member
+    } catch (err) {
+      if (err instanceof GatewayNotFoundError) {
+        throw new Error('ไม่พบบุคลากรที่ระบุ')
+      }
+      throw err
     }
 
-    // Upsert member permission
-    await queryMemberDb(`
-      INSERT INTO member_permissions (member_id, permission_key, created_by, created_at)
-      VALUES (?, ?, ?, NOW())
-      ON DUPLICATE KEY UPDATE created_by = VALUES(created_by)
-    `, [memberId, cleanKey, session.username || 'admin'])
-
-    // Write audit log
     await logAudit(
       'UPDATE_MEMBER_PERMISSIONS',
       'member_permissions',
@@ -226,9 +173,6 @@ export class TaskPermissionService {
     }
   }
 
-  /**
-   * Revoke a permission key from a specific member
-   */
   static async revokeMemberPermission(
     session: AdminActorSession,
     memberId: number,
@@ -239,15 +183,12 @@ export class TaskPermissionService {
       throw new Error('รหัสสิทธิ์ไม่ถูกต้อง')
     }
 
-    const rows = await queryMemberDb('SELECT id, name, username FROM members WHERE id = ?', [memberId])
-    const member = rows[0]
+    const res = await apiGateway.app.revokeMemberPermissionV2({
+      memberId,
+      permissionKey: cleanKey,
+    })
+    const member = res.member
 
-    await queryMemberDb(
-      'DELETE FROM member_permissions WHERE member_id = ? AND permission_key = ?',
-      [memberId, cleanKey]
-    )
-
-    // Write audit log
     await logAudit(
       'UPDATE_MEMBER_PERMISSIONS',
       'member_permissions',
@@ -268,9 +209,6 @@ export class TaskPermissionService {
     }
   }
 
-  /**
-   * Grant a permission key to a position
-   */
   static async grantPositionPermission(
     session: AdminActorSession,
     positionName: string,
@@ -283,20 +221,11 @@ export class TaskPermissionService {
       throw new Error('กรุณาระบุชื่อตำแหน่งและรหัสสิทธิ์')
     }
 
-    // Check if exists
-    const existing = await queryMemberDb(
-      'SELECT id FROM position_permissions WHERE position_name = ? AND permission_key = ?',
-      [cleanPos, cleanKey]
-    )
+    await apiGateway.app.grantPositionPermissionV2({
+      positionName: cleanPos,
+      permissionKey: cleanKey,
+    })
 
-    if (existing.length === 0) {
-      await queryMemberDb(
-        'INSERT INTO position_permissions (position_name, permission_key, created_at) VALUES (?, ?, NOW())',
-        [cleanPos, cleanKey]
-      )
-    }
-
-    // Write audit log
     await logAudit(
       'UPDATE_MEMBER_PERMISSIONS',
       'position_permissions',
@@ -317,9 +246,6 @@ export class TaskPermissionService {
     }
   }
 
-  /**
-   * Revoke a permission key from a position
-   */
   static async revokePositionPermission(
     session: AdminActorSession,
     positionName: string,
@@ -332,12 +258,11 @@ export class TaskPermissionService {
       throw new Error('กรุณาระบุชื่อตำแหน่งและรหัสสิทธิ์')
     }
 
-    await queryMemberDb(
-      'DELETE FROM position_permissions WHERE position_name = ? AND permission_key = ?',
-      [cleanPos, cleanKey]
-    )
+    await apiGateway.app.revokePositionPermissionV2({
+      positionName: cleanPos,
+      permissionKey: cleanKey,
+    })
 
-    // Write audit log
     await logAudit(
       'UPDATE_MEMBER_PERMISSIONS',
       'position_permissions',
@@ -358,15 +283,10 @@ export class TaskPermissionService {
     }
   }
 
-  /**
-   * Atomically update permissions for a single member
-   */
   static async updateMemberPermissions({
     memberId,
     permissions,
     performedBy,
-    userAgent,
-    ipAddress,
   }: {
     memberId: number
     permissions: string[]
@@ -378,18 +298,11 @@ export class TaskPermissionService {
       new Set(permissions.map((p) => p.trim()).filter(Boolean))
     )
 
-    // 1. Delete all existing permissions for this member
-    await queryMemberDb('DELETE FROM member_permissions WHERE member_id = ?', [memberId])
+    await apiGateway.app.replaceMemberPermissionsV2(memberId, {
+      permissions: uniquePermissions,
+      performedBy,
+    })
 
-    // 2. Insert new permissions if any
-    for (const permissionKey of uniquePermissions) {
-      await queryMemberDb(
-        'INSERT INTO member_permissions (member_id, permission_key, created_by, created_at) VALUES (?, ?, ?, NOW())',
-        [memberId, permissionKey, performedBy]
-      )
-    }
-
-    // Write audit log
     await logAudit(
       'UPDATE_MEMBER_PERMISSIONS',
       'members',
@@ -409,38 +322,25 @@ export class TaskPermissionService {
     }
   }
 
-  /**
-   * Atomically update permissions for multiple members in a single transaction
-   */
   static async batchUpdateMemberPermissions({
     updates,
     performedBy,
-    userAgent,
-    ipAddress,
   }: {
     updates: Array<{ memberId: number; permissions: string[] }>
     performedBy: string
     userAgent?: string
     ipAddress?: string
   }): Promise<{ success: boolean; message: string; updatedCount: number }> {
-    for (const item of updates) {
-      const cleanPerms = Array.from(
-        new Set(item.permissions.map((p) => p.trim()).filter(Boolean))
-      )
+    const cleanedUpdates = updates.map((item) => ({
+      memberId: item.memberId,
+      permissions: Array.from(new Set(item.permissions.map((p) => p.trim()).filter(Boolean))),
+    }))
 
-      // 1. Delete all existing permissions for this member
-      await queryMemberDb('DELETE FROM member_permissions WHERE member_id = ?', [item.memberId])
+    await apiGateway.app.batchReplaceMemberPermissionsV2({
+      updates: cleanedUpdates,
+      performedBy,
+    })
 
-      // 2. Insert new cleaned permissions if any
-      for (const permissionKey of cleanPerms) {
-        await queryMemberDb(
-          'INSERT INTO member_permissions (member_id, permission_key, created_by, created_at) VALUES (?, ?, ?, NOW())',
-          [item.memberId, permissionKey, performedBy]
-        )
-      }
-    }
-
-    // Write audit log
     await logAudit(
       'BATCH_UPDATE_MEMBER_PERMISSIONS',
       'members',
@@ -458,9 +358,6 @@ export class TaskPermissionService {
     }
   }
 
-  /**
-   * List members with their individual permissions and optional filters
-   */
   static async listMembersWithPermissions({
     query,
     department,
@@ -480,50 +377,19 @@ export class TaskPermissionService {
       permissions: string[]
     }>
   }> {
-    const whereClauses: string[] = []
-    const params: any[] = []
-
-    if (query && query.trim()) {
-      const q = `%${query.trim()}%`
-      whereClauses.push('(name LIKE ? OR username LIKE ? OR department LIKE ?)')
-      params.push(q, q, q)
-    }
-
-    if (department && department.trim()) {
-      whereClauses.push('department = ?')
-      params.push(department.trim())
-    }
-
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-
-    const [members, permissionRows] = await Promise.all([
-      queryMemberDb(`
-        SELECT id, username, name, department, position, role
-        FROM members
-        ${whereSql}
-        ORDER BY department ASC, name ASC
-      `, params),
-      queryMemberDb(`
-        SELECT member_id AS memberId, permission_key AS permissionKey
-        FROM member_permissions
-      `),
-    ])
+    const { members, permissionRows } = await apiGateway.app.listMembersWithPermissionsRaw({
+      query: query?.trim() || undefined,
+      department: department?.trim() || undefined,
+    })
 
     const permsByMemberId = new Map<number, string[]>()
-    for (const p of permissionRows) {
+    for (const p of permissionRows || []) {
       const list = permsByMemberId.get(p.memberId) || []
       list.push(p.permissionKey)
       permsByMemberId.set(p.memberId, list)
     }
 
-    let formattedMembers = members.map((m: {
-      id: number
-      username: string
-      name: string | null
-      department: string | null
-      position: string | null
-      role: string | null
-    }) => ({
+    let formattedMembers = (members || []).map((m) => ({
       id: m.id,
       username: m.username,
       name: m.name ?? '',
@@ -534,48 +400,33 @@ export class TaskPermissionService {
     }))
 
     if (hasPermissionsOnly) {
-      formattedMembers = formattedMembers.filter((m: { permissions: string[] }) => m.permissions.length > 0)
+      formattedMembers = formattedMembers.filter((m) => m.permissions.length > 0)
     }
 
-    return {
-      members: formattedMembers,
-    }
+    return { members: formattedMembers }
   }
 
   static async listPositionPermissions() {
-    const mappings = await queryMemberDb<{
-      id: number
-      permission_key: string
-      position_name: string
-    }>(
-      'SELECT id, permission_key, position_name FROM position_permissions ORDER BY permission_key, position_name'
-    )
-    const positionsResult = await queryMemberDb<{ position: string }>(
-      'SELECT DISTINCT TRIM(position) as position FROM members WHERE position IS NOT NULL AND TRIM(position) != "" ORDER BY position'
-    )
-    return {
-      mappings,
-      availablePositions: positionsResult.map((r) => r.position),
-    }
+    return apiGateway.app.listPositionPermissionsV2()
   }
 
   static async addPositionPermissionMapping(
     permissionKey: string,
     positionName: string
   ): Promise<void> {
-    await queryMemberDb(
-      'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
-      [permissionKey, positionName.trim()]
-    )
+    await apiGateway.app.grantPositionPermissionV2({
+      positionName: positionName.trim(),
+      permissionKey,
+    })
   }
 
   static async removePositionPermissionMapping(
     permissionKey: string,
     positionName: string
   ): Promise<void> {
-    await queryMemberDb(
-      'DELETE FROM position_permissions WHERE permission_key = ? AND position_name = ?',
-      [permissionKey, positionName]
-    )
+    await apiGateway.app.revokePositionPermissionV2({
+      positionName: positionName.trim(),
+      permissionKey,
+    })
   }
 }

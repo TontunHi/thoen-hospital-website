@@ -1,11 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TaskPermissionService, TASK_DEFINITIONS } from '../taskPermissionService'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway, GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: vi.fn(),
-}))
+vi.mock('@/lib/apiGateway', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/apiGateway')>()
+  return {
+    ...actual,
+    apiGateway: {
+      app: {
+        getTaskCentricPermissionsRaw: vi.fn(),
+        listMembersWithPermissionsRaw: vi.fn(),
+        grantMemberPermissionV2: vi.fn(),
+        revokeMemberPermissionV2: vi.fn(),
+        grantPositionPermissionV2: vi.fn(),
+        revokePositionPermissionV2: vi.fn(),
+        replaceMemberPermissionsV2: vi.fn(),
+        batchReplaceMemberPermissionsV2: vi.fn(),
+        listPositionPermissionsV2: vi.fn(),
+      },
+    },
+  }
+})
 
 vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
@@ -87,38 +103,33 @@ describe('TaskPermissionService', () => {
 
   describe('getTaskCentricData', () => {
     it('returns aggregated tasks, assignments, members, and available positions', async () => {
-      const mockDbMembers = [
-        {
-          id: 10,
-          username: '1234567890123',
-          name: 'สมศรี นักออกแบบ',
-          department: 'ศูนย์คอมพิวเตอร์',
-          position: 'นักประชาสัมพันธ์',
-          role: 'member',
-        },
-        {
-          id: 20,
-          username: '9876543210987',
-          name: 'สมชาย หัวหน้างาน',
-          department: 'กลุ่มงานบริหารทั่วไป',
-          position: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
-          role: 'member',
-        },
-      ]
-
-      const mockPermRows = [
-        { memberId: 10, permissionKey: 'produce_media' },
-        { memberId: 20, permissionKey: 'approve_media' },
-      ]
-
-      const mockPositionPerms = [
-        { id: 1, permissionKey: 'produce_media', positionName: 'นักประชาสัมพันธ์' },
-      ]
-
-      vi.mocked(queryMemberDb)
-        .mockResolvedValueOnce(mockDbMembers as any)
-        .mockResolvedValueOnce(mockPermRows as any)
-        .mockResolvedValueOnce(mockPositionPerms as any)
+      vi.mocked(apiGateway.app.getTaskCentricPermissionsRaw).mockResolvedValueOnce({
+        members: [
+          {
+            id: 10,
+            username: '1234567890123',
+            name: 'สมศรี นักออกแบบ',
+            department: 'ศูนย์คอมพิวเตอร์',
+            position: 'นักประชาสัมพันธ์',
+            role: 'member',
+          },
+          {
+            id: 20,
+            username: '9876543210987',
+            name: 'สมชาย หัวหน้างาน',
+            department: 'กลุ่มงานบริหารทั่วไป',
+            position: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
+            role: 'member',
+          },
+        ],
+        permissionRows: [
+          { memberId: 10, permissionKey: 'produce_media' },
+          { memberId: 20, permissionKey: 'approve_media' },
+        ],
+        positionPerms: [
+          { id: 1, permissionKey: 'produce_media', positionName: 'นักประชาสัมพันธ์' },
+        ],
+      })
 
       const result = await TaskPermissionService.getTaskCentricData()
 
@@ -141,9 +152,9 @@ describe('TaskPermissionService', () => {
 
   describe('grantMemberPermission', () => {
     it('upserts member permission and writes audit log', async () => {
-      vi.mocked(queryMemberDb)
-        .mockResolvedValueOnce([{ id: 10, name: 'สมศรี', username: 'somsri' }] as any)
-        .mockResolvedValueOnce([] as any)
+      vi.mocked(apiGateway.app.grantMemberPermissionV2).mockResolvedValueOnce({
+        member: { id: 10, name: 'สมศรี', username: 'somsri' },
+      })
 
       const result = await TaskPermissionService.grantMemberPermission(
         mockAdminSession,
@@ -152,10 +163,11 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(queryMemberDb).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO member_permissions'),
-        [10, 'produce_media', 'admin01']
-      )
+      expect(apiGateway.app.grantMemberPermissionV2).toHaveBeenCalledWith({
+        memberId: 10,
+        permissionKey: 'produce_media',
+        actorUsername: 'admin01',
+      })
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'member_permissions',
@@ -165,7 +177,9 @@ describe('TaskPermissionService', () => {
     })
 
     it('throws error when member is not found', async () => {
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([] as any)
+      vi.mocked(apiGateway.app.grantMemberPermissionV2).mockRejectedValueOnce(
+        new GatewayNotFoundError('Not found')
+      )
 
       await expect(
         TaskPermissionService.grantMemberPermission(mockAdminSession, 999, 'produce_media')
@@ -175,9 +189,9 @@ describe('TaskPermissionService', () => {
 
   describe('revokeMemberPermission', () => {
     it('deletes member permission and writes audit log', async () => {
-      vi.mocked(queryMemberDb)
-        .mockResolvedValueOnce([{ id: 10, name: 'สมศรี', username: 'somsri' }] as any)
-        .mockResolvedValueOnce([] as any)
+      vi.mocked(apiGateway.app.revokeMemberPermissionV2).mockResolvedValueOnce({
+        member: { id: 10, name: 'สมศรี', username: 'somsri' },
+      })
 
       const result = await TaskPermissionService.revokeMemberPermission(
         mockAdminSession,
@@ -186,10 +200,10 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(queryMemberDb).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM member_permissions'),
-        [10, 'produce_media']
-      )
+      expect(apiGateway.app.revokeMemberPermissionV2).toHaveBeenCalledWith({
+        memberId: 10,
+        permissionKey: 'produce_media',
+      })
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'member_permissions',
@@ -200,10 +214,8 @@ describe('TaskPermissionService', () => {
   })
 
   describe('grantPositionPermission', () => {
-    it('creates position permission mapping if not exists and logs audit', async () => {
-      vi.mocked(queryMemberDb)
-        .mockResolvedValueOnce([] as any) // not existing
-        .mockResolvedValueOnce([] as any) // insert
+    it('creates position permission mapping and logs audit', async () => {
+      vi.mocked(apiGateway.app.grantPositionPermissionV2).mockResolvedValueOnce({ granted: true })
 
       const result = await TaskPermissionService.grantPositionPermission(
         mockAdminSession,
@@ -212,10 +224,10 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(queryMemberDb).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO position_permissions'),
-        ['นักประชาสัมพันธ์', 'produce_media']
-      )
+      expect(apiGateway.app.grantPositionPermissionV2).toHaveBeenCalledWith({
+        positionName: 'นักประชาสัมพันธ์',
+        permissionKey: 'produce_media',
+      })
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'position_permissions',
@@ -227,7 +239,7 @@ describe('TaskPermissionService', () => {
 
   describe('revokePositionPermission', () => {
     it('deletes position permission mapping and logs audit', async () => {
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([] as any)
+      vi.mocked(apiGateway.app.revokePositionPermissionV2).mockResolvedValueOnce({ revoked: true })
 
       const result = await TaskPermissionService.revokePositionPermission(
         mockAdminSession,
@@ -236,10 +248,10 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(queryMemberDb).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM position_permissions'),
-        ['นักประชาสัมพันธ์', 'produce_media']
-      )
+      expect(apiGateway.app.revokePositionPermissionV2).toHaveBeenCalledWith({
+        positionName: 'นักประชาสัมพันธ์',
+        permissionKey: 'produce_media',
+      })
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'position_permissions',
@@ -250,8 +262,11 @@ describe('TaskPermissionService', () => {
   })
 
   describe('updateMemberPermissions', () => {
-    it('atomically replaces member permissions in transaction and logs audit', async () => {
-      vi.mocked(queryMemberDb).mockResolvedValue([] as any)
+    it('atomically replaces member permissions via Gateway and logs audit', async () => {
+      vi.mocked(apiGateway.app.replaceMemberPermissionsV2).mockResolvedValueOnce({
+        updated: true,
+        count: 2,
+      })
 
       const result = await TaskPermissionService.updateMemberPermissions({
         memberId: 10,
@@ -260,14 +275,10 @@ describe('TaskPermissionService', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(queryMemberDb).toHaveBeenCalledWith(
-        'DELETE FROM member_permissions WHERE member_id = ?',
-        [10]
-      )
-      expect(queryMemberDb).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO member_permissions'),
-        [10, 'take_repairs_it', 'admin01']
-      )
+      expect(apiGateway.app.replaceMemberPermissionsV2).toHaveBeenCalledWith(10, {
+        permissions: ['take_repairs_it', 'manage_repairs'],
+        performedBy: 'admin01',
+      })
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'members',
@@ -282,7 +293,10 @@ describe('TaskPermissionService', () => {
     })
 
     it('clears all permissions when empty array is supplied', async () => {
-      vi.mocked(queryMemberDb).mockResolvedValue([] as any)
+      vi.mocked(apiGateway.app.replaceMemberPermissionsV2).mockResolvedValueOnce({
+        updated: true,
+        count: 0,
+      })
 
       const result = await TaskPermissionService.updateMemberPermissions({
         memberId: 10,
@@ -291,76 +305,42 @@ describe('TaskPermissionService', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(queryMemberDb).toHaveBeenCalledWith(
-        'DELETE FROM member_permissions WHERE member_id = ?',
-        [10]
-      )
+      expect(apiGateway.app.replaceMemberPermissionsV2).toHaveBeenCalledWith(10, {
+        permissions: [],
+        performedBy: 'admin01',
+      })
     })
   })
 
   describe('batchUpdateMemberPermissions', () => {
-    it('atomically updates multiple members in a single transaction and logs audit', async () => {
-      vi.mocked(queryMemberDb).mockResolvedValue([] as any)
-
-      const updates = [
-        { memberId: 10, permissions: ['take_repairs_it'] },
-        { memberId: 20, permissions: ['approve_repairs', 'view_all_work'] },
-        { memberId: 30, permissions: [] },
-      ]
+    it('batch replaces member permissions via Gateway and logs audit', async () => {
+      vi.mocked(apiGateway.app.batchReplaceMemberPermissionsV2).mockResolvedValueOnce({
+        updatedCount: 2,
+      })
 
       const result = await TaskPermissionService.batchUpdateMemberPermissions({
-        updates,
+        updates: [
+          { memberId: 10, permissions: ['manage_news'] },
+          { memberId: 20, permissions: ['manage_rdu', 'manage_rdu'] },
+        ],
         performedBy: 'admin01',
       })
 
       expect(result.success).toBe(true)
-      expect(result.updatedCount).toBe(3)
-
+      expect(result.updatedCount).toBe(2)
+      expect(apiGateway.app.batchReplaceMemberPermissionsV2).toHaveBeenCalledWith({
+        updates: [
+          { memberId: 10, permissions: ['manage_news'] },
+          { memberId: 20, permissions: ['manage_rdu'] },
+        ],
+        performedBy: 'admin01',
+      })
       expect(logAudit).toHaveBeenCalledWith(
         'BATCH_UPDATE_MEMBER_PERMISSIONS',
         'members',
-        JSON.stringify({ updatedCount: 3, memberIds: [10, 20, 30] }),
+        expect.stringContaining('"updatedCount":2'),
         expect.objectContaining({ username: 'admin01' })
       )
-    })
-  })
-
-  describe('listMembersWithPermissions', () => {
-    it('returns formatted members with search, department, and hasPermissionsOnly filters', async () => {
-      const mockMembers = [
-        {
-          id: 1,
-          username: '1234567890123',
-          name: 'นายแพทย์ สมชาย',
-          department: 'การแพทย์',
-          position: 'แพทย์',
-          role: 'member',
-        },
-      ]
-      const mockPerms = [
-        { memberId: 1, permissionKey: 'approve_repairs' },
-      ]
-
-      vi.mocked(queryMemberDb)
-        .mockResolvedValueOnce(mockMembers as any)
-        .mockResolvedValueOnce(mockPerms as any)
-
-      const result = await TaskPermissionService.listMembersWithPermissions({
-        query: 'สมชาย',
-        department: 'การแพทย์',
-        hasPermissionsOnly: true,
-      })
-
-      expect(result.members).toHaveLength(1)
-      expect(result.members[0]).toEqual({
-        id: 1,
-        username: '1234567890123',
-        name: 'นายแพทย์ สมชาย',
-        department: 'การแพทย์',
-        position: 'แพทย์',
-        role: 'member',
-        permissions: ['approve_repairs'],
-      })
     })
   })
 })

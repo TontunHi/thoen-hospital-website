@@ -11,7 +11,7 @@ import {
 } from '@/lib/providerIdAuth'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getSwrCachedData } from '@/lib/cache'
 import { renderOtpEmailHtml, renderOtpEmailText, formatMaskedCitizenId } from '@/lib/auth/otpEmailTemplate'
 
@@ -28,6 +28,14 @@ export interface MemberSessionPayload {
   aud?: string
   iat?: number
   exp?: number
+}
+
+export interface MemberAuthGatewayDeps {
+  getAuthMemberByUsername: typeof apiGateway.app.getAuthMemberByUsername
+  getAuthMemberByHashCid: typeof apiGateway.app.getAuthMemberByHashCid
+  setMemberOtp: typeof apiGateway.app.setMemberOtp
+  clearMemberOtp: typeof apiGateway.app.clearMemberOtp
+  checkMemberSessionActive: typeof apiGateway.app.checkMemberSessionActive
 }
 
 function getSecret(): string {
@@ -48,38 +56,51 @@ function sign(value: string): string {
 }
 
 export class MemberAuthService {
-  constructor(private queryExecutor?: any) {}
+  private readonly customGw?: Partial<MemberAuthGatewayDeps>
 
-  private get db() {
-    return this.queryExecutor || queryMemberDb
+  constructor(gwDeps?: Partial<MemberAuthGatewayDeps>) {
+    this.customGw = gwDeps
+  }
+
+  private get gw(): MemberAuthGatewayDeps {
+    return {
+      getAuthMemberByUsername:
+        this.customGw?.getAuthMemberByUsername ??
+        ((p) => apiGateway.app.getAuthMemberByUsername(p)),
+      getAuthMemberByHashCid:
+        this.customGw?.getAuthMemberByHashCid ??
+        ((h) => apiGateway.app.getAuthMemberByHashCid(h)),
+      setMemberOtp:
+        this.customGw?.setMemberOtp ?? ((id, otp) => apiGateway.app.setMemberOtp(id, otp)),
+      clearMemberOtp:
+        this.customGw?.clearMemberOtp ?? ((id) => apiGateway.app.clearMemberOtp(id)),
+      checkMemberSessionActive:
+        this.customGw?.checkMemberSessionActive ??
+        ((u, e) => apiGateway.app.checkMemberSessionActive(u, e)),
+    }
   }
 
   async requestOtp(citizenId: string, providedEmail?: string): Promise<OtpRequestResult> {
     const trimmedUsername = citizenId.trim()
-    
-    const users = await this.db(
-      'SELECT id, username, name, email FROM members WHERE username = ?',
-      [trimmedUsername]
-    )
 
-    if (!users || users.length === 0) {
-      return { success: false, error: 'ไม่พบข้อมูลผู้ใช้งานนี้ในระบบสมาชิก กรุณาติดต่อเจ้าหน้าที่ดูแลระบบหรือกลุ่มงานทรัพยากรบุคคล' }
+    const user = await this.gw.getAuthMemberByUsername({ username: trimmedUsername })
+
+    if (!user) {
+      return {
+        success: false,
+        error:
+          'ไม่พบข้อมูลผู้ใช้งานนี้ในระบบสมาชิก กรุณาติดต่อเจ้าหน้าที่ดูแลระบบหรือกลุ่มงานทรัพยากรบุคคล',
+      }
     }
 
-    const user = users[0]
-    
     if (providedEmail && user.email.toLowerCase() !== providedEmail.trim().toLowerCase()) {
       return { success: false, error: 'อีเมลไม่ตรงกับข้อมูลที่ลงทะเบียนไว้ในระบบ' }
     }
 
     const targetEmail = user.email
-
     const otp = crypto.randomInt(100000, 999999).toString()
 
-    await this.db(
-      'UPDATE members SET otp_code = ?, otp_expiry = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
-      [otp, user.id]
-    )
+    await this.gw.setMemberOtp(user.id, otp)
 
     console.log('[MEMBER OTP] OTP generated successfully and dispatching to registered email')
 
@@ -107,17 +128,17 @@ export class MemberAuthService {
     try {
       const smtpUser = process.env.BREVO_SMTP_FROM_EMAIL || process.env.MEMBER_OTP_EMAIL_USER || ''
       const fromName = process.env.BREVO_SMTP_FROM || `"ระบบสมาชิก โรงพยาบาลเถิน" <${smtpUser}>`
-      
+
       const emailHtml = renderOtpEmailHtml({
         otp,
         username: user.username,
-        name: user.name,
+        name: user.name || user.username,
         expiryMinutes: 5,
       })
       const emailText = renderOtpEmailText({
         otp,
         username: user.username,
-        name: user.name,
+        name: user.name || user.username,
         expiryMinutes: 5,
       })
 
@@ -131,11 +152,11 @@ export class MemberAuthService {
         headers: {
           'X-Priority': '1 (Highest)',
           'X-MSMail-Priority': 'High',
-          'Importance': 'High',
+          Importance: 'High',
           'X-Mailer': 'Thoen Hospital Member Auth Service',
         },
       })
-    } catch (mailError: any) {
+    } catch (mailError: unknown) {
       console.error('Failed to send member OTP email:', mailError)
       return { success: false, error: 'ไม่สามารถส่งอีเมลยืนยัน OTP ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' }
     }
@@ -148,47 +169,54 @@ export class MemberAuthService {
     const trimmedOtp = otp.trim()
     const trimmedEmail = providedEmail?.trim()
 
-    let queryStr = 'SELECT *, (otp_expiry > NOW()) AS is_valid FROM members WHERE username = ?'
-    let params: any[] = [trimmedUsername]
-    if (trimmedEmail) {
-      queryStr += ' AND email = ?'
-      params.push(trimmedEmail)
-    }
+    const user = await this.gw.getAuthMemberByUsername({
+      username: trimmedUsername,
+      email: trimmedEmail || undefined,
+      includeOtp: true,
+    })
 
-    const users = await this.db(queryStr, params)
-
-    if (!users || users.length === 0) {
+    if (!user) {
       try {
-        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: User not found or email mismatch`, { username: formatMaskedCitizenId(trimmedUsername), email: trimmedEmail || 'unknown' })
+        await logAudit(
+          'LOGIN',
+          'members',
+          `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: User not found or email mismatch`,
+          { username: formatMaskedCitizenId(trimmedUsername), email: trimmedEmail || 'unknown' }
+        )
       } catch {}
       throw new Error('ข้อมูลผู้ใช้งานหรืออีเมลไม่ถูกต้อง')
     }
 
-    const user = users[0]
-
     if (!user.otp_code || user.otp_code !== trimmedOtp) {
       try {
-        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: Incorrect OTP`, { username: formatMaskedCitizenId(trimmedUsername), email: user.email })
+        await logAudit(
+          'LOGIN',
+          'members',
+          `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: Incorrect OTP`,
+          { username: formatMaskedCitizenId(trimmedUsername), email: user.email }
+        )
       } catch {}
       throw new Error('รหัส OTP ไม่ถูกต้อง')
     }
 
     if (!user.is_valid) {
       try {
-        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: OTP expired`, { username: formatMaskedCitizenId(trimmedUsername), email: user.email })
+        await logAudit(
+          'LOGIN',
+          'members',
+          `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: OTP expired`,
+          { username: formatMaskedCitizenId(trimmedUsername), email: user.email }
+        )
       } catch {}
       throw new Error('รหัส OTP หมดอายุการใช้งานแล้ว กรุณาขอรหัสใหม่')
     }
 
-    await this.db(
-      'UPDATE members SET otp_code = NULL, otp_expiry = NULL WHERE id = ?',
-      [user.id]
-    )
+    await this.gw.clearMemberOtp(user.id)
 
     return {
       username: trimmedUsername,
       email: user.email,
-      role: user.role || 'member'
+      role: user.role || 'member',
     }
   }
 
@@ -199,8 +227,8 @@ export class MemberAuthService {
     const now = Date.now()
     const isRenewal = typeof payload.iat === 'number'
     const iat = payload.iat ?? now
-    const exp = payload.exp ?? (now + SESSION_MAX_AGE * 1000)
-    
+    const exp = payload.exp ?? now + SESSION_MAX_AGE * 1000
+
     const finalPayload = {
       username: payload.username,
       email: payload.email,
@@ -211,14 +239,18 @@ export class MemberAuthService {
     }
     const encoded = Buffer.from(JSON.stringify(finalPayload)).toString('base64url')
     const signature = sign(encoded)
-    
-    // Only log LOGIN if this is an initial session creation, NOT an automatic background renewal/slide
+
     if (!isRenewal && !options?.skipAudit) {
       try {
-        await logAudit('LOGIN', 'members', `User ${formatMaskedCitizenId(payload.username)} logged in successfully`, { username: formatMaskedCitizenId(payload.username), email: payload.email })
+        await logAudit(
+          'LOGIN',
+          'members',
+          `User ${formatMaskedCitizenId(payload.username)} logged in successfully`,
+          { username: formatMaskedCitizenId(payload.username), email: payload.email }
+        )
       } catch {}
     }
-    
+
     return `${encoded}.${signature}`
   }
 
@@ -229,14 +261,17 @@ export class MemberAuthService {
     const expectedSignature = sign(encoded)
     const sigBuffer = Buffer.from(signature, 'hex')
     const expectedBuffer = Buffer.from(expectedSignature, 'hex')
-    
-    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+
+    if (
+      sigBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+    ) {
       throw new Error('Invalid signature')
     }
 
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
     if (payload.aud !== 'member') throw new Error('Invalid token audience')
-    
+
     const now = Date.now()
     if (payload.exp < now) throw new Error('Session expired')
 
@@ -245,35 +280,28 @@ export class MemberAuthService {
       throw new Error('Absolute session max age exceeded')
     }
 
-    // Check member still active (cached with single-flight SWR when using live queryMemberDb,
-    // and resilient to transient Gateway 429/503/504 errors so valid sessions are never dropped mid-work)
     let resolvedRole = payload.role || 'member'
     try {
-      const fetchActiveRows = async () =>
-        this.db(
-          'SELECT role FROM members WHERE username = ? AND email = ? LIMIT 1',
-          [payload.username, payload.email]
-        )
+      const fetchActive = async () =>
+        this.gw.checkMemberSessionActive(payload.username, payload.email)
 
-      const users = this.queryExecutor
-        ? await fetchActiveRows()
+      const status = this.customGw
+        ? await fetchActive()
         : await getSwrCachedData(
             `member-session-active:${payload.username}:${payload.email}`,
-            fetchActiveRows,
+            fetchActive,
             { staleTtlMs: 30_000, maxTtlMs: 120_000 }
           )
 
-      if (!users || users.length === 0) {
+      if (!status || !status.active) {
         throw new Error('User no longer active')
       }
-      resolvedRole = users[0].role || resolvedRole
+      resolvedRole = status.role || resolvedRole
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       if (msg === 'User no longer active') {
         throw err
       }
-      // Transient API Gateway errors (e.g. 429 Too Many Requests, 503 Unavailable, 504 Timeout):
-      // HMAC signature + expiration are already verified above, so preserve the session.
       logger.warn(
         { username: formatMaskedCitizenId(payload.username), error: msg },
         'Transient DB/Gateway error during verifySession; preserving cryptographically valid session'
@@ -290,12 +318,11 @@ export class MemberAuthService {
     }
   }
 
-  async revokeSession(token: string): Promise<void> {
-    // In a stateless JWT setup without a blocklist, revocation is done by deleting the cookie in the route handler.
-    // If a blocklist is implemented in DB, we would do it here.
+  async revokeSession(_token: string): Promise<void> {
+    // Stateless HMAC session revocation happens via cookie deletion in route handler
   }
 
-  async exchangeThaidCode(code: string, state: string): Promise<MemberSessionPayload> {
+  async exchangeThaidCode(code: string, _state: string): Promise<MemberSessionPayload> {
     const config = getThaidConfig()
     if (!config) throw new Error('ThaID is not configured')
 
@@ -312,14 +339,13 @@ export class MemberAuthService {
       throw new Error('Failed to obtain citizen ID from ThaID')
     }
 
-    const fullName = [userInfo.title, userInfo.firstName, userInfo.lastName].filter(Boolean).join(' ') || 'ไม่ระบุชื่อ'
+    const fullName =
+      [userInfo.title, userInfo.firstName, userInfo.lastName].filter(Boolean).join(' ') ||
+      'ไม่ระบุชื่อ'
 
-    const users = await this.db(
-      'SELECT id, username, email, role, name FROM members WHERE username = ? LIMIT 1',
-      [userInfo.pid]
-    )
+    const user = await this.gw.getAuthMemberByUsername({ username: userInfo.pid })
 
-    if (!users || users.length === 0) {
+    if (!user) {
       try {
         await logAudit(
           'LOGIN',
@@ -330,8 +356,6 @@ export class MemberAuthService {
       } catch {}
       throw new Error('ThaID citizen ID not registered in hospital members')
     }
-
-    const user = users[0]
 
     try {
       await logAudit(
@@ -345,18 +369,18 @@ export class MemberAuthService {
     return {
       username: user.username,
       email: user.email,
-      role: user.role || 'member'
+      role: user.role || 'member',
     }
   }
 
-  async exchangeProviderIdCode(code: string, state: string): Promise<MemberSessionPayload> {
+  async exchangeProviderIdCode(code: string, _state: string): Promise<MemberSessionPayload> {
     const config = getProviderIdConfig()
     if (!config) throw new Error('Provider ID is not configured')
 
     let profile: ProviderIdProfile
     try {
       profile = await authenticateWithProviderId(code, config)
-    } catch (authErr: any) {
+    } catch (authErr: unknown) {
       if (authErr instanceof NotAProviderError) {
         try {
           await logAudit(
@@ -368,11 +392,12 @@ export class MemberAuthService {
         } catch {}
         throw authErr
       }
+      const errMsg = authErr instanceof Error ? authErr.message : 'Token Exchange Failed'
       try {
         await logAudit(
           'LOGIN',
           'members',
-          `พยายามเข้าสู่ระบบด้วย Provider ID แต่การแลกเปลี่ยน Token ล้มเหลว (${authErr?.message || 'Token Exchange Failed'})`,
+          `พยายามเข้าสู่ระบบด้วย Provider ID แต่การแลกเปลี่ยน Token ล้มเหลว (${errMsg})`,
           { username: 'PROVIDER_ID_EXCHANGE_ERROR', email: '' }
         )
       } catch {}
@@ -391,19 +416,19 @@ export class MemberAuthService {
       throw new Error('Failed to obtain identity hash from Provider ID')
     }
 
-    const fullName = [
-      profile.title_th,
-      profile.special_title_th,
-      profile.name_th || `${profile.firstname_th || ''} ${profile.lastname_th || ''}`
-    ].filter(Boolean).join(' ').trim() || 'ไม่ระบุชื่อ'
+    const fullName =
+      [
+        profile.title_th,
+        profile.special_title_th,
+        profile.name_th || `${profile.firstname_th || ''} ${profile.lastname_th || ''}`,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'ไม่ระบุชื่อ'
 
-    // Match member via SHA256 of citizen ID (members.username contains 13-digit citizen ID)
-    const users = await this.db(
-      'SELECT id, username, email, role, name FROM members WHERE SHA2(username, 256) = ? LIMIT 1',
-      [profile.hash_cid.toLowerCase()]
-    )
+    const user = await this.gw.getAuthMemberByHashCid(profile.hash_cid.toLowerCase())
 
-    if (!users || users.length === 0) {
+    if (!user) {
       try {
         await logAudit(
           'LOGIN',
@@ -414,8 +439,6 @@ export class MemberAuthService {
       } catch {}
       throw new Error('Provider ID citizen ID not registered in hospital members')
     }
-
-    const user = users[0]
 
     try {
       await logAudit(
@@ -429,23 +452,24 @@ export class MemberAuthService {
     return {
       username: user.username,
       email: user.email,
-      role: user.role || 'member'
+      role: user.role || 'member',
     }
   }
 
-  async exchangeHealthIdCode(code: string, state: string): Promise<MemberSessionPayload> {
+  async exchangeHealthIdCode(code: string, _state: string): Promise<MemberSessionPayload> {
     const config = getProviderIdConfig()
     if (!config) throw new Error('Health ID is not configured')
 
     let user: HealthIdUser
     try {
       user = await authenticateWithHealthId(code, config)
-    } catch (authErr: any) {
+    } catch (authErr: unknown) {
+      const errMsg = authErr instanceof Error ? authErr.message : 'Token Exchange Failed'
       try {
         await logAudit(
           'LOGIN',
           'members',
-          `พยายามเข้าสู่ระบบด้วย Health ID แต่การแลกเปลี่ยน Token ล้มเหลว (${authErr?.message || 'Token Exchange Failed'})`,
+          `พยายามเข้าสู่ระบบด้วย Health ID แต่การแลกเปลี่ยน Token ล้มเหลว (${errMsg})`,
           { username: 'HEALTH_ID_EXCHANGE_ERROR', email: '' }
         )
       } catch {}
@@ -464,21 +488,14 @@ export class MemberAuthService {
       throw new Error('Failed to obtain identity from Health ID')
     }
 
-    let users: any[]
-    if (user.citizenId) {
-      users = await this.db(
-        'SELECT id, username, email, role, name FROM members WHERE username = ? LIMIT 1',
-        [user.citizenId]
-      )
-    } else {
-      users = await this.db(
-        'SELECT id, username, email, role, name FROM members WHERE SHA2(username, 256) = ? LIMIT 1',
-        [user.hashCid!.toLowerCase()]
-      )
-    }
+    const member = user.citizenId
+      ? await this.gw.getAuthMemberByUsername({ username: user.citizenId })
+      : await this.gw.getAuthMemberByHashCid(user.hashCid!.toLowerCase())
 
-    if (!users || users.length === 0) {
-      const maskedId = user.citizenId ? formatMaskedCitizenId(user.citizenId) : `${user.hashCid?.slice(0, 10)}...`
+    if (!member) {
+      const maskedId = user.citizenId
+        ? formatMaskedCitizenId(user.citizenId)
+        : `${user.hashCid?.slice(0, 10)}...`
       try {
         await logAudit(
           'LOGIN',
@@ -489,8 +506,6 @@ export class MemberAuthService {
       } catch {}
       throw new Error('Health ID citizen ID not registered in hospital members')
     }
-
-    const member = users[0]
 
     try {
       await logAudit(

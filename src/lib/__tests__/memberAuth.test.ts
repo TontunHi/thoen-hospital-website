@@ -21,6 +21,7 @@ vi.mock('../audit', () => ({
 const mockGetMemberAuthContext = vi.fn()
 const mockCheckPositionPermission = vi.fn()
 const mockCheckMemberPermission = vi.fn()
+const mockCheckMemberSessionActive = vi.fn()
 
 vi.mock('../apiGateway', () => ({
   apiGateway: {
@@ -28,6 +29,7 @@ vi.mock('../apiGateway', () => ({
       getMemberAuthContext: (...args: any[]) => mockGetMemberAuthContext(...args),
       checkPositionPermission: (...args: any[]) => mockCheckPositionPermission(...args),
       checkMemberPermission: (...args: any[]) => mockCheckMemberPermission(...args),
+      checkMemberSessionActive: (...args: any[]) => mockCheckMemberSessionActive(...args),
     },
   },
 }))
@@ -38,8 +40,7 @@ describe('Member & Salary Authentication & JWT Audience', () => {
   beforeEach(() => {
     process.env.MEMBER_SESSION_SECRET = 'test-member-secret-at-least-32-chars-long!!'
     process.env.SALARY_SESSION_SECRET = 'test-salary-secret-at-least-32-chars-long!!'
-    // buildSession doesn't call queryExecutor; pass a no-op mock for safety
-    authService = new MemberAuthService(vi.fn())
+    authService = new MemberAuthService()
   })
 
   it('creates and verifies a valid member token', async () => {
@@ -424,7 +425,7 @@ describe('requireNewsPermission Route Guard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.MEMBER_SESSION_SECRET = 'test-member-secret-at-least-32-chars-long!!'
-    authService = new MemberAuthService(vi.fn())
+    authService = new MemberAuthService()
   })
 
   it('returns 401 when unauthenticated (no session cookie)', async () => {
@@ -445,18 +446,12 @@ describe('requireNewsPermission Route Guard', () => {
       role: 'admin',
     })
     mockCookieStore.get.mockReturnValueOnce({ value: token })
+    mockCheckMemberSessionActive.mockResolvedValueOnce({ active: true, role: 'admin' })
 
     const { requireNewsPermission } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy.mockResolvedValueOnce([{ role: 'admin' }]) // for verifySession active user check
-
     const result = await requireNewsPermission()
     expect(result.error).toBeUndefined()
     expect(result.session?.role).toBe('admin')
-
-    querySpy.mockRestore()
   })
 
   it('allows member with individual manage_news permission', async () => {
@@ -466,15 +461,10 @@ describe('requireNewsPermission Route Guard', () => {
       role: 'member',
     })
     mockCookieStore.get.mockReturnValueOnce({ value: token })
+    mockCheckMemberSessionActive.mockResolvedValueOnce({ active: true, role: 'member' })
 
     const { requireNewsPermission } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
 
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    // 1. verifySession check
-    querySpy.mockResolvedValueOnce([{ role: 'member' }])
-    
-    // 2. getMemberAuthContext mock:
     mockGetMemberAuthContext.mockResolvedValueOnce({
       member: {
         id: 401,
@@ -493,8 +483,6 @@ describe('requireNewsPermission Route Guard', () => {
     const result = await requireNewsPermission()
     expect(result.error).toBeUndefined()
     expect(result.session?.username).toBe('news_editor')
-
-    querySpy.mockRestore()
   })
 
   it('allows member whose position is granted manage_news via position_permissions', async () => {
@@ -504,14 +492,9 @@ describe('requireNewsPermission Route Guard', () => {
       role: 'member',
     })
     mockCookieStore.get.mockReturnValueOnce({ value: token })
+    mockCheckMemberSessionActive.mockResolvedValueOnce({ active: true, role: 'member' })
 
     const { requireNewsPermission } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    // 1. verifySession check
-    querySpy.mockResolvedValueOnce([{ role: 'member' }])
-    // 2. fetchAuthenticatedMember: has no individual manage_news
     mockGetMemberAuthContext.mockResolvedValueOnce({
       member: {
         id: 402,
@@ -526,14 +509,11 @@ describe('requireNewsPermission Route Guard', () => {
       settings: {},
       isTelegramLinked: false,
     })
-    // 3. checkPositionPermission:
     mockCheckPositionPermission.mockResolvedValueOnce({ allowed: true })
 
     const result = await requireNewsPermission()
     expect(result.error).toBeUndefined()
     expect(result.session?.username).toBe('pr_officer_pos')
-
-    querySpy.mockRestore()
   })
 
   it('returns 403 when member has neither individual nor position permission', async () => {
@@ -543,14 +523,9 @@ describe('requireNewsPermission Route Guard', () => {
       role: 'member',
     })
     mockCookieStore.get.mockReturnValueOnce({ value: token })
+    mockCheckMemberSessionActive.mockResolvedValueOnce({ active: true, role: 'member' })
 
     const { requireNewsPermission } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    // 1. verifySession check
-    querySpy.mockResolvedValueOnce([{ role: 'member' }])
-    // 2. fetchAuthenticatedMember: no individual permissions
     mockGetMemberAuthContext.mockResolvedValueOnce({
       member: {
         id: 403,
@@ -565,7 +540,6 @@ describe('requireNewsPermission Route Guard', () => {
       settings: {},
       isTelegramLinked: false,
     })
-    // 3. checkPositionPermission:
     mockCheckPositionPermission.mockResolvedValueOnce({ allowed: false })
 
     const result = await requireNewsPermission()
@@ -573,8 +547,6 @@ describe('requireNewsPermission Route Guard', () => {
     expect(result.session).toBeUndefined()
     const json = await result.error!.json()
     expect(json.error).toBe('คุณไม่มีสิทธิ์จัดการข่าวประชาสัมพันธ์')
-
-    querySpy.mockRestore()
   })
 })
 

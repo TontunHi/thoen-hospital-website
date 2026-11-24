@@ -1,11 +1,14 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit, maskAuditDetails, maskAuditIdentifier } from '@/lib/audit'
 import { parseUserAgent } from '@/lib/userAgentParser'
 
-export type AuditQueryExecutor = <T = Record<string, unknown>>(
-  sql: string,
-  params?: unknown[]
-) => Promise<T[]>
+export interface AuditLogGatewayDeps {
+  listAuditLogsAdmin: typeof apiGateway.app.listAuditLogsAdmin
+  exportAuditLogsAdminRaw: typeof apiGateway.app.exportAuditLogsAdminRaw
+  getAuditLogStatsRaw: typeof apiGateway.app.getAuditLogStatsRaw
+  getExpiredAuditLogsCount: typeof apiGateway.app.getExpiredAuditLogsCount
+  purgeExpiredAuditLogs: typeof apiGateway.app.purgeExpiredAuditLogs
+}
 
 export interface AuditLogRow {
   id: number
@@ -38,68 +41,30 @@ function normalizeBangkokIsoTimestamp(ts: unknown): string | null {
   return String(ts)
 }
 
-function buildFilterClause(
-  filters: AuditLogFilterParams,
-  includeDetailsInPrimarySearch: boolean
-): { clause: string; params: unknown[] } {
-  let clause = ''
-  const params: unknown[] = []
-
-  if (filters.search) {
-    const searchPattern = `%${filters.search}%`
-    const maskedSearch = maskAuditIdentifier(filters.search)
-    let searchCond = includeDetailsInPrimarySearch
-      ? ' AND (username LIKE ? OR email LIKE ? OR target_table LIKE ? OR action_details LIKE ? OR ip_address LIKE ?'
-      : ' AND (username LIKE ? OR email LIKE ? OR target_table LIKE ? OR ip_address LIKE ?'
-    const searchParams: unknown[] = includeDetailsInPrimarySearch
-      ? [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern]
-      : [searchPattern, searchPattern, searchPattern, searchPattern]
-
-    if (maskedSearch && maskedSearch !== filters.search) {
-      searchCond += ' OR username LIKE ? OR action_details LIKE ?'
-      searchParams.push(`%${maskedSearch}%`, `%${maskedSearch}%`)
-    }
-    searchCond += ')'
-    clause += searchCond
-    params.push(...searchParams)
-  }
-
-  if (filters.actionType) {
-    clause += ' AND action_type = ?'
-    params.push(filters.actionType)
-  }
-
-  if (filters.startDate) {
-    clause += ' AND timestamp >= ?'
-    params.push(filters.startDate)
-  }
-
-  if (filters.endDate) {
-    clause += ' AND timestamp <= ?'
-    params.push(filters.endDate + ' 23:59:59')
-  }
-
-  return { clause, params }
+function getDefaultGateway(): AuditLogGatewayDeps {
+  return apiGateway.app
 }
 
 export const AuditLogService = {
   async listAuditLogs(
     filters: AuditLogFilterParams,
-    query: AuditQueryExecutor = queryMemberDb
+    gw: Pick<AuditLogGatewayDeps, 'listAuditLogsAdmin'> = getDefaultGateway()
   ) {
     const page = filters.page && filters.page > 0 ? filters.page : 1
     const limit = filters.limit && filters.limit > 0 ? filters.limit : 25
-    const offset = (page - 1) * limit
+    const maskedSearch = filters.search ? maskAuditIdentifier(filters.search) ?? undefined : undefined
 
-    const { clause, params } = buildFilterClause(filters, true)
-    const countQuery = `SELECT COUNT(*) as total FROM audit_logs WHERE 1=1${clause}`
-    const dataQuery = `SELECT * FROM audit_logs WHERE 1=1${clause} ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?`
+    const { total, logs: rawLogs } = await gw.listAuditLogsAdmin({
+      page,
+      limit,
+      search: filters.search,
+      maskedSearch: maskedSearch && maskedSearch !== filters.search ? maskedSearch : undefined,
+      actionType: filters.actionType,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    })
 
-    const totalRows = await query<{ total?: number }>(countQuery, params)
-    const total = Number(totalRows[0]?.total || 0)
-
-    const rawLogs = await query<AuditLogRow>(dataQuery, [...params, limit, offset])
-    const logs = (rawLogs || []).map((log) => ({
+    const logs = ((rawLogs || []) as AuditLogRow[]).map((log) => ({
       ...log,
       username: maskAuditIdentifier(log.username),
       action_details: maskAuditDetails(log.action_details),
@@ -117,47 +82,18 @@ export const AuditLogService = {
     }
   },
 
-  async getAuditLogStats(query: AuditQueryExecutor = queryMemberDb) {
-    const summaryRows = await query<{
-      total_logs?: number
-      oldest_log?: string | null
-      newest_log?: string | null
-    }>(`
-      SELECT 
-        COUNT(*) AS total_logs,
-        MIN(timestamp) AS oldest_log,
-        MAX(timestamp) AS newest_log
-      FROM audit_logs
-    `)
+  async getAuditLogStats(
+    gw: Pick<AuditLogGatewayDeps, 'getAuditLogStatsRaw'> = getDefaultGateway()
+  ) {
+    const { summary, today, storage } = await gw.getAuditLogStatsRaw()
 
-    const todayStatsRows = await query<{
-      logins_today?: number
-      reads_today?: number
-      changes_today?: number
-    }>(`
-      SELECT 
-        COUNT(CASE WHEN action_type = 'LOGIN' THEN 1 END) AS logins_today,
-        COUNT(CASE WHEN action_type = 'READ' THEN 1 END) AS reads_today,
-        COUNT(CASE WHEN action_type IN ('CREATE', 'UPDATE', 'DELETE') THEN 1 END) AS changes_today
-      FROM audit_logs
-      WHERE timestamp >= CURDATE()
-    `)
-
-    const storageRows = await query<{ size_mb?: string | number | null }>(`
-      SELECT 
-        ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) AS size_mb
-      FROM information_schema.TABLES
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'audit_logs'
-      LIMIT 1
-    `)
-
-    const totalLogs = Number(summaryRows[0]?.total_logs || 0)
-    const oldestLog = normalizeBangkokIsoTimestamp(summaryRows[0]?.oldest_log)
-    const newestLog = normalizeBangkokIsoTimestamp(summaryRows[0]?.newest_log)
-    const loginsToday = Number(todayStatsRows[0]?.logins_today || 0)
-    const readsToday = Number(todayStatsRows[0]?.reads_today || 0)
-    const changesToday = Number(todayStatsRows[0]?.changes_today || 0)
-    const rawSize = storageRows[0]?.size_mb
+    const totalLogs = Number(summary?.total_logs || 0)
+    const oldestLog = normalizeBangkokIsoTimestamp(summary?.oldest_log)
+    const newestLog = normalizeBangkokIsoTimestamp(summary?.newest_log)
+    const loginsToday = Number(today?.logins_today || 0)
+    const readsToday = Number(today?.reads_today || 0)
+    const changesToday = Number(today?.changes_today || 0)
+    const rawSize = storage?.size_mb
     const sizeMb = rawSize !== null && rawSize !== undefined ? parseFloat(String(rawSize)) : 0
 
     let retainedDays = 0
@@ -182,11 +118,16 @@ export const AuditLogService = {
 
   async exportAuditLogsCsv(
     filters: AuditLogFilterParams,
-    query: AuditQueryExecutor = queryMemberDb
+    gw: Pick<AuditLogGatewayDeps, 'exportAuditLogsAdminRaw'> = getDefaultGateway()
   ): Promise<string> {
-    const { clause, params } = buildFilterClause(filters, false)
-    const sql = `SELECT id, timestamp, username, email, action_type, target_table, action_details, ip_address, user_agent FROM audit_logs WHERE 1=1${clause} ORDER BY timestamp DESC, id DESC LIMIT 10000`
-    const logs = await query<AuditLogRow>(sql, params)
+    const maskedSearch = filters.search ? maskAuditIdentifier(filters.search) ?? undefined : undefined
+    const logs = (await gw.exportAuditLogsAdminRaw({
+      search: filters.search,
+      maskedSearch: maskedSearch && maskedSearch !== filters.search ? maskedSearch : undefined,
+      actionType: filters.actionType,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    })) as AuditLogRow[]
 
     const escapeCsv = (valInput: unknown): string => {
       if (valInput === null || valInput === undefined) return '""'
@@ -214,18 +155,18 @@ export const AuditLogService = {
 
     const csvRows = [
       headers.join(','),
-      ...logs.map((log) => {
+      ...(logs || []).map((log) => {
         const parsedUa = parseUserAgent(log.user_agent)
         const deviceTypeLabel =
           parsedUa.deviceType === 'desktop'
             ? 'คอมพิวเตอร์ (Desktop)'
             : parsedUa.deviceType === 'mobile'
-            ? `มือถือ (${parsedUa.deviceModel || 'Mobile'})`
-            : parsedUa.deviceType === 'tablet'
-            ? `แท็บเล็ต (${parsedUa.deviceModel || 'Tablet'})`
-            : parsedUa.deviceType === 'bot'
-            ? 'Bot / Script'
-            : 'ไม่ระบุ'
+              ? `มือถือ (${parsedUa.deviceModel || 'Mobile'})`
+              : parsedUa.deviceType === 'tablet'
+                ? `แท็บเล็ต (${parsedUa.deviceModel || 'Tablet'})`
+                : parsedUa.deviceType === 'bot'
+                  ? 'Bot / Script'
+                  : 'ไม่ระบุ'
 
         let formattedTs = log.timestamp
         if (typeof formattedTs === 'string') {
@@ -258,67 +199,35 @@ export const AuditLogService = {
 
   async countExpiredAuditLogs(
     retentionDays: number,
-    query: AuditQueryExecutor = queryMemberDb
+    gw: Pick<AuditLogGatewayDeps, 'getExpiredAuditLogsCount'> = getDefaultGateway()
   ): Promise<number> {
-    const countRows = await query<{ expiredCount?: number }>(
-      'SELECT COUNT(*) as expiredCount FROM audit_logs WHERE timestamp < DATE_SUB(NOW(), INTERVAL ? DAY)',
-      [retentionDays]
-    )
-    return Number(countRows[0]?.expiredCount || 0)
+    const res = await gw.getExpiredAuditLogsCount(retentionDays)
+    return Number(res?.expiredCount || 0)
   },
 
   async purgeExpiredAuditLogsByAdmin(
     retentionDays: number,
     adminActor: { username: string; email: string },
-    query: AuditQueryExecutor = queryMemberDb
+    gw: Pick<AuditLogGatewayDeps, 'purgeExpiredAuditLogs'> = getDefaultGateway()
   ): Promise<{ expiredCount: number; purgedCount: number }> {
-    const expiredCount = await this.countExpiredAuditLogs(retentionDays, query)
-    if (expiredCount === 0) {
-      return { expiredCount: 0, purgedCount: 0 }
-    }
-
-    let totalPurged = 0
-    while (totalPurged < expiredCount) {
-      const result = (await query(
-        'DELETE FROM audit_logs WHERE timestamp < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT 5000',
-        [retentionDays]
-      )) as unknown as { affectedRows?: number }
-      const affected = Number(result?.affectedRows || 0)
-      if (affected === 0) break
-      totalPurged += affected
-    }
-
-    await query(
-      `INSERT INTO audit_logs (username, email, action_type, target_table, action_details, ip_address, user_agent)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        adminActor.username,
-        adminActor.email,
-        'DELETE',
-        'audit_logs',
-        `PDPA Maintenance: ล้างประวัติการใช้งานที่เก่ากว่า ${retentionDays} วัน จำนวน ${totalPurged} รายการ`,
-        '127.0.0.1',
-        'Web Admin Portal / PDPA Maintenance',
-      ]
-    )
-
-    return { expiredCount, purgedCount: totalPurged }
+    return gw.purgeExpiredAuditLogs({
+      retentionDays,
+      mode: 'admin',
+      adminActor,
+    })
   },
 
   async purgeExpiredAuditLogsByCron(
     retentionDays: number,
-    query: AuditQueryExecutor = queryMemberDb
+    gw: Pick<AuditLogGatewayDeps, 'purgeExpiredAuditLogs'> = getDefaultGateway()
   ): Promise<{ expiredCount: number; deletedRows: number }> {
-    const expiredCount = await this.countExpiredAuditLogs(retentionDays, query)
-    let deletedRows = 0
+    const res = await gw.purgeExpiredAuditLogs({
+      retentionDays,
+      mode: 'cron',
+    })
+    const deletedRows = Number(res?.purgedCount || 0)
 
-    if (expiredCount > 0) {
-      const deleteResult = (await query(
-        'DELETE FROM audit_logs WHERE timestamp < DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT 5000',
-        [retentionDays]
-      )) as unknown as { affectedRows?: number }
-      deletedRows = Number(deleteResult?.affectedRows || 0)
-
+    if (res.expiredCount > 0) {
       await logAudit(
         'DELETE',
         'audit_logs',
@@ -327,6 +236,6 @@ export const AuditLogService = {
       )
     }
 
-    return { expiredCount, deletedRows }
+    return { expiredCount: res.expiredCount, deletedRows }
   },
 }

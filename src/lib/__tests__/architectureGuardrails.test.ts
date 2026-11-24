@@ -142,13 +142,7 @@ describe('Hospital Architecture & Build Guardrails', () => {
       // Phase 2C: RCM Dashboard & REP Funds (completed -> 0)
       // Phase 2D: RCM Extra Funds (completed -> 0)
       // Phase 2E: Chronic Care & Home Visit (completed -> 0)
-      // Phase 3: Auth, Permissions, Audit & Integrations (6)
-      'src/lib/auditLogService.ts',
-      'src/lib/auth/MemberAuthService.ts',
-      'src/lib/auth/memberSignatureService.ts',
-      'src/lib/permissions/taskPermissionService.ts',
-      'src/lib/registration/registrationService.default.ts',
-      'src/lib/telegram/telegramCore.ts',
+      // Phase 3: Auth, Permissions, Audit & Integrations (completed -> 0)
       // Phase 4: Hospital Operations App DB (14)
       'src/lib/assets/assetService.ts',
       'src/lib/cms/EthicsDocumentService.ts',
