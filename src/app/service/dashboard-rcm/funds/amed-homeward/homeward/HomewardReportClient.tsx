@@ -37,6 +37,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -173,6 +176,15 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
     setCurrentPage(1)
   }, [])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -199,6 +211,9 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         if (pttypes.length > 0) {
           queryParams.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          queryParams.set('reps', selectedReps.join(','))
+        }
 
         if (refresh) {
           queryParams.append('refresh', 'true')
@@ -219,6 +234,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         setTotalCount(data.totalCount || 0)
         setTotalPages(data.totalPages || 1)
         setSummary(data.summary)
+        if (data.repBreakdown !== undefined) setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: unknown) {
         if ((err as Error).name === 'AbortError') return
         setError((err as Error).message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ')
@@ -229,7 +245,7 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         }
       }
     },
-    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, selectedReps, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -295,6 +311,9 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
 
       if (pttypes.length > 0) {
         queryParams.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        queryParams.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -784,6 +803,19 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Toolbar & Unified Search ── */}
       <div className="hw-toolbar">
         <div className="hw-search-box">
@@ -818,6 +850,24 @@ export default function HomewardReportClient({ initialData = null }: HomewardRep
           
           />
         </div>
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="hw-toolbar-info">
           <span>

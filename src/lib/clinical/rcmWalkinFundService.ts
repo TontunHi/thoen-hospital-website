@@ -9,6 +9,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: กองทุน Walkin - รายชื่อผู้รับบริการจาก ADP (WALKIN) ──
 
@@ -55,6 +61,7 @@ export interface WalkinFundReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface WalkinAdpMappingItem {
@@ -153,6 +160,7 @@ export interface WalkinFundReportResult {
   items: WalkinFundItem[]
   summary: WalkinFundSummary
   adpMapping: WalkinAdpMappingCheck
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Business Logic Helpers ─────────────────────────────────
@@ -553,6 +561,9 @@ export class RcmWalkinFundService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Filter (Card Filter)
     let filteredItems = summaryCohort
 
@@ -574,6 +585,10 @@ export class RcmWalkinFundService {
 
     if (ucOnly && cardFilter !== 'UC_ONLY') {
       filteredItems = filteredItems.filter((it) => it.isUc)
+    }
+
+    if (selectedReps.length > 0) {
+      filteredItems = filteredItems.filter((it) => matchesRepFilter(it, selectedReps))
     }
 
     // Apply Unified Global Search
@@ -645,6 +660,7 @@ export class RcmWalkinFundService {
       items,
       summary,
       adpMapping,
+      repBreakdown,
     }
   }
 }

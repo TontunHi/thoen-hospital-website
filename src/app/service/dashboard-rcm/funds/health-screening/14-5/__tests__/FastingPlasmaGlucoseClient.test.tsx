@@ -217,4 +217,29 @@ describe('FastingPlasmaGlucoseClient Component (14.5 ADP 12003)', () => {
       )
     })
   })
+
+  it('renders REP TAG breakdown dashboard and filters via REP CheckBox dropdown', async () => {
+    render(<FastingPlasmaGlucoseClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นายสมชาย ใจดี')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('สรุปผลแยกตาม TAG เลข REP')).toBeInTheDocument()
+    expect(screen.queryByText('เลือกกรองตาม TAG เลข REP (CheckBox):')).not.toBeInTheDocument()
+
+    // Open REP CheckBox multi-select dropdown
+    const repTrigger = screen.getByRole('button', { name: 'ตัวกรองเลขที่ REP' })
+    fireEvent.click(repTrigger)
+
+    const repCheckbox = screen.getByLabelText('เลือก REP REP691001')
+    fireEvent.click(repCheckbox)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('reps=REP691001'),
+        expect.anything()
+      )
+    })
+  })
 })

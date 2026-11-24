@@ -14,6 +14,7 @@ const service31ParamsSchema = z.object({
   laborTypeFilter: z.enum(['ALL', 'NORMAL', 'CESAREAN', 'OTHER']).optional(),
   searchField: z.enum(['ALL', 'HN', 'CID', 'PTNAME', 'LABRESULT', 'HOSPITAL', 'PTTYPE']).optional(),
   search: z.string().max(120).optional(),
+  reps: z.string().max(2000).optional(),
   sortBy: z
     .enum([
       'labor_date',

@@ -4,6 +4,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   NEW_ECLAIM_ADP_CODES,
   KRUNGTHAI_ADP_CODES,
@@ -507,6 +508,9 @@ export async function getFamilyPlanning91Report(
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     let filtered = summaryCohort
     if (serviceOnly) {
       filtered = filtered.filter((i: any) => i.hasService)
@@ -533,6 +537,10 @@ export async function getFamilyPlanning91Report(
       filtered = filtered.filter((i: any) => i.hasError)
     } else if (cardFilter === 'NO_AUTHEN') {
       filtered = filtered.filter((i: any) => !i.hasAuthen)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i: any) => matchesRepFilter(i, selectedReps))
     }
 
     if (search.length > 0) {
@@ -598,5 +606,6 @@ export async function getFamilyPlanning91Report(
       pageSize,
       totalPages,
       items,
+      repBreakdown,
     }
   }

@@ -4,6 +4,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   NEW_ECLAIM_ADP_CODES,
   KRUNGTHAI_ADP_CODES,
@@ -279,8 +280,12 @@ export async function getIudReport(
       authenRate,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Card Filter
     let filteredItems = summaryCohort.filter((item) => {
+      if (selectedReps.length > 0 && !matchesRepFilter(item, selectedReps)) return false
       switch (cardFilter) {
         case 'COMPENSATED':
           return item.isCompensated
@@ -391,6 +396,7 @@ export async function getIudReport(
       pageSize,
       totalPages,
       items: pagedItems,
+      repBreakdown,
     }
   }
 
@@ -426,10 +432,11 @@ export async function queryIudOpdRows(
           COALESCE(e.income, 0) AS money_eclaim,
           COALESCE(r.income, 0) AS money_rep,
           COALESCE(n.income, 0) AS money_invoice,
-          COALESCE(n.rep, r.rep, m.rep, '') AS rep,
+          COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, ''), '') AS rep,
           CASE 
             WHEN n.vn IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
             WHEN r.vn IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
             WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
             ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
           END AS status
@@ -466,6 +473,7 @@ export async function queryIudOpdRows(
           WHERE department = 'OP' AND (fpnhso > 0 OR pp > 0)
           GROUP BY vn
         ) n ON n.vn = o.vn
+        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
         LEFT JOIN (
           SELECT e.opdseq AS vn, SUM(cc.totpay1) AS income
           FROM eclaimdb.m_registerdata e
@@ -576,10 +584,11 @@ export async function queryIudIpdRows(
           COALESCE(e.income, 0) AS money_eclaim,
           COALESCE(r.income, 0) AS money_rep,
           COALESCE(n.income, 0) AS money_invoice,
-          COALESCE(n.rep, r.rep, m.rep, '') AS rep,
+          COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, ''), '') AS rep,
           CASE 
             WHEN n.an IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
             WHEN r.an IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
             WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
             ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
           END AS status
@@ -618,6 +627,7 @@ export async function queryIudIpdRows(
           WHERE department = 'IP' AND (fpnhso > 0 OR pp > 0)
           GROUP BY an
         ) n ON n.an = i.an
+        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
         LEFT JOIN (
           SELECT e.an, SUM(cc.totpay1) AS income
           FROM eclaimdb.m_registerdata e

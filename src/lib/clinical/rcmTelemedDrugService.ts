@@ -4,6 +4,12 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
+import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
@@ -79,6 +85,7 @@ export interface TelemedReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface TelemedItem {
@@ -155,6 +162,7 @@ export interface TelemedReportResult {
   pageSize: number
   totalPages: number
   items: TelemedItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Domain Types: 11.52 รายชื่อผู้ได้รับการส่งยาทางไปรษณีย์ (DRUGP) ───────
@@ -204,6 +212,7 @@ export interface PostalDrugReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface PostalDrugItem {
@@ -276,6 +285,7 @@ export interface PostalDrugReportResult {
   pageSize: number
   totalPages: number
   items: PostalDrugItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 3. Helper Functions ───────────────────────────────────────────────────────
@@ -683,8 +693,12 @@ export class RcmTelemedDrugService {
       .map((c) => c.trim().toUpperCase())
       .filter((c) => c && c !== 'ALL')
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Filter records
     let filtered = summaryCohort.filter((rec) => {
+      if (selectedReps.length > 0 && !matchesRepFilter(rec, selectedReps)) return false
       // 2. Card filters (AND condition across different cards)
       for (const card of activeCards) {
         if (card === 'COMPENSATED' && !rec.isCompensated) return false
@@ -813,6 +827,7 @@ export class RcmTelemedDrugService {
       pageSize,
       totalPages,
       items: pagedItems,
+      repBreakdown,
     }
   }
 
@@ -1085,8 +1100,12 @@ export class RcmTelemedDrugService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Filter records
     let filtered = summaryCohort.filter((rec) => {
+      if (selectedReps.length > 0 && !matchesRepFilter(rec, selectedReps)) return false
       // 2. Card filter
       switch (cardFilter) {
         case 'COMPENSATED':
@@ -1221,6 +1240,7 @@ export class RcmTelemedDrugService {
       pageSize,
       totalPages,
       items: pagedItems,
+      repBreakdown,
     }
   }
 }

@@ -5,9 +5,9 @@ import { RcmStreptokinaseService } from '@/lib/clinical/rcmStreptokinaseService'
 import StreptokinaseRecipientsClient from './StreptokinaseRecipientsClient'
 
 export const metadata: Metadata = {
-  title: 'รายชื่อรับยา Streptokinase | กองทุน RCM โรงพยาบาลเถิน',
+  title: 'รายชื่อรับยา Stroke และSTEMI | กองทุน RCM โรงพยาบาลเถิน',
   description:
-    'ตรวจสอบการบันทึกการรับยา Streptokinase (STEMI) ทั้งผู้ป่วยนอก OPD และผู้ป่วยใน IPD พร้อมการตรวจความถูกต้องของรหัสโรคและหัตถการ กองทุน RCM โรงพยาบาลเถิน',
+    'ตรวจสอบการบันทึกการรับยา Stroke และ STEMI ทั้งผู้ป่วยใน IPD และผู้ป่วยนอก OPD พร้อมการตรวจความถูกต้องของรหัสโรคและหัตถการ กองทุน RCM โรงพยาบาลเถิน',
 }
 
 export default async function StreptokinaseRecipientsPage() {
@@ -24,6 +24,7 @@ export default async function StreptokinaseRecipientsPage() {
   let initialData = null
   try {
     initialData = await RcmStreptokinaseService.getStreptokinaseReport({
+      patientType: 'IPD',
       page: 1,
       pageSize: 50,
     })

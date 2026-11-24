@@ -30,6 +30,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -176,6 +179,15 @@ export default function CcsScreenedRecipientsClient({
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch Report Data
   const fetchData = useCallback(
     async (isManualRefresh = false) => {
@@ -209,6 +221,9 @@ export default function CcsScreenedRecipientsClient({
         if (pttypes.length > 0) {
           q.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         const res = await fetch(`/api/service/dashboard-rcm/funds/ccs/screened-recipients?${q.toString()}`, {
           signal: controller.signal,
@@ -225,6 +240,9 @@ export default function CcsScreenedRecipientsClient({
         setTotalPages(data.totalPages || 1)
         if (data.summary) {
           setSummary(data.summary)
+        }
+        if (data.repBreakdown !== undefined) {
+          setRepBreakdown(data.repBreakdown ?? null)
         }
       } catch (err: unknown) {
         const e = err as Error
@@ -246,6 +264,7 @@ export default function CcsScreenedRecipientsClient({
       resultStatusFilter,
       compensationFilter,
       pttypes,
+      selectedReps,
       debouncedSearch,
       sortBy,
       sortOrder,
@@ -345,6 +364,9 @@ export default function CcsScreenedRecipientsClient({
 
       if (pttypes.length > 0) {
         q.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/ccs/screened-recipients?${q.toString()}`)
@@ -754,6 +776,19 @@ export default function CcsScreenedRecipientsClient({
         </div>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 4. Filter Toolbar (FoxPro cshow combobox) ── */}
       <section className="ccs2-filter-card">
         <div className="ccs2-filter-group">
@@ -828,6 +863,24 @@ export default function CcsScreenedRecipientsClient({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
         </div>
 

@@ -9,6 +9,12 @@ import {
 import { isUniversalCoverageScheme } from './rcmColorectalCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── Types: กองทุน T1DM/GDM/PDM (หัวข้อที่ 2 รายชื่อผู้รับบริการ) ──────────────────────
 
@@ -59,6 +65,7 @@ export interface T1dmGdmPdmReportParams extends FiscalDateRangeParams {
   refresh?: boolean
   pttypes?: string
   ucOnly?: boolean
+  reps?: string
 }
 
 export interface T1dmGdmPdmRecipientItem {
@@ -144,6 +151,7 @@ export interface T1dmGdmPdmReportResult {
   search: string
   sortBy: T1dmGdmPdmSortField
   sortOrder: 'asc' | 'desc'
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── Service Implementation ──────────────────────────────────────────────────
@@ -520,6 +528,12 @@ export class RcmT1dmGdmPdmService {
         break
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
+    }
+
     // Apply Global Search
     if (search) {
       filtered = filtered.filter((i) => {
@@ -609,6 +623,7 @@ export class RcmT1dmGdmPdmService {
       search,
       sortBy,
       sortOrder,
+      repBreakdown,
     }
   }
 }

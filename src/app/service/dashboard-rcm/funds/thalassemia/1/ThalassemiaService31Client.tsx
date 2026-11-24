@@ -36,6 +36,9 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -95,6 +98,7 @@ export default function ThalassemiaService31Client({
   const [cardFilter, setCardFilter] = useState<ThalassemiaCardFilter>('ALL')
   const [laborTypeFilter, setLaborTypeFilter] = useState<ThalassemiaLaborTypeFilter>('ALL')
   const [pttypes, setPttypes] = useState<string[]>([])
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
   const [searchField, setSearchField] = useState<ThalassemiaSearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -133,6 +137,13 @@ export default function ThalassemiaService31Client({
       cesareanLaborCount: 0,
       otherLaborCount: 0,
     }
+  )
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
   )
 
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -198,6 +209,9 @@ export default function ThalassemiaService31Client({
         if (pttypes.length > 0) {
           q.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -217,6 +231,7 @@ export default function ThalassemiaService31Client({
         setTotalCount(json.data.totalCount || 0)
         setTotalPages(json.data.totalPages || 1)
         if (json.data.summary) setSummary(json.data.summary)
+        setRepBreakdown(json.data.repBreakdown ?? null)
         if (json.data.adpMapping) setAdpMapping(json.data.adpMapping)
       } catch (err: unknown) {
         const e = err as Error
@@ -236,6 +251,7 @@ export default function ThalassemiaService31Client({
       cardFilter,
       laborTypeFilter,
       pttypes,
+      selectedReps,
       searchField,
       debouncedSearch,
       sortBy,
@@ -308,6 +324,9 @@ export default function ThalassemiaService31Client({
 
       if (pttypes.length > 0) {
         q.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -549,6 +568,19 @@ export default function ThalassemiaService31Client({
         </button>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 4. Filter & Search Controls ── */}
       <section className="thal31-controls-card" aria-label="ตัวกรองและค้นหาข้อมูล">
         <div className="thal31-period-row">
@@ -687,6 +719,22 @@ export default function ThalassemiaService31Client({
             items={items}
             
           />
+            <RepMultiSelect
+              selectedReps={selectedReps}
+              onChange={(reps) => {
+                setSelectedReps(reps)
+                setCurrentPage(1)
+              }}
+              repBreakdown={effectiveRepBreakdown}
+              items={items}
+            />
+            <RcmRepActiveBadge
+              selectedReps={selectedReps}
+              onClear={() => {
+                setSelectedReps([])
+                setCurrentPage(1)
+              }}
+            />
 
             <div className="thal31-search-box">
               <Search size={16} className="thal31-search-icon" aria-hidden="true" />

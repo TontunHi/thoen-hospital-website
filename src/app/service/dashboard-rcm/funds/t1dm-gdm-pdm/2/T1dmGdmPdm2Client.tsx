@@ -38,6 +38,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -93,6 +96,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
 
   // Filter & Search states
   const [pttypes, setPttypes] = useState<string[]>([])
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
   const [cardFilter, setCardFilter] = useState<T1dmGdmPdmCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
@@ -134,6 +138,13 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
       ucCases: 0,
       ucRate: 0,
     }
+  )
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
   )
 
   // Modal Detail states (opened by clicking row directly!)
@@ -182,6 +193,8 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
           pageSize: String(pageSize),
         })
         if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
         if (refresh) query.set('refresh', 'true')
 
         const res = await fetch(
@@ -199,6 +212,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         setTotalCount(data.totalCount || 0)
         setTotalPages(data.totalPages || 1)
         if (data.summary) setSummary(data.summary)
+        setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         setError(err.message || 'ไม่สามารถเชื่อมต่อระบบได้')
@@ -209,7 +223,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize, pttypes]
+    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize, pttypes, selectedReps]
   )
 
   // Skip initial fetch on mount if initialData is provided
@@ -319,6 +333,7 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         exportAll: 'true',
       })
       if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/t1dm-gdm-pdm/service-recipients?${query.toString()}`
@@ -770,6 +785,19 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Toolbar & Search ── */}
       <div className="dm-toolbar">
         <div className="dm-search-box">
@@ -802,6 +830,22 @@ export default function T1dmGdmPdm2Client({ initialData = null }: T1dmGdmPdm2Cli
             items={items}
         
           />
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="dm-toolbar-meta">
           <span>

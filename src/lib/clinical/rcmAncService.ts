@@ -4,6 +4,12 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 2.4 บริการฝากครรภ์ (ANC 30011) ──────────────────────
 
@@ -30,6 +36,7 @@ export type AncSortField =
 export interface AncService30011Params extends FiscalDateRangeParams {
   compensationFilter?: AncCompensationFilter
   pttypes?: string
+  reps?: string
   ucOnly?: boolean
   searchField?: AncSearchField
   search?: string
@@ -118,6 +125,7 @@ export interface AncService30011Result {
   sortBy: AncSortField
   sortOrder: 'asc' | 'desc'
   summary: AncService30011Summary
+  repBreakdown?: RepBreakdownSummary
   totalCount: number
   page: number
   pageSize: number
@@ -435,6 +443,9 @@ export class RcmAncService {
       withOpCount,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Apply Filter & Search
     let filtered = summaryCohort
 
@@ -446,6 +457,9 @@ export class RcmAncService {
       filtered = filtered.filter((i) => Boolean(i.authencode))
     } else if (compensationFilter === 'NO_AUTHEN') {
       filtered = filtered.filter((i) => !i.authencode)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedRepsList))
     }
 
     if (search) {
@@ -532,6 +546,7 @@ export class RcmAncService {
       sortBy,
       sortOrder,
       summary,
+      repBreakdown,
       totalCount,
       page,
       pageSize,
@@ -1026,9 +1041,15 @@ export class RcmAncService {
       }
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Apply Status E-Claim Filter
     if (statusFilter && statusFilter !== 'ALL') {
       filtered = filtered.filter((i) => i.status_eclaim === statusFilter)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedRepsList))
     }
 
     // Apply Search Filter
@@ -1149,6 +1170,7 @@ export class RcmAncService {
       sortBy,
       sortOrder,
       summary,
+      repBreakdown,
       statusOptions,
       totalCount,
       page: safePage,
@@ -1190,6 +1212,7 @@ export interface AncService23Params extends FiscalDateRangeParams {
   serviceFilter?: 'ALL' | 'OK' | 'NOT_OK'
   ucFilter?: 'ALL' | 'UC' | 'NON_UC'
   pttypes?: string
+  reps?: string
   statusFilter?: string
   searchField?: AncService23SearchField
   search?: string
@@ -1281,6 +1304,7 @@ export interface AncService23Result {
   sortBy: AncService23SortField
   sortOrder: 'asc' | 'desc'
   summary: AncService23Summary
+  repBreakdown?: RepBreakdownSummary
   statusOptions: string[]
   totalCount: number
   page: number

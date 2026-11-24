@@ -35,6 +35,9 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -299,6 +302,15 @@ export default function OralCancerScreeningClient({
     }
   }, [dateMode, selectedFiscalYear])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Main data fetching function
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -331,6 +343,9 @@ export default function OralCancerScreeningClient({
         } else if (ucOnly) {
           queryParams.set('ucOnly', 'true')
         }
+        if (selectedReps.length > 0) {
+          queryParams.set('reps', selectedReps.join(','))
+        }
 
         if (refresh) queryParams.set('refresh', 'true')
 
@@ -350,6 +365,7 @@ export default function OralCancerScreeningClient({
         setTotalPages(data.totalPages || 1)
         if (data.summary) setSummary(data.summary)
         if (data.adpMapping) setAdpMapping(data.adpMapping)
+        if (data.repBreakdown !== undefined) setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         setError(err.message || 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้')
@@ -360,7 +376,7 @@ export default function OralCancerScreeningClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, selectedReps, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -404,6 +420,9 @@ export default function OralCancerScreeningClient({
         queryParams.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         queryParams.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        queryParams.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -830,6 +849,19 @@ export default function OralCancerScreeningClient({
         </button>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Search & Filters Bar ── */}
       <section className="oral-filter-bar" aria-label="ตัวกรองและค้นหา">
         <div className="oral-filter-left">
@@ -864,6 +896,24 @@ export default function OralCancerScreeningClient({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
 
           {selectedPttypes.length > 0 && (

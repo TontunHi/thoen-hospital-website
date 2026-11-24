@@ -39,6 +39,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -191,6 +194,15 @@ export default function AncService23Client({
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -224,6 +236,9 @@ export default function AncService23Client({
         } else if (ucFilter !== 'ALL') {
           q.set('ucFilter', ucFilter)
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         if (refresh) q.set('refresh', 'true')
 
@@ -245,6 +260,9 @@ export default function AncService23Client({
         if (data.statusOptions) {
           setStatusOptions(data.statusOptions)
         }
+        if (data.repBreakdown !== undefined) {
+          setRepBreakdown(data.repBreakdown ?? null)
+        }
       } catch (err: unknown) {
         const e = err as Error
         if (e.name !== 'AbortError') {
@@ -263,6 +281,7 @@ export default function AncService23Client({
       cardFilter,
       serviceFilter,
       selectedPttypes,
+      selectedReps,
       ucFilter,
       statusFilter,
       searchField,
@@ -372,6 +391,9 @@ export default function AncService23Client({
         q.set('pttypes', selectedPttypes.join(','))
       } else if (ucFilter !== 'ALL') {
         q.set('ucFilter', ucFilter)
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -641,6 +663,24 @@ export default function AncService23Client({
           
           />
 
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
+          />
+
           {/* E-Claim Status Dropdown */}
           {statusOptions.length > 0 && (
             <select
@@ -780,6 +820,19 @@ export default function AncService23Client({
           <div className="anc3-kpi-sub">ไม่มีหัตถการ / ไม่มี LMP</div>
         </button>
       </section>
+
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
 
       {/* ── Error Banner ── */}
       {error && (

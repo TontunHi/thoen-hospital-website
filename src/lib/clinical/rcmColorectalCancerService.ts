@@ -9,6 +9,12 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 21.2 บริการตรวจคัดกรองมะเร็งลำไส้ใหญ่และลำไส้ตรง (Fit test) อายุ 50-70 ปี (ADP 90005) ──
 
@@ -58,6 +64,7 @@ export interface ColorectalCancerReportParams extends FiscalDateRangeParams {
   cardFilter?: ColorectalCancerCardFilter
   ucOnly?: boolean
   pttypes?: string
+  reps?: string
   searchField?: ColorectalCancerSearchField
   search?: string
   sortBy?: ColorectalCancerSortField
@@ -176,6 +183,7 @@ export interface ColorectalCancerReportResult {
   sortBy: ColorectalCancerSortField
   sortOrder: 'asc' | 'desc'
   summary: ColorectalCancerSummary
+  repBreakdown?: RepBreakdownSummary
   totalCount: number
   page: number
   pageSize: number
@@ -718,6 +726,9 @@ export class RcmColorectalCancerService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Filter Items by cardFilter and ucOnly (Dual-Mode)
     let filtered = summaryCohort
 
@@ -741,6 +752,9 @@ export class RcmColorectalCancerService {
       filtered = filtered.filter((it) => !it.authencode)
     } else if (cardFilter === 'UC_ONLY') {
       filtered = filtered.filter((it) => it.isUc)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((it) => matchesRepFilter(it, selectedRepsList))
     }
 
     // Search Filtering
@@ -845,6 +859,7 @@ export class RcmColorectalCancerService {
       sortBy,
       sortOrder,
       summary,
+      repBreakdown,
       totalCount,
       page: exportAll ? 1 : page,
       pageSize: exportAll ? totalCount : pageSize,

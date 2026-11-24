@@ -9,6 +9,12 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: กองทุนยา Clopidogrel ─────────────────────────────────────
 
@@ -45,6 +51,7 @@ export interface ClopidogrelReportParams extends FiscalDateRangeParams {
   cardFilter?: ClopidogrelCardFilter
   ucOnly?: boolean
   pttypes?: string
+  reps?: string
   search?: string
   sortBy?: ClopidogrelSortField
   sortOrder?: 'asc' | 'desc'
@@ -151,6 +158,7 @@ export interface ClopidogrelReportResult {
   sortBy: ClopidogrelSortField
   sortOrder: 'asc' | 'desc'
   summary: ClopidogrelSummary
+  repBreakdown?: RepBreakdownSummary
   totalCount: number
   page: number
   pageSize: number
@@ -646,6 +654,9 @@ export class RcmClopidogrelService {
       notSentCount,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Apply Filters
     let filtered = [...summaryCohort]
 
@@ -674,6 +685,9 @@ export class RcmClopidogrelService {
       case 'ALL':
       default:
         break
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedRepsList))
     }
 
     // Apply Global Search (cross-cutting: HN, CID, name, VN, doctor, clinic, department, diagnosis, drug, seamless rep)
@@ -740,6 +754,7 @@ export class RcmClopidogrelService {
       sortBy,
       sortOrder,
       summary,
+      repBreakdown,
       totalCount,
       page,
       pageSize,

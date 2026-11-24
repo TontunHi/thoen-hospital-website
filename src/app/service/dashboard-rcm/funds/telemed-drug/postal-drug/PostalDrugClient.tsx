@@ -39,6 +39,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -94,6 +97,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
 
   // Filter & Search states
   const [pttypes, setPttypes] = useState<string[]>([])
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
   const [cardFilter, setCardFilter] = useState<PostalDrugCardFilter>(
     initialData?.cardFilter ?? 'ALL'
   )
@@ -147,6 +151,13 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
       totalIncome: 0,
     }
   )
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
 
   // Modal Detail states (opened by clicking row directly!)
   const [selectedItem, setSelectedItem] = useState<PostalDrugItem | null>(null)
@@ -197,6 +208,8 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
         })
 
         if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -216,6 +229,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
           setTotalCount(result.totalCount)
           setTotalPages(result.totalPages)
           setSummary(result.summary)
+          setRepBreakdown(result.repBreakdown ?? null)
           setAdpMapping(result.adpMapping)
         } else {
           throw new Error(json.error?.message || 'รูปแบบข้อมูลตอบกลับไม่ถูกต้อง')
@@ -241,6 +255,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
       currentPage,
       pageSize,
       pttypes,
+      selectedReps,
     ]
   )
 
@@ -389,6 +404,7 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
         exportAll: 'true',
       })
       if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/telemed-drug/postal-drug?${queryParams.toString()}`
@@ -850,6 +866,19 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Toolbar & Unified Global Search ── */}
       <div className="postal-toolbar">
         <div className="postal-search-wrap">
@@ -882,6 +911,22 @@ export default function PostalDrugClient({ initialData = null }: PostalDrugClien
             items={items}
         
           />
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="postal-toolbar-actions">
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.875rem', cursor: 'pointer' }}>

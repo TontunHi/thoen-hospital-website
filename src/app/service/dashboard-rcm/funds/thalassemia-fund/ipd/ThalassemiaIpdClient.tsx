@@ -36,6 +36,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -94,6 +97,7 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
     initialData?.cardFilter ?? 'ALL'
   )
   const [pttypes, setPttypes] = useState<string[]>([])
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [sortBy, setSortBy] = useState<ThalassemiaIpdSortField>(
@@ -134,6 +138,13 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
       ucCases: 0,
       ucRate: 0,
     }
+  )
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
   )
 
   // Modal Detail states (opened by clicking row directly!)
@@ -207,6 +218,8 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
         params.set('page', String(currentPage))
         params.set('pageSize', String(pageSize))
         if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) params.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) params.set('reps', selectedReps.join(','))
         if (refresh) params.set('refresh', 'true')
 
         const res = await fetch(
@@ -224,6 +237,7 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
         setTotalCount(data.totalCount || 0)
         setTotalPages(data.totalPages || 1)
         setSummary(data.summary)
+        setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         setError(err.message || 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้')
@@ -234,7 +248,7 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
         }
       }
     },
-    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, selectedReps, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch on parameter change (skip on first mount if initialData is provided)
@@ -313,6 +327,7 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
       params.set('sortOrder', sortOrder)
       params.set('exportAll', 'true')
       if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) params.set('reps', selectedReps.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/thalassemia-fund/ipd?${params.toString()}`
@@ -725,6 +740,19 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Toolbar with Search Input ── */}
       <div className="th-toolbar">
         <div className="th-search-box">
@@ -757,6 +785,22 @@ export default function ThalassemiaIpdClient({ initialData = null }: Thalassemia
             items={items}
         
           />
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="th-toolbar-meta">
           <span>

@@ -39,6 +39,9 @@ import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -172,6 +175,15 @@ export default function HepatitisC234Client({
     return () => clearTimeout(timer)
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Data Fetching Function
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -204,6 +216,9 @@ export default function HepatitisC234Client({
         } else if (ucOnly) {
           queryParams.set('ucOnly', 'true')
         }
+        if (selectedReps.length > 0) {
+          queryParams.set('reps', selectedReps.join(','))
+        }
 
         if (refresh) queryParams.set('refresh', 'true')
 
@@ -220,6 +235,7 @@ export default function HepatitisC234Client({
           setTotalPages(d.totalPages)
           setSummary(d.summary)
           setAdpMapping(d.adpMapping)
+          if (d.repBreakdown !== undefined) setRepBreakdown(d.repBreakdown ?? null)
         } else {
           setError(json.error?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
         }
@@ -239,6 +255,7 @@ export default function HepatitisC234Client({
       ds2,
       cardFilter,
       selectedPttypes,
+      selectedReps,
       ucOnly,
       withLabOnly,
       debouncedSearch,
@@ -388,6 +405,9 @@ export default function HepatitisC234Client({
         queryParams.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         queryParams.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        queryParams.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -822,6 +842,19 @@ export default function HepatitisC234Client({
         </button>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── Toolbar: Unified Search & Quick Checkboxes ────────── */}
       <section className="hs-toolbar-card">
         <div className="hs-search-box">
@@ -854,6 +887,24 @@ export default function HepatitisC234Client({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
 
           {selectedPttypes.length > 0 && (

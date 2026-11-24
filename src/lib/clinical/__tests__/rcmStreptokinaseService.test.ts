@@ -251,6 +251,7 @@ describe('RcmStreptokinaseService', () => {
       )
 
       expect(report.patientType).toBe('IPD')
+      expect(report.subtitle).toBe('รายชื่อรับยา Stroke และSTEMI')
       expect(report.totalCount).toBe(1)
       expect(report.items[0].an).toBe('690001234')
       expect(report.items[0].ward).toBe('ตึกผู้ป่วยในชาย')

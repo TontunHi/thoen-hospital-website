@@ -23,6 +23,7 @@ const baseParamsSchema = z.object({
   typeareaFilter: z.enum(['ALL', '1_3']).optional(),
   searchField: z.enum(['ALL', 'HN', 'CID', 'PTNAME']).optional(),
   search: z.string().max(120).optional(),
+  reps: z.string().max(2000).optional(),
   sortBy: z
     .enum(['hn', 'person_id', 'cid', 'ptname', 'age', 'vstdate', 'comeback_date', 'note', 'compensated'])
     .optional(),

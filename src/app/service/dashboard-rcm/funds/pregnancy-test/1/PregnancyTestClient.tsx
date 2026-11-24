@@ -37,6 +37,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -185,6 +188,15 @@ export default function PregnancyTestClient({
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (forceRefresh = false) => {
@@ -215,6 +227,9 @@ export default function PregnancyTestClient({
         if (pttypes.length > 0) {
           q.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -235,6 +250,7 @@ export default function PregnancyTestClient({
         setTotalPages(data.totalPages || 1)
         if (data.summary) setSummary(data.summary)
         if (data.adpMapping) setAdpMapping(data.adpMapping)
+        if (data.repBreakdown !== undefined) setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: unknown) {
         const e = err as Error
         if (e.name !== 'AbortError') {
@@ -247,7 +263,7 @@ export default function PregnancyTestClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, pttypes, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, selectedReps, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -335,6 +351,9 @@ export default function PregnancyTestClient({
       })
       if (pttypes.length > 0) {
         q.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/pregnancy-test/service-81?${q.toString()}`)
@@ -751,6 +770,19 @@ export default function PregnancyTestClient({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── Toolbar: Quick Filter Pills, UC Checkbox, & Search ── */}
       <div className="preg81-toolbar">
         {/* Quick Filter Pills */}
@@ -836,6 +868,24 @@ export default function PregnancyTestClient({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
         </div>
 

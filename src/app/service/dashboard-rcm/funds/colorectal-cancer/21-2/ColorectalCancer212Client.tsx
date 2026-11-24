@@ -38,6 +38,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -197,6 +200,15 @@ export default function ColorectalCancer212Client({
     return () => clearTimeout(timer)
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -225,6 +237,9 @@ export default function ColorectalCancer212Client({
         } else if (ucOnly) {
           query.set('ucOnly', 'true')
         }
+        if (selectedReps.length > 0) {
+          query.set('reps', selectedReps.join(','))
+        }
 
         if (refresh) query.set('refresh', 'true')
 
@@ -246,6 +261,7 @@ export default function ColorectalCancer212Client({
           setTotalPages(d.totalPages || 1)
           setSummary(d.summary)
           setAdpMapping(d.adpMapping)
+          if (d.repBreakdown !== undefined) setRepBreakdown(d.repBreakdown ?? null)
         }
       } catch (err: any) {
         if (err?.name === 'AbortError') return
@@ -257,7 +273,7 @@ export default function ColorectalCancer212Client({
         }
       }
     },
-    [ds1, ds2, cardFilter, selectedPttypes, ucOnly, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, selectedPttypes, selectedReps, ucOnly, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch VN Clinical Details for modal
@@ -409,6 +425,9 @@ export default function ColorectalCancer212Client({
         query.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         query.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        query.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -867,6 +886,19 @@ export default function ColorectalCancer212Client({
         </div>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Search & Filters Toolbar ── */}
       <section className="crc-toolbar" aria-label="แถบเครื่องมือค้นหาและตัวกรอง">
         <div className="crc-search-box">
@@ -899,6 +931,24 @@ export default function ColorectalCancer212Client({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
 
           {selectedPttypes.length > 0 && (

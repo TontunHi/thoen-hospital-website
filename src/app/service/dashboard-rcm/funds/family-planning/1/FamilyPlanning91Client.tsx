@@ -40,6 +40,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -190,6 +193,15 @@ export default function FamilyPlanning91Client({
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   const abortRef = useRef<AbortController | null>(null)
   const isFirstMount = useRef(true)
 
@@ -226,6 +238,9 @@ export default function FamilyPlanning91Client({
         if (pttypes.length > 0) {
           q.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -249,6 +264,7 @@ export default function FamilyPlanning91Client({
         setAdpMapping(data.adpMapping)
         if (data.statusOptions) setStatusOptions(data.statusOptions)
         if (data.errorOptions) setErrorOptions(data.errorOptions)
+        if (data.repBreakdown !== undefined) setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return
         const e = err as Error
@@ -265,6 +281,7 @@ export default function FamilyPlanning91Client({
       ds2,
       format,
       pttypes,
+      selectedReps,
       serviceOnly,
       status,
       cardFilter,
@@ -377,6 +394,9 @@ export default function FamilyPlanning91Client({
 
       if (pttypes.length > 0) {
         q.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -656,6 +676,19 @@ export default function FamilyPlanning91Client({
         </button>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Filter Control Panel ── */}
       <section className="fp91-filter-panel" aria-label="ตัวกรองและเงื่อนไขการค้นหา">
         {/* Row 1: Date Range Selector */}
@@ -783,6 +816,24 @@ export default function FamilyPlanning91Client({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
 
           {/* Service Only Checkbox (เหมือน chkService ใน FoxPro) */}

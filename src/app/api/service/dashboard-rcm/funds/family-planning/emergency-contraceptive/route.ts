@@ -26,6 +26,7 @@ const familyPlanningParamsSchema = z.object({
     .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'PTTYPE', 'DEPARTMENT', 'CLINIC', 'DX', 'DRUG'])
     .optional(),
   search: z.string().max(120).optional(),
+  reps: z.string().max(2000).optional(),
   sortBy: z
     .enum([
       'vstdate',

@@ -10,6 +10,12 @@ import {
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Types & Interfaces ───────────────────────────────────────────────────
 
@@ -100,6 +106,7 @@ export interface InstrumentItem {
   money_invoice: number
   diff_money: number
   eclaim_status: string | null
+  rep: string | null
   status: string
   statusCode: 'INVOICE' | 'REP' | 'ECLAIM' | 'UNSENT'
   isDiscrepancy: boolean
@@ -160,6 +167,7 @@ export interface InstrumentReportParams extends FiscalDateRangeParams {
   pttypes?: string
   ucOnly?: boolean
   instrumentFilter?: string
+  reps?: string
 }
 
 export interface InstrumentReportResponse {
@@ -175,6 +183,7 @@ export interface InstrumentReportResponse {
   }
   adpMapping: InstrumentAdpMappingCheck
   availableInstruments?: InstrumentOptionItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Helper Functions ─────────────────────────────────────────────────────
@@ -338,8 +347,9 @@ export class RcmInstrumentFundService {
                 COALESCE(e.eclaim_money, 0) AS money_eclaim,
                 COALESCE(r.income, 0) AS money_rep,
                 COALESCE(n.income, 0) AS money_invoice,
+                COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(e.rep, '')) AS rep,
                 e.status AS eclaim_status,
-                e.statusname AS eclaim_statusname
+                COALESCE(e.statusname, nn.StatusName) AS eclaim_statusname
               FROM ovst o
               JOIN (
                 SELECT
@@ -369,6 +379,7 @@ export class RcmInstrumentFundService {
                 SELECT
                   e.opdseq AS vn,
                   SUBSTRING_INDEX(GROUP_CONCAT(e.status ORDER BY e.eclaim_no DESC), ',', 1) AS status,
+                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(e.rep, '') ORDER BY e.eclaim_no DESC), ',', 1) AS rep,
                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, e.status) ORDER BY e.eclaim_no DESC), ',', 1) AS statusname,
                   SUM(cc.totpay1) AS eclaim_money
                 FROM eclaimdb.m_registerdata e
@@ -378,6 +389,7 @@ export class RcmInstrumentFundService {
                   AND IFNULL(e.opdseq, '') <> ''
                 GROUP BY e.opdseq
               ) e ON e.vn = o.vn
+              LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
               LEFT JOIN (
                 SELECT
                   vn,
@@ -437,8 +449,9 @@ export class RcmInstrumentFundService {
                 COALESCE(e.eclaim_money, 0) AS money_eclaim,
                 COALESCE(r.income, 0) AS money_rep,
                 COALESCE(n.income, 0) AS money_invoice,
+                COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(e.rep, '')) AS rep,
                 e.status AS eclaim_status,
-                e.statusname AS eclaim_statusname
+                COALESCE(e.statusname, nn.StatusName) AS eclaim_statusname
               FROM ipt i
               JOIN (
                 SELECT
@@ -469,6 +482,7 @@ export class RcmInstrumentFundService {
                 SELECT
                   e.an,
                   SUBSTRING_INDEX(GROUP_CONCAT(e.status ORDER BY e.eclaim_no DESC), ',', 1) AS status,
+                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(e.rep, '') ORDER BY e.eclaim_no DESC), ',', 1) AS rep,
                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, e.status) ORDER BY e.eclaim_no DESC), ',', 1) AS statusname,
                   SUM(cc.totpay1) AS eclaim_money
                 FROM eclaimdb.m_registerdata e
@@ -478,6 +492,7 @@ export class RcmInstrumentFundService {
                   AND IFNULL(e.an, '') <> ''
                 GROUP BY e.an
               ) e ON e.an = i.an
+              LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
               LEFT JOIN (
                 SELECT
                   an,
@@ -581,6 +596,7 @@ export class RcmInstrumentFundService {
         money_invoice: moneyInvoice,
         diff_money: diffMoney,
         eclaim_status: r.eclaim_status ? String(r.eclaim_status) : null,
+        rep: r.rep ? String(r.rep).trim() : null,
         status,
         statusCode,
         isDiscrepancy,
@@ -671,6 +687,8 @@ export class RcmInstrumentFundService {
       ucCases,
       ucRate,
     }
+
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
 
     // รวบรวมรายการอุปกรณ์ทั้งหมดที่มีในชุดข้อมูลพร้อมจำนวนผู้รับบริการ เพื่อส่งให้ UI ใช้ทำระบบ Filter
     const instrumentMap = new Map<string, InstrumentOptionItem>()
@@ -777,6 +795,11 @@ export class RcmInstrumentFundService {
           (i.ward && i.ward.toLowerCase().includes(search))
         )
       })
+    }
+
+    const selectedReps = parseRepFilterParam(params.reps)
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // กรองตามรายการอวัยวะเทียมและอุปกรณ์ (Instrument Filter)
@@ -915,6 +938,7 @@ export class RcmInstrumentFundService {
       },
       adpMapping,
       availableInstruments,
+      repBreakdown,
     }
   }
 }

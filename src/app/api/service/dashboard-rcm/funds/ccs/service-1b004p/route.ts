@@ -13,6 +13,7 @@ const service1B004PParamsSchema = z.object({
     .optional(),
   searchField: z.enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'DIAG']).optional(),
   search: z.string().max(120).optional(),
+  reps: z.string().max(2000).optional(),
   sortBy: z
     .enum([
       'vstdate',

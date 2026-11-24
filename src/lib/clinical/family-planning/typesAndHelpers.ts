@@ -4,6 +4,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import type { RepBreakdownSummary } from '../rcmRepTagHelper'
 
 // ── 1. Domain Types ──────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ export interface FamilyPlanningReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface FamilyPlanningAdpMappingItem {
@@ -210,6 +212,7 @@ export interface FamilyPlanning91ReportResult {
   pageSize: number
   totalPages: number
   items: FamilyPlanning91Item[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 export interface FamilyPlanningItem {
@@ -285,6 +288,7 @@ export interface FamilyPlanningReportResult {
   pageSize: number
   totalPages: number
   items: FamilyPlanningItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 1.2 Domain Types: 9.2 บริการใส่ห่วงอนามัย (IUD Insertion Service) ─────────
@@ -349,6 +353,7 @@ export interface IudReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface IudAdpMappingCheck {
@@ -436,6 +441,7 @@ export interface IudReportResult {
   pageSize: number
   totalPages: number
   items: IudItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 1.3 Domain Types: 9.3.2 บริการคุมกำเนิดกึ่งถาวร ในหญิงอายุ 20 ปีขึ้นไป ─────────
@@ -557,6 +563,7 @@ export interface FamilyPlanning932Params extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface FamilyPlanning932AdpMappingCheck {
@@ -585,6 +592,7 @@ export interface FamilyPlanning932ReportResult {
     totalPages: number
   }
   items: FamilyPlanning932Item[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Helper Functions ───────────────────────────────────────────────────────

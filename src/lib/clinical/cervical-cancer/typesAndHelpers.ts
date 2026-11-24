@@ -3,6 +3,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import type { RepBreakdownSummary } from '../rcmRepTagHelper'
 
 // ── 1. PP Special Screening Classification Helper ──────────────────────
 
@@ -152,6 +153,7 @@ export interface CcsTargetPopulationParams extends FiscalDateRangeParams {
   exportAll?: boolean
   refresh?: boolean
   extraRepRows?: RepIndividualExcelRow[]
+  reps?: string
 }
 
 export interface CcsTargetPopulationItem {
@@ -223,6 +225,7 @@ export interface CcsTargetPopulationResult {
   pageSize: number
   totalPages: number
   items: CcsTargetPopulationItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 export interface RepIndividualExcelRow {
@@ -274,6 +277,7 @@ export interface CcsScreenedRecipientsParams extends FiscalDateRangeParams {
   page?: number
   pageSize?: number
   exportAll?: boolean
+  reps?: string
 }
 
 export interface CcsScreenedRecipientItem {
@@ -353,6 +357,7 @@ export interface CcsScreenedRecipientsResult {
   pageSize: number
   totalPages: number
   items: CcsScreenedRecipientItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 4. Domain Types: 1.3 บริการ 1B004N (HPV DNA Service) ──────
@@ -387,6 +392,7 @@ export interface CcsService1B004NParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface CcsService1B004NItem {
@@ -466,6 +472,7 @@ export interface CcsService1B004NResult {
   pageSize: number
   totalPages: number
   items: CcsService1B004NItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 5. Domain Types: 1.4 บริการ 1B004P (HPV DNA Repeat / Positive Service) ──
@@ -500,6 +507,7 @@ export interface CcsService1B004PParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface CcsService1B004PItem {
@@ -564,6 +572,7 @@ export interface CcsService1B004PResult {
   pageSize: number
   totalPages: number
   items: CcsService1B004PItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 6. Domain Types: 1.5 บริการ 1B004_0N (VIA / Cervical Screening Service) ──
@@ -598,6 +607,7 @@ export interface CcsService1B004_0NParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export type CcsService1B004_0NItem = CcsService1B004NItem
@@ -617,6 +627,7 @@ export interface CcsService1B004_0NResult {
   pageSize: number
   totalPages: number
   items: CcsService1B004_0NItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 7. Domain Types: 1.10 บริการ 1B005 (Pap Smear / Cervical Cancer Screening Service) ──
@@ -653,6 +664,7 @@ export interface CcsService1B005Params extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export type CcsService1B005Item = CcsService1B004NItem
@@ -672,6 +684,7 @@ export interface CcsService1B005Result {
   pageSize: number
   totalPages: number
   items: CcsService1B005Item[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 8. Internal Helpers ────────────────────────────────────────────────

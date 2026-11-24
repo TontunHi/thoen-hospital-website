@@ -3,7 +3,23 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  NO_REP_FILTER_VALUE,
+  type RepBreakdownSummary,
+  type RepTagEntry,
+  type RepTagGroupSummary,
+} from './rcmRepTagHelper'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+
+export {
+  NO_REP_FILTER_VALUE,
+  type RepBreakdownSummary,
+  type RepTagEntry,
+  type RepTagGroupSummary,
+}
 
 // ── 1. Domain Types: 14. บริการคัดกรองและประเมินปัจจัยเสี่ยงต่อสุขภาพกาย/สุขภาพจิต-ADP ──
 
@@ -44,6 +60,7 @@ export interface HealthScreeningReportParams extends FiscalDateRangeParams {
   cardFilter?: HealthScreeningCardFilter
   ucOnly?: boolean
   pttypes?: string
+  reps?: string
   targetAgeOnly?: boolean
   searchField?: HealthScreeningSearchField
   search?: string
@@ -148,12 +165,14 @@ export interface HealthScreeningReportResult {
   cardFilter: HealthScreeningCardFilter
   ucOnly: boolean
   pttypes?: string
+  reps?: string
   targetAgeOnly: boolean
   searchField: HealthScreeningSearchField
   search: string
   sortBy: HealthScreeningSortField
   sortOrder: 'asc' | 'desc'
   summary: HealthScreeningSummary
+  repBreakdown?: RepBreakdownSummary
   totalCount: number
   page: number
   pageSize: number
@@ -562,12 +581,16 @@ export class RcmHealthScreeningService {
 
     const pttypes = (params.pttypes || '').trim()
     const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
+    const selectedRepsList = parseRepFilterParam(params.reps)
+    const repsParam = selectedRepsList.length > 0 ? selectedRepsList.join(',') : undefined
 
     // Cohort for summary KPIs (Full page filter Q2: A)
     allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
     const summaryCohort = selectedPttypesList.length > 0
       ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
       : allItems
+
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
 
     // Compute Summary KPIs across summaryCohort
     const totalVisits = summaryCohort.length
@@ -637,6 +660,9 @@ export class RcmHealthScreeningService {
     }
     if (targetAgeOnly && cardFilter !== 'TARGET_AGE') {
       filtered = filtered.filter((i) => i.isTargetAge)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedRepsList))
     }
 
     // Apply Search Filter
@@ -728,12 +754,14 @@ export class RcmHealthScreeningService {
       cardFilter,
       ucOnly,
       pttypes,
+      reps: repsParam,
       targetAgeOnly,
       searchField,
       search,
       sortBy,
       sortOrder,
       summary,
+      repBreakdown,
       totalCount,
       page,
       pageSize,

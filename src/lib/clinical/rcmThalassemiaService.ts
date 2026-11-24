@@ -3,7 +3,13 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch, type SeamlessEnrichedFields } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 3.1 ธาลัสซีเมียในหญิงตั้งครรภ์ (Thalassemia in Pregnancy) ──
 
@@ -49,6 +55,7 @@ export interface ThalassemiaReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface ThalassemiaAdpMappingItem {
@@ -64,7 +71,7 @@ export interface ThalassemiaAdpMappingCheck {
   items: ThalassemiaAdpMappingItem[]
 }
 
-export interface ThalassemiaItem {
+export interface ThalassemiaItem extends SeamlessEnrichedFields {
   no: number
   person_id: number
   ancno: number
@@ -92,6 +99,7 @@ export interface ThalassemiaItem {
   has_lab: boolean
   lab_status: 'NORMAL' | 'RISK' | 'PENDING' | 'NO_LAB'
   is_thoen_hospital: boolean
+  rep?: string | null
 }
 
 export interface ThalassemiaSummary {
@@ -125,6 +133,7 @@ export interface ThalassemiaReportResult {
   pageSize: number
   totalPages: number
   items: ThalassemiaItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Helper Functions ───────────────────────────────────────────────────────
@@ -369,6 +378,9 @@ export class RcmThalassemiaService {
       otherLaborCount,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     let filteredItems = summaryCohort
 
     // Apply Interactive Card Filter
@@ -396,6 +408,10 @@ export class RcmThalassemiaService {
     }
 
     // Apply Search Filter
+    if (selectedReps.length > 0) {
+      filteredItems = filteredItems.filter((item) => matchesRepFilter(item, selectedReps))
+    }
+
     if (search) {
       filteredItems = filteredItems.filter((item) => {
         if (searchField === 'HN') return item.hn.toLowerCase().includes(search)
@@ -465,6 +481,7 @@ export class RcmThalassemiaService {
       pageSize,
       totalPages,
       items: pagedItems,
+      repBreakdown,
     }
   }
 }

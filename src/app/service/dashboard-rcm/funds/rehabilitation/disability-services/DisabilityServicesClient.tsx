@@ -38,6 +38,9 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -162,6 +165,15 @@ export default function DisabilityServicesClient({
     }
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -186,6 +198,8 @@ export default function DisabilityServicesClient({
         })
 
         if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -205,6 +219,7 @@ export default function DisabilityServicesClient({
         setTotalPages(data.totalPages || 1)
         setSummary(data.summary)
         setAdpMapping(data.adpMapping)
+        if (data.repBreakdown !== undefined) setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
@@ -215,7 +230,7 @@ export default function DisabilityServicesClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, selectedReps, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch when filters or pagination changes (skip first paint if initialData provided)
@@ -304,6 +319,7 @@ export default function DisabilityServicesClient({
       })
 
       if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/rehabilitation/disability-services?${queryParams.toString()}`
@@ -841,6 +857,19 @@ export default function DisabilityServicesClient({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 6. Toolbar & Global Search ── */}
       <div className="rehab-toolbar">
         <div className="rehab-search-box">
@@ -873,6 +902,24 @@ export default function DisabilityServicesClient({
             items={items}
         
           />
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         {cardFilter !== 'ALL' && (
           <div className="rehab-active-chip">

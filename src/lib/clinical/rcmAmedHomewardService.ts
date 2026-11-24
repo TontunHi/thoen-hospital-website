@@ -9,6 +9,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: ระบบ AMed และ Home Ward - รายงาน HOMEWARD ──────────────
 
@@ -46,6 +52,7 @@ export interface HomewardReportParams extends FiscalDateRangeParams {
   exportAll?: boolean
   refresh?: boolean
   pttypes?: string
+  reps?: string
   ucOnly?: boolean
 }
 
@@ -109,6 +116,7 @@ export interface HomewardItem {
   rep: string | null
   rep_remark: string | null
   invoice: string | null
+  compensated?: number
   onweb_cid: string | null
   anonweb: string | null
   isOnAmed: boolean
@@ -142,6 +150,7 @@ export interface HomewardReportResult {
   totalCount: number
   totalPages: number
   summary: HomewardSummary
+  repBreakdown?: RepBreakdownSummary
   items: HomewardItem[]
 }
 
@@ -206,9 +215,10 @@ export class RcmAmedHomewardService {
 
         const sql = `
           SELECT 
-            r.rep,
+            COALESCE(NULLIF(re.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, '')) AS rep,
             r.remark AS rep_remark,
             re.rep AS invoice,
+            COALESCE(re.compensated, r.compensated, nn.Income, m.compensated, 0) AS compensated,
             ${amedSelect}
             i.an,
             i.hn,
@@ -285,7 +295,8 @@ export class RcmAmedHomewardService {
             SELECT
               an,
               SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark,
+              SUM(IFNULL(compensated, 0)) AS compensated
             FROM rcmdb.repdata
             WHERE IFNULL(an, '') <> ''
             GROUP BY an
@@ -293,11 +304,22 @@ export class RcmAmedHomewardService {
           LEFT OUTER JOIN (
             SELECT
               an,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
+              SUM(IFNULL(compensated, 0)) AS compensated
             FROM rcmdb.repeclaim
             WHERE IFNULL(an, '') <> ''
             GROUP BY an
           ) re ON re.an = i.an
+          LEFT OUTER JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
+          LEFT OUTER JOIN (
+            SELECT
+              m.an,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+              SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated
+            FROM eclaimdb.m_registerdata m
+            WHERE m.person_type = '2' AND IFNULL(m.an, '') <> ''
+            GROUP BY m.an
+          ) m ON m.an = i.an
           LEFT OUTER JOIN nationality nat ON nat.nationality = pt.nationality
           LEFT OUTER JOIN ward w ON w.ward = i.ward
           LEFT OUTER JOIN iptadm adm ON adm.an = i.an
@@ -395,6 +417,7 @@ export class RcmAmedHomewardService {
         rep: repVal || null,
         rep_remark: row.rep_remark ? String(row.rep_remark).trim() : null,
         invoice: invVal || null,
+        compensated: Number(row.compensated || 0),
         onweb_cid: onwebCid || null,
         anonweb: onwebAn || null,
         isOnAmed,
@@ -467,6 +490,9 @@ export class RcmAmedHomewardService {
       avgLos,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Apply Card Filtering
     let filtered = summaryCohort
     if (cardFilter === 'ON_AMED') {
@@ -483,6 +509,9 @@ export class RcmAmedHomewardService {
       filtered = filtered.filter((i) => !i.hasRep)
     } else if (cardFilter === 'WITH_DEBIT') {
       filtered = filtered.filter((i) => i.debit > 0)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedRepsList))
     }
 
     // Apply Unified Search
@@ -562,6 +591,7 @@ export class RcmAmedHomewardService {
       totalCount,
       totalPages,
       summary,
+      repBreakdown,
       items: pagedItems,
     }
   }

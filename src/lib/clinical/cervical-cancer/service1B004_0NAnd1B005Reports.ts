@@ -3,6 +3,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   classifyPpSpecialCodes,
   PERSON_SELECT_COLUMNS,
@@ -311,6 +312,8 @@ export async function getService1B004_0NReport(
       executor,
       Boolean(params.refresh)
     )
+    const repBreakdown = buildRepBreakdownSummary(filtered)
+    const selectedReps = parseRepFilterParam(params.reps)
 
     if (compensationFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.compensated > 0)
@@ -320,6 +323,10 @@ export async function getService1B004_0NReport(
       filtered = filtered.filter((i) => Boolean(i.authencode))
     } else if (compensationFilter === 'NO_AUTHEN') {
       filtered = filtered.filter((i) => !i.authencode)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     if (search) {
@@ -385,6 +392,7 @@ export async function getService1B004_0NReport(
       pageSize,
       totalPages,
       items: numberedItems,
+      repBreakdown,
     }
   }
 
@@ -648,6 +656,9 @@ export async function getService1B005Report(
       withOpCount,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     let filtered = summaryCohort
 
     if (compensationFilter === 'COMPENSATED') {
@@ -658,6 +669,10 @@ export async function getService1B005Report(
       filtered = filtered.filter((i) => Boolean(i.authencode))
     } else if (compensationFilter === 'NO_AUTHEN') {
       filtered = filtered.filter((i) => !i.authencode)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     if (search) {
@@ -714,5 +729,6 @@ export async function getService1B005Report(
       pageSize,
       totalPages,
       items: numberedItems,
+      repBreakdown,
     }
   }

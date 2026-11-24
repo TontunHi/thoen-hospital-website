@@ -3,6 +3,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   classifyPpSpecialCodes,
   PERSON_SELECT_COLUMNS,
@@ -655,6 +656,9 @@ export async function getTargetPopulationReport(
       totalCompensated,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(scoped)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply screening status filter
     let filtered = scoped
     if (screeningFilter === 'SCREENED') {
@@ -674,6 +678,10 @@ export async function getTargetPopulationReport(
     }
 
     // Apply search filter (FoxPro lblFind / txtFind: HN, CID, PTNAME, or ALL)
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((r) => matchesRepFilter(r, selectedReps))
+    }
+
     if (search) {
       filtered = filtered.filter((r) => {
         if (searchField === 'HN') {
@@ -728,6 +736,7 @@ export async function getTargetPopulationReport(
       pageSize,
       totalPages,
       items: numberedItems,
+      repBreakdown,
     }
   }
 

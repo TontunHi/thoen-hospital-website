@@ -37,6 +37,9 @@ import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -204,6 +207,15 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
     return () => clearTimeout(timer)
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -236,6 +248,9 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         } else if (ucOnly) {
           query.set('ucOnly', 'true')
         }
+        if (selectedReps.length > 0) {
+          query.set('reps', selectedReps.join(','))
+        }
 
         if (refresh) query.set('refresh', 'true')
 
@@ -260,6 +275,9 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           if (d.statusOptions) {
             setStatusOptions(d.statusOptions)
           }
+          if (d.repBreakdown !== undefined) {
+            setRepBreakdown(d.repBreakdown ?? null)
+          }
         }
       } catch (err: any) {
         if (err?.name === 'AbortError') return
@@ -271,7 +289,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         }
       }
     },
-    [ds1, ds2, cardFilter, statusFilter, ucOnly, selectedPttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, statusFilter, ucOnly, selectedPttypes, selectedReps, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Double-fetch guard on mount
@@ -430,6 +448,9 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         query.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         query.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        query.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/cancer/adp?${query.toString()}`)
@@ -688,6 +709,24 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
             items={items}
           />
 
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
+          />
+
           <select
             className="cancer-select"
             value={statusFilter}
@@ -875,6 +914,19 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           </div>
         </div>
       </div>
+
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
 
       {/* ── Table Container ─────────────────────────────────────────────── */}
       <div className="cancer-table-wrapper">

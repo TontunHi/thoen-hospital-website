@@ -54,7 +54,7 @@ describe('Streptokinase API Routes', () => {
 
       vi.mocked(RcmStreptokinaseService.getStreptokinaseReport).mockResolvedValue({
         title: 'กองทุนยา Streptokinase',
-        subtitle: 'รายชื่อรับยา Streptokinase',
+        subtitle: 'รายชื่อรับยา Stroke และSTEMI',
         patientType: 'OPD',
         ds1: '2026-10-01',
         ds2: '2027-09-30',

@@ -437,5 +437,49 @@ describe('RcmInstrumentFundService', () => {
       expect(result.items[0].an).toBe('690001')
       expect(result.summary.totalCases).toBe(1)
     })
+
+    it('queries all 4 primary REP tables and filters by reps while keeping repBreakdown', async () => {
+      const mixedRows = [
+        {
+          ...mockIpdRows[0],
+          an: '690001',
+          vn: '691001000001',
+          rep: 'OP_12345',
+          instrument: 10000,
+        },
+        {
+          ...mockIpdRows[0],
+          an: '690002',
+          vn: '691002000002',
+          rep: 'IP_67890',
+          instrument: 5000,
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce(mixedRows)
+        .mockResolvedValueOnce([])
+
+      const result = await RcmInstrumentFundService.getReportData(
+        {
+          ds1: '2026-10-01',
+          ds2: '2027-09-30',
+          patientType: 'IPD',
+          reps: 'OP_12345',
+        },
+        mockExecutor
+      )
+
+      const executedSql = String(mockExecutor.mock.calls[0]?.[0] ?? '')
+      expect(executedSql).toContain('rcmdb.repeclaim')
+      expect(executedSql).toContain('rcmdb.repdata')
+      expect(executedSql).toContain('rcmdb.neweclaim')
+      expect(executedSql).toContain('eclaimdb.m_registerdata')
+
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0].an).toBe('690001')
+      expect(result.repBreakdown?.repItems).toHaveLength(2)
+    })
   })
 })

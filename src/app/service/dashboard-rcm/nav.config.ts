@@ -551,11 +551,11 @@ export const RCM_NAV_CONFIG: NavGroup[] = [
         code: 'STK',
         label: 'กองทุนยา Streptokinase',
         href: '/service/dashboard-rcm/funds/streptokinase',
-        keywords: ['streptokinase', 'stk', 'ยา'],
+        keywords: ['streptokinase', 'stk', 'stroke', 'stemi', 'ยา'],
         children: [
           {
             id: 'stk-recipients',
-            label: 'รายชื่อรับยา Streptokinase',
+            label: 'รายชื่อรับยา Stroke และSTEMI',
             href: '/service/dashboard-rcm/funds/streptokinase/recipients',
           },
         ],

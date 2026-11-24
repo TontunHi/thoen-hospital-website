@@ -338,5 +338,45 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
       expect(report146Query.sql).toContain('JOIN nondrugitems')
       expect(report146Query.sql.match(/FROM rcmdb\.repdata/g)?.length).toBe(1)
     })
+
+    it('builds repBreakdown and filters items by comma-separated reps and __NO_REP__', async () => {
+      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('FROM s_drugitems')) {
+          return Promise.resolve([{ icode: '12003', name: 'FPG', strength: null, nhso_adp_code: '12003' }])
+        }
+        return Promise.resolve(mockRows)
+      })
+
+      const filteredRep = await RcmHealthScreeningService.getHealthScreeningReport(
+        {
+          adpCode: '12003',
+          startDate: '2026-10-01',
+          endDate: '2026-10-31',
+          reps: 'REP691001',
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      expect(filteredRep.items.length).toBe(1)
+      expect(filteredRep.items[0].vn).toBe('691001083000')
+      expect(filteredRep.repBreakdown?.withEclaimRepCount).toBe(1)
+      expect(filteredRep.repBreakdown?.withoutRepCount).toBe(2)
+      expect(filteredRep.repBreakdown?.repItems.length).toBe(1)
+
+      const filteredNoRep = await RcmHealthScreeningService.getHealthScreeningReport(
+        {
+          adpCode: '12003',
+          startDate: '2026-10-01',
+          endDate: '2026-10-31',
+          reps: '__NO_REP__',
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      expect(filteredNoRep.items.length).toBe(2)
+      expect(filteredNoRep.items.every((i) => !i.rep)).toBe(true)
+    })
   })
 })

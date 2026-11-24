@@ -29,6 +29,7 @@ export const paginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).default(50),
   search: z.string().max(120).optional(),
   pttypes: z.string().max(300).optional(),
+  reps: z.string().max(2000).optional(),
   exportAll: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
     .optional(),
@@ -437,7 +438,7 @@ export const clopidogrelReportQuerySchema = baseFiscalDateSchema
  */
 export const streptokinaseReportQuerySchema = baseFiscalDateSchema
   .extend({
-    patientType: z.enum(['OPD', 'IPD']).default('OPD'),
+    patientType: z.enum(['OPD', 'IPD']).default('IPD'),
     cardFilter: z
       .enum([
         'ALL',

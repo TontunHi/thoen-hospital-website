@@ -10,6 +10,12 @@ import {
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── ADP Mapping Item ──────────────────────────────────────────────────────────
 
@@ -69,6 +75,7 @@ export interface StreptokinaseReportParams extends FiscalDateRangeParams {
   refresh?: boolean
   pttypes?: string
   ucOnly?: boolean
+  reps?: string
 }
 
 export interface StreptokinaseItem {
@@ -149,6 +156,7 @@ export interface StreptokinaseReportResult {
   totalPages: number
   summary: StreptokinaseSummary
   items: StreptokinaseItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 export interface AnClinicalDetails {
@@ -275,8 +283,8 @@ export class RcmStreptokinaseService {
     executor: QueryExecutor = queryClinicalDb
   ): Promise<StreptokinaseReportResult> {
     const title = 'กองทุนยา Streptokinase'
-    const subtitle = 'รายชื่อรับยา Streptokinase'
-    const patientType: StreptokinasePatientType = params.patientType === 'IPD' ? 'IPD' : 'OPD'
+    const subtitle = 'รายชื่อรับยา Stroke และSTEMI'
+    const patientType: StreptokinasePatientType = params.patientType === 'OPD' ? 'OPD' : 'IPD'
 
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: StreptokinaseCardFilter = params.cardFilter || 'ALL'
@@ -454,6 +462,12 @@ export class RcmStreptokinaseService {
       filtered = filtered.filter((it) => it.status.startsWith('-') || it.status.includes('ยังไม่ส่ง'))
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((it) => matchesRepFilter(it, selectedReps))
+    }
+
     // Global Search across all relevant fields
     if (search) {
       filtered = filtered.filter((it) => {
@@ -542,6 +556,7 @@ export class RcmStreptokinaseService {
       totalPages,
       summary,
       items: pagedItems,
+      repBreakdown,
     }
   }
 
@@ -592,10 +607,11 @@ export class RcmStreptokinaseService {
           IFNULL(e.income, 0) AS money_eclaim,
           IFNULL(r.income, 0) AS money_rep,
           IFNULL(n.income, 0) AS money_invoice,
-          COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(m.rep, ''), '') AS rep,
+          COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, ''), '') AS rep,
           CASE 
             WHEN n.vn IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
             WHEN r.vn IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
             WHEN m.status IS NOT NULL THEN IFNULL(ecs.name, CONCAT('E-Claim (', m.status, ')'))
             ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
           END AS status
@@ -650,6 +666,7 @@ export class RcmStreptokinaseService {
           WHERE department = 'OP' AND drug > 0
           GROUP BY vn
         ) n ON n.vn = o.vn
+        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
         LEFT JOIN (
           SELECT m.opdseq AS vn,
                  MAX(m.eclaim_no) AS eclaim_no,
@@ -781,10 +798,11 @@ export class RcmStreptokinaseService {
           IFNULL(e.income, 0) AS money_eclaim,
           IFNULL(r.income, 0) AS money_rep,
           IFNULL(n.income, 0) AS money_invoice,
-          COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(m.rep, ''), '') AS rep,
+          COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, ''), '') AS rep,
           CASE 
             WHEN n.an IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
             WHEN r.an IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
             WHEN m.status IS NOT NULL THEN IFNULL(ecs.name, CONCAT('E-Claim (', m.status, ')'))
             ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
           END AS status
@@ -842,6 +860,7 @@ export class RcmStreptokinaseService {
           WHERE department = 'IP' AND drug > 0
           GROUP BY an
         ) n ON n.an = i.an
+        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
         LEFT JOIN (
           SELECT m.an,
                  MAX(m.eclaim_no) AS eclaim_no,

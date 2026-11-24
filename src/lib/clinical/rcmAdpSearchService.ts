@@ -9,6 +9,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── Types: ค้นหาจากรหัส ADP (OPD & IPD) ──────────────────────────────
 
@@ -35,6 +41,7 @@ export interface AdpSearchReportParams extends FiscalDateRangeParams {
   exportAll?: boolean
   refresh?: boolean
   pttypes?: string
+  reps?: string
   ucOnly?: boolean
 }
 
@@ -146,6 +153,7 @@ export interface AdpSearchReportResult {
   totalCount: number
   totalPages: number
   summary: AdpSearchSummary
+  repBreakdown?: RepBreakdownSummary
   adpMapping: AdpMappingCheck
   items: AdpSearchItem[]
 }
@@ -424,6 +432,8 @@ export class RcmAdpSearchService {
 
     // Compute summary over summaryCohort before filtering by cardFilter or search
     const summary = this.computeSummary(summaryCohort)
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
 
     // Apply Card Filter
     let filtered = summaryCohort
@@ -439,6 +449,9 @@ export class RcmAdpSearchService {
       filtered = filtered.filter((it) => it.isUc)
     } else if (cardFilter === 'WITH_OPERATION') {
       filtered = filtered.filter((it) => it.hasOperation)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((it) => matchesRepFilter(it, selectedRepsList))
     }
 
     // Apply Global Search (HN, CID, Name, VN/AN, pttype, diag, icode, name, adp_code, seamless rep)
@@ -505,6 +518,7 @@ export class RcmAdpSearchService {
       totalCount,
       totalPages,
       summary,
+      repBreakdown,
       adpMapping,
       items: paginatedItems,
     }
@@ -598,13 +612,13 @@ export class RcmAdpSearchService {
             MAX(au.AuthenCode) AS authencode,
             MAX(au.AuthenMethod) AS authen_method,
             MAX(au.AuthenContact) AS authen_contact,
-            MAX(rep_d.rep) AS rep,
+            COALESCE(NULLIF(MAX(rep_c.rep), ''), NULLIF(MAX(rep_d.rep), ''), NULLIF(MAX(nn.Rep), ''), NULLIF(MAX(m.rep), '')) AS rep,
             MAX(rep_c.rep) AS invoiceclaim,
             MAX(rep_d.fund) AS fund,
             MAX(rep_d.subfund) AS subfund,
             MAX(rep_d.projectcode) AS projectcode,
             MAX(rep_d.remark) AS remark,
-            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), NULLIF(MAX(se.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
+            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), NULLIF(MAX(nn.Income), 0), NULLIF(MAX(m.compensated), 0), NULLIF(MAX(se.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
 
           FROM (
             SELECT 
@@ -659,6 +673,16 @@ export class RcmAdpSearchService {
             WHERE IFNULL(vn, '') <> ''
             GROUP BY vn
           ) rep_c ON rep_c.vn = o.vn
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
+          LEFT JOIN (
+            SELECT
+              m.opdseq AS vn,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+              SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated
+            FROM eclaimdb.m_registerdata m
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq, '') <> ''
+            GROUP BY m.opdseq
+          ) m ON m.vn = o.vn
           LEFT JOIN (
             SELECT
               vn,
@@ -828,13 +852,13 @@ export class RcmAdpSearchService {
             IFNULL(a.income, 0) AS income,
             (IFNULL(a.income, 0) - IFNULL(a.rcpt_money, 0)) AS nee,
             
-            MAX(rep_d.rep) AS rep,
+            COALESCE(NULLIF(MAX(rep_c.rep), ''), NULLIF(MAX(rep_d.rep), ''), NULLIF(MAX(nn.Rep), ''), NULLIF(MAX(m.rep), '')) AS rep,
             MAX(rep_c.rep) AS invoiceclaim,
             MAX(rep_d.fund) AS fund,
             MAX(rep_d.subfund) AS subfund,
             MAX(rep_d.projectcode) AS projectcode,
             MAX(rep_d.remark) AS remark,
-            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
+            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), NULLIF(MAX(nn.Income), 0), NULLIF(MAX(m.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
 
           FROM (
             SELECT 
@@ -883,6 +907,16 @@ export class RcmAdpSearchService {
             WHERE IFNULL(an, '') <> ''
             GROUP BY an
           ) rep_c ON rep_c.an = i.an
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
+          LEFT JOIN (
+            SELECT
+              m.an,
+              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+              SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated
+            FROM eclaimdb.m_registerdata m
+            WHERE m.person_type = '2' AND IFNULL(m.an, '') <> ''
+            GROUP BY m.an
+          ) m ON m.an = i.an
           GROUP BY i.an, target_rec.icode
           ORDER BY i.dchdate DESC, i.an DESC;
         `

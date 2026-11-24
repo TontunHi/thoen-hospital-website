@@ -9,6 +9,12 @@ import {
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Constants ──────────────────────────────────────────────────────────────
 
@@ -77,6 +83,7 @@ export interface RehabReportParams extends FiscalDateRangeParams {
   refresh?: boolean
   pttypes?: string
   ucOnly?: boolean
+  reps?: string
 }
 
 export interface RehabAdpMappingItem {
@@ -179,6 +186,7 @@ export interface RehabReportResult {
   sortBy: RehabSortField
   sortOrder: 'asc' | 'desc'
   items: RehabServiceItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 3. Service Implementation ─────────────────────────────────────────────────
@@ -532,6 +540,12 @@ export class RcmRehabilitationService {
             GROUP BY vn
           `
 
+          const sqlNewEclaim = `
+            SELECT Seq AS vn, Rep AS rep, Income AS compensated, StatusName AS statusname
+            FROM rcmdb.neweclaim
+            WHERE Seq IN (${vnPlaceholders})
+          `
+
           const sqlEclaim = `
             SELECT m.opdseq AS vn,
                    SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
@@ -543,32 +557,36 @@ export class RcmRehabilitationService {
             GROUP BY m.opdseq
           `
 
-          const [visitRes, nhsoRes, repRes, eclaimRes] = await Promise.all([
+          const [visitRes, nhsoRes, repRes, newEclaimRes, eclaimRes] = await Promise.all([
             visitDetailsPromise,
             safeExecute(sqlNhso, candidateVns, { timeoutMs: 15000 }),
             safeExecute(sqlRep, candidateVns, { timeoutMs: 15000 }),
+            safeExecute(sqlNewEclaim, candidateVns, { timeoutMs: 15000 }),
             safeExecute(sqlEclaim, candidateVns, { timeoutMs: 15000 }),
           ])
 
           const visitRows = (visitRes as any[]) || []
           const nhsoRows = (nhsoRes as any[]) || []
           const repRows = (repRes as any[]) || []
+          const newEclaimRows = (newEclaimRes as any[]) || []
           const eclaimRows = (eclaimRes as any[]) || []
 
           const nhsoMap = new Map(nhsoRows.map((r: any) => [String(r.vn), r]))
           const repMap = new Map(repRows.map((r: any) => [String(r.vn), r]))
+          const newEclaimMap = new Map(newEclaimRows.map((r: any) => [String(r.vn), r]))
           const eclaimMap = new Map(eclaimRows.map((r: any) => [String(r.vn), r]))
 
           mainRows = visitRows.map((v: any) => {
             const vnStr = String(v.vn)
             const nhso = nhsoMap.get(vnStr)
             const rep = repMap.get(vnStr)
+            const nn = newEclaimMap.get(vnStr)
             const m = eclaimMap.get(vnStr)
 
-            const status = nhso?.statusname || rep?.statusname || m?.statusname || v.status || null
-            const repNo = nhso?.rep || rep?.rep || m?.rep || v.rep || null
+            const status = nhso?.statusname || rep?.statusname || nn?.statusname || m?.statusname || v.status || null
+            const repNo = nhso?.rep || rep?.rep || nn?.rep || m?.rep || v.rep || null
             const comp = Number(
-              nhso?.compensated ?? rep?.compensated ?? m?.compensated ?? v.compensated ?? 0
+              nhso?.compensated ?? rep?.compensated ?? nn?.compensated ?? m?.compensated ?? v.compensated ?? 0
             )
 
             return {
@@ -715,6 +733,9 @@ export class RcmRehabilitationService {
       ucCases,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // ── 6. Filtering ──────────────────────────────────────────────────────────
     let filtered = [...summaryCohort]
 
@@ -736,6 +757,10 @@ export class RcmRehabilitationService {
       filtered = filtered.filter((i) => !i.authencode)
     } else if (cardFilter === 'UC_ONLY') {
       filtered = filtered.filter((i) => i.isUc)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Unified Global Search across all relevant fields
@@ -810,6 +835,7 @@ export class RcmRehabilitationService {
       sortBy,
       sortOrder,
       items: pagedItems,
+      repBreakdown,
     }
   }
 }

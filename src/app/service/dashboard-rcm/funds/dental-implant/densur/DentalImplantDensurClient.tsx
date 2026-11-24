@@ -38,6 +38,9 @@ import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import { formatThaiDate } from '@/lib/formatters'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -179,6 +182,15 @@ export default function DentalImplantDensurClient({
     }
   }, [search, debouncedSearch])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -205,6 +217,8 @@ export default function DentalImplantDensurClient({
           pageSize: String(pageSize),
         })
         if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
         if (refresh) query.set('refresh', 'true')
 
         const res = await fetch(
@@ -225,6 +239,7 @@ export default function DentalImplantDensurClient({
           setTotalPages(d.totalPages)
           setSummary(d.summary)
           setAdpMapping(d.adpMapping)
+          if (d.repBreakdown !== undefined) setRepBreakdown(d.repBreakdown ?? null)
         } else {
           throw new Error(json?.error?.message || 'ไม่สามารถโหลดข้อมูลรายงานได้')
         }
@@ -238,7 +253,7 @@ export default function DentalImplantDensurClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, selectedReps, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch on parameter changes (skipping initial fetch if server data present)
@@ -378,6 +393,7 @@ export default function DentalImplantDensurClient({
         exportAll: 'true',
       })
       if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/dental-implant/densur?${query.toString()}`
@@ -789,6 +805,19 @@ export default function DentalImplantDensurClient({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Search Bar & Toolbar (Unified Global Search) ── */}
       <div className="densur-toolbar">
         <div className="densur-search-box">
@@ -821,6 +850,24 @@ export default function DentalImplantDensurClient({
             items={items}
         
           />
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="densur-toolbar-stats">
           <span>

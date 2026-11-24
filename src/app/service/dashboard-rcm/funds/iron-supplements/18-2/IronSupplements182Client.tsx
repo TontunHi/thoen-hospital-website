@@ -40,6 +40,9 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -178,6 +181,15 @@ export default function IronSupplements182Client({
     return () => clearTimeout(timer)
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -211,6 +223,9 @@ export default function IronSupplements182Client({
         } else if (ucOnly) {
           queryParams.set('ucOnly', 'true')
         }
+        if (selectedReps.length > 0) {
+          queryParams.set('reps', selectedReps.join(','))
+        }
 
         if (refresh) queryParams.set('refresh', 'true')
 
@@ -232,6 +247,7 @@ export default function IronSupplements182Client({
           setTotalPages(result.totalPages)
           setSummary(result.summary)
           setAdpMapping(result.adpMapping)
+          if (result.repBreakdown !== undefined) setRepBreakdown(result.repBreakdown ?? null)
         } else {
           throw new Error(json.error?.message || 'รูปแบบข้อมูลตอบกลับไม่ถูกต้อง')
         }
@@ -250,6 +266,7 @@ export default function IronSupplements182Client({
       ds2,
       cardFilter,
       selectedPttypes,
+      selectedReps,
       ucOnly,
       targetAgeOnly,
       searchField,
@@ -390,6 +407,9 @@ export default function IronSupplements182Client({
         queryParams.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         queryParams.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        queryParams.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -804,6 +824,19 @@ export default function IronSupplements182Client({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Search & Filters Toolbar ── */}
       <div className="iron-filter-bar">
         <div className="iron-search-box">
@@ -836,6 +869,24 @@ export default function IronSupplements182Client({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
 
           {selectedPttypes.length > 0 && (

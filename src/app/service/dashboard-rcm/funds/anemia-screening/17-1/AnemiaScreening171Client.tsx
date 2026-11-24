@@ -40,6 +40,9 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -197,6 +200,15 @@ export default function AnemiaScreening171Client({
     [selectedFiscalYear, selectedMonth, selectedBeYear]
   )
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   const handleModeChange = (mode: 'custom' | 'monthly' | 'fiscal') => {
     setDateMode(mode)
     applyDateMode(mode)
@@ -223,6 +235,9 @@ export default function AnemiaScreening171Client({
           params.set('pttypes', selectedPttypes.join(','))
         } else if (ucOnly) {
           params.set('ucOnly', 'true')
+        }
+        if (selectedReps.length > 0) {
+          params.set('reps', selectedReps.join(','))
         }
         params.set('targetAgeOnly', String(targetAgeOnly))
         if (debouncedSearch) {
@@ -251,6 +266,7 @@ export default function AnemiaScreening171Client({
         setTotalPages(data.totalPages || 1)
         setSummary(data.summary)
         setAdpMapping(data.adpMapping)
+        if (data.repBreakdown !== undefined) setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: any) {
         if (err?.name === 'AbortError') return
         setError(err.message || 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้')
@@ -266,6 +282,7 @@ export default function AnemiaScreening171Client({
       ds2,
       cardFilter,
       selectedPttypes,
+      selectedReps,
       ucOnly,
       targetAgeOnly,
       searchField,
@@ -364,6 +381,9 @@ export default function AnemiaScreening171Client({
         params.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         params.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        params.set('reps', selectedReps.join(','))
       }
       params.set('targetAgeOnly', String(targetAgeOnly))
       if (debouncedSearch) {
@@ -824,6 +844,19 @@ export default function AnemiaScreening171Client({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 6. Search & Filter Bar ── */}
       <div className="as-toolbar">
         <div className="as-search-group">
@@ -858,6 +891,24 @@ export default function AnemiaScreening171Client({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
           {selectedPttypes.length > 0 && (
             <div

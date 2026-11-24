@@ -9,6 +9,12 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 20.1 บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001) ──
 
@@ -47,6 +53,7 @@ export interface FluorideVarnishReportParams extends FiscalDateRangeParams {
   ucOnly?: boolean
   pttypes?: string
   targetAgeOnly?: boolean
+  reps?: string
   searchField?: FluorideVarnishSearchField
   search?: string
   sortBy?: FluorideVarnishSortField
@@ -156,6 +163,7 @@ export interface FluorideVarnishReportResult {
   items: FluorideVarnishItem[]
   summary: FluorideVarnishSummary
   adpMapping: FluorideVarnishAdpMappingCheck
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Business Logic Helpers ─────────────────────────────────
@@ -586,6 +594,9 @@ export class RcmFluorideVarnishService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Filter by Card & Toggles
     let filtered = [...summaryCohort]
 
@@ -609,6 +620,9 @@ export class RcmFluorideVarnishService {
 
     if (targetAgeOnly && cardFilter !== 'TARGET_AGE') {
       filtered = filtered.filter((i) => i.isTargetAge)
+    }
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Filter by Search Query
@@ -705,6 +719,7 @@ export class RcmFluorideVarnishService {
       items: pageItems,
       summary,
       adpMapping,
+      repBreakdown,
     }
   }
 }

@@ -4,6 +4,12 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 8.1 การทดสอบการตั้งครรภ์ (Pregnancy Test ADP 31101, 30014) ──
 
@@ -50,6 +56,7 @@ export interface PregnancyTestReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface PregnancyTestAdpMappingItem {
@@ -137,6 +144,7 @@ export interface PregnancyTestReportResult {
   pageSize: number
   totalPages: number
   items: PregnancyTestItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Helper Functions ───────────────────────────────────────────────────────
@@ -560,6 +568,9 @@ export class RcmPregnancyTestService {
       totalIncome: Number(totalIncome.toFixed(2)),
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply interactive filters
     let filtered = summaryCohort
 
@@ -576,6 +587,10 @@ export class RcmPregnancyTestService {
       filtered = filtered.filter((i) => Boolean(i.authencode))
     } else if (cardFilter === 'NO_AUTHEN') {
       filtered = filtered.filter((i) => !i.authencode)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // 3. Search query filter
@@ -671,6 +686,7 @@ export class RcmPregnancyTestService {
       pageSize,
       totalPages,
       items: numberedItems,
+      repBreakdown,
     }
   }
 }

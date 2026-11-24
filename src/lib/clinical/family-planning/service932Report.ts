@@ -4,6 +4,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   NEW_ECLAIM_ADP_CODES,
   KRUNGTHAI_ADP_CODES,
@@ -259,6 +260,9 @@ export async function getFamilyPlanning932Report(
       hasErrorCount,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)
@@ -278,6 +282,10 @@ export async function getFamilyPlanning932Report(
       filtered = filtered.filter((i) => i.hasService)
     } else if (cardFilter === 'HAS_ERROR') {
       filtered = filtered.filter((i) => i.hasError)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     if (search) {
@@ -358,6 +366,7 @@ export async function getFamilyPlanning932Report(
         totalPages,
       },
       items: paginatedItems,
+      repBreakdown,
     }
   }
 
@@ -401,12 +410,13 @@ export async function queryFamilyPlanning932Rows(
           COALESCE(e.income, 0) AS compensated_eclaim,
           COALESCE(r.income, 0) AS compensated_rep,
           COALESCE(n.income, 0) AS compensated_nhso,
-          COALESCE(e.rep, '') AS rep_eclaim,
+          COALESCE(NULLIF(e.rep, ''), NULLIF(nn.Rep, ''), '') AS rep_eclaim,
           COALESCE(r.rep, '') AS rep_rep,
           COALESCE(n.rep, '') AS rep_nhso,
           CASE
             WHEN n.vn IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
             WHEN r.vn IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
             WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
             ELSE '- :: ยังไม่ได้ส่ง'
           END AS status
@@ -483,6 +493,7 @@ export async function queryFamilyPlanning932Rows(
           WHERE department = 'OP'
           GROUP BY vn
         ) n ON n.vn = o.vn
+        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
         LEFT JOIN (
           SELECT m.opdseq AS vn,
                  SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,

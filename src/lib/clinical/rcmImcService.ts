@@ -8,6 +8,12 @@ import {
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Types & Constants ───────────────────────────────────────────────────────
 
@@ -52,6 +58,7 @@ export interface ImcReportParams extends FiscalDateRangeParams {
   refresh?: boolean
   pttypes?: string
   ucOnly?: boolean
+  reps?: string
 }
 
 export interface SeamlessRepBreakdown {
@@ -151,6 +158,7 @@ export interface ImcReportResult {
   sortBy: ImcSortField
   sortOrder: 'asc' | 'desc'
   items: ImcItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Service Implementation ─────────────────────────────────────────────────
@@ -337,6 +345,9 @@ export class RcmImcService {
       ucCases,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // ── 5. Filtering ──────────────────────────────────────────────────────────
     let filtered = [...summaryCohort]
 
@@ -356,6 +367,10 @@ export class RcmImcService {
       filtered = filtered.filter((i) => Boolean(i.authencode))
     } else if (cardFilter === 'NO_AUTHEN') {
       filtered = filtered.filter((i) => !i.authencode)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Global Search across all fields
@@ -430,6 +445,7 @@ export class RcmImcService {
       sortBy,
       sortOrder,
       items: pagedItems,
+      repBreakdown,
     }
   }
 

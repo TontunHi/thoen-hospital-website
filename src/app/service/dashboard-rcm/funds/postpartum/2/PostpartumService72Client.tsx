@@ -39,6 +39,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -178,6 +181,15 @@ export default function PostpartumService72Client({
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (forceRefresh = false) => {
@@ -207,6 +219,9 @@ export default function PostpartumService72Client({
         if (pttypes.length > 0) {
           q.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -226,6 +241,7 @@ export default function PostpartumService72Client({
         setTotalPages(json.data.totalPages || 1)
         if (json.data.summary) setSummary(json.data.summary)
         if (json.data.adpMapping) setAdpMapping(json.data.adpMapping)
+        if (json.data.repBreakdown !== undefined) setRepBreakdown(json.data.repBreakdown ?? null)
       } catch (err: unknown) {
         const e = err as Error
         if (e.name !== 'AbortError') {
@@ -238,7 +254,7 @@ export default function PostpartumService72Client({
         }
       }
     },
-    [ds1, ds2, compensationFilter, pttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, compensationFilter, pttypes, selectedReps, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -335,6 +351,9 @@ export default function PostpartumService72Client({
 
       if (pttypes.length > 0) {
         q.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/postpartum/service-30015?${q.toString()}`)
@@ -724,6 +743,19 @@ export default function PostpartumService72Client({
         </div>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Search Bar & Table Controls ── */}
       <section className="pnc72-tools-row" aria-label="ค้นหาและตัวกรองตาราง">
         <div className="pnc72-search-group">
@@ -762,6 +794,24 @@ export default function PostpartumService72Client({
             
           />
           </div>
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
+          />
         </div>
 
         <div className="pnc72-tools-meta">

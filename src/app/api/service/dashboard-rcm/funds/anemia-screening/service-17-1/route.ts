@@ -34,6 +34,7 @@ const anemiaScreeningParamsSchema = z.object({
     .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'DIAG', 'PTTYPE'])
     .optional(),
   search: z.string().max(120).optional(),
+  reps: z.string().max(2000).optional(),
   sortBy: z
     .enum([
       'vstdate',

@@ -34,6 +34,14 @@ import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
+import RepMultiSelect from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import {
+  buildRepBreakdownSummary,
+  NO_REP_FILTER_VALUE,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from '@/lib/clinical/rcmRepTagHelper'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import '../health-screening.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
@@ -106,6 +114,9 @@ export default function FastingPlasmaGlucoseClient({
     }
     return []
   })
+  const [selectedReps, setSelectedReps] = useState<string[]>(() =>
+    parseRepFilterParam(initialData?.reps)
+  )
   const [searchField, setSearchField] = useState<HealthScreeningSearchField>(
     initialData?.searchField ?? 'ALL'
   )
@@ -157,6 +168,9 @@ export default function FastingPlasmaGlucoseClient({
       totalIncome: 0,
     }
   )
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
 
   // Modal Detail states
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -174,6 +188,8 @@ export default function FastingPlasmaGlucoseClient({
           ds2: initialData.ds2,
           cardFilter: initialData.cardFilter,
           ucOnly: initialData.ucOnly,
+          pttypes: parseRepFilterParam(initialData.pttypes).join(','),
+          reps: parseRepFilterParam(initialData.reps).join(','),
           searchField: initialData.searchField,
           search: initialData.search,
           sortBy: initialData.sortBy,
@@ -191,6 +207,8 @@ export default function FastingPlasmaGlucoseClient({
         ds2,
         cardFilter,
         ucOnly,
+        pttypes: selectedPttypes.join(','),
+        reps: selectedReps.join(','),
         searchField,
         search: debouncedSearch,
         sortBy,
@@ -198,7 +216,7 @@ export default function FastingPlasmaGlucoseClient({
         page: currentPage,
         pageSize,
       }),
-    [ds1, ds2, cardFilter, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, selectedReps, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Debounce search input (350ms)
@@ -258,6 +276,9 @@ export default function FastingPlasmaGlucoseClient({
         } else if (ucOnly) {
           q.set('ucOnly', 'true')
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -277,6 +298,7 @@ export default function FastingPlasmaGlucoseClient({
         setTotalCount(json.data.totalCount || 0)
         setTotalPages(json.data.totalPages || 1)
         if (json.data.summary) setSummary(json.data.summary)
+        if (json.data.repBreakdown) setRepBreakdown(json.data.repBreakdown)
         if (json.data.adpMapping) setAdpMapping(json.data.adpMapping)
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return
@@ -289,7 +311,7 @@ export default function FastingPlasmaGlucoseClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, selectedReps, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -303,6 +325,16 @@ export default function FastingPlasmaGlucoseClient({
 
   // Selected item for modal
   const selectedItem = selectedIndex !== null ? items[selectedIndex] : null
+
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
+  const handleSelectReps = useCallback((reps: string[]) => {
+    setSelectedReps(reps)
+    setCurrentPage(1)
+  }, [])
 
   // Fetch VN Clinical Details when opening modal tab 'clinical'
   useEffect(() => {
@@ -375,6 +407,9 @@ export default function FastingPlasmaGlucoseClient({
         q.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         q.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -781,6 +816,14 @@ export default function FastingPlasmaGlucoseClient({
         </button>
       </section>
 
+      {/* ── 4.5. REP Tag Breakdown Dashboard ── */}
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={handleSelectReps}
+        onClearReps={() => handleSelectReps([])}
+      />
+
       {/* ── 5. Search Bar & Secondary Filters ── */}
       <section className="hs-filter-bar" aria-label="ค้นหาและตัวกรองตาราง">
         <div className="hs-filter-left">
@@ -807,6 +850,13 @@ export default function FastingPlasmaGlucoseClient({
         </div>
 
         <div className="hs-filter-right" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={handleSelectReps}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
           <PttypeMultiSelect
             selectedCodes={selectedPttypes}
             onChange={(codes) => {
@@ -816,6 +866,28 @@ export default function FastingPlasmaGlucoseClient({
             items={items}
           
           />
+
+          {selectedReps.length > 0 && (
+            <div className="hs-active-filter-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f3e8ff', color: '#6b21a8', border: '1px solid #e9d5ff', padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem' }}>
+              <span>
+                REP:{' '}
+                {selectedReps.length === 1
+                  ? selectedReps[0] === NO_REP_FILTER_VALUE
+                    ? 'ยังไม่มีเลข REP'
+                    : selectedReps[0]
+                  : `${selectedReps.length} เลข REP`}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSelectReps([])}
+                className="hover:opacity-75"
+                title="ล้างตัวกรองเลข REP"
+                aria-label="ล้างตัวกรองเลข REP"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
           {selectedPttypes.length > 0 && (
             <div className="hs-active-filter-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 6, fontSize: '0.8rem' }}>

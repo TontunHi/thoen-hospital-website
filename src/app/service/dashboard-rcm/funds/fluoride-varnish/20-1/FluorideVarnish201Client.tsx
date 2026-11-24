@@ -37,6 +37,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -191,6 +194,15 @@ export default function FluorideVarnish201Client({
     return () => clearTimeout(timer)
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -221,6 +233,8 @@ export default function FluorideVarnish201Client({
         })
 
         if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -241,6 +255,7 @@ export default function FluorideVarnish201Client({
           setTotalPages(result.totalPages)
           setSummary(result.summary)
           setAdpMapping(result.adpMapping)
+          if (result.repBreakdown !== undefined) setRepBreakdown(result.repBreakdown ?? null)
         } else {
           throw new Error(json.error?.message || 'รูปแบบข้อมูลตอบกลับไม่ถูกต้อง')
         }
@@ -267,6 +282,7 @@ export default function FluorideVarnish201Client({
       currentPage,
       pageSize,
       pttypes,
+      selectedReps,
     ]
   )
 
@@ -396,6 +412,7 @@ export default function FluorideVarnish201Client({
         exportAll: 'true',
       })
       if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/fluoride-varnish/service-20-1?${queryParams.toString()}`
@@ -862,6 +879,19 @@ export default function FluorideVarnish201Client({
         </div>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 4. Unified Search & Filters Toolbar ── */}
       <section className="fluoride-filter-bar" aria-label="แถบเครื่องมือค้นหาและกรอง">
         <div className="fluoride-search-box">
@@ -894,6 +924,24 @@ export default function FluorideVarnish201Client({
             items={items}
         
           />
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="fluoride-secondary-filters">
           <label className="fluoride-checkbox-label">

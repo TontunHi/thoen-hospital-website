@@ -32,6 +32,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 import {
   THAI_MONTHS,
@@ -99,6 +102,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
   const [search, setSearch] = useState<string>(initialData?.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
   const [pttypes, setPttypes] = useState<string[]>([])
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
   const [filterSex, setFilterSex] = useState<string>('ALL')
   const [filterOvstist5, setFilterOvstist5] = useState<boolean>(false)
   const [filterAgeMin, setFilterAgeMin] = useState<string>('')
@@ -193,6 +197,13 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
       totalSumPrice: 0,
       totalIncome: 0,
     }
+  )
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
   )
 
   // Drawer Detail states (replaces modal, Section 9)
@@ -336,6 +347,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         if (cardsQueryParam) queryParams.set('cards', cardsQueryParam)
         if (activeCards.ucOnly) queryParams.set('ucOnly', 'true')
         if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+        if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
         if (filterSex !== 'ALL') queryParams.set('sex', filterSex)
         if (filterOvstist5) queryParams.set('ovstistExportCode', '5')
         if (filterAgeMin) queryParams.set('ageMin', filterAgeMin)
@@ -374,6 +386,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           setTotalCount(result.totalCount)
           setTotalPages(result.totalPages)
           setSummary(result.summary)
+          setRepBreakdown(result.repBreakdown ?? null)
           setAdpMapping(result.adpMapping)
         } else {
           throw new Error(json.error?.message || 'รูปแบบข้อมูลตอบกลับไม่ถูกต้อง')
@@ -399,6 +412,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
       currentPage,
       pageSize,
       pttypes,
+      selectedReps,
       filterSex,
       filterOvstist5,
       filterAgeMin,
@@ -630,6 +644,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
     setSearch('')
     setDebouncedSearch('')
     setPttypes([])
+    setSelectedReps([])
     setFilterSex('ALL')
     setFilterOvstist5(false)
     setFilterAgeMin('')
@@ -658,9 +673,10 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
       Boolean(activeCards.ucOnly) ||
       Boolean(activeCards.exportCode5) ||
       search.trim().length > 0 ||
+      selectedReps.length > 0 ||
       activePopoverFilterCount > 0
     )
-  }, [activeCards, search, activePopoverFilterCount])
+  }, [activeCards, search, selectedReps, activePopoverFilterCount])
 
   // Export Excel (.xlsx)
   const handleExportExcel = async () => {
@@ -680,6 +696,7 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
       if (cardsQueryParam) queryParams.set('cards', cardsQueryParam)
       if (activeCards.ucOnly) queryParams.set('ucOnly', 'true')
       if (pttypes.length > 0) queryParams.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) queryParams.set('reps', selectedReps.join(','))
       if (filterSex !== 'ALL') queryParams.set('sex', filterSex)
       if (filterOvstist5) queryParams.set('ovstistExportCode', '5')
       if (filterAgeMin) queryParams.set('ageMin', filterAgeMin)
@@ -997,6 +1014,19 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
         toggleType5Card={toggleType5Card}
       />
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 6. Data Section (Section 7 & 8) ── */}
       <div className="telemed-data-section">
         {/* Section Header */}
@@ -1128,6 +1158,22 @@ export default function TelemedClient({ initialData = null }: TelemedClientProps
           </div>
 
           {/* Additional filters popover */}
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
+          />
           <div className="telemed-popover-container" ref={filterPopoverRef}>
             <button
               type="button"

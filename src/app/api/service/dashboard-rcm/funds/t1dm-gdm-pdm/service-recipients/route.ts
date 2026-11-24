@@ -27,6 +27,7 @@ const t1dmRecipientParamsSchema = z.object({
     .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'ICD10', 'TYPE', 'PTTYPE', 'REP'])
     .optional(),
   search: z.string().max(120).optional(),
+  reps: z.string().max(2000).optional(),
   sortBy: z
     .enum([
       'vstdate',

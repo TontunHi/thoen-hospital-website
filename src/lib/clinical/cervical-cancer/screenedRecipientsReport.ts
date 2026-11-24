@@ -3,6 +3,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   classifyPpSpecialCodes,
   PERSON_SELECT_COLUMNS,
@@ -326,6 +327,9 @@ export async function getScreenedRecipientsReport(
       totalNhsoCompensated,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Filter by screening method (FoxPro cshow: ทั้งหมด, PapSmear, VIA, HPV, ColpoScopy)
     let filtered = summaryCohort
     if (methodFilter === 'PapSmear') {
@@ -362,6 +366,10 @@ export async function getScreenedRecipientsReport(
     }
 
     // Filter by search
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
+    }
+
     if (search) {
       filtered = filtered.filter((i) => {
         if (searchField === 'HN') {
@@ -420,5 +428,6 @@ export async function getScreenedRecipientsReport(
       pageSize,
       totalPages,
       items: numberedItems,
+      repBreakdown,
     }
   }

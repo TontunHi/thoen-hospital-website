@@ -4,6 +4,12 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 12.1 บริการคัดกรองรอยโรคเสี่ยงมะเร็งและมะเร็งช่องปาก (Oral Cancer Screening ADP 90004) ──
 
@@ -49,6 +55,7 @@ export interface OralCancerReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface OralCancerAdpMappingItem {
@@ -139,6 +146,7 @@ export interface OralCancerReportResult {
   pageSize: number
   totalPages: number
   items: OralCancerItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Helper Functions ───────────────────────────────────────────────────────
@@ -497,6 +505,9 @@ export class RcmOralCancerService {
     }
 
     // Apply Card Filter
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
       filtered = filtered.filter((i) => i.isCompensated)
@@ -513,6 +524,10 @@ export class RcmOralCancerService {
     // Secondary UC only filter toggle (fallback when pttypes is empty)
     if (selectedPttypesList.length === 0 && ucOnly && cardFilter !== 'UC_ONLY') {
       filtered = filtered.filter((i) => i.isUc)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Apply Search Filter
@@ -599,6 +614,7 @@ export class RcmOralCancerService {
       pageSize,
       totalPages,
       items: pagedItems,
+      repBreakdown,
     }
   }
 }

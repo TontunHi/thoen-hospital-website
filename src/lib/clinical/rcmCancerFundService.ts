@@ -9,6 +9,12 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: กองทุนมะเร็ง (CANCER ADP) ───────────────────────────────
 
@@ -44,6 +50,7 @@ export interface CancerFundReportParams extends FiscalDateRangeParams {
   statusFilter?: string
   ucOnly?: boolean
   pttypes?: string
+  reps?: string
   search?: string
   sortBy?: CancerFundSortField
   sortOrder?: 'asc' | 'desc'
@@ -156,6 +163,7 @@ export interface CancerFundReportResult {
   sortBy: CancerFundSortField
   sortOrder: 'asc' | 'desc'
   summary: CancerFundSummary
+  repBreakdown?: RepBreakdownSummary
   totalCount: number
   page: number
   pageSize: number
@@ -629,6 +637,9 @@ export class RcmCancerFundService {
       new Set(summaryCohort.map((i) => i.status_eclaim).filter(Boolean))
     ).sort() as string[]
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Apply Filters
     let filtered = summaryCohort
 
@@ -661,6 +672,9 @@ export class RcmCancerFundService {
     // 3. UC-Only explicit toggle (fallback when pttypes is empty)
     if (selectedPttypesList.length === 0 && ucOnly) {
       filtered = filtered.filter((i) => i.isUc)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedRepsList))
     }
 
     // 4. Unified Global Search
@@ -731,6 +745,7 @@ export class RcmCancerFundService {
       sortBy,
       sortOrder,
       summary,
+      repBreakdown,
       totalCount,
       page,
       pageSize,

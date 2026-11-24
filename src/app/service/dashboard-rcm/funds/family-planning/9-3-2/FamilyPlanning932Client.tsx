@@ -41,6 +41,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -179,6 +182,15 @@ export default function FamilyPlanning932Client({
     setPage(1)
   }
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch Report Data
   const fetchData = useCallback(
     async (isRefresh = false) => {
@@ -208,6 +220,9 @@ export default function FamilyPlanning932Client({
         if (pttypes.length > 0) {
           queryParams.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          queryParams.set('reps', selectedReps.join(','))
+        }
 
         if (isRefresh) {
           queryParams.set('refresh', 'true')
@@ -233,6 +248,7 @@ export default function FamilyPlanning932Client({
         setAdpMapping(json.data.adpMapping || null)
         setTotalItems(json.data.pagination?.totalItems || 0)
         setTotalPages(json.data.pagination?.totalPages || 1)
+        if (json.data.repBreakdown !== undefined) setRepBreakdown(json.data.repBreakdown ?? null)
       } catch (err: unknown) {
         const e = err as Error
         if (e.name !== 'AbortError') {
@@ -244,7 +260,7 @@ export default function FamilyPlanning932Client({
         }
       }
     },
-    [ds1, ds2, format, pttypes, cardFilter, searchField, search, sortBy, sortOrder, page, pageSize]
+    [ds1, ds2, format, pttypes, selectedReps, cardFilter, searchField, search, sortBy, sortOrder, page, pageSize]
   )
 
   useEffect(() => {
@@ -331,6 +347,9 @@ export default function FamilyPlanning932Client({
 
       if (pttypes.length > 0) {
         queryParams.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        queryParams.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -766,6 +785,19 @@ export default function FamilyPlanning932Client({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setPage(1)
+        }}
+      />
+
       {/* Controls Bar: Search & Filter Summary */}
       <div className="fp-controls-bar">
         <div className="fp-search-box">
@@ -805,6 +837,24 @@ export default function FamilyPlanning932Client({
             items={items}
         
           />
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setPage(1)
+          }}
+        />
 
         <div className="fp-table-meta">
           {cardFilter !== 'ALL' && (

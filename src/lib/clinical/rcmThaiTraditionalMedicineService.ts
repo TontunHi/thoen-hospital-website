@@ -8,6 +8,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Types: หัวข้อที่ 3 รายชื่อผู้รับบริการแพทย์แผนไทยรวม ────────────────────────
 
@@ -48,6 +54,7 @@ export interface Ttm3ReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface TtmHerbDrugItem {
@@ -148,6 +155,7 @@ export interface Ttm3ReportResult {
   totalPages: number
   summary: Ttm3Summary
   items: Ttm3Item[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Types: หัวข้อที่ 11 รายชื่อผู้รับบริการรับยาสมุนไพร 32 รายการ ──────────────
@@ -187,6 +195,7 @@ export interface Ttm11ReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface Ttm11DrugItem {
@@ -282,6 +291,7 @@ export interface Ttm11ReportResult {
   totalPages: number
   summary: Ttm11Summary
   items: Ttm11Item[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 3. Helper Functions ──────────────────────────────────────────────────────────
@@ -619,6 +629,9 @@ export class RcmThaiTraditionalMedicineService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Filters
     let filtered = summaryCohort
 
@@ -664,6 +677,10 @@ export class RcmThaiTraditionalMedicineService {
     }
 
     // 5. Global Search across HN, CID, Name, VN, PDX, Authen Code, Rep, Treatment
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
+    }
+
     if (search) {
       filtered = filtered.filter((i) => {
         return (
@@ -726,6 +743,7 @@ export class RcmThaiTraditionalMedicineService {
       totalPages,
       summary,
       items: pagedItems,
+      repBreakdown,
     }
   }
 
@@ -974,6 +992,9 @@ export class RcmThaiTraditionalMedicineService {
       invoiceCount,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Filter
     let filtered = summaryCohort
 
@@ -995,6 +1016,10 @@ export class RcmThaiTraditionalMedicineService {
     }
 
     // 2. Global Search
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
+    }
+
     if (search) {
       filtered = filtered.filter((i) => {
         return (
@@ -1057,6 +1082,7 @@ export class RcmThaiTraditionalMedicineService {
       totalPages,
       summary,
       items: pagedItems,
+      repBreakdown,
     }
   }
 

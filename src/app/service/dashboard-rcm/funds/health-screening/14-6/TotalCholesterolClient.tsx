@@ -38,6 +38,9 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { UC_ECLAIM_CODES } from '@/lib/clinical/pttypeConstants'
 import '../health-screening.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -178,6 +181,12 @@ export default function TotalCholesterolClient({
           ds2: initialData.ds2,
           cardFilter: initialData.cardFilter,
           ucOnly: initialData.ucOnly,
+          selectedPttypes: initialData.pttypes
+            ? initialData.pttypes.split(',').map((s) => s.trim()).filter(Boolean)
+            : initialData.ucOnly
+              ? [...UC_ECLAIM_CODES]
+              : [],
+          selectedReps: [],
           targetAgeOnly: initialData.targetAgeOnly,
           searchField: initialData.searchField,
           search: initialData.search,
@@ -189,6 +198,15 @@ export default function TotalCholesterolClient({
       : null
   )
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   const currentQueryKey = useMemo(
     () =>
       JSON.stringify({
@@ -196,6 +214,8 @@ export default function TotalCholesterolClient({
         ds2,
         cardFilter,
         ucOnly,
+        selectedPttypes,
+        selectedReps,
         targetAgeOnly,
         searchField,
         search: debouncedSearch,
@@ -209,6 +229,8 @@ export default function TotalCholesterolClient({
       ds2,
       cardFilter,
       ucOnly,
+      selectedPttypes,
+      selectedReps,
       targetAgeOnly,
       searchField,
       debouncedSearch,
@@ -277,6 +299,9 @@ export default function TotalCholesterolClient({
         } else if (ucOnly) {
           q.set('ucOnly', 'true')
         }
+        if (selectedReps.length > 0) {
+          q.set('reps', selectedReps.join(','))
+        }
 
         if (forceRefresh) {
           q.set('refresh', 'true')
@@ -297,6 +322,7 @@ export default function TotalCholesterolClient({
         setTotalPages(json.data.totalPages || 1)
         if (json.data.summary) setSummary(json.data.summary)
         if (json.data.adpMapping) setAdpMapping(json.data.adpMapping)
+        if (json.data.repBreakdown !== undefined) setRepBreakdown(json.data.repBreakdown ?? null)
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return
         const e = err as Error
@@ -308,7 +334,7 @@ export default function TotalCholesterolClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, targetAgeOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, ucOnly, selectedPttypes, selectedReps, targetAgeOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -395,6 +421,9 @@ export default function TotalCholesterolClient({
         q.set('pttypes', selectedPttypes.join(','))
       } else if (ucOnly) {
         q.set('ucOnly', 'true')
+      }
+      if (selectedReps.length > 0) {
+        q.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -832,6 +861,19 @@ export default function TotalCholesterolClient({
         </button>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Search Bar & Secondary Filters ── */}
       <section className="hs-filter-bar" aria-label="ค้นหาและตัวกรองตาราง">
         <div className="hs-filter-left">
@@ -879,6 +921,24 @@ export default function TotalCholesterolClient({
             }}
             items={items}
           
+          />
+
+          <RepMultiSelect
+            selectedReps={selectedReps}
+            onChange={(reps) => {
+              setSelectedReps(reps)
+              setCurrentPage(1)
+            }}
+            repBreakdown={effectiveRepBreakdown}
+            items={items}
+          />
+
+          <RcmRepActiveBadge
+            selectedReps={selectedReps}
+            onClear={() => {
+              setSelectedReps([])
+              setCurrentPage(1)
+            }}
           />
 
           {selectedPttypes.length > 0 && (

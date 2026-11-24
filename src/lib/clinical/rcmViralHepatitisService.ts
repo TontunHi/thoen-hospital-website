@@ -3,6 +3,12 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 23.1 บริการตรวจคัดกรองไวรัสตับอักเสบ B (ADP 36318, 36319) ──
 
@@ -51,6 +57,7 @@ export interface ViralHepatitisReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface ViralHepatitisAdpMappingItem {
@@ -153,6 +160,7 @@ export interface ViralHepatitisReportResult {
   pageSize: number
   totalPages: number
   items: ViralHepatitisItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Helper Functions ───────────────────────────────────────────────────────
@@ -569,8 +577,12 @@ export class RcmViralHepatitisService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Filter Items by Card Filter from summaryCohort
     let filteredItems = summaryCohort.filter((item) => {
+      if (selectedReps.length > 0 && !matchesRepFilter(item, selectedReps)) return false
       if (cardFilter === 'COMPENSATED' && !item.isCompensated) return false
       if (cardFilter === 'UNCOMPENSATED' && item.isCompensated) return false
       if (cardFilter === 'WITH_AUTHEN' && !item.authencode) return false
@@ -679,6 +691,7 @@ export class RcmViralHepatitisService {
       pageSize,
       totalPages,
       items: resultItems,
+      repBreakdown,
     }
   }
 }

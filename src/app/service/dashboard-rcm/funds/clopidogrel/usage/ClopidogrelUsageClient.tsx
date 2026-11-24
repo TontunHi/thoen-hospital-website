@@ -39,6 +39,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -181,6 +184,15 @@ export default function ClopidogrelUsageClient({
     return () => clearTimeout(timer)
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -207,6 +219,8 @@ export default function ClopidogrelUsageClient({
           pageSize: String(pageSize),
         })
         if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
         if (refresh) query.set('refresh', 'true')
 
         const res = await fetch(
@@ -227,6 +241,7 @@ export default function ClopidogrelUsageClient({
           setTotalPages(d.totalPages)
           setSummary(d.summary)
           setAdpMapping(d.adpMapping)
+          if (d.repBreakdown !== undefined) setRepBreakdown(d.repBreakdown ?? null)
         } else {
           throw new Error(json?.error?.message || 'ไม่สามารถโหลดข้อมูลรายงานได้')
         }
@@ -240,7 +255,7 @@ export default function ClopidogrelUsageClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize, pttypes]
+    [ds1, ds2, cardFilter, debouncedSearch, sortBy, sortOrder, currentPage, pageSize, pttypes, selectedReps]
   )
 
   // Fetch on parameter changes (skipping initial fetch if server data present)
@@ -359,6 +374,7 @@ export default function ClopidogrelUsageClient({
         exportAll: 'true',
       })
       if (pttypes.length > 0) query.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) query.set('reps', selectedReps.join(','))
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/clopidogrel/usage?${query.toString()}`
       )
@@ -777,6 +793,19 @@ export default function ClopidogrelUsageClient({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* ── 5. Search Bar & Toolbar (Unified Global Search) ── */}
       <div className="clop-toolbar">
         <div className="clop-search-box">
@@ -809,6 +838,24 @@ export default function ClopidogrelUsageClient({
             items={items}
         
           />
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="clop-toolbar-stats">
           <span>

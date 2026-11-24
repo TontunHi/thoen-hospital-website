@@ -9,6 +9,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: กองทุนรากฟันเทียม (Dental Implant) - DENSUR ────────────────
 
@@ -40,6 +46,7 @@ export type DentalImplantSortField =
 export interface DentalImplantReportParams extends FiscalDateRangeParams {
   cardFilter?: DentalImplantCardFilter
   pttypes?: string
+  reps?: string
   ucOnly?: boolean
   search?: string
   sortBy?: DentalImplantSortField
@@ -137,6 +144,7 @@ export interface DentalImplantReportResult {
   totalCount: number
   totalPages: number
   summary: DentalImplantSummary
+  repBreakdown?: RepBreakdownSummary
   items: DentalImplantDensurItem[]
 }
 
@@ -519,6 +527,9 @@ export class RcmDentalImplantService {
       ucRate,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Apply Card Filter
     let filteredItems = summaryCohort
     switch (cardFilter) {
@@ -540,6 +551,9 @@ export class RcmDentalImplantService {
       case 'ALL':
       default:
         break
+    }
+    if (selectedRepsList.length > 0) {
+      filteredItems = filteredItems.filter((it) => matchesRepFilter(it, selectedRepsList))
     }
 
     // Apply Global Search (HN, CID, Name, VN, PDX, DX0-5, OP0-5, Pttype, Authen code, Listname, Status, Rep)
@@ -622,6 +636,7 @@ export class RcmDentalImplantService {
       totalCount,
       totalPages,
       summary,
+      repBreakdown,
       items: itemsWithNo,
     }
   }

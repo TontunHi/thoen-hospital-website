@@ -4,6 +4,12 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── Common Domain Types: กองทุนการตรวจหลังคลอด (PNC) ─────────────────────────
 
@@ -111,6 +117,7 @@ export interface PostpartumService72Params extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 export interface PostpartumService72Result {
   ds1: string
@@ -127,6 +134,7 @@ export interface PostpartumService72Result {
   pageSize: number
   totalPages: number
   items: PostpartumService72Item[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── Aliases for 7.3 (บริการ 30016 การจ่ายยา Triforine ADP) ────────────────────
@@ -148,6 +156,7 @@ export interface PostpartumService30016Result {
   pageSize: number
   totalPages: number
   items: PostpartumService30016Item[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Service Implementation ──────────────────────────────────────────
@@ -298,6 +307,7 @@ export class RcmPostpartumService {
     pageSize: number
     totalPages: number
     items: PostpartumServiceItem[]
+    repBreakdown?: RepBreakdownSummary
   }> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const compensationFilter: PostpartumCompensationFilter = params.compensationFilter || 'ALL'
@@ -550,6 +560,9 @@ export class RcmPostpartumService {
       withOpCount,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Filter & Search
     let filtered = summaryCohort
 
@@ -565,6 +578,10 @@ export class RcmPostpartumService {
       filtered = filtered.filter((i) => Boolean(i.pdx))
     } else if (compensationFilter === 'HAS_OP') {
       filtered = filtered.filter((i) => Boolean(i.op0 || i.op1 || i.op2 || i.op3 || i.op4 || i.op5))
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     if (search) {
@@ -654,6 +671,7 @@ export class RcmPostpartumService {
       pageSize,
       totalPages,
       items,
+      repBreakdown,
     }
   }
 

@@ -41,6 +41,9 @@ import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -100,9 +103,9 @@ export default function StreptokinaseRecipientsClient({
     return list
   }, [defaultFiscalBeYear])
 
-  // Patient type state: OPD or IPD
+  // Patient type state: IPD first by default, switchable with OPD
   const [patientType, setPatientType] = useState<StreptokinasePatientType>(
-    initialData?.patientType ?? 'OPD'
+    initialData?.patientType ?? 'IPD'
   )
 
   // Date selection states: 1. กำหนดเอง -> 2. เดือน -> 3. ปีงบประมาณ
@@ -345,6 +348,15 @@ export default function StreptokinaseRecipientsClient({
     applyDateMode('monthly', selectedFiscalYear, selectedMonth, bYear)
   }
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data from API
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -369,6 +381,8 @@ export default function StreptokinaseRecipientsClient({
           pageSize: String(pageSize),
         })
         if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) params.set('reps', selectedReps.join(','))
+        if (selectedReps.length > 0) params.set('reps', selectedReps.join(','))
         if (refresh) params.set('refresh', 'true')
 
         const res = await fetch(
@@ -389,6 +403,9 @@ export default function StreptokinaseRecipientsClient({
         if (data.adpMapping) {
           setAdpMapping(data.adpMapping)
         }
+        if (data.repBreakdown !== undefined) {
+          setRepBreakdown(data.repBreakdown ?? null)
+        }
       } catch (err: any) {
         if (err.name === 'AbortError') return
         setError(err.message || 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้')
@@ -399,7 +416,7 @@ export default function StreptokinaseRecipientsClient({
         }
       }
     },
-    [patientType, ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [patientType, ds1, ds2, cardFilter, pttypes, selectedReps, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Fetch when filters or patientType change (skip initial mount if initialData is provided)
@@ -483,6 +500,7 @@ export default function StreptokinaseRecipientsClient({
         exportAll: 'true',
       })
       if (pttypes.length > 0) params.set('pttypes', pttypes.join(','))
+      if (selectedReps.length > 0) params.set('reps', selectedReps.join(','))
 
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/streptokinase/recipients?${params.toString()}`
@@ -620,7 +638,7 @@ export default function StreptokinaseRecipientsClient({
 
       await exportRcmExcel({
         filename: `streptokinase_${patientType.toLowerCase()}_${ds1}_${ds2}.xlsx`,
-        title: `รายชื่อรับยา Streptokinase (${patientType})`,
+        title: `รายชื่อรับยา Stroke และSTEMI (${patientType})`,
         subtitle: `ช่วงวันที่ ${ds1} ถึง ${ds2} (ทั้งหมด ${rows.length.toLocaleString('th-TH')} รายการ)`,
         headers,
         rows: excelRows,
@@ -648,13 +666,13 @@ export default function StreptokinaseRecipientsClient({
         <span className="stk-breadcrumb-sep">/</span>
         <Link href="/service/dashboard-rcm/funds/streptokinase">กองทุนยา Streptokinase</Link>
         <span className="stk-breadcrumb-sep">/</span>
-        <span className="stk-breadcrumb-current">รายชื่อรับยา Streptokinase</span>
+        <span className="stk-breadcrumb-current">รายชื่อรับยา Stroke และSTEMI</span>
       </nav>
 
       {/* 2. Header Bar */}
       <header className="stk-header">
         <div className="stk-title-group">
-          <h1 className="stk-title">รายชื่อรับยา Streptokinase</h1>
+          <h1 className="stk-title">รายชื่อรับยา Stroke และSTEMI</h1>
           <p className="stk-subtitle">
             <span>ตรวจสอบการบันทึกการใช้ยา Streptokinase และการวินิจฉัย STEMI</span>
           </p>
@@ -700,21 +718,8 @@ export default function StreptokinaseRecipientsClient({
 
       {/* 4. Single-Row Unified Date & Patient Type Selection Bar */}
       <div className="stk-date-card">
-        {/* Patient Type Switcher (OPD / IPD) */}
+        {/* Patient Type Switcher (IPD / OPD — IPD shown first) */}
         <div className="stk-type-segmented" role="group" aria-label="ประเภทผู้ป่วย">
-          <button
-            type="button"
-            className={`stk-type-btn ${patientType === 'OPD' ? 'is-active' : ''}`}
-            onClick={() => {
-              if (patientType !== 'OPD') {
-                setPatientType('OPD')
-                setCurrentPage(1)
-              }
-            }}
-          >
-            <Building2 size={15} />
-            <span>ผู้ป่วยนอก (OPD)</span>
-          </button>
           <button
             type="button"
             className={`stk-type-btn ${patientType === 'IPD' ? 'is-active' : ''}`}
@@ -727,6 +732,19 @@ export default function StreptokinaseRecipientsClient({
           >
             <BedDouble size={15} />
             <span>ผู้ป่วยใน (IPD)</span>
+          </button>
+          <button
+            type="button"
+            className={`stk-type-btn ${patientType === 'OPD' ? 'is-active' : ''}`}
+            onClick={() => {
+              if (patientType !== 'OPD') {
+                setPatientType('OPD')
+                setCurrentPage(1)
+              }
+            }}
+          >
+            <Building2 size={15} />
+            <span>ผู้ป่วยนอก (OPD)</span>
           </button>
         </div>
 
@@ -971,6 +989,19 @@ export default function StreptokinaseRecipientsClient({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* 6. Toolbar & Unified Global Search (No Field Dropdown) */}
       <div className="stk-toolbar">
         <div className="stk-search-box">
@@ -1003,6 +1034,24 @@ export default function StreptokinaseRecipientsClient({
             items={items}
         
           />
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="stk-toolbar-meta">
           <span>
@@ -1139,12 +1188,12 @@ export default function StreptokinaseRecipientsClient({
                   <td colSpan={16} className="stk-empty-state">
                     <HeartPulse size={36} className="stk-empty-icon" />
                     <div className="stk-empty-title">
-                      {search ? 'ไม่พบผลการค้นหา' : 'ไม่พบข้อมูลผู้รับยา Streptokinase'}
+                      {search ? 'ไม่พบผลการค้นหา' : 'ไม่พบข้อมูลผู้รับยา Stroke และSTEMI'}
                     </div>
                     <div className="stk-empty-desc">
                       {search
                         ? `ไม่พบข้อมูลที่ตรงกับ "${search}" ในช่วงเวลาที่เลือก`
-                        : 'ไม่มีการบันทึกการใช้ยา Streptokinase ในช่วงเวลาที่เลือก'}
+                        : 'ไม่มีการบันทึกการใช้ยา Stroke และSTEMI ในช่วงเวลาที่เลือก'}
                     </div>
                     {search && (
                       <div className="stk-empty-action">

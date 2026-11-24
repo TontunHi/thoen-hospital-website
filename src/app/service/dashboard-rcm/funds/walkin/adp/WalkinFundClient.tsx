@@ -35,6 +35,9 @@ import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTH_OPTIONS = [
   { value: 1, label: 'มกราคม' },
@@ -98,6 +101,7 @@ export default function WalkinFundClient({
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<WalkinFundCardFilter>('ALL')
   const [pttypes, setPttypes] = useState<string[]>([])
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
   const [sortBy, setSortBy] = useState<WalkinFundSortField>('vstdate')
@@ -134,6 +138,13 @@ export default function WalkinFundClient({
       ucRate: 0,
       totalIncome: 0,
     }
+  )
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
   )
 
   // Detail Modal state
@@ -183,6 +194,9 @@ export default function WalkinFundClient({
         if (pttypes.length > 0) {
           queryParams.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          queryParams.set('reps', selectedReps.join(','))
+        }
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -202,6 +216,7 @@ export default function WalkinFundClient({
         setTotalCount(data.totalCount || 0)
         setTotalPages(data.totalPages || 1)
         if (data.summary) setSummary(data.summary)
+        setRepBreakdown(data.repBreakdown ?? null)
         if (data.adpMapping) setAdpMapping(data.adpMapping)
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return
@@ -215,7 +230,7 @@ export default function WalkinFundClient({
         }
       }
     },
-    [ds1, ds2, cardFilter, pttypes, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [ds1, ds2, cardFilter, pttypes, selectedReps, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   // Mount Guard: Skip double fetch on first mount if SSR sent initialData
@@ -321,6 +336,9 @@ export default function WalkinFundClient({
       })
       if (pttypes.length > 0) {
         exportParams.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        exportParams.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(`/api/service/dashboard-rcm/funds/walkin?${exportParams.toString()}`)
@@ -736,6 +754,19 @@ export default function WalkinFundClient({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* 6. Search & Filter Bar */}
       <div className="walkin-filter-bar">
         <div className="walkin-search-box">
@@ -770,6 +801,22 @@ export default function WalkinFundClient({
           
           />
         </div>
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="walkin-filter-info">
           {cardFilter !== 'ALL' && (

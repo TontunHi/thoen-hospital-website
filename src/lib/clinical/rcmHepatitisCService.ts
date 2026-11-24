@@ -9,6 +9,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: ไวรัสตับอักเสบ C (23.2 คัดกรอง 36331 & 23.4 ยืนยัน HCV RNA 36333) ──
 
@@ -56,6 +62,7 @@ export interface HepatitisCReportParams extends FiscalDateRangeParams {
   ucOnly?: boolean
   pttypes?: string
   withLabOnly?: boolean
+  reps?: string
   searchField?: HepatitisCSearchField
   search?: string
   sortBy?: HepatitisCSortField
@@ -179,6 +186,7 @@ export interface HepatitisCReportResult {
   items: HepatitisCItem[]
   summary: HepatitisCSummary
   adpMapping: HepatitisCAdpMappingCheck
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Business Logic Helpers ─────────────────────────────────
@@ -623,6 +631,9 @@ export class RcmHepatitisCService {
       summaryCohort = summaryCohort.filter((item) => item.isUc)
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     const totalVisits = summaryCohort.length
     const uniqueHnSet = new Set<string>()
     let compensatedVisits = 0
@@ -708,6 +719,9 @@ export class RcmHepatitisCService {
     }
     if (withLabOnly) {
       filtered = filtered.filter((i) => i.hasLab)
+    }
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     if (search) {
@@ -833,6 +847,7 @@ export class RcmHepatitisCService {
       totalPages,
       items: pagedItems,
       summary,
+      repBreakdown,
     }
   }
 }

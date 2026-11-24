@@ -9,6 +9,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 18.2 รายชื่อผู้รับบริการยาเม็ดเสริมธาตุเหล็ก ADP (14001) ──
 
@@ -86,6 +92,7 @@ export interface IronSupplementsReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface IronSupplementsAdpMappingItem {
@@ -196,6 +203,7 @@ export interface IronSupplementsReportResult {
   pageSize: number
   totalPages: number
   items: IronSupplementsItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 // ── 2. Helper Functions ───────────────────────────────────────────────────────
@@ -638,6 +646,9 @@ export class RcmIronSupplementsService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Card Filter on summaryCohort
     let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
@@ -664,6 +675,9 @@ export class RcmIronSupplementsService {
     }
     if (targetAgeOnly && cardFilter !== 'TARGET_AGE') {
       filtered = filtered.filter((i) => i.isTargetAge)
+    }
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Apply Search
@@ -777,6 +791,7 @@ export class RcmIronSupplementsService {
       pageSize,
       totalPages,
       items: paginatedItems,
+      repBreakdown,
     }
   }
 }

@@ -4,6 +4,7 @@ import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   NEW_ECLAIM_ADP_CODES,
   KRUNGTHAI_ADP_CODES,
@@ -306,6 +307,9 @@ export async function getFamilyPlanning93Report(
       authenRate,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Interactive Card Filter
     let filteredItems = summaryCohort
     if (cardFilter === 'COMPENSATED') {
@@ -326,6 +330,10 @@ export async function getFamilyPlanning93Report(
       filteredItems = filteredItems.filter((i) => Boolean(i.claimcode))
     } else if (cardFilter === 'NO_AUTHEN') {
       filteredItems = filteredItems.filter((i) => !i.claimcode)
+    }
+
+    if (selectedReps.length > 0) {
+      filteredItems = filteredItems.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Apply Search Filter
@@ -412,6 +420,7 @@ export async function getFamilyPlanning93Report(
       pageSize,
       totalPages,
       items: pagedItems,
+      repBreakdown,
     }
   }
 
@@ -457,10 +466,11 @@ export async function queryOpdRows(
           COALESCE(e.income, 0) AS money_eclaim,
           COALESCE(r.income, 0) AS money_rep,
           COALESCE(n.income, 0) AS money_invoice,
-          COALESCE(n.rep, r.rep, IF(m.status = '4', m.rep, NULL), '') AS rep,
+          COALESCE(n.rep, r.rep, NULLIF(nn.Rep, ''), IF(m.status = '4', m.rep, NULL), '') AS rep,
           CASE
             WHEN n.vn IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
             WHEN r.vn IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
             WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
             ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
           END AS status
@@ -516,6 +526,7 @@ export async function queryOpdRows(
             AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
           GROUP BY vn
         ) n ON n.vn = o.vn
+        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
         LEFT JOIN (
           SELECT m.opdseq AS vn,
                  MAX(m.eclaim_no) AS eclaim_no,
@@ -653,10 +664,11 @@ export async function queryIpdRows(
           COALESCE(e.income, 0) AS money_eclaim,
           COALESCE(r.income, 0) AS money_rep,
           COALESCE(n.income, 0) AS money_invoice,
-          COALESCE(n.rep, r.rep, IF(m.status = '4', m.rep, NULL), '') AS rep,
+          COALESCE(n.rep, r.rep, NULLIF(nn.Rep, ''), IF(m.status = '4', m.rep, NULL), '') AS rep,
           CASE
             WHEN n.an IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
             WHEN r.an IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
+            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
             WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
             ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
           END AS status
@@ -712,6 +724,7 @@ export async function queryIpdRows(
             AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
           GROUP BY an
         ) n ON n.an = i.an
+        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
         LEFT JOIN (
           SELECT m.an,
                  MAX(m.eclaim_no) AS eclaim_no,

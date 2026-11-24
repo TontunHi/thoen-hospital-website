@@ -27,6 +27,7 @@ const healthScreeningParamsSchema = z.object({
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),
   pttypes: z.string().max(300).optional(),
+  reps: z.string().max(2000).optional(),
   targetAgeOnly: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),

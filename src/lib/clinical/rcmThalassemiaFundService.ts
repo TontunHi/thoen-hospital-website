@@ -8,6 +8,12 @@ import {
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── Types: กองทุน Thalassemia (ผู้ป่วยนอก OPD & ผู้ป่วยใน IPD) ──────────────────────
 
@@ -68,6 +74,7 @@ export interface ThalassemiaFundReportParams extends FiscalDateRangeParams {
   pageSize?: number
   exportAll?: boolean
   refresh?: boolean
+  reps?: string
 }
 
 export interface ThalassemiaOpdItem {
@@ -178,6 +185,7 @@ export interface ThalassemiaOpdReportResult {
   totalPages: number
   summary: ThalassemiaFundSummary
   items: ThalassemiaOpdItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 export interface ThalassemiaIpdReportResult {
@@ -193,6 +201,7 @@ export interface ThalassemiaIpdReportResult {
   totalPages: number
   summary: ThalassemiaFundSummary
   items: ThalassemiaIpdItem[]
+  repBreakdown?: RepBreakdownSummary
 }
 
 export interface AnClinicalDetails {
@@ -296,9 +305,16 @@ export class RcmThalassemiaFundService {
             l.Hct_Date AS hct_date,
             COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
             r.rep AS seamless,
-            re.rep AS rep,
-            IF(re.rep IS NOT NULL AND re.rep <> '', 'มี Rep แล้ว', IF(r.rep IS NOT NULL AND r.rep <> '', 'มี Seamless', 'รอส่งเบิก')) AS status,
-            IFNULL(re.compensated, 0) AS compensated
+            COALESCE(NULLIF(nhso.rep, ''), NULLIF(re.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, '')) AS rep,
+            CASE
+              WHEN NULLIF(nhso.rep, '') IS NOT NULL THEN 'NHSO :: มี Invoice แล้ว'
+              WHEN NULLIF(re.rep, '') IS NOT NULL THEN 'Rep :: มี Rep แล้ว'
+              WHEN NULLIF(nn.Rep, '') IS NOT NULL THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
+              WHEN m.statusname IS NOT NULL THEN m.statusname
+              WHEN NULLIF(r.rep, '') IS NOT NULL THEN 'มี Seamless'
+              ELSE 'รอส่งเบิก'
+            END AS status,
+            COALESCE(nhso.compensated, re.compensated, nn.Income, m.compensated, 0) AS compensated
           FROM (
             SELECT 
               o.vn,
@@ -371,10 +387,31 @@ export class RcmThalassemiaFundService {
             SELECT vn,
                    GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
                    SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.repeclaim
+            WHERE department = 'OP' AND IFNULL(vn, '') <> ''
+              AND (errorcode = '' OR errorcode IS NULL)
+            GROUP BY vn
+          ) nhso ON nhso.vn = t.vn
+          LEFT JOIN (
+            SELECT vn,
+                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
+                   SUM(IFNULL(compensated, 0)) AS compensated
             FROM rcmdb.repdata
-            WHERE IFNULL(vn, '') <> ''
+            WHERE department = 'OP' AND IFNULL(vn, '') <> ''
+              AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY vn
           ) re ON re.vn = t.vn
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = t.vn
+          LEFT JOIN (
+            SELECT m.opdseq AS vn,
+                   SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
+                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
+            FROM eclaimdb.m_registerdata m
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq, '') <> ''
+            GROUP BY m.opdseq
+          ) m ON m.vn = t.vn
           WHERE (t.drugname IS NOT NULL OR b.vn IS NOT NULL)
           GROUP BY t.vn
           ORDER BY t.vstdate DESC, t.vsttime DESC;
@@ -488,6 +525,9 @@ export class RcmThalassemiaFundService {
       ucRate: totalCases > 0 ? (ucCases / totalCases) * 100 : 0,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Card Filter
     let filtered = summaryCohort
     if (cardFilter === 'WITH_DRUG') {
@@ -504,6 +544,10 @@ export class RcmThalassemiaFundService {
       filtered = filtered.filter((i) => !i.isCompensated)
     } else if (cardFilter === 'UC_ONLY') {
       filtered = filtered.filter((i) => i.isUc)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Apply Unified Search
@@ -570,6 +614,7 @@ export class RcmThalassemiaFundService {
       totalPages,
       summary,
       items: pagedItems,
+      repBreakdown,
     }
   }
 
@@ -629,9 +674,16 @@ export class RcmThalassemiaFundService {
             l.Hct_Result AS hct_result,
             l.Hct_Date AS hct_date,
             r.rep AS seamless,
-            re.rep AS rep,
-            IF(re.rep IS NOT NULL AND re.rep <> '', 'มี Rep แล้ว', IF(r.rep IS NOT NULL AND r.rep <> '', 'มี Seamless', 'รอส่งเบิก')) AS status,
-            IFNULL(re.compensated, 0) AS compensated
+            COALESCE(NULLIF(nhso.rep, ''), NULLIF(re.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, '')) AS rep,
+            CASE
+              WHEN NULLIF(nhso.rep, '') IS NOT NULL THEN 'NHSO :: มี Invoice แล้ว'
+              WHEN NULLIF(re.rep, '') IS NOT NULL THEN 'Rep :: มี Rep แล้ว'
+              WHEN NULLIF(nn.Rep, '') IS NOT NULL THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
+              WHEN m.statusname IS NOT NULL THEN m.statusname
+              WHEN NULLIF(r.rep, '') IS NOT NULL THEN 'มี Seamless'
+              ELSE 'รอส่งเบิก'
+            END AS status,
+            COALESCE(nhso.compensated, re.compensated, nn.Income, m.compensated, 0) AS compensated
           FROM (
             SELECT 
               i.an,
@@ -699,10 +751,31 @@ export class RcmThalassemiaFundService {
             SELECT an,
                    GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
                    SUM(IFNULL(compensated, 0)) AS compensated
+            FROM rcmdb.repeclaim
+            WHERE department = 'IP' AND IFNULL(an, '') <> ''
+              AND (errorcode = '' OR errorcode IS NULL)
+            GROUP BY an
+          ) nhso ON nhso.an = t.an
+          LEFT JOIN (
+            SELECT an,
+                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
+                   SUM(IFNULL(compensated, 0)) AS compensated
             FROM rcmdb.repdata
-            WHERE IFNULL(an, '') <> ''
+            WHERE department = 'IP' AND IFNULL(an, '') <> ''
+              AND (errorcode = '' OR errorcode IS NULL)
             GROUP BY an
           ) re ON re.an = t.an
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = t.an
+          LEFT JOIN (
+            SELECT m.an,
+                   SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
+                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
+            FROM eclaimdb.m_registerdata m
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            WHERE m.person_type = '2' AND IFNULL(m.an, '') <> ''
+            GROUP BY m.an
+          ) m ON m.an = t.an
           WHERE (t.icd9 REGEXP '9904' OR t.drugname IS NOT NULL OR b.an IS NOT NULL)
           GROUP BY t.an
           ORDER BY t.dchdate DESC, t.admdate DESC;
@@ -816,6 +889,9 @@ export class RcmThalassemiaFundService {
       ucRate: totalCases > 0 ? (ucCases / totalCases) * 100 : 0,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedReps = parseRepFilterParam(params.reps)
+
     // Apply Card Filter
     let filtered = summaryCohort
     if (cardFilter === 'WITH_DRUG') {
@@ -832,6 +908,10 @@ export class RcmThalassemiaFundService {
       filtered = filtered.filter((i) => !i.isCompensated)
     } else if (cardFilter === 'UC_ONLY') {
       filtered = filtered.filter((i) => i.isUc)
+    }
+
+    if (selectedReps.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedReps))
     }
 
     // Apply Unified Search
@@ -898,6 +978,7 @@ export class RcmThalassemiaFundService {
       totalPages,
       summary,
       items: pagedItems,
+      repBreakdown,
     }
   }
 

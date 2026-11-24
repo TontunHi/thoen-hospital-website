@@ -40,6 +40,9 @@ import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import PttypeMultiSelect from '@/components/rcm/PttypeMultiSelect'
 import './familyPlanning.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTHS = [
   { value: 1, label: 'มกราคม' },
@@ -163,6 +166,15 @@ export default function FamilyPlanningReportClient({
     authenRate: 0,
   })
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Selected row for detail modal
   const [selectedItem, setSelectedItem] = useState<FamilyPlanningItem | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -222,6 +234,9 @@ export default function FamilyPlanningReportClient({
         if (pttypes.length > 0) {
           query.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          query.set('reps', selectedReps.join(','))
+        }
 
         if (forceRefresh) {
           query.set('refresh', 'true')
@@ -244,6 +259,9 @@ export default function FamilyPlanningReportClient({
         if (data.adpMapping) {
           setAdpMapping(data.adpMapping)
         }
+        if (data.repBreakdown !== undefined) {
+          setRepBreakdown(data.repBreakdown ?? null)
+        }
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return
         const e = err as Error
@@ -255,7 +273,7 @@ export default function FamilyPlanningReportClient({
         }
       }
     },
-    [apiEndpoint, ds1, ds2, patientType, cardFilter, pttypes, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+    [apiEndpoint, ds1, ds2, patientType, cardFilter, pttypes, selectedReps, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
@@ -304,6 +322,9 @@ export default function FamilyPlanningReportClient({
 
       if (pttypes.length > 0) {
         query.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        query.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(`${apiEndpoint}?${query.toString()}`)
@@ -747,6 +768,19 @@ export default function FamilyPlanningReportClient({
         </div>
       </div>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* 5. Toolbar: Search and Filter Chips */}
       <div className="fp-toolbar">
         <div className="fp-search-box">
@@ -780,6 +814,24 @@ export default function FamilyPlanningReportClient({
             items={items}
         
           />
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         <div className="fp-filter-chips">
           <button

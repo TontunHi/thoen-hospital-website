@@ -3,11 +3,12 @@ import {
   RcmThalassemiaFundService,
   type ThalassemiaFundReportParams,
 } from '../rcmThalassemiaFundService'
-import { invalidateCacheKey } from '@/lib/cache'
+import { clearMemoryCache, invalidateCacheKey } from '@/lib/cache'
 
 describe('RcmThalassemiaFundService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
     invalidateCacheKey('rcm-thalassemia-fund-opd-2026-10-01-2027-09-30')
     invalidateCacheKey('rcm-thalassemia-fund-ipd-2026-10-01-2027-09-30')
   })
@@ -303,6 +304,101 @@ describe('RcmThalassemiaFundService', () => {
 
       const resNotFound = await RcmThalassemiaFundService.getAnClinicalDetails('999999', mockExecutor)
       expect(resNotFound).toBeNull()
+    })
+  })
+
+  describe('4-table Primary REP SQL and reps filtering', () => {
+    it('queries all 4 primary REP tables and filters OPD report by selected reps', async () => {
+      const mockRawRows = [
+        {
+          vn: '691001123456',
+          hn: '0012345',
+          cid: '1529900012345',
+          ptname: 'นาย สมชาย ใจดี',
+          sex_code: '1',
+          birthday: '1995-05-15',
+          age: 31,
+          vstdate: '2026-10-15',
+          vsttime: '09:30:00',
+          maininscl: 'UCS',
+          pttypename: 'ประกันสุขภาพถ้วนหน้า',
+          department: 'ห้องตรวจอายุรกรรม',
+          clinic: 'อายุรกรรม',
+          icd10: 'D561',
+          icd9: null,
+          drugname: null,
+          blood: null,
+          blood_date: null,
+          blood_qty: 0,
+          ferritin_result: null,
+          ferritin_date: null,
+          hb_result: null,
+          hb_date: null,
+          hct_result: null,
+          hct_date: null,
+          authencode: 'AUTH1234',
+          seamless: null,
+          rep: 'OP_11111',
+          status: 'มี Rep แล้ว',
+          compensated: 3500,
+        },
+        {
+          vn: '691002654321',
+          hn: '0067890',
+          cid: '1529900067890',
+          ptname: 'นางสาว สมศรี รักดี',
+          sex_code: '2',
+          birthday: '2000-08-20',
+          age: 26,
+          vstdate: '2026-11-05',
+          vsttime: '10:15:00',
+          maininscl: 'OFC',
+          pttypename: 'ข้าราชการ',
+          department: 'ห้องตรวจกุมารเวชกรรม',
+          clinic: 'กุมารเวชกรรม',
+          icd10: 'D582',
+          icd9: null,
+          drugname: null,
+          blood: null,
+          blood_date: null,
+          blood_qty: 0,
+          ferritin_result: null,
+          ferritin_date: null,
+          hb_result: null,
+          hb_date: null,
+          hct_result: null,
+          hct_date: null,
+          authencode: 'AUTH5678',
+          seamless: null,
+          rep: 'OP_22222',
+          status: 'มี Rep แล้ว',
+          compensated: 1200,
+        },
+      ]
+
+      const mockExecutor = vi
+        .fn()
+        .mockResolvedValueOnce(mockRawRows)
+        .mockResolvedValueOnce([])
+
+      const res = await RcmThalassemiaFundService.getOpdReport(
+        {
+          startDate: '2026-10-01',
+          endDate: '2027-09-30',
+          reps: 'OP_11111',
+        },
+        mockExecutor
+      )
+
+      const executedSql = String(mockExecutor.mock.calls[0]?.[0] ?? '')
+      expect(executedSql).toContain('rcmdb.repeclaim')
+      expect(executedSql).toContain('rcmdb.repdata')
+      expect(executedSql).toContain('rcmdb.neweclaim')
+      expect(executedSql).toContain('eclaimdb.m_registerdata')
+
+      expect(res.items).toHaveLength(1)
+      expect(res.items[0].vn).toBe('691001123456')
+      expect(res.repBreakdown?.repItems).toHaveLength(2)
     })
   })
 })

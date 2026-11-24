@@ -99,7 +99,7 @@ const mockItemIpd: StreptokinaseItem = {
 
 const mockInitialData: StreptokinaseReportResult = {
   title: 'กองทุนยา Streptokinase',
-  subtitle: 'รายชื่อรับยา Streptokinase',
+  subtitle: 'รายชื่อรับยา Stroke และSTEMI',
   patientType: 'OPD',
   ds1: '2026-10-01',
   ds2: '2027-09-30',
@@ -159,7 +159,7 @@ describe('StreptokinaseRecipientsClient', () => {
   it('renders title, breadcrumb, KPI cards, and patient row without button column', () => {
     render(<StreptokinaseRecipientsClient initialData={mockInitialData} />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'รายชื่อรับยา Streptokinase' })).toBeDefined()
+    expect(screen.getByRole('heading', { level: 1, name: 'รายชื่อรับยา Stroke และSTEMI' })).toBeDefined()
     expect(screen.getByText(/สมชาย/)).toBeDefined()
     expect(screen.getByText('0012345')).toBeDefined()
 
@@ -210,6 +210,23 @@ describe('StreptokinaseRecipientsClient', () => {
     expect(
       screen.getByText(/คำเตือน: ยังไม่ได้ Map ADP Code สำหรับยากลุ่ม STEMI \/ Streptokinase/)
     ).toBeDefined()
+  })
+
+  it('defaults to IPD mode first when initialData is omitted', async () => {
+    render(<StreptokinaseRecipientsClient />)
+
+    const typeButtons = screen
+      .getByRole('group', { name: 'ประเภทผู้ป่วย' })
+      .querySelectorAll('button')
+    expect(typeButtons[0]?.textContent).toContain('ผู้ป่วยใน (IPD)')
+    expect(typeButtons[1]?.textContent).toContain('ผู้ป่วยนอก (OPD)')
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('patientType=IPD'),
+        expect.anything()
+      )
+    })
   })
 
   it('switches patient type to IPD and triggers fetch', async () => {

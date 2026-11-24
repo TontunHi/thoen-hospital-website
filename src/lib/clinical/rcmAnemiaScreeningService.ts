@@ -9,6 +9,12 @@ import {
   type QueryExecutor,
 } from './rcmDashboardService'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  buildRepBreakdownSummary,
+  matchesRepFilter,
+  parseRepFilterParam,
+  type RepBreakdownSummary,
+} from './rcmRepTagHelper'
 
 // ── 1. Domain Types: 17.1 บริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก อายุ 13-24 ปี ADP (13001) ──
 
@@ -48,6 +54,7 @@ export interface AnemiaScreeningReportParams extends FiscalDateRangeParams {
   cardFilter?: AnemiaScreeningCardFilter
   ucOnly?: boolean
   pttypes?: string
+  reps?: string
   targetAgeOnly?: boolean
   searchField?: AnemiaScreeningSearchField
   search?: string
@@ -159,6 +166,7 @@ export interface AnemiaScreeningReportResult {
   sortBy: AnemiaScreeningSortField
   sortOrder: 'asc' | 'desc'
   summary: AnemiaScreeningSummary
+  repBreakdown?: RepBreakdownSummary
   totalCount: number
   page: number
   pageSize: number
@@ -611,6 +619,9 @@ export class RcmAnemiaScreeningService {
       totalIncome,
     }
 
+    const repBreakdown = buildRepBreakdownSummary(summaryCohort)
+    const selectedRepsList = parseRepFilterParam(params.reps)
+
     // Apply Card Filter
     let filtered = summaryCohort
     if (cardFilter === 'COMPENSATED') {
@@ -635,6 +646,9 @@ export class RcmAnemiaScreeningService {
     }
     if (targetAgeOnly && cardFilter !== 'TARGET_AGE') {
       filtered = filtered.filter((i) => i.isTargetAge)
+    }
+    if (selectedRepsList.length > 0) {
+      filtered = filtered.filter((i) => matchesRepFilter(i, selectedRepsList))
     }
 
     // Apply Search
@@ -739,6 +753,7 @@ export class RcmAnemiaScreeningService {
       sortBy,
       sortOrder,
       summary,
+      repBreakdown,
       totalCount,
       page,
       pageSize,

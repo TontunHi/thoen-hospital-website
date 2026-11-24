@@ -42,6 +42,9 @@ import { InstrumentSelect } from './InstrumentSelect'
 import { exportRcmExcel } from '@/lib/clinical/rcmExcelExport'
 import './page.css'
 import { RcmSeamlessSubAmount, RcmSeamlessRepBadges, RcmSeamlessModalSection } from '@/components/rcm/RcmSeamlessRepDisplay'
+import RepMultiSelect, { RcmRepActiveBadge } from '@/components/rcm/RepMultiSelect'
+import RcmRepTagDashboard from '@/components/rcm/RcmRepTagDashboard'
+import { buildRepBreakdownSummary, type RepBreakdownSummary } from '@/lib/clinical/rcmRepTagHelper'
 
 const THAI_MONTH_OPTIONS = [
   { value: 1, label: 'มกราคม' },
@@ -183,6 +186,15 @@ export default function InstrumentFundClient({
     }
   }, [search])
 
+  const [selectedReps, setSelectedReps] = useState<string[]>([])
+  const [repBreakdown, setRepBreakdown] = useState<RepBreakdownSummary | null>(
+    initialData?.repBreakdown ?? null
+  )
+  const effectiveRepBreakdown = useMemo(
+    () => repBreakdown ?? buildRepBreakdownSummary(items),
+    [repBreakdown, items]
+  )
+
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
@@ -212,6 +224,9 @@ export default function InstrumentFundClient({
         if (pttypes.length > 0) {
           queryParams.set('pttypes', pttypes.join(','))
         }
+        if (selectedReps.length > 0) {
+          queryParams.set('reps', selectedReps.join(','))
+        }
         if (refresh) queryParams.set('refresh', 'true')
 
         const res = await fetch(
@@ -235,6 +250,7 @@ export default function InstrumentFundClient({
         if (data.summary) setSummary(data.summary)
         if (data.adpMapping) setAdpMapping(data.adpMapping)
         if (data.availableInstruments) setAvailableInstruments(data.availableInstruments)
+        if (data.repBreakdown !== undefined) setRepBreakdown(data.repBreakdown ?? null)
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return
         setError(
@@ -256,6 +272,7 @@ export default function InstrumentFundClient({
       cardFilter,
       instrumentFilter,
       pttypes,
+      selectedReps,
       debouncedSearch,
       sortBy,
       sortOrder,
@@ -389,6 +406,9 @@ export default function InstrumentFundClient({
       }
       if (pttypes.length > 0) {
         queryParams.set('pttypes', pttypes.join(','))
+      }
+      if (selectedReps.length > 0) {
+        queryParams.set('reps', selectedReps.join(','))
       }
 
       const res = await fetch(
@@ -824,6 +844,19 @@ export default function InstrumentFundClient({
         </button>
       </section>
 
+      <RcmRepTagDashboard
+        repBreakdown={effectiveRepBreakdown}
+        selectedReps={selectedReps}
+        onSelectGroupReps={(reps) => {
+          setSelectedReps(reps)
+          setCurrentPage(1)
+        }}
+        onClearReps={() => {
+          setSelectedReps([])
+          setCurrentPage(1)
+        }}
+      />
+
       {/* 5. Search Bar & Status */}
       <div className="inst-filter-bar">
         <div className="inst-search-wrapper">
@@ -857,6 +890,24 @@ export default function InstrumentFundClient({
             items={items}
           />
         </div>
+
+        <RepMultiSelect
+          selectedReps={selectedReps}
+          onChange={(reps) => {
+            setSelectedReps(reps)
+            setCurrentPage(1)
+          }}
+          repBreakdown={effectiveRepBreakdown}
+          items={items}
+        />
+
+        <RcmRepActiveBadge
+          selectedReps={selectedReps}
+          onClear={() => {
+            setSelectedReps([])
+            setCurrentPage(1)
+          }}
+        />
 
         {/* ตัวกรองรายการอวัยวะเทียมและอุปกรณ์ */}
         <div className="inst-instrument-filter-wrapper">
@@ -1127,6 +1178,11 @@ export default function InstrumentFundClient({
                           {row.statusCode === 'UNSENT' && <AlertTriangle size={12} />}
                           <span>{row.status}</span>
                         </span>
+                        {row.rep && row.rep !== '-' && (
+                          <div className="text-[11px] font-mono text-indigo-700 mt-0.5">
+                            REP: {row.rep}
+                          </div>
+                        )}
                         <RcmSeamlessRepBadges row={row} />
                       </td>
                       <td className="col-center inst-tabular">
