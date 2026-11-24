@@ -761,6 +761,32 @@ export const walkinFundReportQuerySchema = baseFiscalDateSchema
   })
   .merge(paginationSchema.partial())
 
+/**
+ * Unified Funds REP Reconciliation Query Schema (/service/dashboard-rcm/funds/rep-reconcile)
+ */
+export const fundsRepReconcileQuerySchema = baseFiscalDateSchema
+  .extend({
+    funds: z.string().max(1500).optional(),
+    focusFundId: z.string().max(80).optional(),
+    sources: z.string().max(300).optional(),
+    repPrefixes: z.string().max(1000).optional(),
+    department: z.enum(['ALL', 'OP', 'IP']).default('ALL'),
+    status: z
+      .enum(['ALL', 'COMPENSATED', 'UNCOMPENSATED', 'HAS_ERROR', 'APPEAL', 'PENDING_REP'])
+      .default('ALL'),
+    includePendingRep: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    sortBy: z
+      .enum(['admdate', 'rep', 'vn', 'hn', 'ptname', 'fund', 'income', 'compensated', 'diff'])
+      .default('admdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
 
 /**
  * Helper to validate URLSearchParams using a Zod schema cleanly

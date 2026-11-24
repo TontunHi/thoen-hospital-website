@@ -137,6 +137,23 @@ export const RCM_NAV_CONFIG: NavGroup[] = [
     title: 'กองทุน',
     modules: [
       {
+        id: 'funds-rep-reconcile',
+        code: 'ALL-REP',
+        label: 'รวมข้อมูล REP กองทุน (All Funds REP)',
+        href: '/service/dashboard-rcm/funds/rep-reconcile',
+        keywords: [
+          'rep',
+          'reconcile',
+          'seamless',
+          'repdata',
+          'repeclaim',
+          'neweclaim',
+          'm_registerdata',
+          'รวมกองทุน',
+          'ชดเชย',
+        ],
+      },
+      {
         id: 'ccs',
         code: 'CCS',
         label: 'คัดกรองมะเร็งปากมดลูก',

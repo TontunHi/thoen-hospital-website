@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { logger } from './logger'
 import { MemberAuthService } from './auth/MemberAuthService'
+import { getSwrCachedData } from './cache'
 
 function getSecret(): string {
   const secret = process.env.MEMBER_SESSION_SECRET
@@ -293,7 +294,17 @@ export async function destroyMemberSession(): Promise<void> {
 export async function fetchAuthenticatedMember(username: string, email: string): Promise<AuthenticatedMember | null> {
   try {
     const { apiGateway } = await import('./apiGateway')
-    const res = await apiGateway.app.getMemberAuthContext(username, email)
+    const res = await getSwrCachedData(
+      `member-auth-ctx:${username}:${email}`,
+      async () => {
+        const ctx = await apiGateway.app.getMemberAuthContext(username, email)
+        if (!ctx || !ctx.member) {
+          throw new Error('MEMBER_NOT_FOUND')
+        }
+        return ctx
+      },
+      { staleTtlMs: 30_000, maxTtlMs: 120_000 }
+    )
     if (!res || !res.member) return null
 
     const user = res.member

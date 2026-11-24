@@ -118,6 +118,20 @@ describe('MemberAuthService', () => {
     it('verifySession throws on bad JWT signature', async () => {
       await expect(authService.verifySession('bad.token')).rejects.toThrow('Invalid signature')
     })
+
+    it('verifySession throws when user is missing from DB', async () => {
+      mockDb.mockResolvedValue([])
+      const token = await authService.buildSession({ username: '123', email: 'test@test.com', role: 'admin' })
+      await expect(authService.verifySession(token)).rejects.toThrow('User no longer active')
+    })
+
+    it('verifySession preserves signed session on transient Gateway 429/503 error', async () => {
+      mockDb.mockRejectedValue(new Error('Rate limit exceeded, retry in 35 seconds'))
+      const token = await authService.buildSession({ username: '123', email: 'test@test.com', role: 'staff' })
+      const verified = await authService.verifySession(token)
+      expect(verified.username).toBe('123')
+      expect(verified.role).toBe('staff')
+    })
   })
 
   describe('exchangeThaidCode', () => {

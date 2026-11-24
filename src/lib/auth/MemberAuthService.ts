@@ -12,6 +12,7 @@ import {
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { queryMemberDb } from '@/lib/memberDb'
+import { getSwrCachedData } from '@/lib/cache'
 import { renderOtpEmailHtml, renderOtpEmailText, formatMaskedCitizenId } from '@/lib/auth/otpEmailTemplate'
 
 export interface OtpRequestResult {
@@ -244,19 +245,45 @@ export class MemberAuthService {
       throw new Error('Absolute session max age exceeded')
     }
 
-    // Check member still active
-    const users = await this.db(
-      'SELECT role FROM members WHERE username = ? AND email = ? LIMIT 1',
-      [payload.username, payload.email]
-    )
-    if (!users || users.length === 0) {
-      throw new Error('User no longer active')
+    // Check member still active (cached with single-flight SWR when using live queryMemberDb,
+    // and resilient to transient Gateway 429/503/504 errors so valid sessions are never dropped mid-work)
+    let resolvedRole = payload.role || 'member'
+    try {
+      const fetchActiveRows = async () =>
+        this.db(
+          'SELECT role FROM members WHERE username = ? AND email = ? LIMIT 1',
+          [payload.username, payload.email]
+        )
+
+      const users = this.queryExecutor
+        ? await fetchActiveRows()
+        : await getSwrCachedData(
+            `member-session-active:${payload.username}:${payload.email}`,
+            fetchActiveRows,
+            { staleTtlMs: 30_000, maxTtlMs: 120_000 }
+          )
+
+      if (!users || users.length === 0) {
+        throw new Error('User no longer active')
+      }
+      resolvedRole = users[0].role || resolvedRole
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg === 'User no longer active') {
+        throw err
+      }
+      // Transient API Gateway errors (e.g. 429 Too Many Requests, 503 Unavailable, 504 Timeout):
+      // HMAC signature + expiration are already verified above, so preserve the session.
+      logger.warn(
+        { username: formatMaskedCitizenId(payload.username), error: msg },
+        'Transient DB/Gateway error during verifySession; preserving cryptographically valid session'
+      )
     }
 
     return {
       username: payload.username,
       email: payload.email,
-      role: users[0].role || 'member',
+      role: resolvedRole,
       aud: payload.aud,
       iat,
       exp: payload.exp,

@@ -600,7 +600,59 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       const res = await client.get<any>(`/api/v1/clinical/rcm/rep-funds/lookup${qs}`)
       const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
       return { success: true, data }
-    }
+    },
+
+    getRcmFundsRepReconcile: (
+      params?: {
+        ds1?: string
+        ds2?: string
+        funds?: string
+        focusFundId?: string
+        sources?: string
+        repPrefixes?: string
+        department?: string
+        status?: string
+        includePendingRep?: boolean
+        search?: string
+        sortBy?: string
+        sortOrder?: string
+        page?: number
+        pageSize?: number
+        exportAll?: boolean
+        refresh?: boolean
+      },
+      options?: RequestOptions
+    ) => {
+      const q = new URLSearchParams()
+      if (params?.ds1) q.set('ds1', params.ds1)
+      if (params?.ds2) q.set('ds2', params.ds2)
+      if (params?.funds) q.set('funds', params.funds)
+      if (params?.focusFundId) q.set('focusFundId', params.focusFundId)
+      if (params?.sources) q.set('sources', params.sources)
+      if (params?.repPrefixes) q.set('repPrefixes', params.repPrefixes)
+      if (params?.department) q.set('department', params.department)
+      if (params?.status) q.set('status', params.status)
+      if (params?.includePendingRep) q.set('includePendingRep', 'true')
+      if (params?.search) q.set('search', params.search)
+      if (params?.sortBy) q.set('sortBy', params.sortBy)
+      if (params?.sortOrder) q.set('sortOrder', params.sortOrder)
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.pageSize) q.set('pageSize', String(params.pageSize))
+      if (params?.exportAll) q.set('exportAll', 'true')
+      if (params?.refresh) q.set('refresh', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return client.get<any>(`/api/v1/clinical/rcm/funds-rep-reconcile${qs}`, {
+        timeoutMs: 90000,
+        ...options,
+      })
+    },
+
+    getRcmFundsRepReconcileVnDetails: (vn: string, options?: RequestOptions) => {
+      return client.get<any>(
+        `/api/v1/clinical/rcm/funds-rep-reconcile/vn-details?vn=${encodeURIComponent(vn)}`,
+        { timeoutMs: 30000, ...options }
+      )
+    },
   }
   return ns
 }

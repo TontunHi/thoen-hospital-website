@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { apiGateway } from '@/lib/apiGateway'
-import { getCachedData } from '@/lib/cache'
+import { getSwrCachedData } from '@/lib/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,14 +24,14 @@ interface RduFolder {
 
 export async function GET() {
   try {
-    // Short cache for 10 seconds to improve performance across rapid Navbar calls
+    // SWR cache with single-flight deduplication to avoid bursting the Gateway on Navbar loads
     const cacheKey = 'public_rdu_folders_tree'
-    const result = await getCachedData<RduFolder[]>(
+    const result = await getSwrCachedData<RduFolder[]>(
       cacheKey,
       async () => {
         return (await apiGateway.app.getRduTree({ includeInactive: false })) as RduFolder[]
       },
-      10000
+      { staleTtlMs: 30000, maxTtlMs: 300000 }
     )
 
     return NextResponse.json({ success: true, folders: result })
