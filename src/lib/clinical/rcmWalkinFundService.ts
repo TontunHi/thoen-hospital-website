@@ -1,12 +1,16 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
@@ -194,7 +198,7 @@ export class RcmWalkinFundService {
    * Check if ADP code 'WALKIN' is mapped in s_drugitems table.
    */
   static async checkAdpMapping(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway,
     refresh?: boolean
   ): Promise<WalkinAdpMappingCheck> {
     const adpCode = 'WALKIN'
@@ -204,75 +208,17 @@ export class RcmWalkinFundService {
     }
     return getCachedData(
       cacheKey,
-      async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                adpCode,
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) = ?
-            ORDER BY icode ASC;
-          `
-          const rows = (await executor(sql, [adpCode], { timeoutMs: 15000 })) as any[]
-          const items: WalkinAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-          }))
-
-          return {
-            adpCode,
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            items,
-          }
-        } catch {
-          return {
-            adpCode,
-            isMapped: false,
-            mappedCount: 0,
-            items: [],
-          }
-        }
-      },
+      async () => fetchAdpMappingViaGateway(adpCode, gateway, { refresh }),
       600000 // Cache TTL 10 minutes
     )
   }
 
   /**
-   * Generate Walkin Fund Report:
-   * - Queries visits with ADP code 'WALKIN' in opitemrece via Driving Subquery Pattern
-   * - Resolves AuthenCode, patient info, diagnosis, and reimbursement statuses
-   * - Aggregates KPIs, calculates card filter counts, supports sorting, search, pagination.
+   * Generate Walkin Fund Report via API Gateway.
    */
   static async getReportData(
     params: WalkinFundReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<WalkinFundReportResult> {
     const adpCode = 'WALKIN'
     const reportTitle = 'กองทุน Walkin: รายชื่อผู้รับบริการจาก ADP (WALKIN)'
@@ -297,137 +243,12 @@ export class RcmWalkinFundService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const sql = `
-          SELECT 
-            o.vn,
-            o.an,
-            IFNULL(pt.cid, '') AS cid,
-            o.hn,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-            IFNULL(pt.sex, '') AS sex_code,
-            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-            IFNULL(nat.name, pt.nationality) AS nation,
-            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-            IFNULL(ptt.hipdata_code, '') AS maininscl,
-            ptt.name AS pttypename,
-            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-            dep.department AS department,
-            spc.name AS clinic,
-            v.pdx,
-            v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-            v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-            IFNULL(v.income, 0) AS income,
-            dd.name AS listname,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
-            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-            rep.transactiontype,
-            nhso.rep AS invoice,
-            IFNULL(nhso.compensated, 0) AS invoice_compensated,
-            rep.agency AS resource,
-            rep.subfund,
-            rep.remark,
-            rep.projectcode
-          FROM (
-            SELECT 
-              oo.vn,
-              oo.an,
-              oo.vstdate,
-              GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-            FROM opitemrece oo
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE IFNULL(oo.vn, '') <> ''
-              AND oo.vstdate BETWEEN ? AND ?
-              AND TRIM(d.nhso_adp_code) = ?
-            GROUP BY oo.vn
-          ) dd
-          JOIN ovst o ON o.vn = dd.vn
-          LEFT JOIN patient pt ON pt.hn = o.hn
-          LEFT JOIN vn_stat v ON v.vn = o.vn
-          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-          LEFT JOIN spclty spc ON spc.spclty = o.spclty
-          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: มี Invoice แล้ว' AS statusname
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) nhso ON nhso.vn = o.vn
-          LEFT JOIN (
-            SELECT vn,
-                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
-                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
-                   GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
-                   GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
-                   GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
-                   GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype,
-                   GROUP_CONCAT(DISTINCT remark SEPARATOR ',') AS remark,
-                   GROUP_CONCAT(DISTINCT projectcode SEPARATOR ',') AS projectcode
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-            GROUP BY vn
-          ) rep ON rep.vn = o.vn
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-          LEFT JOIN (
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-          ORDER BY o.hn ASC, o.vn ASC;
-        `
-
-        const queryParams = [ds1, ds2, adpCode, ds1, ds2, ds1, ds2]
-
-        let rows: any[] = []
-        let adpCheck: WalkinAdpMappingCheck = {
-          adpCode,
-          isMapped: false,
-          mappedCount: 0,
-          items: [],
-        }
-
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              this.checkAdpMapping(executor, params.refresh),
-              apiGateway.clinical.getRcmFundData('walkin', { ds1, ds2, adpCode }),
-            ])
-            adpCheck = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [dbRows, mRes] = await Promise.all([
-            executor(sql, queryParams, { timeoutMs: 90000 }),
-            this.checkAdpMapping(executor, params.refresh),
-          ])
-          rows = (dbRows as any[]) || []
-          adpCheck = mRes
-        }
-
+        const [adpCheck, gwRes] = await Promise.all([
+          this.checkAdpMapping(gateway, params.refresh),
+          gateway.getRcmFundData('walkin', { ds1, ds2, adpCode }),
+        ])
         return {
-          rawRows: rows,
+          rawRows: extractFundRawRows(gwRes),
           adpMapping: adpCheck,
         }
       },
@@ -493,7 +314,7 @@ export class RcmWalkinFundService {
     })
 
     // กรองระดับ Cohort ด้วยสิทธิ์การรักษา (pttypes มาก่อน, รองรับ ucOnly fallback)
-    transformedItems = await enrichItemsWithSeamlessCache(cacheKey, transformedItems, executor, Boolean(params.refresh))
+    transformedItems = await enrichItemsWithSeamlessCache(cacheKey, transformedItems, resolveSeamlessFetcher(gateway), Boolean(params.refresh))
     let summaryCohort = transformedItems
     if (params.pttypes) {
       summaryCohort = transformedItems.filter((i) =>

@@ -1,5 +1,3 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
@@ -12,7 +10,14 @@ import {
   type RepTagEntry,
   type RepTagGroupSummary,
 } from './rcmRepTagHelper'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { resolveFiscalDateRange, type FiscalDateRangeParams } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 
 export {
   NO_REP_FILTER_VALUE,
@@ -224,7 +229,7 @@ export class RcmHealthScreeningService {
    */
   static async checkAdpMapping(
     adpCode: '12003' | '12004',
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway,
     refresh?: boolean
   ): Promise<HealthScreeningAdpMappingCheck> {
     const cacheKey = `rcm-health-screening-adp-mapping-check-${adpCode}`
@@ -233,80 +238,17 @@ export class RcmHealthScreeningService {
     }
     return getCachedData(
       cacheKey,
-      async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                adpCode,
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) IN (?)
-            ORDER BY icode ASC;
-          `
-          const rows = (await executor(sql, [adpCode], { timeoutMs: 15000 })) as any[]
-          const items: HealthScreeningAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-          }))
-
-          return {
-            adpCode,
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            items,
-          }
-        } catch {
-          return {
-            adpCode,
-            isMapped: false,
-            mappedCount: 0,
-            items: [],
-          }
-        }
-      },
+      async () => fetchAdpMappingViaGateway(adpCode, gateway, { refresh }),
       600000 // Cache TTL 10 minutes
     )
   }
 
   /**
-   * Generate 14.5 or 14.6 Health Screening Report:
-   * 14.5 Fasting Plasma Glucose (ADP 12003)
-   * 14.6 Total Cholesterol / HDL (ADP 12004)
-   *
-   * Direct translation and modernization of legacy FoxPro logic:
-   * - Queries visits with dispensing of specified ADP code in opitemrece
-   * - Calculates previous claims in same fiscal year (camedate < vstdate)
-   * - Identifies target age (45-59 years for 14.6)
-   * - Aggregates KPIs, calculates card filter counts, supports sorting, search, pagination.
+   * Generate 14.5 or 14.6 Health Screening Report via API Gateway.
    */
   static async getHealthScreeningReport(
     params: HealthScreeningReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<HealthScreeningReportResult> {
     const adpCode = params.adpCode || '12003'
     const is146 = adpCode === '12004'
@@ -337,174 +279,14 @@ export class RcmHealthScreeningService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const includeNondrugItems = is146
-        const sql = `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-              IFNULL(nat.name, pt.nationality) AS nation,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              IFNULL(ptt.hipdata_code, '') AS maininscl,
-              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-              ptt.name AS pttypename,
-              dep.department AS department,
-              spc.name AS clinic,
-              v.pdx,
-              v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-              v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-              IFNULL(v.income, 0) AS income,
-              dd.name AS listname,
-              ${includeNondrugItems ? 'nd.listname1 AS listname1,' : 'NULL AS listname1,'}
-              GROUP_CONCAT(DISTINCT DATE_FORMAT(prev_claim.camedate, '%Y-%m-%d') ORDER BY prev_claim.camedate SEPARATOR ', ') AS camedate,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
-              COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-              COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-              rep.agency,
-              rep.fund,
-              rep.subfund,
-              rep.errorcode,
-              rep.transactiontype
-            FROM (
-              SELECT 
-                oo.vn,
-                GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              WHERE IFNULL(oo.vn, '') <> ''
-                AND oo.vstdate BETWEEN ? AND ?
-                AND TRIM(d.nhso_adp_code) IN (?)
-              GROUP BY oo.vn
-            ) dd
-            JOIN ovst o ON o.vn = dd.vn
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            ${
-              includeNondrugItems
-                ? `
-            LEFT JOIN (
-              SELECT 
-                a.vn, 
-                GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ') AS listname1
-              FROM (
-                SELECT DISTINCT oo_nd.vn
-                FROM opitemrece oo_nd
-                JOIN s_drugitems d_nd ON d_nd.icode = oo_nd.icode
-                WHERE IFNULL(oo_nd.vn, '') <> ''
-                  AND oo_nd.vstdate BETWEEN ? AND ?
-                  AND TRIM(d_nd.nhso_adp_code) IN (?)
-              ) target_vn
-              JOIN opitemrece a ON a.vn = target_vn.vn
-              JOIN nondrugitems b ON b.icode = a.icode
-              GROUP BY a.vn
-            ) nd ON nd.vn = o.vn
-            `
-                : ''
-            }
-            LEFT JOIN (
-              SELECT DISTINCT
-                o2.hn,
-                o2.vstdate AS camedate
-              FROM opitemrece oo2
-              JOIN s_drugitems d2 ON d2.icode = oo2.icode
-              JOIN ovst o2 ON o2.vn = oo2.vn
-              WHERE IFNULL(oo2.vn, '') <> ''
-                AND oo2.vstdate BETWEEN ? AND ?
-                AND o2.vstdate BETWEEN ? AND ?
-                AND TRIM(d2.nhso_adp_code) IN (?)
-            ) prev_claim ON prev_claim.hn = o.hn AND prev_claim.camedate < o.vstdate
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn,
-                     GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
-                     SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                     IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
-                     GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
-                     GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                     GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
-                     GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
-                     GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-              FROM eclaimdb.m_registerdata m
-              LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-              GROUP BY m.opdseq
-            ) m ON m.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ?
-            GROUP BY o.vn
-            ORDER BY o.hn ASC, o.vn ASC;
-        `
-
-        const sqlParams: any[] = [
-          ds1, ds2, adpCode, // dd
-          ...(includeNondrugItems ? [ds1, ds2, adpCode] : []), // nd (target_vn)
-          fiscalStartYear, ds2, fiscalStartYear, ds2, adpCode, // prev_claim
-          ds1, ds2, // nhso
-          ds1, ds2, // rep
-          ds1, ds2, // main ovst o
-        ]
-
-        let rows: any[] = []
-        let mappingRes: HealthScreeningAdpMappingCheck = {
-          adpCode,
-          isMapped: false,
-          mappedCount: 0,
-          items: [],
+        const [mappingRes, gwRes] = await Promise.all([
+          RcmHealthScreeningService.checkAdpMapping(adpCode, gateway, Boolean(params.refresh)),
+          gateway.getRcmFundData('health-screening', { ds1, ds2, adpCode }),
+        ])
+        return {
+          rawRows: extractFundRawRows(gwRes),
+          adpMapping: mappingRes,
         }
-
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmHealthScreeningService.checkAdpMapping(adpCode, executor, Boolean(params.refresh)),
-              apiGateway.clinical.getRcmFundData('health-screening', { ds1, ds2, adpCode }),
-            ])
-            mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [mRes, dbRows] = await Promise.all([
-            RcmHealthScreeningService.checkAdpMapping(adpCode, executor, Boolean(params.refresh)),
-            executor(sql, sqlParams, { timeoutMs: 90000 }),
-          ])
-          rows = (dbRows as any[]) || []
-          mappingRes = mRes
-        }
-
-        return { rawRows: rows, adpMapping: mappingRes }
       },
       180000 // Cache TTL 3 minutes
     )
@@ -585,7 +367,7 @@ export class RcmHealthScreeningService {
     const repsParam = selectedRepsList.length > 0 ? selectedRepsList.join(',') : undefined
 
     // Cohort for summary KPIs (Full page filter Q2: A)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, resolveSeamlessFetcher(gateway), Boolean(params.refresh))
     const summaryCohort = selectedPttypesList.length > 0
       ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
       : allItems

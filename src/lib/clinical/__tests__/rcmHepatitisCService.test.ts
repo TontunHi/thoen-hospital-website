@@ -3,6 +3,7 @@ import {
   RcmHepatitisCService,
   isUniversalCoverageScheme,
 } from '../rcmHepatitisCService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmHepatitisCService', () => {
   describe('isUniversalCoverageScheme', () => {
@@ -27,34 +28,38 @@ describe('RcmHepatitisCService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped = true when s_drugitems contains ADP 36333', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '1590001',
-          name: 'HCV RNA Viral Load (36333)',
-          strength: null,
-          nhso_adp_code: '36333',
-        },
-      ])
+    it('returns isMapped = true when gateway contains ADP 36333', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '36333',
+        adpItems: [
+          {
+            icode: '1590001',
+            name: 'HCV RNA Viral Load (36333)',
+            strength: null,
+            nhso_adp_code: '36333',
+          },
+        ],
+      })
 
-      const result = await RcmHepatitisCService.checkAdpMapping('36333', mockExecutor, true)
+      const result = await RcmHepatitisCService.checkAdpMapping('36333', mockGateway, true)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('1590001')
     })
 
     it('returns isMapped = false when no rows match', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({ adpCode: '36333', adpItems: [] })
 
-      const result = await RcmHepatitisCService.checkAdpMapping('36333', mockExecutor, true)
+      const result = await RcmHepatitisCService.checkAdpMapping('36333', mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
     })
 
-    it('handles database errors gracefully and returns isMapped = false', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB Timeout'))
+    it('handles gateway errors gracefully and returns isMapped = false', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: '36333', adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway Timeout'))
 
-      const result = await RcmHepatitisCService.checkAdpMapping('36333', mockExecutor, true)
+      const result = await RcmHepatitisCService.checkAdpMapping('36333', mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
     })
@@ -205,18 +210,18 @@ describe('RcmHepatitisCService', () => {
       },
     ]
 
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM s_drugitems WHERE TRIM(nhso_adp_code)')) {
-        return [
-          {
-            icode: '1590001',
-            name: 'HCV RNA Viral Load (36333)',
-            strength: null,
-            nhso_adp_code: '36333',
-          },
-        ]
-      }
-      return sampleDbRows
+    const mockExecutor = createMockRcmFundGateway({
+      adpCode: '36333',
+      fundKey: 'hepatitis-c',
+      adpItems: [
+        {
+          icode: '1590001',
+          name: 'HCV RNA Viral Load (36333)',
+          strength: null,
+          nhso_adp_code: '36333',
+        },
+      ],
+      rawRows: sampleDbRows,
     })
 
     it('generates report with correct summary KPIs and items', async () => {

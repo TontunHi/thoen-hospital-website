@@ -1,13 +1,17 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
   buildRepBreakdownSummary,
@@ -202,7 +206,7 @@ export class RcmClopidogrelService {
    * Check if Clopidogrel ADP code '37999771001' (or legacy '3799977101') is mapped in s_drugitems or drugitems.
    */
   static async checkAdpMapping(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway,
     refresh?: boolean
   ): Promise<ClopidogrelAdpMappingCheck> {
     const adpCode = CLOPIDOGREL_ADP_CODE
@@ -214,91 +218,17 @@ export class RcmClopidogrelService {
 
     return getCachedData(
       cacheKey,
-      async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            let gwRes = await apiGateway.clinical.getAdpMapping(CLOPIDOGREL_ADP_CODE)
-            if (!gwRes?.isMapped) {
-              gwRes = await apiGateway.clinical.getAdpMapping(CLOPIDOGREL_ADP_CODE_LEGACY)
-            }
-            if (gwRes && typeof gwRes.isMapped === 'boolean' && gwRes.isMapped) {
-              return {
-                adpCode: gwRes.adpCode || CLOPIDOGREL_ADP_CODE,
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) IN (?, ?) OR TRIM(nhso_adp_code) LIKE '379997710%'
-            UNION
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM drugitems 
-            WHERE TRIM(nhso_adp_code) IN (?, ?) OR TRIM(nhso_adp_code) LIKE '379997710%'
-            ORDER BY icode ASC;
-          `
-          const rows = (await executor(
-            sql,
-            [CLOPIDOGREL_ADP_CODE, CLOPIDOGREL_ADP_CODE_LEGACY, CLOPIDOGREL_ADP_CODE, CLOPIDOGREL_ADP_CODE_LEGACY],
-            { timeoutMs: 15000 }
-          )) as any[]
-          const items: ClopidogrelAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-          }))
-
-          return {
-            adpCode: CLOPIDOGREL_ADP_CODE,
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            items,
-          }
-        } catch {
-          return {
-            adpCode: CLOPIDOGREL_ADP_CODE,
-            isMapped: false,
-            mappedCount: 0,
-            items: [],
-          }
-        }
-      },
+      async () => fetchAdpMappingViaGateway(adpCode, gateway, { includeDrugItems: true, refresh }),
       600000 // Cache TTL 10 minutes
     )
   }
 
   /**
-   * Generate กองทุนยา Clopidogrel Report:
-   * - Queries OPD visits with dispensing of Clopidogrel drug (name REGEXP, ADP 3799977101, or DID prefix)
-   * - Uses Driving Subquery Pattern on opitemrece for fast execution (<0.1s)
-   * - Joins patient, pttype, doctor, authencode, and claim settlement tables (repeclaim, repdata, eclaimdb)
-   * - Aggregates KPIs, calculates card filter counts, supports sorting, search, pagination.
+   * Generate กองทุนยา Clopidogrel Report via API Gateway.
    */
   static async getClopidogrelReport(
     params: ClopidogrelReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<ClopidogrelReportResult> {
     const categoryTitle = 'กองทุนยา Clopidogrel'
     const reportTitle = 'รายชื่อการใช้ยา Clopidogrel'
@@ -323,178 +253,16 @@ export class RcmClopidogrelService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const sql = `
-          SELECT 
-            o.vn,
-            IFNULL(pt.cid, '') AS cid,
-            o.hn,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, '')) AS firstName,
-            IFNULL(pt.lname, '') AS lastName,
-            DATE_FORMAT(pt.birthday, '%Y-%m-%d') AS birthday,
-            IFNULL(pt.sex, '') AS sex_code,
-            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-            IFNULL(ptt.hipdata_code, '') AS maininscl,
-            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-            ptt.name AS pttypename,
-            dep.department AS department,
-            spc.name AS clinic,
-            doc.name AS doctorname,
-            v.pdx,
-            v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-            IFNULL(v.income, 0) AS hosxp_money,
-            dd.icode,
-            dd.drugname,
-            dd.units,
-            dd.adpcode,
-            dd.tmt,
-            dd.did,
-            dd.qty,
-            dd.money,
-            COALESCE(nhso.statusname, m.statusname, rep.statusname, nn.StatusName, '- :: ยังไม่ได้ส่ง') AS status_eclaim,
-            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-            rep.agency,
-            rep.fund AS fund,
-            rep.subfund AS subfund,
-            rep.errorcode
-          FROM (
-            SELECT 
-              oo.vn,
-              GROUP_CONCAT(DISTINCT target_items.icode SEPARATOR ', ') AS icode,
-              GROUP_CONCAT(DISTINCT target_items.drug_name SEPARATOR ', ') AS drugname,
-              GROUP_CONCAT(DISTINCT target_items.units SEPARATOR ', ') AS units,
-              GROUP_CONCAT(DISTINCT target_items.nhso_adp_code SEPARATOR ', ') AS adpcode,
-              GROUP_CONCAT(DISTINCT target_items.tmt SEPARATOR ', ') AS tmt,
-              GROUP_CONCAT(DISTINCT target_items.did SEPARATOR ', ') AS did,
-              SUM(oo.qty) AS qty,
-              SUM(oo.sum_price) AS money,
-              MAX(oo.doctor) AS doctor_code
-            FROM (
-              SELECT 
-                d.icode, 
-                CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) AS drug_name, 
-                d.units,
-                d.nhso_adp_code,
-                IFNULL(d.tpu_code_list, d.sks_drug_code) AS tmt,
-                d.did
-              FROM drugitems d 
-              WHERE (
-                d.name REGEXP 'Clopidrogrel|Clopidogrel' 
-                OR TRIM(d.nhso_adp_code) IN (?, ?)
-                OR TRIM(d.nhso_adp_code) LIKE '379997710%'
-                OR d.did LIKE ?
-              )
-            ) target_items
-            JOIN opitemrece oo ON oo.icode = target_items.icode
-            WHERE IFNULL(oo.vn, '') <> ''
-              AND oo.vstdate BETWEEN ? AND ?
-            GROUP BY oo.vn
-            HAVING qty > 0
-          ) dd
-          JOIN ovst o ON o.vn = dd.vn
-          LEFT JOIN patient pt ON pt.hn = o.hn
-          LEFT JOIN vn_stat v ON v.vn = o.vn
-          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-          LEFT JOIN spclty spc ON spc.spclty = o.spclty
-          LEFT JOIN doctor doc ON doc.code = dd.doctor_code
-          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: ได้รับ Invoice แล้ว' AS statusname
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) nhso ON nhso.vn = o.vn
-          LEFT JOIN (
-            SELECT vn,
-                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
-                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: ส่ง Rep แล้ว', NULL) AS statusname,
-                   GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
-                   GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
-                   GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-            GROUP BY vn
-          ) rep ON rep.vn = o.vn
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-          LEFT JOIN (
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-          WHERE o.vstdate BETWEEN ? AND ?
-          GROUP BY o.vn
-          ORDER BY o.vstdate DESC, o.vsttime DESC, o.vn DESC;
-        `
-
-        const sqlParams: any[] = [
-          CLOPIDOGREL_ADP_CODE,
-          CLOPIDOGREL_ADP_CODE_LEGACY,
-          `${CLOPIDOGREL_DID_PREFIX}%`, // d.did LIKE ?
-          ds1, ds2, // dd oo.vstdate BETWEEN ? AND ?
-          ds1, ds2, // nhso admdate
-          ds1, ds2, // rep admdate
-          ds1, ds2, // main ovst o vstdate
-        ]
-
-        let rows: any[] = []
-        let mappingRes: ClopidogrelAdpMappingCheck = {
-          adpCode: CLOPIDOGREL_ADP_CODE,
-          isMapped: false,
-          mappedCount: 0,
-          items: [],
-        }
-
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmClopidogrelService.checkAdpMapping(executor, Boolean(params.refresh)),
-              apiGateway.clinical.getRcmFundData('clopidogrel', { ds1, ds2, adpCode: CLOPIDOGREL_ADP_CODE }),
-            ])
-            mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
-              const firstRow = gwRes.data.rawRows[0]
-              // Check that Named API returned rich drug item fields (drugname or qty)
-              if (firstRow && ('drugname' in firstRow || 'qty' in firstRow)) {
-                rows = gwRes.data.rawRows
-                fetchedViaNamedApi = true
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [mRes, dbRows] = await Promise.all([
-            RcmClopidogrelService.checkAdpMapping(executor, Boolean(params.refresh)),
-            executor(sql, sqlParams, { timeoutMs: 90000 }),
-          ])
-          rows = (dbRows as any[]) || []
-          mappingRes = mRes
-        }
-
+        const [mappingRes, gwRes] = await Promise.all([
+          RcmClopidogrelService.checkAdpMapping(gateway, Boolean(params.refresh)),
+          gateway.getRcmFundData('clopidogrel', { ds1, ds2, adpCode: CLOPIDOGREL_ADP_CODE }),
+        ])
+        const rows = extractFundRawRows(gwRes)
         if (!rows || rows.length === 0) {
           invalidateCacheKey(cacheKey)
         }
-
         return {
-          rawRows: rows || [],
+          rawRows: rows,
           adpMapping: mappingRes,
         }
       },
@@ -569,7 +337,7 @@ export class RcmClopidogrelService {
     const enrichedAllItems = await enrichItemsWithSeamlessCache(
       cacheKey,
       allItems,
-      executor,
+      resolveSeamlessFetcher(gateway),
       Boolean(params.refresh)
     )
 

@@ -1,7 +1,12 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { resolveFiscalDateRange, type FiscalDateRangeParams } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
@@ -207,62 +212,17 @@ export class RcmPregnancyTestService {
    * select count(*) from s_drugitems where nhso_adp_code in ('31101', '30014')
    */
   static async checkPregnancyTestAdpMapping(
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<PregnancyTestAdpMappingCheck> {
     const cacheKey = 'rcm-pregnancy-test-adp-mapping-check'
     return getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('31101,30014')
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) IN ('31101', '30014')
-            ORDER BY nhso_adp_code ASC, icode ASC;
-          `
-          const rows = (await executor(sql, [], { timeoutMs: 15000 })) as any[]
-          const items: PregnancyTestAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-          }))
-
-          return {
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            items,
-          }
-        } catch {
-          return {
-            isMapped: false,
-            mappedCount: 0,
-            items: [],
-          }
+        const res = await fetchAdpMappingViaGateway('31101,30014', gateway)
+        return {
+          isMapped: res.isMapped,
+          mappedCount: res.mappedCount,
+          items: res.items,
         }
       },
       600000 // Cache TTL 10 minutes
@@ -271,16 +231,11 @@ export class RcmPregnancyTestService {
 
   /**
    * Generate 8.1 Pregnancy testing report (การทดสอบการตั้งครรภ์).
-   * Direct translation of legacy FoxPro logic:
-   * - Queries visits with dispensing of ADP 31101 / 30014 in opitemrece
-   * - Joins HOSxP patient, ovst, vn_stat, pttype, departments, specialty
-   * - Joins UPT lab results from lab_head + lab_order (preg|UPT)
-   * - Joins NHSO/Rep/NewEclaim/EClaim reimbursement data
-   * - Calculates KPIs and supports card click filtering, UC-only filtering, search and pagination.
+   * Fetches visits with dispensing of ADP 31101 / 30014 and UPT lab results via API Gateway.
    */
   static async getPregnancyTestReport(
     params: PregnancyTestReportParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<PregnancyTestReportResult> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: PregnancyTestCardFilter = params.cardFilter || 'ALL'
@@ -302,136 +257,14 @@ export class RcmPregnancyTestService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const sql = `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              IFNULL(ptt.hipdata_code, '') AS maininscl,
-              CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-              ptt.pttype_eclaim_id AS pttype_eclaim_id,
-              dep.department AS department,
-              spc.name AS clinic,
-              v.pdx,
-              CONCAT_WS(', ', NULLIF(v.dx0, ''), NULLIF(v.dx1, ''), NULLIF(v.dx2, ''), NULLIF(v.dx3, ''), NULLIF(v.dx4, ''), NULLIF(v.dx5, '')) AS sdx,
-              IFNULL(v.income, 0) AS income,
-              dd.labname AS drug_labname,
-              dd.name AS listname,
-              lo.lab_order_result AS lab_order_result,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
-              COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-              COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-              re.fund,
-              re.subfund
-            FROM ovst o
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            JOIN (
-              SELECT 
-                oo.vn,
-                GROUP_CONCAT(IF(TRIM(d.nhso_adp_code) = '31101', CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS labname,
-                GROUP_CONCAT(IF(TRIM(d.nhso_adp_code) = '30014', CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              WHERE IFNULL(oo.vn, '') <> ''
-                AND oo.vstdate BETWEEN ? AND ?
-                AND TRIM(d.nhso_adp_code) IN ('31101', '30014')
-              GROUP BY oo.vn
-            ) dd ON dd.vn = o.vn
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            LEFT JOIN (
-              SELECT 
-                lh.vn,
-                GROUP_CONCAT(DISTINCT lo.lab_order_result SEPARATOR ', ') AS lab_order_result
-              FROM lab_head lh
-              JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-              WHERE lh.order_date BETWEEN ? AND ?
-                AND (lo.lab_items_name_ref REGEXP 'preg|UPT' OR lo.lab_items_name_ref LIKE '%pregnancy%')
-              GROUP BY lh.vn
-            ) lo ON lo.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'Rep :: มี Rep แล้ว' AS statusname
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                     GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              GROUP BY vn
-            ) re ON re.vn = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-              FROM eclaimdb.m_registerdata m
-              LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-              GROUP BY m.opdseq
-            ) m ON m.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ?
-            GROUP BY o.vn
-            ORDER BY o.vstdate DESC, o.vsttime DESC;
-        `
-        const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
-
-        let rows: Record<string, unknown>[] = []
-        let mappingRes: PregnancyTestAdpMappingCheck = {
-          isMapped: false,
-          mappedCount: 0,
-          items: [],
+        const [mappingRes, gwRes] = await Promise.all([
+          RcmPregnancyTestService.checkPregnancyTestAdpMapping(gateway),
+          gateway.getRcmFundData('pregnancy-test', { ds1, ds2 }),
+        ])
+        return {
+          rawRows: extractFundRawRows<Record<string, unknown>>(gwRes),
+          adpMapping: mappingRes,
         }
-
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmPregnancyTestService.checkPregnancyTestAdpMapping(executor),
-              apiGateway.clinical.getRcmFundData('pregnancy-test', { ds1, ds2 }),
-            ])
-            mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
-              rows = gwRes.data.rawRows as Record<string, unknown>[]
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [mRes, dbRows] = await Promise.all([
-            RcmPregnancyTestService.checkPregnancyTestAdpMapping(executor),
-            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<Record<string, unknown>[]>,
-          ])
-          rows = dbRows || []
-          mappingRes = mRes
-        }
-
-        return { rawRows: rows, adpMapping: mappingRes }
       },
       600 // Cache TTL 10 minutes
     )
@@ -485,7 +318,7 @@ export class RcmPregnancyTestService {
     })
 
     // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, resolveSeamlessFetcher(gateway), Boolean(params.refresh))
     const summaryCohort = allItems.filter((i) => {
       if (params.pttypes !== undefined) {
         return matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id)

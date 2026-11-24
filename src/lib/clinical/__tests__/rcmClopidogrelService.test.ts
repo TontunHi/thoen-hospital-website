@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import {
   RcmClopidogrelService,
   isUniversalCoverageScheme,
@@ -6,10 +7,12 @@ import {
   CLOPIDOGREL_DID_PREFIX,
   type ClopidogrelReportParams,
 } from '../rcmClopidogrelService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmClopidogrelService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   describe('isUniversalCoverageScheme', () => {
@@ -48,31 +51,34 @@ describe('RcmClopidogrelService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped true when ADP code exists', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '1540099',
-          name: 'Clopidogrel 75 mg',
-          strength: '75 mg',
-          nhso_adp_code: '37999771001',
-        },
-      ])
+    it('returns isMapped true when ADP code exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '37999771001',
+        adpItems: [
+          {
+            icode: '1540099',
+            name: 'Clopidogrel 75 mg',
+            strength: '75 mg',
+            nhso_adp_code: '37999771001',
+          },
+        ],
+      })
 
-      const result = await RcmClopidogrelService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmClopidogrelService.checkAdpMapping(mockGateway, true)
       expect(result.adpCode).toBe('37999771001')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('1540099')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('FROM s_drugitems'),
-        ['37999771001', '3799977101', '37999771001', '3799977101'],
-        expect.any(Object)
-      )
+      expect(mockGateway.getAdpMapping).toHaveBeenCalledWith('37999771001', {
+        includeDrugItems: true,
+        refresh: true,
+      })
     })
 
-    it('returns isMapped false when database query throws or returns empty', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB error'))
-      const result = await RcmClopidogrelService.checkAdpMapping(mockExecutor, true)
+    it('returns isMapped false when gateway throws or returns empty', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: '37999771001', adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway error'))
+      const result = await RcmClopidogrelService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -163,21 +169,20 @@ describe('RcmClopidogrelService', () => {
       },
     ]
 
-    const createMockExecutor = () => {
-      return vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('s_drugitems') || sql.includes('SELECT icode, name')) {
-          return Promise.resolve([
-            {
-              icode: '1540099',
-              name: 'Clopidogrel 75 mg',
-              strength: '75 mg',
-              nhso_adp_code: '3799977101',
-            },
-          ])
-        }
-        return Promise.resolve(mockRawRows)
+    const createMockExecutor = () =>
+      createMockRcmFundGateway({
+        adpCode: '37999771001',
+        fundKey: 'clopidogrel',
+        adpItems: [
+          {
+            icode: '1540099',
+            name: 'Clopidogrel 75 mg',
+            strength: '75 mg',
+            nhso_adp_code: '3799977101',
+          },
+        ],
+        rawRows: mockRawRows,
       })
-    }
 
     it('fetches and calculates summary KPIs accurately', async () => {
       const mockExecutor = createMockExecutor()

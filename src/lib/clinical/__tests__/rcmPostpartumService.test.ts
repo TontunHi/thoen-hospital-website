@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { RcmPostpartumService } from '../rcmPostpartumService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmPostpartumService (Postpartum Funds)', () => {
   beforeEach(() => {
@@ -8,16 +9,19 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
 
   describe('7.2 การตรวจหลังคลอด ADP 30015', () => {
     it('checks 30015 ADP code mapping correctly when items exist', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '3002461',
-          name: 'ตรวจหลังคลอด (Z390-391-392) 30015 Project code',
-          strength: '',
-          nhso_adp_code: '30015',
-        },
-      ])
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '30015',
+        adpItems: [
+          {
+            icode: '3002461',
+            name: 'ตรวจหลังคลอด (Z390-391-392) 30015 Project code',
+            strength: '',
+            nhso_adp_code: '30015',
+          },
+        ],
+      })
 
-      const res = await RcmPostpartumService.check30015AdpMapping(mockExecutor)
+      const res = await RcmPostpartumService.check30015AdpMapping(mockGateway)
       expect(res.isMapped).toBe(true)
       expect(res.mappedCount).toBe(1)
       expect(res.items[0].icode).toBe('3002461')
@@ -25,9 +29,9 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
     })
 
     it('handles empty ADP 30015 mapping gracefully', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({ adpCode: '30015', adpItems: [] })
 
-      const res = await RcmPostpartumService.check30015AdpMapping(mockExecutor)
+      const res = await RcmPostpartumService.check30015AdpMapping(mockGateway)
       expect(res.isMapped).toBe(false)
       expect(res.mappedCount).toBe(0)
       expect(res.items).toEqual([])
@@ -105,13 +109,13 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) {
-          return Promise.resolve([
-            { icode: '3002461', name: 'ตรวจหลังคลอด', strength: '', nhso_adp_code: '30015' },
-          ])
-        }
-        return Promise.resolve(mockRows)
+      const mockExecutor = createMockRcmFundGateway({
+        adpCode: '30015',
+        fundKey: 'postpartum',
+        adpItems: [
+          { icode: '3002461', name: 'ตรวจหลังคลอด', strength: '', nhso_adp_code: '30015' },
+        ],
+        rawRows: mockRows,
       })
 
       const result = await RcmPostpartumService.getService72Report(
@@ -155,9 +159,11 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) return Promise.resolve([])
-        return Promise.resolve(mockRows)
+      const mockExecutor = createMockRcmFundGateway({
+        adpCode: '30015',
+        fundKey: 'postpartum',
+        adpItems: [],
+        rawRows: mockRows,
       })
 
       const compOnly = await RcmPostpartumService.getService72Report(
@@ -178,12 +184,15 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
 
   describe('7.3 การจ่ายยา Triforine ADP 30016', () => {
     it('checks 30016 ADP code mapping correctly when items exist', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        { icode: '1540013', name: 'triferdine(ไตรเฟอร์ดีน)', strength: '0.15+60.18+0.4', nhso_adp_code: '30016' },
-        { icode: '3002541', name: 'ยาTriferdine หลังคลอด', strength: '', nhso_adp_code: '30016' },
-      ])
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '30016',
+        adpItems: [
+          { icode: '1540013', name: 'triferdine(ไตรเฟอร์ดีน)', strength: '0.15+60.18+0.4', nhso_adp_code: '30016' },
+          { icode: '3002541', name: 'ยาTriferdine หลังคลอด', strength: '', nhso_adp_code: '30016' },
+        ],
+      })
 
-      const res = await RcmPostpartumService.check30016AdpMapping(mockExecutor)
+      const res = await RcmPostpartumService.check30016AdpMapping(mockGateway)
       expect(res.isMapped).toBe(true)
       expect(res.mappedCount).toBe(2)
       expect(res.items[0].icode).toBe('1540013')
@@ -191,9 +200,9 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
     })
 
     it('handles empty ADP code mapping gracefully', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({ adpCode: '30016', adpItems: [] })
 
-      const res = await RcmPostpartumService.check30016AdpMapping(mockExecutor)
+      const res = await RcmPostpartumService.check30016AdpMapping(mockGateway)
       expect(res.isMapped).toBe(false)
       expect(res.mappedCount).toBe(0)
       expect(res.items).toEqual([])
@@ -271,13 +280,13 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) {
-          return Promise.resolve([
-            { icode: '1540013', name: 'triferdine', strength: '0.15', nhso_adp_code: '30016' },
-          ])
-        }
-        return Promise.resolve(mockRows)
+      const mockExecutor = createMockRcmFundGateway({
+        adpCode: '30016',
+        fundKey: 'postpartum',
+        adpItems: [
+          { icode: '1540013', name: 'triferdine', strength: '0.15', nhso_adp_code: '30016' },
+        ],
+        rawRows: mockRows,
       })
 
       const result = await RcmPostpartumService.getService30016Report(
@@ -324,9 +333,11 @@ describe('RcmPostpartumService (Postpartum Funds)', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) return Promise.resolve([])
-        return Promise.resolve(mockRows)
+      const mockExecutor = createMockRcmFundGateway({
+        adpCode: '30015',
+        fundKey: 'postpartum',
+        adpItems: [],
+        rawRows: mockRows,
       })
 
       const compensatedOnly = await RcmPostpartumService.getService30016Report(

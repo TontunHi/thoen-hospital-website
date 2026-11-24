@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import {
   RcmTelemedDrugService,
   isUniversalCoverageScheme,
 } from '../rcmTelemedDrugService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmTelemedDrugService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   describe('isUniversalCoverageScheme', () => {
@@ -30,26 +33,30 @@ describe('RcmTelemedDrugService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped true when ADP code exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '3002608',
-          name: 'ค่าให้บริการ Telemedicine Project code',
-          strength: '',
-          nhso_adp_code: 'TELMED',
-        },
-      ])
+    it('returns isMapped true when ADP code exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'TELMED',
+        adpItems: [
+          {
+            icode: '3002608',
+            name: 'ค่าให้บริการ Telemedicine Project code',
+            strength: '',
+            nhso_adp_code: 'TELMED',
+          },
+        ],
+      })
 
-      const result = await RcmTelemedDrugService.checkAdpMapping('TELMED', mockExecutor, true)
+      const result = await RcmTelemedDrugService.checkAdpMapping('TELMED', mockGateway, true)
       expect(result.adpCode).toBe('TELMED')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('3002608')
     })
 
-    it('returns isMapped false when database throws error', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB failure'))
-      const result = await RcmTelemedDrugService.checkAdpMapping('DRUGP', mockExecutor, true)
+    it('returns isMapped false when gateway throws error', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: 'DRUGP', adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway failure'))
+      const result = await RcmTelemedDrugService.checkAdpMapping('DRUGP', mockGateway, true)
       expect(result.adpCode).toBe('DRUGP')
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
@@ -119,13 +126,11 @@ describe('RcmTelemedDrugService', () => {
     ]
 
     it('generates report with summary stats and card filters correctly', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) {
-          return Promise.resolve([
-            { icode: '3002608', name: 'TelMed', strength: '', nhso_adp_code: 'TELMED' },
-          ])
-        }
-        return Promise.resolve(mockRawRows)
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'TELMED',
+        fundKey: 'telemed-drug',
+        adpItems: [{ icode: '3002608', name: 'TelMed', strength: '', nhso_adp_code: 'TELMED' }],
+        rawRows: mockRawRows,
       })
 
       const result = await RcmTelemedDrugService.getTelemedReport(
@@ -134,7 +139,7 @@ describe('RcmTelemedDrugService', () => {
           ds2: '2026-11-07',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.title).toBe('11.53 รายชื่อผู้ได้รับบริการ TelMed')
@@ -151,11 +156,11 @@ describe('RcmTelemedDrugService', () => {
     })
 
     it('filters by cardFilter COMPENSATED', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) {
-          return Promise.resolve([])
-        }
-        return Promise.resolve(mockRawRows)
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'TELMED',
+        fundKey: 'telemed-drug',
+        adpItems: [],
+        rawRows: mockRawRows,
       })
 
       const result = await RcmTelemedDrugService.getTelemedReport(
@@ -165,7 +170,7 @@ describe('RcmTelemedDrugService', () => {
           cardFilter: 'COMPENSATED',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items.length).toBe(1)
@@ -203,13 +208,11 @@ describe('RcmTelemedDrugService', () => {
     ]
 
     it('generates postal drug report correctly', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) {
-          return Promise.resolve([
-            { icode: '3002958', name: 'Postal Drug', strength: '', nhso_adp_code: 'DRUGP' },
-          ])
-        }
-        return Promise.resolve(mockRawRows)
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'DRUGP',
+        fundKey: 'drug-post',
+        adpItems: [{ icode: '3002958', name: 'Postal Drug', strength: '', nhso_adp_code: 'DRUGP' }],
+        rawRows: mockRawRows,
       })
 
       const result = await RcmTelemedDrugService.getPostalDrugReport(
@@ -218,7 +221,7 @@ describe('RcmTelemedDrugService', () => {
           ds2: '2026-11-07',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.title).toBe('11.52 รายชื่อผู้ได้รับการส่งยาทางไปรษณีย์')

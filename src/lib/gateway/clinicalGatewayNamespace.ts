@@ -412,7 +412,19 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       if (params?.serviceType) q.set('serviceType', params.serviceType as string)
       if (params?.expectedDx) q.set('expectedDx', params.expectedDx as string)
       const qs = q.toString() ? `?${q.toString()}` : ''
-      const res = await client.get<any>(`/api/v1/clinical/rcm/funds/${encodeURIComponent(fundKey)}${qs}`)
+      const DEDICATED_V2_FUNDS = new Set([
+        'cancer',
+        'walkin',
+        'clopidogrel',
+        'health-screening',
+        'hepatitis-c',
+        'postpartum',
+        'drug-post',
+      ])
+      const basePath = DEDICATED_V2_FUNDS.has(fundKey)
+        ? '/api/v1/clinical/rcm/funds-v2'
+        : '/api/v1/clinical/rcm/funds'
+      const res = await client.get<any>(`${basePath}/${encodeURIComponent(fundKey)}${qs}`)
 
       const rawRows: T[] = Array.isArray(res?.rawRows)
         ? res.rawRows
@@ -433,14 +445,25 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       }
     },
 
-    getAdpMapping: (adpCode: string, options?: { includeNonDrug?: boolean; refresh?: boolean }) => {
+    getAdpMapping: (
+      adpCode: string,
+      options?: { includeNonDrug?: boolean; includeDrugItems?: boolean; refresh?: boolean }
+    ) => {
       const q = new URLSearchParams()
       if (options?.includeNonDrug) q.set('includeNonDrug', 'true')
+      if (options?.includeDrugItems) q.set('includeDrugItems', 'true')
       if (options?.refresh) q.set('refresh', 'true')
       const qs = q.toString() ? `?${q.toString()}` : ''
-      const path = options?.includeNonDrug || options?.refresh
-        ? `/api/v1/clinical/rcm/funds/adp-mapping-v2/${encodeURIComponent(adpCode.trim())}${qs}`
-        : `/api/v1/clinical/rcm/funds/adp-mapping/${encodeURIComponent(adpCode.trim())}`
+      const trimmed = adpCode.trim()
+      const useBatch2V2 =
+        Boolean(options?.includeDrugItems) ||
+        trimmed === '37999771001' ||
+        trimmed === '3799977101'
+      const path = useBatch2V2
+        ? `/api/v1/clinical/rcm/funds-v2/adp-mapping/${encodeURIComponent(trimmed)}${qs}`
+        : options?.includeNonDrug || options?.refresh
+        ? `/api/v1/clinical/rcm/funds/adp-mapping-v2/${encodeURIComponent(trimmed)}${qs}`
+        : `/api/v1/clinical/rcm/funds/adp-mapping/${encodeURIComponent(trimmed)}`
       return client.get<{
         success: boolean
         adpCode: string

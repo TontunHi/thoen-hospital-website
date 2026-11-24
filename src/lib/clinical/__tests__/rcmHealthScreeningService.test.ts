@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import {
   RcmHealthScreeningService,
   isUniversalCoverageScheme,
   getFiscalYearStartDate,
 } from '../rcmHealthScreeningService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmHealthScreeningService (14. บริการคัดกรองและประเมินปัจจัยเสี่ยงต่อสุขภาพกาย/สุขภาพจิต-ADP)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   describe('isUniversalCoverageScheme', () => {
@@ -35,17 +38,20 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped = true when ADP code exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '30012003',
-          name: 'ตรวจระดับน้ำตาลในเลือด Fasting Plasma Glucose (FPG)',
-          strength: null,
-          nhso_adp_code: '12003',
-        },
-      ])
+    it('returns isMapped = true when ADP code exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '12003',
+        adpItems: [
+          {
+            icode: '30012003',
+            name: 'ตรวจระดับน้ำตาลในเลือด Fasting Plasma Glucose (FPG)',
+            strength: null,
+            nhso_adp_code: '12003',
+          },
+        ],
+      })
 
-      const result = await RcmHealthScreeningService.checkAdpMapping('12003', mockExecutor, true)
+      const result = await RcmHealthScreeningService.checkAdpMapping('12003', mockGateway, true)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].nhso_adp_code).toBe('12003')
@@ -53,9 +59,9 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
     })
 
     it('returns isMapped = false when ADP code is missing', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({ adpCode: '12004', adpItems: [] })
 
-      const result = await RcmHealthScreeningService.checkAdpMapping('12004', mockExecutor, true)
+      const result = await RcmHealthScreeningService.checkAdpMapping('12004', mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -186,16 +192,15 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
       },
     ]
 
-    it('aggregates summary statistics and identifies repeat claims & target age', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            { icode: '12003', name: 'FPG Test', strength: null, nhso_adp_code: '12003' },
-          ])
-        }
-        return Promise.resolve(mockRows)
+    const createMockGateway = (adpCode: '12003' | '12004' = '12003') =>
+      createMockRcmFundGateway({
+        adpCode,
+        fundKey: 'health-screening',
+        adpItems: [{ icode: adpCode, name: 'Screening', strength: null, nhso_adp_code: adpCode }],
+        rawRows: mockRows,
       })
 
+    it('aggregates summary statistics and identifies repeat claims & target age', async () => {
       const res = await RcmHealthScreeningService.getHealthScreeningReport(
         {
           adpCode: '12003',
@@ -203,7 +208,7 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           endDate: '2026-10-31',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway('12003')
       )
 
       expect(res.adpCode).toBe('12003')
@@ -220,13 +225,6 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
     })
 
     it('filters by cardFilter = REPEAT_CLAIM correctly', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([{ icode: '12003', name: 'FPG', strength: null, nhso_adp_code: '12003' }])
-        }
-        return Promise.resolve(mockRows)
-      })
-
       const res = await RcmHealthScreeningService.getHealthScreeningReport(
         {
           adpCode: '12003',
@@ -235,7 +233,7 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           cardFilter: 'REPEAT_CLAIM',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway('12003')
       )
 
       expect(res.items.length).toBe(1)
@@ -245,13 +243,6 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
     })
 
     it('filters by cardFilter = TARGET_AGE (45-59 ปี) correctly', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([{ icode: '12004', name: 'Chol', strength: null, nhso_adp_code: '12004' }])
-        }
-        return Promise.resolve(mockRows)
-      })
-
       const res = await RcmHealthScreeningService.getHealthScreeningReport(
         {
           adpCode: '12004',
@@ -260,7 +251,7 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           cardFilter: 'TARGET_AGE',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway('12004')
       )
 
       expect(res.items.length).toBe(2)
@@ -268,13 +259,6 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
     })
 
     it('filters by search keyword correctly', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([])
-        }
-        return Promise.resolve(mockRows)
-      })
-
       const res = await RcmHealthScreeningService.getHealthScreeningReport(
         {
           adpCode: '12003',
@@ -283,23 +267,15 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           search: 'สมศรี',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway('12003')
       )
 
       expect(res.items.length).toBe(1)
       expect(res.items[0].ptname).toContain('สมศรี')
     })
 
-    it('uses optimized SQL without unbounded nondrugitems scan or duplicate repdata scan', async () => {
-      const executedSqls: Array<{ sql: string; params: any[] }> = []
-      const mockExecutor = vi.fn().mockImplementation((sql: string, params: any[]) => {
-        executedSqls.push({ sql, params })
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([{ icode: '12003', name: 'FPG', strength: null, nhso_adp_code: '12003' }])
-        }
-        return Promise.resolve(mockRows)
-      })
-
+    it('delegates 14.5 (12003) and 14.6 (12004) queries to Gateway named endpoint', async () => {
+      const gw145 = createMockGateway('12003')
       await RcmHealthScreeningService.getHealthScreeningReport(
         {
           adpCode: '12003',
@@ -307,21 +283,15 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           endDate: '2026-03-31',
           refresh: true,
         },
-        mockExecutor
+        gw145
       )
+      expect(gw145.getRcmFundData).toHaveBeenCalledWith('health-screening', {
+        ds1: '2026-03-01',
+        ds2: '2026-03-31',
+        adpCode: '12003',
+      })
 
-      const reportQuery = executedSqls.find((q) => !q.sql.includes('FROM s_drugitems'))!
-      expect(reportQuery).toBeDefined()
-      // 14.5 (12003) does not display listname1, so nondrugitems join is skipped entirely
-      expect(reportQuery.sql).not.toContain('JOIN nondrugitems')
-      // Single rcmdb.repdata scan instead of 2
-      expect(reportQuery.sql.match(/FROM rcmdb\.repdata/g)?.length).toBe(1)
-      // Per-visit repeat-claim check filtered by oo2.vstdate from fiscal year start
-      expect(reportQuery.sql).toContain('prev_claim.camedate < o.vstdate')
-      expect(reportQuery.sql).toContain('oo2.vstdate BETWEEN ? AND ?')
-      expect(reportQuery.params).toContain('2025-10-01')
-
-      executedSqls.length = 0
+      const gw146 = createMockGateway('12004')
       await RcmHealthScreeningService.getHealthScreeningReport(
         {
           adpCode: '12004',
@@ -329,24 +299,16 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           endDate: '2026-03-31',
           refresh: true,
         },
-        mockExecutor
+        gw146
       )
-
-      const report146Query = executedSqls.find((q) => !q.sql.includes('FROM s_drugitems'))!
-      // 14.6 (12004) scopes nondrugitems strictly to target_vn instead of all hospital visits
-      expect(report146Query.sql).toContain('target_vn')
-      expect(report146Query.sql).toContain('JOIN nondrugitems')
-      expect(report146Query.sql.match(/FROM rcmdb\.repdata/g)?.length).toBe(1)
+      expect(gw146.getRcmFundData).toHaveBeenCalledWith('health-screening', {
+        ds1: '2026-03-01',
+        ds2: '2026-03-31',
+        adpCode: '12004',
+      })
     })
 
     it('builds repBreakdown and filters items by comma-separated reps and __NO_REP__', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([{ icode: '12003', name: 'FPG', strength: null, nhso_adp_code: '12003' }])
-        }
-        return Promise.resolve(mockRows)
-      })
-
       const filteredRep = await RcmHealthScreeningService.getHealthScreeningReport(
         {
           adpCode: '12003',
@@ -355,7 +317,7 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           reps: 'REP691001',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway('12003')
       )
 
       expect(filteredRep.items.length).toBe(1)
@@ -372,7 +334,7 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
           reps: '__NO_REP__',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway('12003')
       )
 
       expect(filteredNoRep.items.length).toBe(2)

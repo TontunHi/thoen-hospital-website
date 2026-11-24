@@ -6,6 +6,7 @@ import {
   CANCER_ADP_CODE,
   type CancerFundReportParams,
 } from '../rcmCancerFundService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmCancerFundService', () => {
   beforeEach(() => {
@@ -48,31 +49,34 @@ describe('RcmCancerFundService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped true when CANCER ADP code exists in s_drugitems or drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '1590001',
-          name: 'Paclitaxel 100 mg injection',
-          strength: '100 mg',
-          nhso_adp_code: 'CANCER',
-        },
-      ])
+    it('returns isMapped true when CANCER ADP code exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'CANCER',
+        adpItems: [
+          {
+            icode: '1590001',
+            name: 'Paclitaxel 100 mg injection',
+            strength: '100 mg',
+            nhso_adp_code: 'CANCER',
+          },
+        ],
+      })
 
-      const result = await RcmCancerFundService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmCancerFundService.checkAdpMapping(mockGateway, true)
       expect(result.adpCode).toBe('CANCER')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('1590001')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('FROM s_drugitems'),
-        ['CANCER', 'CANCER'],
-        expect.any(Object)
-      )
+      expect(mockGateway.getAdpMapping).toHaveBeenCalledWith('CANCER', {
+        includeDrugItems: true,
+        refresh: true,
+      })
     })
 
-    it('returns isMapped false when query throws or returns empty', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB error'))
-      const result = await RcmCancerFundService.checkAdpMapping(mockExecutor, true)
+    it('returns isMapped false when gateway throws or returns empty', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: 'CANCER', adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway error'))
+      const result = await RcmCancerFundService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -175,21 +179,20 @@ describe('RcmCancerFundService', () => {
       },
     ]
 
-    const createMockExecutor = () => {
-      return vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY icode ASC')) {
-          return Promise.resolve([
-            {
-              icode: '1590001',
-              name: 'Paclitaxel 100 mg injection',
-              strength: '100 mg',
-              nhso_adp_code: 'CANCER',
-            },
-          ])
-        }
-        return Promise.resolve(mockRawRows)
+    const createMockExecutor = () =>
+      createMockRcmFundGateway({
+        adpCode: 'CANCER',
+        fundKey: 'cancer',
+        adpItems: [
+          {
+            icode: '1590001',
+            name: 'Paclitaxel 100 mg injection',
+            strength: '100 mg',
+            nhso_adp_code: 'CANCER',
+          },
+        ],
+        rawRows: mockRawRows,
       })
-    }
 
     it('returns complete report with summary metrics, pagination and mapping', async () => {
       const executor = createMockExecutor()

@@ -4,6 +4,7 @@ import {
   isUniversalCoverageScheme,
 } from '../rcmWalkinFundService'
 import { clearMemoryCache } from '@/lib/cache'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmWalkinFundService', () => {
   beforeEach(() => {
@@ -28,26 +29,29 @@ describe('RcmWalkinFundService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped = true when WALKIN code exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '1000001',
-          name: 'บริการ Walkin ตรวจรักษา',
-          strength: null,
-          nhso_adp_code: 'WALKIN',
-        },
-      ])
+    it('returns isMapped = true when WALKIN code exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'WALKIN',
+        adpItems: [
+          {
+            icode: '1000001',
+            name: 'บริการ Walkin ตรวจรักษา',
+            strength: null,
+            nhso_adp_code: 'WALKIN',
+          },
+        ],
+      })
 
-      const result = await RcmWalkinFundService.checkAdpMapping(mockExecutor)
+      const result = await RcmWalkinFundService.checkAdpMapping(mockGateway)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].nhso_adp_code).toBe('WALKIN')
     })
 
     it('returns isMapped = false when no rows match', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({ adpCode: 'WALKIN', adpItems: [] })
 
-      const result = await RcmWalkinFundService.checkAdpMapping(mockExecutor)
+      const result = await RcmWalkinFundService.checkAdpMapping(mockGateway)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
     })
@@ -186,14 +190,13 @@ describe('RcmWalkinFundService', () => {
       },
     ]
 
-    const createMockExecutor = () => {
-      return vi.fn().mockImplementation(async (sql: string) => {
-        if (sql.includes('FROM s_drugitems') && !sql.includes('opitemrece')) {
-          return [{ icode: '1000001', name: 'บริการ Walkin', strength: null, nhso_adp_code: 'WALKIN' }]
-        }
-        return mockRows
+    const createMockExecutor = () =>
+      createMockRcmFundGateway({
+        adpCode: 'WALKIN',
+        fundKey: 'walkin',
+        adpItems: [{ icode: '1000001', name: 'บริการ Walkin', strength: null, nhso_adp_code: 'WALKIN' }],
+        rawRows: mockRows,
       })
-    }
 
     it('aggregates summary metrics accurately', async () => {
       const mockExecutor = createMockExecutor()
@@ -276,42 +279,27 @@ describe('RcmWalkinFundService', () => {
       expect(res.items[0].ptname).toContain('สมใจ')
     })
 
-    it('uses Two-Source ClaimCode Guard and DATETIME Boundary Guard in SQL query', async () => {
-      const mockExecutor = createMockExecutor()
+    it('calls Gateway named endpoint for WALKIN fund with date range', async () => {
+      const mockGateway = createMockExecutor()
 
       await RcmWalkinFundService.getReportData(
         { ds1: '2026-10-01', ds2: '2026-10-31', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('COALESCE(NULLIF(TRIM(cc.AuthenCode)'),
-        expect.any(Array),
-        expect.any(Object)
-      )
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('LEFT JOIN visit_pttype vt ON vt.vn = o.vn'),
-        expect.any(Array),
-        expect.any(Object)
-      )
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)'),
-        expect.any(Array),
-        expect.any(Object)
-      )
-      expect(mockExecutor).not.toHaveBeenCalledWith(
-        expect.stringContaining('m.dateadm BETWEEN ? AND ?'),
-        expect.any(Array),
-        expect.any(Object)
-      )
+      expect(mockGateway.getRcmFundData).toHaveBeenCalledWith('walkin', {
+        ds1: '2026-10-01',
+        ds2: '2026-10-31',
+        adpCode: 'WALKIN',
+      })
     })
 
     it('filters correctly with pttypes and recalculates summary', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([])
-        }
-        return Promise.resolve([
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'WALKIN',
+        fundKey: 'walkin',
+        adpItems: [],
+        rawRows: [
           {
             vn: '6910010001',
             hn: '0011111',
@@ -342,12 +330,12 @@ describe('RcmWalkinFundService', () => {
             compensated: 1500,
             rep: 'REP2',
           },
-        ])
+        ],
       })
 
       const res = await RcmWalkinFundService.getReportData(
         { ds1: '2026-10-01', ds2: '2026-10-31', pttypes: '01,02' },
-        mockExecutor
+        mockGateway
       )
 
       expect(res.items).toHaveLength(1)
@@ -357,11 +345,11 @@ describe('RcmWalkinFundService', () => {
     })
 
     it('falls back to ucOnly when pttypes is omitted', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([])
-        }
-        return Promise.resolve([
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'WALKIN',
+        fundKey: 'walkin',
+        adpItems: [],
+        rawRows: [
           {
             vn: '6910010001',
             hn: '0011111',
@@ -392,12 +380,12 @@ describe('RcmWalkinFundService', () => {
             compensated: 1500,
             rep: 'REP2',
           },
-        ])
+        ],
       })
 
       const res = await RcmWalkinFundService.getReportData(
         { ds1: '2026-10-01', ds2: '2026-10-31', ucOnly: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(res.items).toHaveLength(1)

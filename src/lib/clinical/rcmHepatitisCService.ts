@@ -1,12 +1,16 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
@@ -220,26 +224,26 @@ export class RcmHepatitisCService {
    * Pre-check whether the NHSO ADP Code is mapped in HOSxP `s_drugitems` table.
    */
   static async checkAdpMapping(
-    executorOrAdp?: QueryExecutor | string,
-    refreshOrExecutor?: boolean | QueryExecutor,
+    gatewayOrAdp?: RcmFundGatewayAdapter | string,
+    refreshOrGateway?: boolean | RcmFundGatewayAdapter,
     maybeRefresh?: boolean
   ): Promise<HepatitisCAdpMappingCheck> {
     let adpCode = '36331'
-    let executor: QueryExecutor = queryClinicalDb
+    let gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
     let refresh = false
 
-    if (typeof executorOrAdp === 'string') {
-      adpCode = executorOrAdp
-      if (typeof refreshOrExecutor === 'function') {
-        executor = refreshOrExecutor
+    if (typeof gatewayOrAdp === 'string') {
+      adpCode = gatewayOrAdp
+      if (refreshOrGateway && typeof refreshOrGateway === 'object') {
+        gateway = refreshOrGateway
       }
       if (typeof maybeRefresh === 'boolean') {
         refresh = maybeRefresh
       }
-    } else if (typeof executorOrAdp === 'function') {
-      executor = executorOrAdp
-      if (typeof refreshOrExecutor === 'boolean') {
-        refresh = refreshOrExecutor
+    } else if (gatewayOrAdp && typeof gatewayOrAdp === 'object') {
+      gateway = gatewayOrAdp
+      if (typeof refreshOrGateway === 'boolean') {
+        refresh = refreshOrGateway
       }
     }
 
@@ -250,72 +254,17 @@ export class RcmHepatitisCService {
 
     return getCachedData(
       cacheKey,
-      async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                adpCode,
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) = ?
-            ORDER BY icode ASC;
-          `
-          const rows = (await executor(sql, [adpCode], { timeoutMs: 15000 })) as any[]
-          const items: HepatitisCAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-          }))
-
-          return {
-            adpCode,
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            items,
-          }
-        } catch {
-          return {
-            adpCode,
-            isMapped: false,
-            mappedCount: 0,
-            items: [],
-          }
-        }
-      },
+      async () => fetchAdpMappingViaGateway(adpCode, gateway, { refresh }),
       600000 // Cache TTL 10 minutes
     )
   }
 
   /**
-   * Generate Hepatitis C Report (23.2 screening ADP 36331 or 23.4 confirmation ADP 36333)
+   * Generate Hepatitis C Report (23.2 screening ADP 36331 or 23.4 confirmation ADP 36333) via API Gateway.
    */
   static async getHepatitisCReport(
     params: HepatitisCReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<HepatitisCReportResult> {
     const adpCode = params.adpCode || '36331'
     const isScreening = adpCode === '36331'
@@ -348,195 +297,12 @@ export class RcmHepatitisCService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const sql = `
-          SELECT 
-            o.vn,
-            IFNULL(pt.cid, '') AS cid,
-            o.hn,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-            IFNULL(pt.sex, '') AS sex_code,
-            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-            IFNULL(nat.name, pt.nationality) AS nation,
-            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-            IFNULL(ptt.hipdata_code, '') AS maininscl,
-            ptt.name AS pttypename,
-            ptt.pttype_eclaim_id,
-            s.cc AS cc,
-            dep.department AS department,
-            spc.name AS clinic,
-            v.pdx,
-            v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-            v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-            IFNULL(v.income, 0) AS income,
-            dd.name AS listname,
-            nd.listname1 AS listname1,
-            l.labresult,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-::ยังไม่ได้ส่ง') AS status,
-            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-            pt.informaddr AS address,
-            pt.mobile_phone_number AS mobile,
-            CONCAT_WS(' / ', NULLIF(TRIM(pt.informtel), ''), NULLIF(TRIM(pt.hometel), '')) AS tel,
-            sm.status_sm,
-            sm.rep_sm,
-            IFNULL(sm.compensated_sm, 0) AS compensated_sm,
-            rep.agency,
-            rep.fund,
-            rep.subfund,
-            rep.errorcode,
-            rep.transactiontype
-          FROM (
-            SELECT 
-              oo.vn,
-              GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-            FROM opitemrece oo
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE IFNULL(oo.vn, '') <> ''
-              AND oo.vstdate BETWEEN ? AND ?
-              AND TRIM(d.nhso_adp_code) = ?
-            GROUP BY oo.vn
-          ) dd
-          JOIN ovst o ON o.vn = dd.vn
-          LEFT JOIN patient pt ON pt.hn = o.hn
-          LEFT JOIN vn_stat v ON v.vn = o.vn
-          LEFT JOIN opdscreen s ON s.vn = o.vn
-          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-          LEFT JOIN spclty spc ON spc.spclty = o.spclty
-          LEFT JOIN (
-            SELECT 
-              lh.vn,
-              GROUP_CONCAT(DISTINCT lo.lab_order_result SEPARATOR ', ') AS labresult
-            FROM lab_head lh
-            JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-            JOIN lab_items l ON l.lab_items_code = lo.lab_items_code
-            LEFT JOIN nondrugitems nd ON nd.icode = l.icode
-            LEFT JOIN s_drugitems sd ON sd.icode = l.icode
-            WHERE lh.order_date BETWEEN ? AND ?
-              AND (TRIM(IFNULL(nd.nhso_adp_code, '')) = ? OR TRIM(IFNULL(sd.nhso_adp_code, '')) = ?)
-            GROUP BY lh.vn
-          ) l ON l.vn = o.vn
-          LEFT JOIN (
-            SELECT 
-              a.vn, 
-              GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ') AS listname1
-            FROM (
-              SELECT DISTINCT oo_nd.vn
-              FROM opitemrece oo_nd
-              JOIN s_drugitems d_nd ON d_nd.icode = oo_nd.icode
-              WHERE IFNULL(oo_nd.vn, '') <> ''
-                AND oo_nd.vstdate BETWEEN ? AND ?
-                AND TRIM(d_nd.nhso_adp_code) = ?
-            ) target_vn
-            JOIN opitemrece a ON a.vn = target_vn.vn
-            JOIN nondrugitems b ON b.icode = a.icode
-            GROUP BY a.vn
-          ) nd ON nd.vn = o.vn
-          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: มี Invoice แล้ว' AS statusname
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) nhso ON nhso.vn = o.vn
-          LEFT JOIN (
-            SELECT vn,
-                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
-                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
-                   GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
-                   GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
-                   GROUP_CONCAT(DISTINCT errorcode SEPARATOR ',') AS errorcode,
-                   GROUP_CONCAT(DISTINCT transactiontype SEPARATOR ',') AS transactiontype
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-            GROUP BY vn
-          ) rep ON rep.vn = o.vn
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-          LEFT JOIN (
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-          LEFT JOIN (
-            SELECT
-              vn,
-              GROUP_CONCAT(DISTINCT status SEPARATOR ', ') AS status_sm,
-              GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep_sm,
-              SUM(IFNULL(compensated, 0)) AS compensated_sm
-            FROM rcmdb.seamless
-            WHERE IFNULL(vn, '') <> ''
-            GROUP BY vn
-          ) sm ON sm.vn = o.vn
-          GROUP BY o.vn
-          ORDER BY o.hn ASC, o.vn ASC;
-        `
-
-        const queryParams = [
-          ds1,
-          ds2,
-          adpCode,
-          ds1,
-          ds2,
-          adpCode,
-          adpCode,
-          ds1,
-          ds2,
-          adpCode,
-          ds1,
-          ds2,
-          ds1,
-          ds2,
-        ]
-
-        let rows: any[] = []
-        let adpCheck: HepatitisCAdpMappingCheck = {
-          adpCode,
-          isMapped: false,
-          mappedCount: 0,
-          items: [],
-        }
-
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              this.checkAdpMapping(adpCode, executor, params.refresh),
-              apiGateway.clinical.getRcmFundData('hepatitis-c', { ds1, ds2, adpCode }),
-            ])
-            adpCheck = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [dbRows, mRes] = await Promise.all([
-            executor(sql, queryParams, { timeoutMs: 90000 }) as Promise<any[]>,
-            this.checkAdpMapping(adpCode, executor, params.refresh),
-          ])
-          rows = dbRows || []
-          adpCheck = mRes
-        }
-
+        const [adpCheck, gwRes] = await Promise.all([
+          this.checkAdpMapping(adpCode, gateway, params.refresh),
+          gateway.getRcmFundData('hepatitis-c', { ds1, ds2, adpCode }),
+        ])
         return {
-          rawRows: rows || [],
+          rawRows: extractFundRawRows(gwRes),
           adpMapping: adpCheck,
         }
       },
@@ -620,7 +386,7 @@ export class RcmHepatitisCService {
     })
 
     // Calculate Summary Aggregates (Full Page Filter based on pttypes / ucOnly)
-    allDomainItems = await enrichItemsWithSeamlessCache(cacheKey, allDomainItems, executor, Boolean(params.refresh))
+    allDomainItems = await enrichItemsWithSeamlessCache(cacheKey, allDomainItems, resolveSeamlessFetcher(gateway), Boolean(params.refresh))
     let summaryCohort = allDomainItems
     if (params.pttypes) {
       const selectedPttypesList = params.pttypes.split(',').map((p) => p.trim()).filter(Boolean)

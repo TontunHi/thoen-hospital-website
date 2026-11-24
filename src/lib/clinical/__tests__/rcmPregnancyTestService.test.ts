@@ -4,6 +4,7 @@ import {
   determinePregnancyLabStatus,
 } from '../rcmPregnancyTestService'
 import { invalidateCacheKey } from '@/lib/cache'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmPregnancyTestService (8.1 การทดสอบการตั้งครรภ์)', () => {
   beforeEach(() => {
@@ -51,23 +52,26 @@ describe('RcmPregnancyTestService (8.1 การทดสอบการตั�
   })
 
   describe('checkPregnancyTestAdpMapping', () => {
-    it('returns isMapped: true when 31101 or 30014 exist in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        { icode: '3000101', name: 'Pregnancy test UPT', strength: '', nhso_adp_code: '31101' },
-        { icode: '3000102', name: 'ตรวจการตั้งครรภ์', strength: '', nhso_adp_code: '30014' },
-      ])
+    it('returns isMapped: true when 31101 or 30014 exist via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '31101,30014',
+        adpItems: [
+          { icode: '3000101', name: 'Pregnancy test UPT', strength: '', nhso_adp_code: '31101' },
+          { icode: '3000102', name: 'ตรวจการตั้งครรภ์', strength: '', nhso_adp_code: '30014' },
+        ],
+      })
 
-      const res = await RcmPregnancyTestService.checkPregnancyTestAdpMapping(mockExecutor)
+      const res = await RcmPregnancyTestService.checkPregnancyTestAdpMapping(mockGateway)
       expect(res.isMapped).toBe(true)
       expect(res.mappedCount).toBe(2)
       expect(res.items[0].nhso_adp_code).toBe('31101')
       expect(res.items[1].nhso_adp_code).toBe('30014')
     })
 
-    it('returns isMapped: false when no records found in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+    it('returns isMapped: false when no records found via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: '31101,30014', adpItems: [] })
 
-      const res = await RcmPregnancyTestService.checkPregnancyTestAdpMapping(mockExecutor)
+      const res = await RcmPregnancyTestService.checkPregnancyTestAdpMapping(mockGateway)
       expect(res.isMapped).toBe(false)
       expect(res.mappedCount).toBe(0)
       expect(res.items).toEqual([])
@@ -153,19 +157,20 @@ describe('RcmPregnancyTestService (8.1 การทดสอบการตั�
       },
     ]
 
-    it('returns report structure with summary KPIs accurately', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            { icode: '3000101', name: 'UPT', strength: '', nhso_adp_code: '31101' },
-          ])
-        }
-        return Promise.resolve(mockRows)
+    const createMockGateway = (withAdp = true) =>
+      createMockRcmFundGateway({
+        adpCode: '31101,30014',
+        fundKey: 'pregnancy-test',
+        adpItems: withAdp
+          ? [{ icode: '3000101', name: 'UPT', strength: '', nhso_adp_code: '31101' }]
+          : [],
+        rawRows: mockRows,
       })
 
+    it('returns report structure with summary KPIs accurately', async () => {
       const res = await RcmPregnancyTestService.getPregnancyTestReport(
         { ds1: '2026-05-01', ds2: '2026-05-31', cardFilter: 'ALL', refresh: true },
-        mockExecutor
+        createMockGateway(true)
       )
 
       expect(res.totalCount).toBe(3)
@@ -187,15 +192,12 @@ describe('RcmPregnancyTestService (8.1 การทดสอบการตั�
     })
 
     it('filters correctly by cardFilter: COMPENSATED, POSITIVE, and UC_ONLY', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) return Promise.resolve([])
-        return Promise.resolve(mockRows)
-      })
+      const mockGateway = createMockGateway(false)
 
       // Test POSITIVE filter
       const posRes = await RcmPregnancyTestService.getPregnancyTestReport(
         { ds1: '2026-05-01', ds2: '2026-05-31', cardFilter: 'POSITIVE', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(posRes.totalCount).toBe(1)
       expect(posRes.items[0].ptname).toBe('น.ส. สมฤดี ทดสอบ')
@@ -204,7 +206,7 @@ describe('RcmPregnancyTestService (8.1 การทดสอบการตั�
       // Test UC_ONLY filter
       const ucRes = await RcmPregnancyTestService.getPregnancyTestReport(
         { ds1: '2026-05-01', ds2: '2026-05-31', cardFilter: 'UC_ONLY', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(ucRes.totalCount).toBe(2)
       expect(ucRes.items.every((i) => i.isUc)).toBe(true)
@@ -212,18 +214,13 @@ describe('RcmPregnancyTestService (8.1 การทดสอบการตั�
       // Test COMPENSATED filter
       const compRes = await RcmPregnancyTestService.getPregnancyTestReport(
         { ds1: '2026-05-01', ds2: '2026-05-31', cardFilter: 'COMPENSATED', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(compRes.totalCount).toBe(2)
       expect(compRes.items.every((i) => i.isCompensated)).toBe(true)
     })
 
     it('filters correctly by search text and searchField', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) return Promise.resolve([])
-        return Promise.resolve(mockRows)
-      })
-
       const searchRes = await RcmPregnancyTestService.getPregnancyTestReport(
         {
           ds1: '2026-05-01',
@@ -232,7 +229,7 @@ describe('RcmPregnancyTestService (8.1 การทดสอบการตั�
           search: '0010002',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway(false)
       )
       expect(searchRes.totalCount).toBe(1)
       expect(searchRes.items[0].hn).toBe('0010002')

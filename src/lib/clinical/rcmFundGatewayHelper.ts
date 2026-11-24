@@ -18,7 +18,7 @@ export interface RcmAdpMappingResult {
 export interface RcmFundGatewayAdapter {
   getAdpMapping: (
     adpCode: string,
-    options?: { includeNonDrug?: boolean; refresh?: boolean }
+    options?: { includeNonDrug?: boolean; includeDrugItems?: boolean; refresh?: boolean }
   ) => Promise<{
     success?: boolean
     adpCode?: string
@@ -73,7 +73,7 @@ export function resolveSeamlessFetcher(
 export async function fetchAdpMappingViaGateway(
   adpCode: string,
   gateway: RcmFundGatewayAdapter = defaultRcmFundGateway,
-  options?: { includeNonDrug?: boolean; refresh?: boolean }
+  options?: { includeNonDrug?: boolean; includeDrugItems?: boolean; refresh?: boolean }
 ): Promise<RcmAdpMappingResult> {
   try {
     const gwRes = await gateway.getAdpMapping(adpCode, options)
