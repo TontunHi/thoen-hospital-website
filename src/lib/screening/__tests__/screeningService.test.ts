@@ -280,17 +280,24 @@ describe('ScreeningQueueService and Utilities', () => {
     })
   })
 
-  describe('ScreeningQueueService (Zero-DB Gateway direct SQL)', () => {
-    let mockQueryExecutor: any
+  describe('ScreeningQueueService (Zero-DB Gateway Named API)', () => {
+    let mockAppGw: any
     let zeroDbService: ScreeningQueueService
 
     beforeEach(() => {
-      mockQueryExecutor = vi.fn()
-      zeroDbService = new ScreeningQueueService(null, mockQueryExecutor)
+      mockAppGw = {
+        getScreeningQueues: vi.fn(),
+        getScreeningQueueById: vi.fn(),
+        upsertScreeningQueue: vi.fn(),
+        updateScreeningQueueStatus: vi.fn(),
+        batchUpdateScreeningQueueStatus: vi.fn().mockResolvedValue({ updatedCount: 0 }),
+        cleanupScreeningQueues: vi.fn().mockResolvedValue({ count: 0 }),
+      }
+      zeroDbService = new ScreeningQueueService(null, mockAppGw)
     })
 
-    it('queries queues with Bangkok local 00:00:00 to 23:59:59 SQL bounds', async () => {
-      mockQueryExecutor.mockResolvedValue([
+    it('queries queues with Bangkok local 00:00:00 to 23:59:59 bounds', async () => {
+      mockAppGw.getScreeningQueues.mockResolvedValue([
         {
           id: 5,
           cid: '1520100109075',
@@ -311,40 +318,37 @@ describe('ScreeningQueueService and Utilities', () => {
 
       const result = await zeroDbService.getQueues({ date: '2026-10-14' })
 
-      expect(mockQueryExecutor).toHaveBeenCalledTimes(1)
-      const [sql, params] = mockQueryExecutor.mock.calls[0]
-      expect(sql).toContain('created_at >= ? AND created_at <= ?')
-      expect(params[0]).toBe('2026-10-14 00:00:00')
-      expect(params[1]).toBe('2026-10-14 23:59:59')
+      expect(mockAppGw.getScreeningQueues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startSql: '2026-10-14 00:00:00',
+          endSql: '2026-10-14 23:59:59',
+        })
+      )
       expect(result.items.length).toBe(2)
       expect(result.items[1].createdAt).toBe('2026-10-14T17:25:58.000+07:00')
     })
 
     it('queries queues without date filter when date is "all"', async () => {
-      mockQueryExecutor.mockResolvedValue([])
+      mockAppGw.getScreeningQueues.mockResolvedValue([])
 
       await zeroDbService.getQueues({ date: 'all' })
 
-      expect(mockQueryExecutor).toHaveBeenCalledTimes(1)
-      const [sql, params] = mockQueryExecutor.mock.calls[0]
-      expect(sql).not.toContain('created_at >=')
-      expect(params.length).toBe(0)
+      expect(mockAppGw.getScreeningQueues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startSql: undefined,
+          endSql: undefined,
+        })
+      )
     })
 
-    it('addToQueue checks existing record within today full Bangkok range', async () => {
-      mockQueryExecutor
-        .mockResolvedValueOnce([]) // existing check
-        .mockResolvedValueOnce({ insertId: 9 }) // insert
-        .mockResolvedValueOnce([ // getQueueById
-          {
-            id: 9,
-            cid: '1520800055172',
-            fullName: 'น.ส. ชนิกา ปัญญาสิทธิ์',
-            status: 'WAITING',
-            created_at: '2026-10-16T17:40:00.000Z',
-          },
-        ])
-        .mockResolvedValueOnce({ affectedRows: 0 }) // cleanup
+    it('addToQueue upserts within today full Bangkok range', async () => {
+      mockAppGw.upsertScreeningQueue.mockResolvedValue({
+        id: 9,
+        cid: '1520800055172',
+        fullName: 'น.ส. ชนิกา ปัญญาสิทธิ์',
+        status: 'WAITING',
+        created_at: '2026-10-16T17:40:00.000Z',
+      })
 
       const res = await zeroDbService.addToQueue({
         cid: '1520800055172',
@@ -352,22 +356,28 @@ describe('ScreeningQueueService and Utilities', () => {
       })
 
       expect(res.id).toBe(9)
-      const [firstSql, firstParams] = mockQueryExecutor.mock.calls[0]
-      expect(firstSql).toContain('WHERE cid = ? AND created_at >= ? AND created_at <= ?')
-      expect(firstParams[1]).toMatch(/^\d{4}-\d{2}-\d{2} 00:00:00$/)
-      expect(firstParams[2]).toMatch(/^\d{4}-\d{2}-\d{2} 23:59:59$/)
+      expect(mockAppGw.upsertScreeningQueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cid: '1520800055172',
+          startSql: expect.stringMatching(/^\d{4}-\d{2}-\d{2} 00:00:00$/),
+          endSql: expect.stringMatching(/^\d{4}-\d{2}-\d{2} 23:59:59$/),
+        })
+      )
     })
   })
 
   describe('HOSxP Medical Record & Visit Verification (Dedicated Gateway API)', () => {
     let mockClinicalVerifier: any
-    let mockQueryExecutor: any
+    let mockAppGw: any
     let serviceWithClinical: ScreeningQueueService
 
     beforeEach(() => {
       mockClinicalVerifier = vi.fn()
-      mockQueryExecutor = vi.fn()
-      serviceWithClinical = new ScreeningQueueService(null, mockQueryExecutor, mockClinicalVerifier)
+      mockAppGw = {
+        getScreeningQueues: vi.fn(),
+        batchUpdateScreeningQueueStatus: vi.fn().mockResolvedValue({ updatedCount: 2 }),
+      }
+      serviceWithClinical = new ScreeningQueueService(null, mockAppGw, mockClinicalVerifier)
     })
 
     it('verifyHosVisits chunks CIDs and calls dedicated gateway endpoint', async () => {
@@ -391,7 +401,7 @@ describe('ScreeningQueueService and Utilities', () => {
       expect(result.get('3333333333333')).toBeUndefined()
     })
 
-    it('enrichQueuesWithHosVisits marks NO_RECORD, WAITING, and VISIT_OPENED and persists updates', async () => {
+    it('enrichQueuesWithHosVisits marks NO_RECORD, WAITING, and VISIT_OPENED and persists batch updates', async () => {
       mockClinicalVerifier.mockResolvedValue([
         { cid: '1111111111111', hn: '0001234', hasPatientRecord: true, hasVisitToday: false, status: 'WAITING' },
         { cid: '2222222222222', hn: '0005678', vn: '6710160001', hasPatientRecord: true, hasVisitToday: true, status: 'VISIT_OPENED' },
@@ -401,28 +411,24 @@ describe('ScreeningQueueService and Utilities', () => {
       const rawItems: any[] = [
         { id: 1, cid: '1111111111111', status: 'WAITING', vn: null },
         { id: 2, cid: '2222222222222', status: 'WAITING', vn: null },
-        { id: 3, cid: '3333333333333', status: 'WAITING', vn: null }, // will be NO_RECORD
-        { id: 4, cid: '4444444444444', status: 'CANCELLED', vn: null }, // preserves CANCELLED
+        { id: 3, cid: '3333333333333', status: 'WAITING', vn: null },
+        { id: 4, cid: '4444444444444', status: 'CANCELLED', vn: null },
       ]
-
-      mockQueryExecutor.mockResolvedValue({ affectedRows: 1 })
 
       const enriched = await serviceWithClinical.enrichQueuesWithHosVisits(rawItems)
 
       expect(enriched[0].status).toBe('WAITING')
       expect(enriched[0].vn).toBeNull()
-
       expect(enriched[1].status).toBe('VISIT_OPENED')
       expect(enriched[1].vn).toBe('6710160001')
-
       expect(enriched[2].status).toBe('NO_RECORD')
       expect(enriched[2].vn).toBeNull()
-
       expect(enriched[3].status).toBe('CANCELLED')
 
-      // Should have persisted updates for items 2 and 3
-      expect(mockQueryExecutor).toHaveBeenCalledTimes(2)
-      expect(mockQueryExecutor.mock.calls[0][0]).toContain('UPDATE screening_queues SET status = ?, vn = ?')
+      expect(mockAppGw.batchUpdateScreeningQueueStatus).toHaveBeenCalledWith([
+        { id: 2, status: 'VISIT_OPENED', vn: '6710160001' },
+        { id: 3, status: 'NO_RECORD', vn: null },
+      ])
     })
 
     it('gracefully degrades and returns original items if Gateway clinical verification fails', async () => {
@@ -438,7 +444,7 @@ describe('ScreeningQueueService and Utilities', () => {
     })
 
     it('getQueues for today enriches queue items with HOSxP check and filters in memory', async () => {
-      mockQueryExecutor.mockResolvedValue([
+      mockAppGw.getScreeningQueues.mockResolvedValue([
         { id: 1, cid: '1111111111111', full_name: 'สมชาย', status: 'WAITING', created_at: new Date() },
         { id: 2, cid: '2222222222222', full_name: 'สมหญิง', status: 'WAITING', created_at: new Date() },
       ])

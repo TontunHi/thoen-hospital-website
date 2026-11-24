@@ -1,9 +1,48 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
-import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, matchesPeriodKey, isPercentageIndicator, calculateIndicatorResult } from './kpiTimeUtils'
+import {
+  checkPeriodStatus,
+  getPeriodsForFrequency,
+  checkIndicatorDueStatus,
+  matchesPeriodKey,
+  isPercentageIndicator,
+  calculateIndicatorResult,
+} from './kpiTimeUtils'
 import type { KpiAiAuditItem } from './kpiAuditService'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
+
+export interface KpiGatewayAdapter {
+  getKpiFiscalYears: typeof apiGateway.app.getKpiFiscalYears
+  getKpiTopics: typeof apiGateway.app.getKpiTopics
+  getKpiCategories: typeof apiGateway.app.getKpiCategories
+  getKpiResponsiblePersons: typeof apiGateway.app.getKpiResponsiblePersons
+  getKpiIndicators: typeof apiGateway.app.getKpiIndicators
+  getKpiIndicatorById: typeof apiGateway.app.getKpiIndicatorById
+  saveKpiEntry: typeof apiGateway.app.saveKpiEntry
+  updateKpiTarget: typeof apiGateway.app.updateKpiTarget
+  createKpiIndicator: typeof apiGateway.app.createKpiIndicator
+  updateKpiIndicator: typeof apiGateway.app.updateKpiIndicator
+  deleteKpiIndicator: typeof apiGateway.app.deleteKpiIndicator
+  upsertKpiTopicForImport: typeof apiGateway.app.upsertKpiTopicForImport
+  importKpiBatch: typeof apiGateway.app.importKpiBatch
+}
+
+const defaultKpiGateway: KpiGatewayAdapter = {
+  getKpiFiscalYears: () => apiGateway.app.getKpiFiscalYears(),
+  getKpiTopics: (fy) => apiGateway.app.getKpiTopics(fy),
+  getKpiCategories: (topicId) => apiGateway.app.getKpiCategories(topicId),
+  getKpiResponsiblePersons: (topicId) => apiGateway.app.getKpiResponsiblePersons(topicId),
+  getKpiIndicators: (filters) => apiGateway.app.getKpiIndicators(filters),
+  getKpiIndicatorById: (id) => apiGateway.app.getKpiIndicatorById(id),
+  saveKpiEntry: (payload) => apiGateway.app.saveKpiEntry(payload),
+  updateKpiTarget: (id, payload) => apiGateway.app.updateKpiTarget(id, payload),
+  createKpiIndicator: (payload) => apiGateway.app.createKpiIndicator(payload),
+  updateKpiIndicator: (id, payload) => apiGateway.app.updateKpiIndicator(id, payload),
+  deleteKpiIndicator: (id) => apiGateway.app.deleteKpiIndicator(id),
+  upsertKpiTopicForImport: (payload) => apiGateway.app.upsertKpiTopicForImport(payload),
+  importKpiBatch: (topicId, rows) => apiGateway.app.importKpiBatch(topicId, rows),
+}
 
 export interface KpiTopicItem {
   id: number
@@ -130,8 +169,8 @@ export function cleanPeriodLabel(rawLabel: string | null | undefined, periodKey:
     return rawLabel
   }
   const periods = getPeriodsForFrequency(frequency)
-  const matched = periods.find(p => p.key === periodKey)
-  return matched ? matched.label : (rawLabel || periodKey)
+  const matched = periods.find((p) => p.key === periodKey)
+  return matched ? matched.label : rawLabel || periodKey
 }
 
 export function cleanAuthorName(name: string | null | undefined): string {
@@ -143,9 +182,6 @@ export function cleanAuthorName(name: string | null | undefined): string {
 }
 
 export class KpiService {
-  /**
-   * Evaluate whether resultValue meets target condition
-   */
   static evaluateTarget(
     resultValue: number | null | undefined,
     operator: string | null | undefined,
@@ -190,88 +226,70 @@ export class KpiService {
     }
   }
 
-  /**
-   * Get available fiscal years
-   */
-  static async getFiscalYears(executor: QueryExecutor = queryMemberDb): Promise<string[]> {
-    const rows = await executor(`
-      SELECT DISTINCT fiscal_year AS fiscalYear
-      FROM kpi_topics
-      WHERE is_active = 1
-      ORDER BY fiscal_year DESC
-    `)
-    return rows.map(r => r.fiscalYear)
+  private static computeReEvaluatedEntryStatuses(
+    entries: KpiEntryItem[] | undefined,
+    targetOperator: string | null | undefined,
+    targetValue: number | null | undefined,
+    indicatorMeta: { title?: string | null; targetUnit?: string | null; numeratorName?: string | null }
+  ): Array<{ id: number; status: string }> {
+    const isPct = isPercentageIndicator(indicatorMeta)
+    return (entries || []).map((e) => {
+      const numVal = e.numeratorValue !== null && e.numeratorValue !== undefined ? Number(e.numeratorValue) : null
+      const denVal = e.denominatorValue !== null && e.denominatorValue !== undefined ? Number(e.denominatorValue) : null
+      let val = e.resultValue !== null && e.resultValue !== undefined ? Number(e.resultValue) : null
+      const isZeroDenominator = numVal === 0 && denVal === 0
+
+      if (val === null && numVal !== null && denVal !== null) {
+        if (denVal > 0) {
+          val = calculateIndicatorResult(numVal, denVal, isPct)
+        } else if (isZeroDenominator) {
+          val = 0
+        }
+      }
+
+      const newStatus = this.evaluateTarget(val, targetOperator, targetValue, { isZeroDenominator })
+      return { id: e.id, status: newStatus }
+    })
   }
 
-  /**
-   * Get topics by fiscal year
-   */
+  static async getFiscalYears(gateway: Partial<KpiGatewayAdapter> = {}): Promise<string[]> {
+    const gw = { ...defaultKpiGateway, ...gateway }
+    return gw.getKpiFiscalYears()
+  }
+
   static async getTopics(
     fiscalYear?: string,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<KpiTopicItem[]> {
-    let sql = `
-      SELECT 
-        t.id, 
-        t.fiscal_year AS fiscalYear, 
-        t.code, 
-        t.title, 
-        t.description, 
-        t.is_active AS isActive,
-        (SELECT COUNT(*) FROM kpi_indicators i WHERE i.topic_id = t.id) AS indicatorCount
-      FROM kpi_topics t
-      WHERE t.is_active = 1
-    `
-    const params: any[] = []
-    if (fiscalYear) {
-      sql += ' AND t.fiscal_year = ?'
-      params.push(fiscalYear)
-    }
-    sql += ' ORDER BY t.fiscal_year DESC, t.id ASC'
-
-    const rows = await executor(sql, params)
-    return rows.map(r => ({
-      ...r,
+    const gw = { ...defaultKpiGateway, ...gateway }
+    const rows = await gw.getKpiTopics(fiscalYear)
+    return (rows || []).map((r) => ({
+      id: Number(r.id),
+      fiscalYear: String(r.fiscalYear ?? ''),
+      code: String(r.code ?? ''),
+      title: String(r.title ?? ''),
+      description: r.description ?? null,
       isActive: Boolean(r.isActive),
       indicatorCount: Number(r.indicatorCount || 0),
     }))
   }
 
-  /**
-   * Get distinct categories for a topic
-   */
   static async getCategories(
     topicId: number,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<string[]> {
-    const rows = await executor(`
-      SELECT DISTINCT category
-      FROM kpi_indicators
-      WHERE topic_id = ?
-      ORDER BY category ASC
-    `, [topicId])
-    return rows.map(r => r.category)
+    const gw = { ...defaultKpiGateway, ...gateway }
+    return gw.getKpiCategories(topicId)
   }
 
-  /**
-   * Get distinct responsible persons for a topic
-   */
   static async getResponsiblePersons(
     topicId: number,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<string[]> {
-    const rows = await executor(`
-      SELECT DISTINCT responsible_name AS responsibleName
-      FROM kpi_indicators
-      WHERE topic_id = ? AND responsible_name IS NOT NULL AND responsible_name != ''
-      ORDER BY responsible_name ASC
-    `, [topicId])
-    return rows.map(r => r.responsibleName)
+    const gw = { ...defaultKpiGateway, ...gateway }
+    return gw.getKpiResponsiblePersons(topicId)
   }
 
-  /**
-   * Get indicators list with optional filtering and entry for a specific period
-   */
   static async getIndicators(
     filters: {
       topicId: number
@@ -282,91 +300,14 @@ export class KpiService {
       search?: string
       periodKey?: string
     },
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<KpiIndicatorItem[]> {
-    let sql = `
-      SELECT 
-        i.id,
-        i.topic_id AS topicId,
-        i.sequence,
-        i.category,
-        i.subcategory,
-        i.code,
-        i.old_code AS oldCode,
-        i.frequency,
-        i.title,
-        i.numerator_name AS numeratorName,
-        i.denominator_name AS denominatorName,
-        i.target_raw AS targetRaw,
-        i.target_operator AS targetOperator,
-        i.target_value AS targetValue,
-        i.target_unit AS targetUnit,
-        i.responsible_name AS responsibleName,
-        i.indicator_type AS indicatorType,
-        i.display_order AS displayOrder,
-        e.id AS entryId,
-        e.period_key AS entryPeriodKey,
-        e.period_label AS entryPeriodLabel,
-        e.numerator_value AS entryNumeratorValue,
-        e.denominator_value AS entryDenominatorValue,
-        e.result_value AS entryResultValue,
-        e.result_text AS entryResultText,
-        e.status AS entryStatus,
-        e.note AS entryNote,
-        e.recorded_by_id AS entryRecordedById,
-        COALESCE(m.name, e.recorded_by_name) AS entryRecordedByName,
-        e.recorded_at AS entryRecordedAt,
-        e.updated_at AS entryUpdatedAt
-      FROM kpi_indicators i
-      LEFT JOIN kpi_entries e ON e.indicator_id = i.id
-    `
-
-    const params: any[] = []
-    if (filters.fiscalYear) {
-      sql += ' AND e.fiscal_year = ?'
-      params.push(filters.fiscalYear)
-    }
-
-    sql += `
-      LEFT JOIN members m ON m.id = e.recorded_by_id
-      WHERE i.topic_id = ?
-    `
-    params.push(filters.topicId)
-
-    if (filters.category) {
-      sql += ' AND i.category = ?'
-      params.push(filters.category)
-    }
-    if (filters.frequency) {
-      sql += ' AND i.frequency = ?'
-      params.push(filters.frequency)
-    }
-    if (filters.responsibleName) {
-      sql += ' AND i.responsible_name LIKE ?'
-      params.push(`%${filters.responsibleName}%`)
-    }
-    if (filters.search) {
-      sql += ' AND (i.title LIKE ? OR i.code LIKE ? OR i.subcategory LIKE ? OR i.responsible_name LIKE ?)'
-      const searchTerm = `%${filters.search}%`
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm)
-    }
-
-    sql += ` ORDER BY 
-      CASE 
-        WHEN i.sequence IS NULL OR TRIM(i.sequence) = '' THEN 2
-        WHEN TRIM(i.sequence) REGEXP '^[0-9]' THEN 0
-        ELSE 1
-      END ASC,
-      CAST(i.sequence AS UNSIGNED) ASC,
-      i.sequence ASC,
-      i.display_order ASC,
-      i.id ASC`
-
-    const rows = await executor(sql, params)
+    const gw = { ...defaultKpiGateway, ...gateway }
+    const rows = await gw.getKpiIndicators(filters)
 
     const indicatorMap = new Map<number, KpiIndicatorItem>()
 
-    for (const r of rows) {
+    for (const r of rows || []) {
       let ind = indicatorMap.get(r.id)
       if (!ind) {
         ind = {
@@ -383,7 +324,7 @@ export class KpiService {
           denominatorName: r.denominatorName,
           targetRaw: r.targetRaw,
           targetOperator: r.targetOperator,
-          targetValue: r.targetValue !== null ? parseFloat(r.targetValue) : null,
+          targetValue: r.targetValue !== null && r.targetValue !== undefined ? parseFloat(r.targetValue) : null,
           targetUnit: r.targetUnit,
           responsibleName: r.responsibleName,
           indicatorType: r.indicatorType,
@@ -395,9 +336,9 @@ export class KpiService {
       }
 
       if (r.entryId) {
-        const numVal = r.entryNumeratorValue !== null ? parseFloat(r.entryNumeratorValue) : null
-        const denVal = r.entryDenominatorValue !== null ? parseFloat(r.entryDenominatorValue) : null
-        let resVal = r.entryResultValue !== null ? parseFloat(r.entryResultValue) : null
+        const numVal = r.entryNumeratorValue !== null && r.entryNumeratorValue !== undefined ? parseFloat(r.entryNumeratorValue) : null
+        const denVal = r.entryDenominatorValue !== null && r.entryDenominatorValue !== undefined ? parseFloat(r.entryDenominatorValue) : null
+        let resVal = r.entryResultValue !== null && r.entryResultValue !== undefined ? parseFloat(r.entryResultValue) : null
         let entryStatus = r.entryStatus
 
         const isPct = isPercentageIndicator({
@@ -406,7 +347,6 @@ export class KpiService {
           numeratorName: ind.numeratorName,
         })
 
-        // Handle case where resultValue was null or miscalculated as percentage for ratio indicator
         const isMiscalcedRatio = !isPct && resVal !== null && numVal !== null && denVal !== null && denVal > 0 && numVal < denVal && resVal > 1
         if ((resVal === null || isMiscalcedRatio) && numVal !== null && denVal !== null) {
           if (denVal > 0) {
@@ -436,7 +376,7 @@ export class KpiService {
           recordedAt: r.entryRecordedAt,
           updatedAt: r.entryUpdatedAt,
         }
-        if (!ind.entries!.some(e => e.id === entryItem.id)) {
+        if (!ind.entries!.some((e) => e.id === entryItem.id)) {
           ind.entries!.push(entryItem)
         }
       }
@@ -448,14 +388,15 @@ export class KpiService {
         continue
       }
       if (filters.periodKey) {
-        ind.currentEntry = ind.entries.find(e => matchesPeriodKey(e.periodKey, filters.periodKey)) || null
+        ind.currentEntry = ind.entries.find((e) => matchesPeriodKey(e.periodKey, filters.periodKey)) || null
       } else {
         const due = checkIndicatorDueStatus(ind.frequency, filters.fiscalYear || '2570')
-        const dueEntry = ind.entries.find(e => matchesPeriodKey(e.periodKey, due.relevantPeriod.key))
-        const answered = ind.entries.filter(e =>
-          (e.resultValue !== null && e.resultValue !== undefined) ||
-          (e.resultText && e.resultText.trim() !== '' && e.resultText !== 'ไม่มีรายงาน') ||
-          (e.numeratorValue !== null && e.denominatorValue !== null && e.numeratorValue !== undefined && e.denominatorValue !== undefined)
+        const dueEntry = ind.entries.find((e) => matchesPeriodKey(e.periodKey, due.relevantPeriod.key))
+        const answered = ind.entries.filter(
+          (e) =>
+            (e.resultValue !== null && e.resultValue !== undefined) ||
+            (e.resultText && e.resultText.trim() !== '' && e.resultText !== 'ไม่มีรายงาน') ||
+            (e.numeratorValue !== null && e.denominatorValue !== null && e.numeratorValue !== undefined && e.denominatorValue !== undefined)
         )
         const latestEntry = answered.length > 0 ? answered[answered.length - 1] : null
         ind.currentEntry = dueEntry || latestEntry || null
@@ -465,64 +406,16 @@ export class KpiService {
     return Array.from(indicatorMap.values())
   }
 
-  /**
-   * Get single indicator with all period entries
-   */
   static async getIndicatorById(
     id: number,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<KpiIndicatorItem | null> {
-    const indRows = await executor(`
-      SELECT 
-        i.id,
-        i.topic_id AS topicId,
-        i.sequence,
-        i.category,
-        i.subcategory,
-        i.code,
-        i.old_code AS oldCode,
-        i.frequency,
-        i.title,
-        i.numerator_name AS numeratorName,
-        i.denominator_name AS denominatorName,
-        i.target_raw AS targetRaw,
-        i.target_operator AS targetOperator,
-        i.target_value AS targetValue,
-        i.target_unit AS targetUnit,
-        i.responsible_name AS responsibleName,
-        i.indicator_type AS indicatorType,
-        i.display_order AS displayOrder,
-        t.fiscal_year AS fiscalYear
-      FROM kpi_indicators i
-      JOIN kpi_topics t ON t.id = i.topic_id
-      WHERE i.id = ?
-    `, [id])
+    const gw = { ...defaultKpiGateway, ...gateway }
+    const bundle = await gw.getKpiIndicatorById(id)
+    if (!bundle?.indicator) return null
 
-    if (!indRows.length) return null
-    const r = indRows[0]
-
-    const entriesRows = await executor(`
-      SELECT 
-        e.id,
-        e.indicator_id AS indicatorId,
-        e.fiscal_year AS fiscalYear,
-        e.period_key AS periodKey,
-        e.period_label AS periodLabel,
-        e.numerator_value AS numeratorValue,
-        e.denominator_value AS denominatorValue,
-        e.result_value AS resultValue,
-        e.result_text AS resultText,
-        e.status,
-        e.note,
-        e.recorded_by_id AS recordedById,
-        COALESCE(m.name, e.recorded_by_name) AS recordedByName,
-        e.recorded_at AS recordedAt,
-        e.updated_at AS updatedAt
-      FROM kpi_entries e
-      LEFT JOIN members m ON m.id = e.recorded_by_id
-      WHERE e.indicator_id = ?
-      ORDER BY e.id ASC
-    `, [id])
+    const r = bundle.indicator
+    const entriesRows = bundle.entries || []
 
     return {
       id: r.id,
@@ -538,15 +431,15 @@ export class KpiService {
       denominatorName: r.denominatorName,
       targetRaw: r.targetRaw,
       targetOperator: r.targetOperator,
-      targetValue: r.targetValue !== null ? parseFloat(r.targetValue) : null,
+      targetValue: r.targetValue !== null && r.targetValue !== undefined ? parseFloat(r.targetValue) : null,
       targetUnit: r.targetUnit,
       responsibleName: r.responsibleName,
       indicatorType: r.indicatorType,
       displayOrder: r.displayOrder,
       entries: entriesRows.map((e: any) => {
-        const numVal = e.numeratorValue !== null ? parseFloat(e.numeratorValue) : null
-        const denVal = e.denominatorValue !== null ? parseFloat(e.denominatorValue) : null
-        let resVal = e.resultValue !== null ? parseFloat(e.resultValue) : null
+        const numVal = e.numeratorValue !== null && e.numeratorValue !== undefined ? parseFloat(e.numeratorValue) : null
+        const denVal = e.denominatorValue !== null && e.denominatorValue !== undefined ? parseFloat(e.denominatorValue) : null
+        let resVal = e.resultValue !== null && e.resultValue !== undefined ? parseFloat(e.resultValue) : null
         let entryStatus = e.status
 
         const isPct = isPercentageIndicator({
@@ -588,62 +481,38 @@ export class KpiService {
     }
   }
 
-  /**
-   * Save or update an entry for an indicator
-   */
   static async saveEntry(
     input: SaveEntryInput,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<KpiEntryItem> {
-    const indicator = await this.getIndicatorById(input.indicatorId, executor)
+    const gw = { ...defaultKpiGateway, ...gateway }
+    const indicator = await this.getIndicatorById(input.indicatorId, gw)
     if (!indicator) {
       throw new Error(`Indicator with ID ${input.indicatorId} not found`)
     }
 
-    // Check reporting window lock and responsible person unless admin
     if (!input.isAdmin) {
-      const windowStatus = checkPeriodStatus(
-        indicator.frequency,
-        input.periodKey,
-        input.fiscalYear
-      )
+      const windowStatus = checkPeriodStatus(indicator.frequency, input.periodKey, input.fiscalYear)
       if (!windowStatus.isOpen) {
         throw new Error(windowStatus.message)
       }
 
-      // Check responsible person permission
       const userName = (input.recordedByName || '').trim()
       const resp = (indicator.responsibleName || '').trim()
       const isResponsible = Boolean(
-        userName && resp && (
-          resp.includes(userName) || 
-          userName.includes(resp) ||
-          resp.split(/[,/&+\s]+/).some(part => part && (userName.includes(part) || part.includes(userName)))
-        )
+        userName &&
+          resp &&
+          (resp.includes(userName) ||
+            userName.includes(resp) ||
+            resp.split(/[,/&+\s]+/).some((part) => part && (userName.includes(part) || part.includes(userName))))
       )
       if (!isResponsible && resp.length > 0) {
         throw new Error(`เฉพาะผู้รับผิดชอบ (${resp}) หรือผู้ดูแลระบบเท่านั้นที่สามารถบันทึกผลได้`)
       }
     }
 
-    // If recordedById provided, lookup member's official clean name from members table
-    let authorName = input.recordedByName
-    if (input.recordedById) {
-      try {
-        const memberRows = await executor('SELECT name FROM members WHERE id = ? LIMIT 1', [input.recordedById])
-        if (memberRows && memberRows.length > 0 && memberRows[0].name) {
-          authorName = memberRows[0].name
-        }
-      } catch {
-        // Fallback to provided name
-      }
-    }
-    authorName = cleanAuthorName(authorName) || input.recordedByName || null
-
-    // Ensure canonical Thai period label
     const safePeriodLabel = cleanPeriodLabel(input.periodLabel, input.periodKey, indicator.frequency)
 
-    // Auto-calculate if numerator and denominator provided and resultValue not set
     let computedResult = input.resultValue
     let isZeroDenominator = false
     const hasNum = input.numeratorValue !== undefined && input.numeratorValue !== null
@@ -667,74 +536,27 @@ export class KpiService {
       isZeroDenominator = true
     }
 
-    // Evaluate target status
-    const status = this.evaluateTarget(
-      computedResult,
-      indicator.targetOperator,
-      indicator.targetValue,
-      { isZeroDenominator }
-    )
+    const status = this.evaluateTarget(computedResult, indicator.targetOperator, indicator.targetValue, {
+      isZeroDenominator,
+    })
 
-    // Check if entry already exists
-    const existing = await executor(`
-      SELECT id FROM kpi_entries 
-      WHERE indicator_id = ? AND period_key = ?
-    `, [input.indicatorId, input.periodKey])
+    const saved = await gw.saveKpiEntry({
+      indicatorId: input.indicatorId,
+      fiscalYear: input.fiscalYear,
+      periodKey: input.periodKey,
+      periodLabel: safePeriodLabel,
+      numeratorValue: input.numeratorValue ?? null,
+      denominatorValue: input.denominatorValue ?? null,
+      resultValue: computedResult ?? null,
+      resultText: input.resultText ?? null,
+      status,
+      note: input.note ?? null,
+      recordedById: input.recordedById ?? null,
+      recordedByName: cleanAuthorName(input.recordedByName) || input.recordedByName || null,
+    })
 
-    let entryId: number
+    const authorName = cleanAuthorName(saved?.authorName) || cleanAuthorName(input.recordedByName) || input.recordedByName || null
     const now = new Date()
-
-    if (existing.length > 0) {
-      entryId = existing[0].id
-      await executor(`
-        UPDATE kpi_entries SET
-          period_label = ?,
-          numerator_value = ?,
-          denominator_value = ?,
-          result_value = ?,
-          result_text = ?,
-          status = ?,
-          note = ?,
-          recorded_by_id = ?,
-          recorded_by_name = ?,
-          recorded_at = NOW(),
-          updated_at = NOW()
-        WHERE id = ?
-      `, [
-        safePeriodLabel,
-        input.numeratorValue ?? null,
-        input.denominatorValue ?? null,
-        computedResult ?? null,
-        input.resultText ?? null,
-        status,
-        input.note ?? null,
-        input.recordedById ?? null,
-        authorName,
-        entryId
-      ])
-    } else {
-      const insertRes: any = await executor(`
-        INSERT INTO kpi_entries (
-          indicator_id, fiscal_year, period_key, period_label,
-          numerator_value, denominator_value, result_value, result_text,
-          status, note, recorded_by_id, recorded_by_name, recorded_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-      `, [
-        input.indicatorId,
-        input.fiscalYear,
-        input.periodKey,
-        safePeriodLabel,
-        input.numeratorValue ?? null,
-        input.denominatorValue ?? null,
-        computedResult ?? null,
-        input.resultText ?? null,
-        status,
-        input.note ?? null,
-        input.recordedById ?? null,
-        authorName
-      ])
-      entryId = insertRes.insertId
-    }
 
     logAudit(
       'UPDATE',
@@ -744,12 +566,12 @@ export class KpiService {
         periodKey: input.periodKey,
         resultValue: computedResult,
         status,
-        by: authorName
+        by: authorName,
       })
     ).catch(() => {})
 
     return {
-      id: entryId,
+      id: saved.entryId,
       indicatorId: input.indicatorId,
       fiscalYear: input.fiscalYear,
       periodKey: input.periodKey,
@@ -767,89 +589,40 @@ export class KpiService {
     }
   }
 
-  /**
-   * Update target configuration for an indicator (Admin / Quality Center)
-   */
-  private static async reEvaluateEntriesForIndicator(
-    indicatorId: number,
-    targetOperator: string | null | undefined,
-    targetValue: number | null | undefined,
-    indicatorMeta: { title?: string | null; targetUnit?: string | null; numeratorName?: string | null },
-    executor: QueryExecutor
-  ): Promise<void> {
-    const entries = await executor(`
-      SELECT
-        id,
-        numerator_value AS numeratorValue,
-        denominator_value AS denominatorValue,
-        result_value AS resultValue
-      FROM kpi_entries
-      WHERE indicator_id = ?
-    `, [indicatorId])
-
-    const isPct = isPercentageIndicator(indicatorMeta)
-
-    for (const e of entries) {
-      const numVal = e.numeratorValue !== null && e.numeratorValue !== undefined ? parseFloat(e.numeratorValue) : null
-      const denVal = e.denominatorValue !== null && e.denominatorValue !== undefined ? parseFloat(e.denominatorValue) : null
-      let val = e.resultValue !== null && e.resultValue !== undefined ? parseFloat(e.resultValue) : null
-      const isZeroDenominator = numVal === 0 && denVal === 0
-
-      if (val === null && numVal !== null && denVal !== null) {
-        if (denVal > 0) {
-          val = calculateIndicatorResult(numVal, denVal, isPct)
-        } else if (isZeroDenominator) {
-          val = 0
-        }
-      }
-
-      const newStatus = this.evaluateTarget(val, targetOperator, targetValue, { isZeroDenominator })
-      await executor('UPDATE kpi_entries SET status = ? WHERE id = ?', [newStatus, e.id])
-    }
-  }
-
-  /**
-   * Update target configuration for an indicator (Admin / Quality Center)
-   */
   static async updateTarget(
     input: UpdateTargetInput,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<void> {
-    const existing = await this.getIndicatorById(input.indicatorId, executor)
-    const effectiveUnit = input.targetUnit !== undefined ? input.targetUnit : (existing?.targetUnit ?? '%')
-    const effectiveRaw = input.targetRaw !== undefined
-      ? input.targetRaw
-      : (input.targetValue !== null && input.targetValue !== undefined
-          ? `${input.targetOperator || '>='} ${input.targetValue}${effectiveUnit || ''}`
-          : (input.targetOperator === 'MIN' ? 'MIN' : null))
+    const gw = { ...defaultKpiGateway, ...gateway }
+    const existing = await this.getIndicatorById(input.indicatorId, gw)
+    const effectiveUnit = input.targetUnit !== undefined ? input.targetUnit : existing?.targetUnit ?? '%'
+    const effectiveRaw =
+      input.targetRaw !== undefined
+        ? input.targetRaw
+        : input.targetValue !== null && input.targetValue !== undefined
+        ? `${input.targetOperator || '>='} ${input.targetValue}${effectiveUnit || ''}`
+        : input.targetOperator === 'MIN'
+        ? 'MIN'
+        : null
 
-    await executor(`
-      UPDATE kpi_indicators SET
-        target_operator = ?,
-        target_value = ?,
-        target_unit = ?,
-        target_raw = ?,
-        updated_at = NOW()
-      WHERE id = ?
-    `, [
-      input.targetOperator,
-      input.targetValue,
-      effectiveUnit,
-      effectiveRaw,
-      input.indicatorId
-    ])
-
-    await this.reEvaluateEntriesForIndicator(
-      input.indicatorId,
+    const entryStatusUpdates = this.computeReEvaluatedEntryStatuses(
+      existing?.entries,
       input.targetOperator,
       input.targetValue,
       {
         title: existing?.title,
         targetUnit: effectiveUnit,
         numeratorName: existing?.numeratorName,
-      },
-      executor
+      }
     )
+
+    await gw.updateKpiTarget(input.indicatorId, {
+      targetOperator: input.targetOperator,
+      targetValue: input.targetValue,
+      targetUnit: effectiveUnit,
+      targetRaw: effectiveRaw,
+      entryStatusUpdates,
+    })
 
     logAudit(
       'UPDATE',
@@ -858,51 +631,43 @@ export class KpiService {
         indicatorId: input.indicatorId,
         newOperator: input.targetOperator,
         newValue: input.targetValue,
-        by: input.updatedByName
+        by: input.updatedByName,
       })
     ).catch(() => {})
   }
 
-  /**
-   * Create a new indicator (Admin or Quality Center)
-   */
   static async createIndicator(
     input: CreateIndicatorInput,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<number> {
+    const gw = { ...defaultKpiGateway, ...gateway }
     const resolvedUnit = input.targetUnit !== undefined ? input.targetUnit : '%'
-    const targetRaw = input.targetRaw !== undefined
-      ? input.targetRaw
-      : (input.targetValue !== null && input.targetValue !== undefined
-          ? `${input.targetOperator || '>='} ${input.targetValue}${resolvedUnit || ''}`
-          : null)
+    const targetRaw =
+      input.targetRaw !== undefined
+        ? input.targetRaw
+        : input.targetValue !== null && input.targetValue !== undefined
+        ? `${input.targetOperator || '>='} ${input.targetValue}${resolvedUnit || ''}`
+        : null
 
-    const res: any = await executor(`
-      INSERT INTO kpi_indicators (
-        topic_id, sequence, category, subcategory, code, old_code,
-        frequency, title, numerator_name, denominator_name,
-        target_raw, target_operator, target_value, target_unit,
-        responsible_name, indicator_type, display_order
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      input.topicId,
-      input.sequence ?? null,
-      input.category,
-      input.subcategory ?? null,
-      input.code ?? null,
-      input.oldCode ?? null,
-      input.frequency,
-      input.title,
-      input.numeratorName ?? null,
-      input.denominatorName ?? null,
+    const res = await gw.createKpiIndicator({
+      topicId: input.topicId,
+      sequence: input.sequence ?? null,
+      category: input.category,
+      subcategory: input.subcategory ?? null,
+      code: input.code ?? null,
+      oldCode: input.oldCode ?? null,
+      frequency: input.frequency,
+      title: input.title,
+      numeratorName: input.numeratorName ?? null,
+      denominatorName: input.denominatorName ?? null,
       targetRaw,
-      input.targetOperator ?? '>=',
-      input.targetValue ?? null,
-      resolvedUnit,
-      input.responsibleName ?? null,
-      input.indicatorType ?? null,
-      input.displayOrder ?? 999
-    ])
+      targetOperator: input.targetOperator ?? '>=',
+      targetValue: input.targetValue ?? null,
+      targetUnit: resolvedUnit,
+      responsibleName: input.responsibleName ?? null,
+      indicatorType: input.indicatorType ?? null,
+      displayOrder: input.displayOrder ?? 999,
+    })
 
     const newId = res.insertId
 
@@ -912,21 +677,19 @@ export class KpiService {
       JSON.stringify({
         id: newId,
         title: input.title,
-        by: input.createdByName
+        by: input.createdByName,
       })
     ).catch(() => {})
 
     return newId
   }
 
-  /**
-   * Update existing indicator
-   */
   static async updateIndicator(
     input: UpdateIndicatorInput,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<void> {
-    const existing = await this.getIndicatorById(input.id, executor)
+    const gw = { ...defaultKpiGateway, ...gateway }
+    const existing = await this.getIndicatorById(input.id, gw)
     if (!existing) {
       throw new Error(`Indicator with ID ${input.id} not found`)
     }
@@ -935,108 +698,81 @@ export class KpiService {
     const nextVal = input.targetValue !== undefined ? input.targetValue : existing.targetValue
     const nextUnit = input.targetUnit !== undefined ? input.targetUnit : existing.targetUnit
 
-    const targetRaw = input.targetRaw !== undefined
-      ? input.targetRaw
-      : (nextVal !== null && nextVal !== undefined
-          ? `${nextOp || '>='} ${nextVal}${nextUnit || ''}`
-          : (input.targetValue === null
-              ? (nextOp === 'MIN' ? 'MIN' : null)
-              : existing.targetRaw))
+    const targetRaw =
+      input.targetRaw !== undefined
+        ? input.targetRaw
+        : nextVal !== null && nextVal !== undefined
+        ? `${nextOp || '>='} ${nextVal}${nextUnit || ''}`
+        : input.targetValue === null
+        ? nextOp === 'MIN'
+          ? 'MIN'
+          : null
+        : existing.targetRaw
 
-    await executor(`
-      UPDATE kpi_indicators SET
-        sequence = ?,
-        category = ?,
-        subcategory = ?,
-        code = ?,
-        old_code = ?,
-        frequency = ?,
-        title = ?,
-        numerator_name = ?,
-        denominator_name = ?,
-        target_raw = ?,
-        target_operator = ?,
-        target_value = ?,
-        target_unit = ?,
-        responsible_name = ?,
-        indicator_type = ?,
-        display_order = ?,
-        updated_at = NOW()
-      WHERE id = ?
-    `, [
-      input.sequence !== undefined ? input.sequence : existing.sequence,
-      input.category !== undefined ? input.category : existing.category,
-      input.subcategory !== undefined ? input.subcategory : existing.subcategory,
-      input.code !== undefined ? input.code : existing.code,
-      input.oldCode !== undefined ? input.oldCode : existing.oldCode,
-      input.frequency !== undefined ? input.frequency : existing.frequency,
-      input.title !== undefined ? input.title : existing.title,
-      input.numeratorName !== undefined ? input.numeratorName : existing.numeratorName,
-      input.denominatorName !== undefined ? input.denominatorName : existing.denominatorName,
-      targetRaw,
-      nextOp,
-      nextVal,
-      nextUnit,
-      input.responsibleName !== undefined ? input.responsibleName : existing.responsibleName,
-      input.indicatorType !== undefined ? input.indicatorType : existing.indicatorType,
-      input.displayOrder !== undefined ? input.displayOrder : existing.displayOrder,
-      input.id
-    ])
-
-    // If target condition changed, re-evaluate existing entries
-    if (input.targetValue !== undefined || input.targetOperator !== undefined || input.targetUnit !== undefined) {
-      await this.reEvaluateEntriesForIndicator(
-        input.id,
-        nextOp,
-        nextVal,
-        {
+    const shouldReEvaluate =
+      input.targetValue !== undefined || input.targetOperator !== undefined || input.targetUnit !== undefined
+    const entryStatusUpdates = shouldReEvaluate
+      ? this.computeReEvaluatedEntryStatuses(existing.entries, nextOp, nextVal, {
           title: input.title !== undefined ? input.title : existing.title,
           targetUnit: nextUnit,
           numeratorName: input.numeratorName !== undefined ? input.numeratorName : existing.numeratorName,
-        },
-        executor
-      )
-    }
+        })
+      : []
+
+    await gw.updateKpiIndicator(input.id, {
+      sequence: input.sequence !== undefined ? input.sequence : existing.sequence,
+      category: input.category !== undefined ? input.category : existing.category,
+      subcategory: input.subcategory !== undefined ? input.subcategory : existing.subcategory,
+      code: input.code !== undefined ? input.code : existing.code,
+      oldCode: input.oldCode !== undefined ? input.oldCode : existing.oldCode,
+      frequency: input.frequency !== undefined ? input.frequency : existing.frequency,
+      title: input.title !== undefined ? input.title : existing.title,
+      numeratorName: input.numeratorName !== undefined ? input.numeratorName : existing.numeratorName,
+      denominatorName: input.denominatorName !== undefined ? input.denominatorName : existing.denominatorName,
+      targetRaw,
+      targetOperator: nextOp,
+      targetValue: nextVal,
+      targetUnit: nextUnit,
+      responsibleName: input.responsibleName !== undefined ? input.responsibleName : existing.responsibleName,
+      indicatorType: input.indicatorType !== undefined ? input.indicatorType : existing.indicatorType,
+      displayOrder: input.displayOrder !== undefined ? input.displayOrder : existing.displayOrder,
+      entryStatusUpdates,
+    })
 
     logAudit(
       'UPDATE',
       'kpi_indicators',
       JSON.stringify({
         id: input.id,
-        by: input.updatedByName
+        by: input.updatedByName,
       })
     ).catch(() => {})
   }
 
-  /**
-   * Delete indicator and all associated entries
-   */
   static async deleteIndicator(
     id: number,
     deletedByName?: string | null,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<void> {
-    await executor('DELETE FROM kpi_indicators WHERE id = ?', [id])
+    const gw = { ...defaultKpiGateway, ...gateway }
+    await gw.deleteKpiIndicator(id)
 
     logAudit(
       'DELETE',
       'kpi_indicators',
       JSON.stringify({
         id,
-        by: deletedByName
+        by: deletedByName,
       })
     ).catch(() => {})
   }
 
-  /**
-   * Get dashboard statistics
-   */
   static async getStats(
     topicId: number,
     periodKey?: string,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<KpiDashboardStats> {
-    const indicators = await this.getIndicators({ topicId, periodKey }, executor)
+    const indicators = await this.getIndicators({ topicId, periodKey }, gateway)
 
     let totalAnswered = 0
     let totalPending = 0
@@ -1073,13 +809,12 @@ export class KpiService {
       }
     }
 
-    const passRatePercentage = totalAnswered > 0
-      ? parseFloat(((totalPass / totalAnswered) * 100).toFixed(1))
-      : 0
+    const passRatePercentage =
+      totalAnswered > 0 ? parseFloat(((totalPass / totalAnswered) * 100).toFixed(1)) : 0
 
     const categoryBreakdown = Array.from(catMap.entries()).map(([category, stats]) => ({
       category,
-      ...stats
+      ...stats,
     }))
 
     return {
@@ -1090,7 +825,7 @@ export class KpiService {
       totalFail,
       totalWaitingTarget,
       passRatePercentage,
-      categoryBreakdown
+      categoryBreakdown,
     }
   }
 
@@ -1119,35 +854,20 @@ export class KpiService {
       }>
       actorName: string
     },
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiGatewayAdapter> = {}
   ): Promise<{
     topicId: number
     fiscalYear: string
     code: string
     inserted: number
   }> {
-    const { apiGateway } = await import('@/lib/apiGateway')
-
-    const existingTopic = await executor(
-      'SELECT id FROM kpi_topics WHERE fiscal_year = ? AND code = ?',
-      [input.fiscalYear, input.code]
-    )
-
-    let topicId: number
-    if (existingTopic.length > 0) {
-      topicId = existingTopic[0].id
-      await executor(
-        'UPDATE kpi_topics SET title = ?, description = ?, is_active = 1 WHERE id = ?',
-        [input.title, input.description ?? null, topicId]
-      )
-      await executor('DELETE FROM kpi_indicators WHERE topic_id = ?', [topicId])
-    } else {
-      const insertTopic = (await executor(
-        'INSERT INTO kpi_topics (fiscal_year, code, title, description, is_active) VALUES (?, ?, ?, ?, 1)',
-        [input.fiscalYear, input.code, input.title, input.description ?? null]
-      )) as unknown as { insertId: number }
-      topicId = insertTopic.insertId
-    }
+    const gw = { ...defaultKpiGateway, ...gateway }
+    const { topicId } = await gw.upsertKpiTopicForImport({
+      fiscalYear: input.fiscalYear,
+      code: input.code,
+      title: input.title,
+      description: input.description ?? null,
+    })
 
     const kpiPayload = input.rows.map((row, i) => ({
       sequence: row.sequence ?? null,
@@ -1168,7 +888,7 @@ export class KpiService {
       displayOrder: i + 1,
     }))
 
-    const batchRes = await apiGateway.app.importKpiBatch(topicId, kpiPayload)
+    const batchRes = await gw.importKpiBatch(topicId, kpiPayload)
     const inserted = batchRes.insertedCount || input.rows.length
 
     logAudit(

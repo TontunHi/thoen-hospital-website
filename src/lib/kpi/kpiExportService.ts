@@ -450,7 +450,11 @@ export class KpiExportService {
         category: (category && category !== 'ALL') ? category : undefined,
         periodKey: periodKey === 'ALL' ? undefined : periodKey,
       },
-      executor
+      executor === queryMemberDb
+        ? {}
+        : {
+            getKpiIndicators: async () => executor('SELECT * FROM kpi_indicators i WHERE i.topic_id = ?', [topicId]),
+          }
     )
 
     if (onlyDue) {

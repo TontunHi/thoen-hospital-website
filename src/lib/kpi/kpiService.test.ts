@@ -96,45 +96,21 @@ describe('KpiService - evaluateTarget', () => {
   })
 })
 
-describe('KpiService with Mock QueryExecutor', () => {
+describe('KpiService with Mock Gateway Adapter', () => {
   it('auto-calculates percentage and evaluates target on saveEntry', async () => {
-    const mockDb: any[] = []
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [{
-          id: 1,
-          topicId: 1,
-          sequence: '1',
-          category: 'หมวด 1',
-          subcategory: 'โรคหัวใจ',
-          code: 'HR-01',
-          oldCode: null,
-          frequency: 'ราย 6 เดือน',
-          title: 'ร้อยละผู้ป่วย',
-          numeratorName: 'ตัวตั้ง',
-          denominatorName: 'ตัวหาร',
-          targetRaw: '>= 80%',
-          targetOperator: '>=',
-          targetValue: '80.0000',
-          targetUnit: '%',
-          responsibleName: 'นิศานาถ',
-          indicatorType: 'HA',
-          displayOrder: 1,
-          fiscalYear: '2570'
-        }]
-      }
-      if (sql.includes('SELECT id, indicator_id AS indicatorId')) {
-        return []
-      }
-      if (sql.includes('SELECT id FROM kpi_entries')) {
-        return [] // not existing
-      }
-      if (sql.includes('INSERT INTO kpi_entries')) {
-        mockDb.push(params)
-        return { insertId: 99 }
-      }
-      return []
-    })
+    const mockGw = {
+      getKpiIndicatorById: vi.fn().mockResolvedValue({
+        indicator: {
+          id: 1, topicId: 1, sequence: '1', category: 'หมวด 1', subcategory: 'โรคหัวใจ',
+          code: 'HR-01', oldCode: null, frequency: 'ราย 6 เดือน', title: 'ร้อยละผู้ป่วย',
+          numeratorName: 'ตัวตั้ง', denominatorName: 'ตัวหาร', targetRaw: '>= 80%',
+          targetOperator: '>=', targetValue: '80.0000', targetUnit: '%',
+          responsibleName: 'นิศานาถ', indicatorType: 'HA', displayOrder: 1, fiscalYear: '2570',
+        },
+        entries: [],
+      }),
+      saveKpiEntry: vi.fn().mockResolvedValue({ entryId: 99, authorName: 'นิศานาถ' }),
+    }
 
     const entry = await KpiService.saveEntry({
       indicatorId: 1,
@@ -142,54 +118,32 @@ describe('KpiService with Mock QueryExecutor', () => {
       periodKey: 'H1',
       periodLabel: 'รอบ 6 เดือนแรก',
       numeratorValue: 45,
-      denominatorValue: 50, // 45 / 50 * 100 = 90%
-      isAdmin: true, // bypass timing lock in test
-      recordedByName: 'นิศานาถ'
-    }, mockExecutor)
+      denominatorValue: 50,
+      isAdmin: true,
+      recordedByName: 'นิศานาถ',
+    }, mockGw)
 
     expect(entry.resultValue).toBe(90)
     expect(entry.status).toBe('PASS')
     expect(entry.id).toBe(99)
+    expect(mockGw.saveKpiEntry).toHaveBeenCalledWith(expect.objectContaining({ resultValue: 90, status: 'PASS' }))
   })
 
   it('correctly calculates 0% and PASS when numerator and denominator are 0/0 (no cases)', async () => {
-    const mockDb: any[] = []
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [{
-          id: 88,
-          topicId: 1,
-          sequence: '1',
-          category: 'หมวด 1',
-          subcategory: 'Sepsis',
-          code: 'HR-ITC-0101',
-          oldCode: null,
-          frequency: 'รายเดือน',
+    const mockGw = {
+      getKpiIndicatorById: vi.fn().mockResolvedValue({
+        indicator: {
+          id: 88, topicId: 1, sequence: '1', category: 'หมวด 1', subcategory: 'Sepsis',
+          code: 'HR-ITC-0101', oldCode: null, frequency: 'รายเดือน',
           title: 'ร้อยละการเสียชีวิตของผู้ป่วยใน จากภาวะพิษเหตุติดเชื้อในชุมชน (Community-acquired sepsis)',
-          numeratorName: 'จำนวนผู้เสียชีวิต',
-          denominatorName: 'จำนวนผู้ป่วยทั้งหมด',
-          targetRaw: '< ร้อยละ 24',
-          targetOperator: '<',
-          targetValue: '24.0000',
-          targetUnit: '%',
-          responsibleName: 'นิศานาถ',
-          indicatorType: 'HA',
-          displayOrder: 1,
-          fiscalYear: '2570'
-        }]
-      }
-      if (sql.includes('SELECT id, indicator_id AS indicatorId')) {
-        return []
-      }
-      if (sql.includes('SELECT id FROM kpi_entries')) {
-        return []
-      }
-      if (sql.includes('INSERT INTO kpi_entries')) {
-        mockDb.push(params)
-        return { insertId: 101 }
-      }
-      return []
-    })
+          numeratorName: 'จำนวนผู้เสียชีวิต', denominatorName: 'จำนวนผู้ป่วยทั้งหมด',
+          targetRaw: '< ร้อยละ 24', targetOperator: '<', targetValue: '24.0000', targetUnit: '%',
+          responsibleName: 'นิศานาถ', indicatorType: 'HA', displayOrder: 1, fiscalYear: '2570',
+        },
+        entries: [],
+      }),
+      saveKpiEntry: vi.fn().mockResolvedValue({ entryId: 101, authorName: 'นิศานาถ' }),
+    }
 
     const entry = await KpiService.saveEntry({
       indicatorId: 88,
@@ -197,10 +151,10 @@ describe('KpiService with Mock QueryExecutor', () => {
       periodKey: 'M01',
       periodLabel: 'ตุลาคม',
       numeratorValue: 0,
-      denominatorValue: 0, // 0/0 no cases
+      denominatorValue: 0,
       isAdmin: true,
-      recordedByName: 'นิศานาถ'
-    }, mockExecutor)
+      recordedByName: 'นิศานาถ',
+    }, mockGw)
 
     expect(entry.resultValue).toBe(0)
     expect(entry.status).toBe('PASS')
@@ -209,56 +163,22 @@ describe('KpiService with Mock QueryExecutor', () => {
   })
 
   it('creates, updates, and deletes an indicator', async () => {
-    let insertedParams: any[] = []
-    let updatedParams: any[] = []
-    let deletedId: number | null = null
+    const mockGw = {
+      createKpiIndicator: vi.fn().mockResolvedValue({ insertId: 201 }),
+      getKpiIndicatorById: vi.fn().mockResolvedValue({
+        indicator: {
+          id: 201, topicId: 1, sequence: '99', category: 'หมวด 1', subcategory: null,
+          code: 'TEST-01', oldCode: null, frequency: 'ราย 6 เดือน', title: 'ทดสอบตัวชี้วัด',
+          numeratorName: null, denominatorName: null, targetRaw: '>= 80%',
+          targetOperator: '>=', targetValue: '80.0000', targetUnit: '%',
+          responsibleName: 'นิศานาถ', indicatorType: 'HA', displayOrder: 1, fiscalYear: '2570',
+        },
+        entries: [],
+      }),
+      updateKpiIndicator: vi.fn().mockResolvedValue({ updated: true }),
+      deleteKpiIndicator: vi.fn().mockResolvedValue({ deleted: true }),
+    }
 
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
-      if (sql.includes('INSERT INTO kpi_indicators')) {
-        insertedParams = params
-        return { insertId: 201 }
-      }
-      if (sql.includes('FROM kpi_indicators i') && sql.includes('WHERE i.id = ?')) {
-        return [{
-          id: 201,
-          topicId: 1,
-          sequence: '99',
-          category: 'หมวด 1',
-          subcategory: null,
-          code: 'TEST-01',
-          oldCode: null,
-          frequency: 'ราย 6 เดือน',
-          title: 'ทดสอบตัวชี้วัด',
-          numeratorName: null,
-          denominatorName: null,
-          targetRaw: '>= 80%',
-          targetOperator: '>=',
-          targetValue: '80.0000',
-          targetUnit: '%',
-          responsibleName: 'นิศานาถ',
-          indicatorType: 'HA',
-          displayOrder: 1,
-          fiscalYear: '2570'
-        }]
-      }
-      if (sql.includes('SELECT id, indicator_id AS indicatorId')) {
-        return []
-      }
-      if (sql.includes('UPDATE kpi_indicators SET')) {
-        updatedParams = params
-        return { affectedRows: 1 }
-      }
-      if (sql.includes('SELECT id, result_value AS resultValue FROM kpi_entries')) {
-        return []
-      }
-      if (sql.includes('DELETE FROM kpi_indicators')) {
-        deletedId = params[0]
-        return { affectedRows: 1 }
-      }
-      return []
-    })
-
-    // Test Create
     const newId = await KpiService.createIndicator({
       topicId: 1,
       category: 'หมวด 1',
@@ -266,35 +186,29 @@ describe('KpiService with Mock QueryExecutor', () => {
       title: 'ตัวชี้วัดใหม่',
       targetOperator: '>=',
       targetValue: 80,
-      responsibleName: 'นิศานาถ'
-    }, mockExecutor)
+      responsibleName: 'นิศานาถ',
+    }, mockGw)
     expect(newId).toBe(201)
-    expect(insertedParams).toContain('ตัวชี้วัดใหม่')
+    expect(mockGw.createKpiIndicator).toHaveBeenCalledWith(expect.objectContaining({ title: 'ตัวชี้วัดใหม่' }))
 
-    // Test Update
     await KpiService.updateIndicator({
       id: 201,
       title: 'ตัวชี้วัดแก้ไขแล้ว',
-      targetValue: 85
-    }, mockExecutor)
-    expect(updatedParams).toContain('ตัวชี้วัดแก้ไขแล้ว')
+      targetValue: 85,
+    }, mockGw)
+    expect(mockGw.updateKpiIndicator).toHaveBeenCalledWith(201, expect.objectContaining({ title: 'ตัวชี้วัดแก้ไขแล้ว' }))
 
-    // Test Delete
-    await KpiService.deleteIndicator(201, 'Admin', mockExecutor)
-    expect(deletedId).toBe(201)
+    await KpiService.deleteIndicator(201, 'Admin', mockGw)
+    expect(mockGw.deleteKpiIndicator).toHaveBeenCalledWith(201)
   })
 
-  it('orders indicators by sequence number in getIndicators SQL query', async () => {
-    let capturedSql = ''
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      capturedSql = sql
-      return []
-    })
+  it('delegates getIndicators filters to gateway', async () => {
+    const mockGw = {
+      getKpiIndicators: vi.fn().mockResolvedValue([]),
+    }
 
-    await KpiService.getIndicators({ topicId: 1 }, mockExecutor)
-    expect(capturedSql).toContain('ORDER BY')
-    expect(capturedSql).toContain('i.sequence')
-    expect(capturedSql).toContain('CAST(i.sequence AS UNSIGNED) ASC')
+    await KpiService.getIndicators({ topicId: 1 }, mockGw)
+    expect(mockGw.getKpiIndicators).toHaveBeenCalledWith({ topicId: 1 })
   })
 
   it('identifies whether an indicator is answered for a specific period', () => {
@@ -331,85 +245,40 @@ describe('KpiService with Mock QueryExecutor', () => {
   })
 
   it('groups multiple period entry rows by indicator id and populates entries array', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [
-          {
-            id: 10,
-            topicId: 1,
-            sequence: '1',
-            category: 'หมวด 1',
-            subcategory: null,
-            code: 'M-01',
-            oldCode: null,
-            frequency: 'รายเดือน',
-            title: 'ตัวชี้วัดรายเดือน',
-            numeratorName: null,
-            denominatorName: null,
-            targetRaw: '>= 80%',
-            targetOperator: '>=',
-            targetValue: '80.0000',
-            targetUnit: '%',
-            responsibleName: 'นิศานาถ',
-            indicatorType: 'HA',
-            displayOrder: 1,
-            entryId: 501,
-            entryPeriodKey: 'M01',
-            entryPeriodLabel: 'ตุลาคม',
-            entryNumeratorValue: null,
-            entryDenominatorValue: null,
-            entryResultValue: '85.00',
-            entryResultText: null,
-            entryStatus: 'PASS',
-            entryNote: null,
-            entryRecordedById: 1,
-            entryRecordedByName: 'Admin',
-            entryRecordedAt: '2026-11-01',
-            entryUpdatedAt: '2026-11-01',
-          },
-          {
-            id: 10,
-            topicId: 1,
-            sequence: '1',
-            category: 'หมวด 1',
-            subcategory: null,
-            code: 'M-01',
-            oldCode: null,
-            frequency: 'รายเดือน',
-            title: 'ตัวชี้วัดรายเดือน',
-            numeratorName: null,
-            denominatorName: null,
-            targetRaw: '>= 80%',
-            targetOperator: '>=',
-            targetValue: '80.0000',
-            targetUnit: '%',
-            responsibleName: 'นิศานาถ',
-            indicatorType: 'HA',
-            displayOrder: 1,
-            entryId: 502,
-            entryPeriodKey: 'M02',
-            entryPeriodLabel: 'พฤศจิกายน',
-            entryNumeratorValue: null,
-            entryDenominatorValue: null,
-            entryResultValue: '75.00',
-            entryResultText: null,
-            entryStatus: 'FAIL',
-            entryNote: null,
-            entryRecordedById: 1,
-            entryRecordedByName: 'Admin',
-            entryRecordedAt: '2026-12-01',
-            entryUpdatedAt: '2026-12-01',
-          }
-        ]
-      }
-      return []
-    })
+    const mockGw = {
+      getKpiIndicators: vi.fn().mockResolvedValue([
+        {
+          id: 10, topicId: 1, sequence: '1', category: 'หมวด 1', subcategory: null,
+          code: 'M-01', oldCode: null, frequency: 'รายเดือน', title: 'ตัวชี้วัดรายเดือน',
+          numeratorName: null, denominatorName: null, targetRaw: '>= 80%',
+          targetOperator: '>=', targetValue: '80.0000', targetUnit: '%',
+          responsibleName: 'นิศานาถ', indicatorType: 'HA', displayOrder: 1,
+          entryId: 501, entryPeriodKey: 'M01', entryPeriodLabel: 'ตุลาคม',
+          entryNumeratorValue: null, entryDenominatorValue: null, entryResultValue: '85.00',
+          entryResultText: null, entryStatus: 'PASS', entryNote: null,
+          entryRecordedById: 1, entryRecordedByName: 'Admin',
+          entryRecordedAt: '2026-11-01', entryUpdatedAt: '2026-11-01',
+        },
+        {
+          id: 10, topicId: 1, sequence: '1', category: 'หมวด 1', subcategory: null,
+          code: 'M-01', oldCode: null, frequency: 'รายเดือน', title: 'ตัวชี้วัดรายเดือน',
+          numeratorName: null, denominatorName: null, targetRaw: '>= 80%',
+          targetOperator: '>=', targetValue: '80.0000', targetUnit: '%',
+          responsibleName: 'นิศานาถ', indicatorType: 'HA', displayOrder: 1,
+          entryId: 502, entryPeriodKey: 'M02', entryPeriodLabel: 'พฤศจิกายน',
+          entryNumeratorValue: null, entryDenominatorValue: null, entryResultValue: '75.00',
+          entryResultText: null, entryStatus: 'FAIL', entryNote: null,
+          entryRecordedById: 1, entryRecordedByName: 'Admin',
+          entryRecordedAt: '2026-12-01', entryUpdatedAt: '2026-12-01',
+        },
+      ]),
+    }
 
-    const indicators = await KpiService.getIndicators({ topicId: 1, fiscalYear: '2570' }, mockExecutor)
+    const indicators = await KpiService.getIndicators({ topicId: 1, fiscalYear: '2570' }, mockGw)
     expect(indicators).toHaveLength(1)
     expect(indicators[0].id).toBe(10)
     expect(indicators[0].entries).toHaveLength(2)
-    expect(indicators[0].entries?.map(e => e.periodKey)).toEqual(['M01', 'M02'])
+    expect(indicators[0].entries?.map((e) => e.periodKey)).toEqual(['M01', 'M02'])
   })
 
   it('correctly identifies percentage vs non-percentage (average/ratio) indicators', () => {
@@ -510,46 +379,25 @@ describe('KpiService with Mock QueryExecutor', () => {
   })
 
   it('correctly calculates results without multiplying by 100 for average indicators', async () => {
-    // 13770 / 102 should be 135 (not 13500)
     expect(calculateIndicatorResult(13770, 102, false)).toBe(135)
-    // Percentage should multiply by 100
     expect(calculateIndicatorResult(45, 50, true)).toBe(90)
 
-    const mockDb: any[] = []
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [{
-          id: 91,
-          topicId: 1,
-          sequence: '53',
-          category: 'หมวดที่ 1',
-          subcategory: 'การดูแลผู้ป่วยฉุกเฉิน',
-          code: 'HR-EMC-0101',
-          oldCode: 'CE0102',
+    const mockGw = {
+      getKpiIndicatorById: vi.fn().mockResolvedValue({
+        indicator: {
+          id: 91, topicId: 1, sequence: '53', category: 'หมวดที่ 1',
+          subcategory: 'การดูแลผู้ป่วยฉุกเฉิน', code: 'HR-EMC-0101', oldCode: 'CE0102',
           frequency: 'รายเดือน',
           title: 'ค่าเฉลี่ยระยะเวลาการเข้ารับ-ออกจากบริการของผู้ป่วยที่มารับบริการที่ห้องฉุกเฉิน',
           numeratorName: 'ระยะเวลา (นาที) รวมทั้งหมด',
           denominatorName: 'จำนวนผู้ป่วยฉุกเฉินมาก (คน)',
-          targetRaw: null,
-          targetOperator: null,
-          targetValue: null,
-          targetUnit: null,
-          responsibleName: 'ภูนนท์',
-          indicatorType: 'HA',
-          displayOrder: 91,
-          created_at: '2026-10-22',
-          updated_at: '2026-10-22',
-        }]
-      }
-      if (sql.includes('SELECT id FROM kpi_entries')) {
-        return []
-      }
-      if (sql.includes('INSERT INTO kpi_entries')) {
-        mockDb.push(params)
-        return { insertId: 101 }
-      }
-      return []
-    })
+          targetRaw: null, targetOperator: null, targetValue: null, targetUnit: null,
+          responsibleName: 'ภูนนท์', indicatorType: 'HA', displayOrder: 91,
+        },
+        entries: [],
+      }),
+      saveKpiEntry: vi.fn().mockResolvedValue({ entryId: 101, authorName: 'ภูนนท์' }),
+    }
 
     const entry = await KpiService.saveEntry({
       indicatorId: 91,
@@ -559,87 +407,57 @@ describe('KpiService with Mock QueryExecutor', () => {
       numeratorValue: 13770,
       denominatorValue: 102,
       isAdmin: true,
-      recordedByName: 'ภูนนท์'
-    }, mockExecutor)
+      recordedByName: 'ภูนนท์',
+    }, mockGw)
 
     expect(entry.resultValue).toBe(135)
     expect(entry.status).toBe('WAITING_TARGET')
   })
 
   it('updates targetRaw, clears targetRaw when targetValue is null, and preserves 0/0 PASS entries on re-evaluation', async () => {
-    const indicatorUpdateCalls: any[][] = []
-    const entryStatusUpdates: Array<{ id: number; status: string }> = []
+    const updateCalls: any[] = []
+    const mockGw = {
+      getKpiIndicatorById: vi.fn().mockResolvedValue({
+        indicator: {
+          id: 301, topicId: 1, sequence: '10', category: 'หมวด 1', subcategory: null,
+          code: 'KPI-301', oldCode: null, frequency: 'รายเดือน',
+          title: 'ร้อยละผู้ป่วยที่ติดเชื้อ', numeratorName: 'ติดเชื้อ', denominatorName: 'ทั้งหมด',
+          targetRaw: '>= 80%', targetOperator: '>=', targetValue: '80.0000', targetUnit: '%',
+          responsibleName: 'นิศานาถ', indicatorType: 'HA', displayOrder: 10, fiscalYear: '2570',
+        },
+        entries: [
+          { id: 1, indicatorId: 301, fiscalYear: '2570', periodKey: 'M01', periodLabel: 'ต.ค.', numeratorValue: '0', denominatorValue: '0', resultValue: '0', status: 'PASS' },
+          { id: 2, indicatorId: 301, fiscalYear: '2570', periodKey: 'M02', periodLabel: 'พ.ย.', numeratorValue: '75', denominatorValue: '100', resultValue: '75', status: 'FAIL' },
+        ],
+      }),
+      updateKpiIndicator: vi.fn().mockImplementation(async (_id, payload) => {
+        updateCalls.push(payload)
+        return { updated: true }
+      }),
+    }
 
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
-      if (sql.includes('FROM kpi_indicators i') && sql.includes('WHERE i.id = ?')) {
-        return [{
-          id: 301,
-          topicId: 1,
-          sequence: '10',
-          category: 'หมวด 1',
-          subcategory: null,
-          code: 'KPI-301',
-          oldCode: null,
-          frequency: 'รายเดือน',
-          title: 'ร้อยละผู้ป่วยที่ติดเชื้อ',
-          numeratorName: 'ติดเชื้อ',
-          denominatorName: 'ทั้งหมด',
-          targetRaw: '>= 80%',
-          targetOperator: '>=',
-          targetValue: '80.0000',
-          targetUnit: '%',
-          responsibleName: 'นิศานาถ',
-          indicatorType: 'HA',
-          displayOrder: 10,
-          fiscalYear: '2570',
-        }]
-      }
-      if (sql.includes('SELECT') && sql.includes('FROM kpi_entries') && sql.includes('WHERE indicator_id = ?') && sql.includes('ORDER BY')) {
-        return []
-      }
-      if (sql.includes('UPDATE kpi_indicators SET')) {
-        indicatorUpdateCalls.push(params)
-        return { affectedRows: 1 }
-      }
-      if (sql.includes('FROM kpi_entries') && sql.includes('numerator_value AS numeratorValue')) {
-        return [
-          { id: 1, numeratorValue: '0', denominatorValue: '0', resultValue: '0' },
-          { id: 2, numeratorValue: '75', denominatorValue: '100', resultValue: '75' },
-        ]
-      }
-      if (sql.includes('UPDATE kpi_entries SET status = ? WHERE id = ?')) {
-        entryStatusUpdates.push({ status: params[0], id: params[1] })
-        return { affectedRows: 1 }
-      }
-      return []
-    })
-
-    // 1. Update target to >= 70% -> 0/0 stays PASS, 75 becomes PASS, targetRaw updates
     await KpiService.updateIndicator({
       id: 301,
       targetOperator: '>=',
       targetValue: 70,
       targetUnit: '%',
-    }, mockExecutor)
+    }, mockGw)
 
-    expect(indicatorUpdateCalls[0]).toContain('>= 70%')
-    expect(entryStatusUpdates).toEqual([
+    expect(updateCalls[0].targetRaw).toBe('>= 70%')
+    expect(updateCalls[0].entryStatusUpdates).toEqual([
       { id: 1, status: 'PASS' },
       { id: 2, status: 'PASS' },
     ])
 
-    // 2. Clear target (targetValue: null) -> targetRaw becomes null, entry 2 becomes WAITING_TARGET
-    entryStatusUpdates.length = 0
     await KpiService.updateIndicator({
       id: 301,
       targetOperator: '>=',
       targetValue: null,
       targetUnit: '%',
-    }, mockExecutor)
+    }, mockGw)
 
-    // target_raw is index 9 in UPDATE kpi_indicators SET ...
-    expect(indicatorUpdateCalls[1][9]).toBeNull()
-    expect(entryStatusUpdates).toEqual([
+    expect(updateCalls[1].targetRaw).toBeNull()
+    expect(updateCalls[1].entryStatusUpdates).toEqual([
       { id: 1, status: 'PASS' },
       { id: 2, status: 'WAITING_TARGET' },
     ])

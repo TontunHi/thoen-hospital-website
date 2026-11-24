@@ -145,163 +145,146 @@ describe('onlineMediaService pure helpers', () => {
   })
 })
 
-describe('OnlineMediaService database operations', () => {
+describe('OnlineMediaService Gateway Named API operations', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
   })
 
   it('forces PUBLIC-only filter when unauthenticated even if caller requests INTERNAL or ALL', async () => {
-    const queryFn = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM online_media_items')) {
-        return [
-          {
-            id: 1,
-            slug: 'public-video',
-            title: 'วิดีโอสุขศึกษา',
-            description: 'คำอธิบาย',
-            category_id: 1,
-            categoryName: 'สุขศึกษา',
-            visibility: 'PUBLIC',
-            media_type: 'VIDEO',
-            source_type: 'YOUTUBE',
-            youtube_url: 'https://youtu.be/dQw4w9WgXcQ',
-            allow_download: 1,
-            is_published: 1,
-            view_count: 12,
-            created_at: '2026-11-19 10:00:00',
-            updated_at: '2026-11-19 10:00:00',
-          },
-        ]
-      }
-      if (sql.includes('FROM online_media_attachments')) {
-        return []
-      }
-      return []
-    })
+    const itemsSpy = vi.spyOn(apiGateway.app, 'getOnlineMediaItems').mockResolvedValue([
+      {
+        id: 1,
+        slug: 'public-video',
+        title: 'วิดีโอสุขศึกษา',
+        description: 'คำอธิบาย',
+        category_id: 1,
+        categoryName: 'สุขศึกษา',
+        visibility: 'PUBLIC',
+        media_type: 'VIDEO',
+        source_type: 'YOUTUBE',
+        youtube_url: 'https://youtu.be/dQw4w9WgXcQ',
+        allow_download: 1,
+        is_published: 1,
+        view_count: 12,
+        created_at: '2026-11-19 10:00:00',
+        updated_at: '2026-11-19 10:00:00',
+        attachments: [],
+      },
+    ])
 
-    const items = await OnlineMediaService.listMediaItems(
-      { visibility: 'INTERNAL', isAuthenticated: false },
-      queryFn
-    )
+    const items = await OnlineMediaService.listMediaItems({
+      visibility: 'INTERNAL',
+      isAuthenticated: false,
+    })
 
     expect(items).toHaveLength(1)
     expect(items[0].visibility).toBe('PUBLIC')
     expect(items[0].youtubeEmbedUrl).toBe(
       'https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1'
     )
-    const firstSql = queryFn.mock.calls[0][0]
-    expect(firstSql).toContain("i.visibility = 'PUBLIC'")
-    expect(firstSql).toContain('i.is_published = 1')
+    expect(itemsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visibility: 'PUBLIC',
+        includeUnpublished: false,
+        isAuthenticated: false,
+      })
+    )
   })
 
   it('blocks INTERNAL items when unauthenticated and returns them when authenticated', async () => {
-    const queryFn = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM online_media_items')) {
-        return [
-          {
-            id: 7,
-            slug: 'internal-unlisted-yt',
-            title: 'อบรมภายใน YouTube Unlisted',
-            description: null,
-            category_id: 2,
-            categoryName: 'อบรม',
-            visibility: 'INTERNAL',
-            media_type: 'VIDEO',
-            source_type: 'YOUTUBE',
-            youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            allow_download: 0,
-            is_published: 1,
-            view_count: 3,
-            created_at: '2026-11-19 10:00:00',
-            updated_at: '2026-11-19 10:00:00',
-          },
-        ]
-      }
-      return []
-    })
+    vi.spyOn(apiGateway.app, 'getOnlineMediaItemBySlugOrId')
+      .mockResolvedValueOnce({ item: null, requiresAuth: true })
+      .mockResolvedValueOnce({
+        item: {
+          id: 7,
+          slug: 'internal-unlisted-yt',
+          title: 'อบรมภายใน YouTube Unlisted',
+          description: null,
+          category_id: 2,
+          categoryName: 'อบรม',
+          visibility: 'INTERNAL',
+          media_type: 'VIDEO',
+          source_type: 'YOUTUBE',
+          youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          allow_download: 0,
+          is_published: 1,
+          view_count: 3,
+          created_at: '2026-11-19 10:00:00',
+          updated_at: '2026-11-19 10:00:00',
+          attachments: [],
+        },
+        requiresAuth: false,
+      })
 
-    const guestResult = await OnlineMediaService.getMediaItemBySlugOrId(
-      'internal-unlisted-yt',
-      { isAuthenticated: false },
-      queryFn
-    )
+    const guestResult = await OnlineMediaService.getMediaItemBySlugOrId('internal-unlisted-yt', {
+      isAuthenticated: false,
+    })
     expect(guestResult).toEqual({ item: null, requiresAuth: true })
 
-    const staffResult = await OnlineMediaService.getMediaItemBySlugOrId(
-      'internal-unlisted-yt',
-      { isAuthenticated: true },
-      queryFn
-    )
+    const staffResult = await OnlineMediaService.getMediaItemBySlugOrId('internal-unlisted-yt', {
+      isAuthenticated: true,
+    })
     expect(staffResult.requiresAuth).toBe(false)
     expect(staffResult.item?.id).toBe(7)
     expect(staffResult.item?.youtubeEmbedUrl).toContain('dQw4w9WgXcQ')
   })
 
-  it('increments view_count and upserts staff view history on recordMediaView', async () => {
-    const queryFn = vi.fn().mockResolvedValue({ affectedRows: 1 })
+  it('delegates recordMediaView to Gateway Named API', async () => {
+    const viewSpy = vi.spyOn(apiGateway.app, 'recordOnlineMediaView').mockResolvedValue({ success: true })
 
-    await OnlineMediaService.recordMediaView(
-      15,
-      { memberId: 88, memberName: 'นพ.ทดสอบ ระบบ', memberDepartment: 'อายุรกรรม' },
-      queryFn
-    )
+    await OnlineMediaService.recordMediaView(15, {
+      memberId: 88,
+      memberName: 'นพ.ทดสอบ ระบบ',
+      memberDepartment: 'อายุรกรรม',
+    })
+    expect(viewSpy).toHaveBeenCalledWith(15, {
+      memberId: 88,
+      memberName: 'นพ.ทดสอบ ระบบ',
+      memberDepartment: 'อายุรกรรม',
+    })
 
-    expect(queryFn).toHaveBeenCalledTimes(2)
-    expect(queryFn.mock.calls[0][0]).toContain('UPDATE online_media_items SET view_count = view_count + 1')
-    expect(queryFn.mock.calls[0][1]).toEqual([15])
-    expect(queryFn.mock.calls[1][0]).toContain('INSERT INTO online_media_views')
-    expect(queryFn.mock.calls[1][1]).toEqual([15, 88, 'นพ.ทดสอบ ระบบ', 'อายุรกรรม'])
-
-    vi.clearAllMocks()
-    await OnlineMediaService.recordMediaView(15, null, queryFn)
-    expect(queryFn).toHaveBeenCalledTimes(1)
+    await OnlineMediaService.recordMediaView(15, null)
+    expect(viewSpy).toHaveBeenCalledWith(15, null)
   })
 
   it('cleans up primary file, thumbnail, and attachments from MinIO on deleteMediaItem', async () => {
-    const queryFn = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM online_media_items')) {
-        return [
-          {
-            id: 55,
-            slug: 'to-delete',
-            title: 'วิดีโอที่จะลบ',
-            category_id: 1,
-            visibility: 'INTERNAL',
-            media_type: 'VIDEO',
-            source_type: 'MINIO',
-            s3_bucket: 'private-documents',
-            s3_key: 'online-media/internal/2026/11/video.mp4',
-            thumbnail_s3_key: 'online-media/internal/2026/11/thumb.jpg',
-            allow_download: 1,
-            is_published: 1,
-            view_count: 0,
-            created_at: '2026-11-19 10:00:00',
-            updated_at: '2026-11-19 10:00:00',
-          },
-        ]
-      }
-      if (sql.includes('FROM online_media_attachments')) {
-        return [
-          {
-            id: 101,
-            media_id: 55,
-            title: 'เอกสารแนบ',
-            s3_bucket: 'private-documents',
-            s3_key: 'online-media/internal/2026/11/handout.pdf',
-            file_name: 'handout.pdf',
-            display_order: 0,
-            created_at: '2026-11-19 10:00:00',
-          },
-        ]
-      }
-      return { affectedRows: 1 }
+    vi.spyOn(apiGateway.app, 'getOnlineMediaItemForManage').mockResolvedValue({
+      id: 55,
+      slug: 'to-delete',
+      title: 'วิดีโอที่จะลบ',
+      category_id: 1,
+      visibility: 'INTERNAL',
+      media_type: 'VIDEO',
+      source_type: 'MINIO',
+      s3_bucket: 'private-documents',
+      s3_key: 'online-media/internal/2026/11/video.mp4',
+      thumbnail_s3_key: 'online-media/internal/2026/11/thumb.jpg',
+      allow_download: 1,
+      is_published: 1,
+      view_count: 0,
+      created_at: '2026-11-19 10:00:00',
+      updated_at: '2026-11-19 10:00:00',
+      attachments: [
+        {
+          id: 101,
+          media_id: 55,
+          title: 'เอกสารแนบ',
+          s3_bucket: 'private-documents',
+          s3_key: 'online-media/internal/2026/11/handout.pdf',
+          file_name: 'handout.pdf',
+          display_order: 0,
+          created_at: '2026-11-19 10:00:00',
+        },
+      ],
     })
+    const delSpy = vi.spyOn(apiGateway.app, 'deleteOnlineMediaItem').mockResolvedValue({ success: true })
 
-    await OnlineMediaService.deleteMediaItem(
-      55,
-      { id: 1, username: 'admin1', email: 'admin@thoen.go.th' },
-      queryFn
-    )
+    await OnlineMediaService.deleteMediaItem(55, {
+      id: 1,
+      username: 'admin1',
+      email: 'admin@thoen.go.th',
+    })
 
     expect(DocumentStorage.deleteFromS3Only).toHaveBeenCalledTimes(3)
     expect(DocumentStorage.deleteFromS3Only).toHaveBeenCalledWith({
@@ -316,6 +299,7 @@ describe('OnlineMediaService database operations', () => {
       bucket: 'private-documents',
       s3Key: 'online-media/internal/2026/11/handout.pdf',
     })
+    expect(delSpy).toHaveBeenCalledWith(55)
     expect(logAudit).toHaveBeenCalledWith(
       'DELETE',
       'online_media_items',

@@ -1,5 +1,4 @@
-import { queryMemberDb } from '@/lib/memberDb'
-import { apiGateway } from '@/lib/apiGateway'
+import { apiGateway, GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -49,8 +48,8 @@ export interface ScreeningQueueQueryOptions {
   date?: string // 'YYYY-MM-DD' or 'today'
   search?: string
   status?: string
-  includePhoto?: boolean // default false in list to save bandwidth
-  includeRawPayload?: boolean // default false in list to save bandwidth
+  includePhoto?: boolean
+  includeRawPayload?: boolean
   page?: number
   limit?: number
 }
@@ -62,9 +61,6 @@ export interface Actor {
   role?: string | null
 }
 
-/**
- * Mask Thai National Citizen ID for PDPA compliance (shows only the last 4 characters).
- */
 export function maskCid(cid: string): string {
   if (!cid) return ''
   const trimmed = cid.trim()
@@ -80,10 +76,6 @@ export interface BangkokDateRange {
   endSql: string
 }
 
-/**
- * Normalizes a Date object or DB date string to Asia/Bangkok (+07:00) ISO string
- * to prevent client-side double timezone conversion.
- */
 export function formatBangkokIso(date: Date | string | null | undefined): string | null {
   if (!date) return null
   if (typeof date === 'string') {
@@ -112,10 +104,6 @@ export function formatBangkokIso(date: Date | string | null | undefined): string
   return String(date)
 }
 
-/**
- * Calculates start and end Date and SQL string bounds for a given Thailand (Asia/Bangkok) date (YYYY-MM-DD).
- * Hospital MariaDB stores created_at in local Thai time (NOW()), so local day bounds are 00:00:00 to 23:59:59.
- */
 export function getBangkokDateRange(dateStr?: string): BangkokDateRange {
   let targetDateStr = dateStr?.trim()
   if (!targetDateStr || targetDateStr === 'today') {
@@ -124,7 +112,7 @@ export function getBangkokDateRange(dateStr?: string): BangkokDateRange {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(new Date()) // Returns 'YYYY-MM-DD'
+    }).format(new Date())
   }
 
   const [y, m, d] = targetDateStr.split('-').map(Number)
@@ -135,7 +123,6 @@ export function getBangkokDateRange(dateStr?: string): BangkokDateRange {
   const startSql = `${targetDateStr} 00:00:00`
   const endSql = `${targetDateStr} 23:59:59`
 
-  // For Prisma or UTC Date operations matching the local calendar day
   const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0))
   const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999))
 
@@ -151,19 +138,36 @@ export type ScreeningClinicalVerifier = (cids: string[]) => Promise<Array<{
   status: 'NO_RECORD' | 'WAITING' | 'VISIT_OPENED' | string
 }>>
 
+export interface ScreeningQueueGatewayAdapter {
+  getScreeningQueues: typeof apiGateway.app.getScreeningQueues
+  getScreeningQueueById: typeof apiGateway.app.getScreeningQueueById
+  upsertScreeningQueue: typeof apiGateway.app.upsertScreeningQueue
+  updateScreeningQueueStatus: typeof apiGateway.app.updateScreeningQueueStatus
+  batchUpdateScreeningQueueStatus: typeof apiGateway.app.batchUpdateScreeningQueueStatus
+  cleanupScreeningQueues: typeof apiGateway.app.cleanupScreeningQueues
+}
+
+const defaultAppGateway: ScreeningQueueGatewayAdapter = {
+  getScreeningQueues: (...args) => apiGateway.app.getScreeningQueues(...args),
+  getScreeningQueueById: (...args) => apiGateway.app.getScreeningQueueById(...args),
+  upsertScreeningQueue: (...args) => apiGateway.app.upsertScreeningQueue(...args),
+  updateScreeningQueueStatus: (...args) => apiGateway.app.updateScreeningQueueStatus(...args),
+  batchUpdateScreeningQueueStatus: (...args) => apiGateway.app.batchUpdateScreeningQueueStatus(...args),
+  cleanupScreeningQueues: (...args) => apiGateway.app.cleanupScreeningQueues(...args),
+}
+
 export class ScreeningQueueService {
+  private readonly appGw: ScreeningQueueGatewayAdapter
+
   constructor(
     private db: any = null,
-    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb,
+    appGateway: Partial<ScreeningQueueGatewayAdapter> = {},
     private readonly clinicalVerifier: ScreeningClinicalVerifier = (cids) =>
       apiGateway.clinical.verifyScreeningVisits(cids)
-  ) {}
+  ) {
+    this.appGw = { ...defaultAppGateway, ...appGateway }
+  }
 
-  /**
-   * Verifies patient medical records and visit status in HOSxP for a list of CIDs on current date.
-   * Exclusively routes through the dedicated Unified API Gateway endpoint:
-   * POST /api/v1/clinical/screening/verify-visits
-   */
   async verifyHosVisits(cids: string[]): Promise<Map<string, { inPatient: boolean; hn?: string; vn?: string }>> {
     const cleanCids = Array.from(new Set(cids.map((c) => c?.trim()).filter(Boolean)))
     const results = new Map<string, { inPatient: boolean; hn?: string; vn?: string }>()
@@ -190,10 +194,6 @@ export class ScreeningQueueService {
     return results
   }
 
-  /**
-   * Enriches queue items with HOSxP patient record & visit verification for today.
-   * Auto-updates database records if status or VN changed.
-   */
   async enrichQueuesWithHosVisits(items: ScreeningQueueItem[]): Promise<ScreeningQueueItem[]> {
     if (!items || items.length === 0) return items
 
@@ -211,7 +211,6 @@ export class ScreeningQueueService {
     const updatesToPersist: Array<{ id: number; status: string; vn: string | null }> = []
 
     for (const item of items) {
-      // Preserve manual cancellation
       if (item.status === 'CANCELLED') continue
 
       const verified = verificationMap.get(item.cid.trim())
@@ -219,14 +218,11 @@ export class ScreeningQueueService {
       let targetVn: string | null = null
 
       if (!verified) {
-        // Not found in patient table -> NO_RECORD ("ไม่มีเวชระเบียน")
         targetStatus = 'NO_RECORD'
       } else if (verified.vn) {
-        // Found in patient and has visit today -> VISIT_OPENED ("เปิด visit แล้ว")
         targetStatus = 'VISIT_OPENED'
         targetVn = verified.vn
       } else {
-        // Found in patient but has no visit today -> WAITING ("รอเปิด visit")
         targetStatus = 'WAITING'
       }
 
@@ -243,21 +239,18 @@ export class ScreeningQueueService {
 
     if (updatesToPersist.length > 0) {
       try {
-        await Promise.all(
-          updatesToPersist.map(async (u) => {
-            if (this.db?.screeningQueue) {
-              await this.db.screeningQueue.update({
+        if (this.db?.screeningQueue) {
+          await Promise.all(
+            updatesToPersist.map((u) =>
+              this.db.screeningQueue.update({
                 where: { id: u.id },
                 data: { status: u.status, vn: u.vn },
               })
-            } else {
-              await this.queryExecutor(
-                'UPDATE screening_queues SET status = ?, vn = ?, updated_at = NOW() WHERE id = ?',
-                [u.status, u.vn, u.id]
-              )
-            }
-          })
-        )
+            )
+          )
+        } else {
+          await this.appGw.batchUpdateScreeningQueueStatus(updatesToPersist)
+        }
       } catch (persistErr) {
         logger.error({ err: persistErr }, 'Failed to persist auto-verified screening queue statuses')
       }
@@ -266,9 +259,6 @@ export class ScreeningQueueService {
     return items
   }
 
-  /**
-   * Retrieves queue items for a specific date (defaults to Today Bangkok time).
-   */
   async getQueues(options: ScreeningQueueQueryOptions = {}) {
     const isAll = options.date?.trim().toLowerCase() === 'all'
     const range = isAll ? null : getBangkokDateRange(options.date)
@@ -279,16 +269,11 @@ export class ScreeningQueueService {
     if (this.db?.screeningQueue) {
       const where: any = {}
       if (!isAll && range) {
-        where.createdAt = {
-          gte: range.start,
-          lte: range.end,
-        }
+        where.createdAt = { gte: range.start, lte: range.end }
       }
-
       if (!isToday && options.status && options.status !== 'ALL') {
         where.status = options.status
       }
-
       if (options.search && options.search.trim()) {
         const q = options.search.trim()
         where.OR = [
@@ -297,31 +282,13 @@ export class ScreeningQueueService {
           { vn: { contains: q } },
         ]
       }
-
       const select: any = {
-        id: true,
-        cid: true,
-        title: true,
-        firstName: true,
-        lastName: true,
-        fullName: true,
-        gender: true,
-        birthDate: true,
-        address: true,
-        status: true,
-        vn: true,
-        recordedBy: true,
-        createdAt: true,
-        updatedAt: true,
+        id: true, cid: true, title: true, firstName: true, lastName: true, fullName: true,
+        gender: true, birthDate: true, address: true, status: true, vn: true,
+        recordedBy: true, createdAt: true, updatedAt: true,
       }
-
-      if (options.includePhoto) {
-        select.photoBase64 = true
-      }
-
-      if (options.includeRawPayload) {
-        select.rawPayload = true
-      }
+      if (options.includePhoto) select.photoBase64 = true
+      if (options.includeRawPayload) select.rawPayload = true
 
       const items = await this.db.screeningQueue.findMany({
         where,
@@ -343,63 +310,20 @@ export class ScreeningQueueService {
         }
       }
 
-      return {
-        date: bangkokDateStr,
-        total: mappedItems.length,
-        items: mappedItems,
-      }
+      return { date: bangkokDateStr, total: mappedItems.length, items: mappedItems }
     }
 
-    // Zero-DB Gateway Production Implementation
-    const whereClauses: string[] = []
-    const params: any[] = []
+    const rawItems = await this.appGw.getScreeningQueues({
+      startSql: !isAll && range ? range.startSql : undefined,
+      endSql: !isAll && range ? range.endSql : undefined,
+      status: !isToday && options.status && options.status !== 'ALL' ? options.status : undefined,
+      search: options.search?.trim() || undefined,
+      includePhoto: options.includePhoto,
+      includeRawPayload: options.includeRawPayload,
+      limit: options.limit,
+    })
 
-    if (!isAll && range) {
-      whereClauses.push('created_at >= ?', 'created_at <= ?')
-      params.push(range.startSql, range.endSql)
-    }
-
-    if (!isToday && options.status && options.status !== 'ALL') {
-      whereClauses.push('status = ?')
-      params.push(options.status)
-    }
-
-    if (options.search && options.search.trim()) {
-      const q = `%${options.search.trim()}%`
-      whereClauses.push('(full_name LIKE ? OR cid LIKE ? OR vn LIKE ?)')
-      params.push(q, q, q)
-    }
-
-    const selectFields = [
-      'id',
-      'cid',
-      'title',
-      'first_name AS firstName',
-      'last_name AS lastName',
-      'full_name AS fullName',
-      'gender',
-      'birth_date AS birthDate',
-      'address',
-      'status',
-      'vn',
-      'recorded_by AS recordedBy',
-      'created_at AS createdAt',
-      'updated_at AS updatedAt',
-    ]
-
-    if (options.includePhoto) {
-      selectFields.push('photo_base64 AS photoBase64')
-    }
-    if (options.includeRawPayload) {
-      selectFields.push('raw_payload AS rawPayload')
-    }
-
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-    const limitClause = options.limit ? `LIMIT ${Number(options.limit)}` : ''
-    const sql = `SELECT ${selectFields.join(', ')} FROM screening_queues ${whereSql} ORDER BY created_at DESC ${limitClause}`.trim()
-    const rawItems = await this.queryExecutor(sql, params)
-
-    let items = (rawItems || []).map((row: any) => ({
+    let items: ScreeningQueueItem[] = (rawItems || []).map((row: any) => ({
       ...row,
       createdAt: formatBangkokIso(row.createdAt || row.created_at) || row.createdAt,
       updatedAt: formatBangkokIso(row.updatedAt || row.updated_at) || row.updatedAt,
@@ -412,23 +336,14 @@ export class ScreeningQueueService {
       }
     }
 
-    return {
-      date: bangkokDateStr,
-      total: items.length,
-      items,
-    }
+    return { date: bangkokDateStr, total: items.length, items }
   }
 
-  /**
-   * Retrieves single queue item by ID (with rawPayload and photo).
-   */
   async getQueueById(id: number): Promise<ScreeningQueueItem | null> {
     if (!id || isNaN(id)) return null
 
     if (this.db?.screeningQueue) {
-      const item = await this.db.screeningQueue.findUnique({
-        where: { id },
-      })
+      const item = await this.db.screeningQueue.findUnique({ where: { id } })
       if (!item) return null
       return {
         ...item,
@@ -437,38 +352,15 @@ export class ScreeningQueueService {
       }
     }
 
-    const rows = await this.queryExecutor(`
-      SELECT 
-        id, cid, title,
-        first_name AS firstName,
-        last_name AS lastName,
-        full_name AS fullName,
-        gender,
-        birth_date AS birthDate,
-        address,
-        photo_base64 AS photoBase64,
-        raw_payload AS rawPayload,
-        status, vn,
-        recorded_by AS recordedBy,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM screening_queues
-      WHERE id = ?
-      LIMIT 1
-    `, [id])
-
-    const row = rows[0] || null
+    const row = await this.appGw.getScreeningQueueById(id)
     if (!row) return null
     return {
-      ...row,
+      ...(row as ScreeningQueueItem),
       createdAt: formatBangkokIso(row.createdAt || row.created_at) || row.createdAt,
       updatedAt: formatBangkokIso(row.updatedAt || row.updated_at) || row.updatedAt,
     }
   }
 
-  /**
-   * Adds or updates a screening queue entry from Smart Card reader.
-   */
   async addToQueue(input: CreateScreeningQueueInput, actor?: Actor) {
     const rawCid = input.cid?.replace(/[^0-9]/g, '') || ''
     if (rawCid.length !== 13) {
@@ -482,7 +374,6 @@ export class ScreeningQueueService {
 
     const commonTitles = ['นางสาว', 'นาย', 'นาง', 'เด็กชาย', 'เด็กหญิง', 'ด.ช.', 'ด.ญ.', 'พระภิกษุ', 'พระ']
 
-    // Detect title from fullName if not explicitly provided
     if (!title && fullName) {
       for (const t of commonTitles) {
         if (fullName.startsWith(t)) {
@@ -492,11 +383,8 @@ export class ScreeningQueueService {
       }
     }
 
-    // Ensure title and firstName in fullName have a separating space (matching smart card output)
     if (title && fullName) {
-      if (fullName.startsWith(title + ' ')) {
-        // already properly separated
-      } else if (fullName.startsWith(title)) {
+      if (!fullName.startsWith(title + ' ') && fullName.startsWith(title)) {
         fullName = `${title} ${fullName.slice(title.length).trim()}`
       }
     }
@@ -508,11 +396,9 @@ export class ScreeningQueueService {
       fullName = `ผู้รับบริการ (${rawCid})`
     }
 
-    // Populate missing firstName/lastName from fullName
     if (!firstName && fullName) {
-      const withoutTitle = title && fullName.startsWith(title)
-        ? fullName.slice(title.length).trim()
-        : fullName
+      const withoutTitle =
+        title && fullName.startsWith(title) ? fullName.slice(title.length).trim() : fullName
       const parts = withoutTitle.split(/\s+/).filter(Boolean)
       if (parts.length > 0) {
         firstName = parts[0]
@@ -533,22 +419,13 @@ export class ScreeningQueueService {
     const { start, end, startSql, endSql } = getBangkokDateRange('today')
 
     if (this.db?.screeningQueue) {
-      // Check if the person is already queued today
       const existing = await this.db.screeningQueue.findFirst({
-        where: {
-          cid: rawCid,
-          createdAt: {
-            gte: start,
-            lte: end,
-          },
-        },
+        where: { cid: rawCid, createdAt: { gte: start, lte: end } },
         orderBy: { createdAt: 'desc' },
       })
 
       let queueRecord: ScreeningQueueItem
-
       if (existing) {
-        // Update existing record for today with latest read data
         queueRecord = await this.db.screeningQueue.update({
           where: { id: existing.id },
           data: {
@@ -566,14 +443,9 @@ export class ScreeningQueueService {
           },
         })
       } else {
-        // Create new queue entry
         queueRecord = await this.db.screeningQueue.create({
           data: {
-            cid: rawCid,
-            title,
-            firstName,
-            lastName,
-            fullName,
+            cid: rawCid, title, firstName, lastName, fullName,
             gender: input.gender?.trim() || null,
             birthDate: input.birthDate?.trim() || null,
             address: input.address?.trim() || null,
@@ -604,71 +476,28 @@ export class ScreeningQueueService {
       return queueRecord
     }
 
-    // Zero-DB Gateway Production Implementation
-    const existingRows = await this.queryExecutor(`
-      SELECT id, title, first_name AS firstName, last_name AS lastName, full_name AS fullName,
-        gender, birth_date AS birthDate, address, photo_base64 AS photoBase64,
-        raw_payload AS rawPayload, status, vn, recorded_by AS recordedBy
-      FROM screening_queues
-      WHERE cid = ? AND created_at >= ? AND created_at <= ?
-      ORDER BY created_at DESC
-      LIMIT 1
-    `, [rawCid, startSql, endSql])
+    const row = await this.appGw.upsertScreeningQueue({
+      cid: rawCid,
+      startSql,
+      endSql,
+      title,
+      firstName,
+      lastName,
+      fullName,
+      gender: input.gender?.trim() || null,
+      birthDate: input.birthDate?.trim() || null,
+      address: input.address?.trim() || null,
+      photoBase64: input.photoBase64 || null,
+      rawPayload: rawPayloadString,
+      status: input.status || 'WAITING',
+      vn: input.vn || null,
+      recordedBy: actor?.id ?? input.recordedBy ?? null,
+    })
 
-    const existing = existingRows[0]
-    let queueRecord: any
-
-    if (existing) {
-      const nextTitle = title ?? existing.title
-      const nextFirstName = firstName ?? existing.firstName
-      const nextLastName = lastName ?? existing.lastName
-      const nextFullName = fullName ?? existing.fullName
-      const nextGender = input.gender ?? existing.gender
-      const nextBirthDate = input.birthDate ?? existing.birthDate
-      const nextAddress = input.address ?? existing.address
-      const nextPhoto = input.photoBase64 ?? existing.photoBase64
-      const nextRaw = rawPayloadString ?? existing.rawPayload
-      const nextRecordedBy = actor?.id ?? existing.recordedBy
-      const nextStatus = existing.status === 'CANCELLED' ? 'WAITING' : existing.status
-
-      await this.queryExecutor(`
-        UPDATE screening_queues
-        SET title = ?, first_name = ?, last_name = ?, full_name = ?,
-            gender = ?, birth_date = ?, address = ?, photo_base64 = ?,
-            raw_payload = ?, recorded_by = ?, status = ?, updated_at = NOW()
-        WHERE id = ?
-      `, [
-        nextTitle, nextFirstName, nextLastName, nextFullName,
-        nextGender, nextBirthDate, nextAddress, nextPhoto,
-        nextRaw, nextRecordedBy, nextStatus, existing.id
-      ])
-
-      queueRecord = await this.getQueueById(existing.id)
-    } else {
-      const res: any = await this.queryExecutor(`
-        INSERT INTO screening_queues (
-          cid, title, first_name, last_name, full_name,
-          gender, birth_date, address, photo_base64, raw_payload,
-          status, vn, recorded_by, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-      `, [
-        rawCid,
-        title,
-        firstName,
-        lastName,
-        fullName,
-        input.gender?.trim() || null,
-        input.birthDate?.trim() || null,
-        input.address?.trim() || null,
-        input.photoBase64 || null,
-        rawPayloadString,
-        input.status || 'WAITING',
-        input.vn || null,
-        actor?.id ?? input.recordedBy ?? null,
-      ])
-
-      const newId = res.insertId
-      queueRecord = await this.getQueueById(newId)
+    const queueRecord: ScreeningQueueItem = {
+      ...(row as ScreeningQueueItem),
+      createdAt: formatBangkokIso(row?.createdAt || row?.created_at) || row?.createdAt,
+      updatedAt: formatBangkokIso(row?.updatedAt || row?.updated_at) || row?.updatedAt,
     }
 
     try {
@@ -689,9 +518,6 @@ export class ScreeningQueueService {
     return queueRecord
   }
 
-  /**
-   * Updates queue status (e.g. WAITING -> VISIT_OPENED or CANCELLED) and optional VN.
-   */
   async updateQueueStatus(
     id: number,
     input: UpdateScreeningQueueStatusInput,
@@ -707,14 +533,10 @@ export class ScreeningQueueService {
     }
 
     if (this.db?.screeningQueue) {
-      const existing = await this.db.screeningQueue.findUnique({
-        where: { id },
-      })
-
+      const existing = await this.db.screeningQueue.findUnique({ where: { id } })
       if (!existing) {
         throw new Error(`ไม่พบคิวที่ต้องการอัปเดต (ID: ${id})`)
       }
-
       const updated = await this.db.screeningQueue.update({
         where: { id },
         data: {
@@ -722,7 +544,6 @@ export class ScreeningQueueService {
           vn: input.vn !== undefined ? input.vn : existing.vn,
         },
       })
-
       try {
         await logAudit(
           'UPDATE',
@@ -733,24 +554,28 @@ export class ScreeningQueueService {
       } catch (auditErr) {
         logger.error({ err: auditErr }, 'Failed to write audit log for queue status update')
       }
-
       return updated
     }
 
-    // Zero-DB Gateway Production Implementation
-    const existing = await this.getQueueById(id)
-    if (!existing) {
+    let row: Record<string, any> | null = null
+    try {
+      row = await this.appGw.updateScreeningQueueStatus(id, input.status, input.vn)
+    } catch (err) {
+      if (err instanceof GatewayNotFoundError) {
+        throw new Error(`ไม่พบคิวที่ต้องการอัปเดต (ID: ${id})`)
+      }
+      throw err
+    }
+
+    if (!row) {
       throw new Error(`ไม่พบคิวที่ต้องการอัปเดต (ID: ${id})`)
     }
 
-    const nextVn = input.vn !== undefined ? input.vn : existing.vn
-    await this.queryExecutor(`
-      UPDATE screening_queues
-      SET status = ?, vn = ?, updated_at = NOW()
-      WHERE id = ?
-    `, [input.status, nextVn, id])
-
-    const updated = await this.getQueueById(id)
+    const updated: ScreeningQueueItem = {
+      ...(row as ScreeningQueueItem),
+      createdAt: formatBangkokIso(row.createdAt || row.created_at) || row.createdAt,
+      updatedAt: formatBangkokIso(row.updatedAt || row.updated_at) || row.updatedAt,
+    }
 
     try {
       await logAudit(
@@ -763,31 +588,21 @@ export class ScreeningQueueService {
       logger.error({ err: auditErr }, 'Failed to write audit log for queue status update')
     }
 
-    return updated!
+    return updated
   }
 
-  /**
-   * Cleans up screening queue records older than specified retention days (default 30 days).
-   */
   async cleanupOldQueues(retentionDays: number = 30): Promise<{ count: number }> {
     const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
 
     if (this.db?.screeningQueue) {
       const result = await this.db.screeningQueue.deleteMany({
-        where: {
-          createdAt: {
-            lt: cutoffDate,
-          },
-        },
+        where: { createdAt: { lt: cutoffDate } },
       })
       return { count: result.count }
     }
 
-    const result: any = await this.queryExecutor(
-      'DELETE FROM screening_queues WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)',
-      [retentionDays]
-    )
-    return { count: result?.affectedRows || 0 }
+    const res = await this.appGw.cleanupScreeningQueues(retentionDays)
+    return { count: Number(res?.count || 0) }
   }
 }
 

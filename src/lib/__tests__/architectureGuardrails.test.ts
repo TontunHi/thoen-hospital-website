@@ -136,15 +136,8 @@ describe('Hospital Architecture & Build Guardrails', () => {
       // Phase 1A: Salary Dual-Path (completed -> 0)
       // Phase 1B: RCM Specific Funds Dual-Path (completed -> 0)
       // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (completed -> 0)
-      // Phase 1D: App Core Dual-Path (7 remaining)
-      'src/lib/auth/memberProfileService.ts',
-      'src/lib/inbox/taskDefinitionsAndRepairAction.ts',
-      'src/lib/inbox/taskInboxApiService.ts',
-      'src/lib/kpi/kpiService.ts',
-      'src/lib/media/onlineMediaService.ts',
-      'src/lib/screening/screeningService.ts',
-      'src/lib/taskInboxService.ts',
-      // Phase 2: Clinical & RCM Pure-SQL (21 remaining)
+      // Phase 1D: App Core Dual-Path (completed -> 0)
+      // Phase 2: Clinical & RCM Pure-SQL (20 remaining)
       'src/lib/clinical/cervical-cancer/screenedRecipientsReport.ts',
       'src/lib/clinical/cervical-cancer/service1B004Reports.ts',
       'src/lib/clinical/cervical-cancer/service1B004_0NAnd1B005Reports.ts',
@@ -202,7 +195,7 @@ describe('Hospital Architecture & Build Guardrails', () => {
       const content = fs.readFileSync(file, 'utf8')
       const strippedComments = content.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
       const hasRawCall =
-        /\b(queryClinicalDb|queryMemberDb|querySalaryDb|querySalaryEditDb)\b|apiGateway\.(clinical|app|salary)\.(query|execute|transaction)|['"]\/api\/v1\/(clinical|app|salary)\/(query|execute|transaction)['"]/.test(
+        /\b(queryClinicalDb|queryMemberDb|querySalaryDb|querySalaryEditDb)\b|apiGateway\.(clinical|app|salary)\.(query|execute|transaction)\b|['"]\/api\/v1\/(clinical|app|salary)\/(query|execute|transaction)['"]/.test(
           strippedComments
         )
       const hasSql =

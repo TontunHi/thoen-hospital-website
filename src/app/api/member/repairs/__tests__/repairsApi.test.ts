@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST as handleCreateRepair } from '../route'
 import { POST as handleUploadPhoto } from '../upload/route'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
 import { generateTaskNo, notifyAssigneeOnTelegram, notifyRepairCreatedRequesterOnTelegram } from '@/lib/taskInboxService'
 import { apiGateway } from '@/lib/apiGateway'
 
@@ -10,6 +9,8 @@ vi.mock('@/lib/apiGateway', () => ({
   apiGateway: {
     app: {
       getMemberAuthContext: vi.fn().mockResolvedValue(null),
+      getMemberByUsernameWithPermissions: vi.fn().mockResolvedValue({ member: null, permissions: [] }),
+      getMemberById: vi.fn().mockResolvedValue(null),
     },
     tasks: {
       createTask: vi.fn(),
@@ -19,10 +20,6 @@ vi.mock('@/lib/apiGateway', () => ({
 
 vi.mock('@/lib/memberAuth', () => ({
   verifyMemberSession: vi.fn(),
-}))
-
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: vi.fn(),
 }))
 
 vi.mock('@/lib/taskInboxService', () => ({
@@ -35,7 +32,7 @@ vi.mock('@/lib/storage/documentStorage', () => ({
   DocumentStorage: {
     formatDateDirectory: vi.fn().mockReturnValue('public/uploads/repairs/2026-10'),
     saveBatch: vi.fn().mockResolvedValue([
-      { publicUrl: '/uploads/repairs/2026-10/repair-123.jpg' }
+      { publicUrl: '/uploads/repairs/2026-10/repair-123.jpg' },
     ]),
   },
   StorageValidationError: class extends Error {},
@@ -44,6 +41,8 @@ vi.mock('@/lib/storage/documentStorage', () => ({
 describe('Repair Submission APIs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(apiGateway.app.getMemberAuthContext).mockResolvedValue(null as any)
+    vi.mocked(apiGateway.app.getMemberByUsernameWithPermissions).mockResolvedValue({ member: null, permissions: [] })
   })
 
   describe('POST /api/member/repairs', () => {
@@ -68,7 +67,6 @@ describe('Repair Submission APIs', () => {
         email: 'test@thoenhospital.go.th',
         role: 'member',
       } as any)
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([]) // member lookup returns empty
 
       const req = new Request('http://localhost:3000/api/member/repairs', {
         method: 'POST',
@@ -88,9 +86,10 @@ describe('Repair Submission APIs', () => {
         email: 'nurse@thoenhospital.go.th',
         role: 'member',
       } as any)
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([
-        { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' }
-      ])
+      vi.mocked(apiGateway.app.getMemberByUsernameWithPermissions).mockResolvedValueOnce({
+        member: { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' },
+        permissions: [],
+      })
 
       const req = new Request('http://localhost:3000/api/member/repairs', {
         method: 'POST',
@@ -110,9 +109,10 @@ describe('Repair Submission APIs', () => {
         email: 'nurse@thoenhospital.go.th',
         role: 'member',
       } as any)
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([
-        { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' }
-      ])
+      vi.mocked(apiGateway.app.getMemberByUsernameWithPermissions).mockResolvedValueOnce({
+        member: { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' },
+        permissions: [],
+      })
 
       const req = new Request('http://localhost:3000/api/member/repairs', {
         method: 'POST',
@@ -140,13 +140,11 @@ describe('Repair Submission APIs', () => {
         role: 'member',
       } as any)
 
-      // 1. Member query
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([
-        { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' }
-      ])
-      // 2. generateTaskNo
+      vi.mocked(apiGateway.app.getMemberByUsernameWithPermissions).mockResolvedValueOnce({
+        member: { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' },
+        permissions: [],
+      })
       vi.mocked(generateTaskNo).mockResolvedValueOnce('IT-2570-10-0005')
-      // 3. Mock apiGateway.tasks.createTask
       vi.mocked(apiGateway.tasks.createTask).mockResolvedValueOnce({
         success: true,
         data: {
@@ -182,28 +180,29 @@ describe('Repair Submission APIs', () => {
       expect(json.message).toBe('ยื่นใบแจ้งซ่อมสำเร็จเรียบร้อยแล้ว')
       expect(json.data.taskNo).toBe('IT-2570-10-0005')
       expect(json.data.taskId).toBeDefined()
-
-      // Verify Gateway called
       expect(apiGateway.tasks.createTask).toHaveBeenCalledTimes(1)
-      // Verify Telegram notifications triggered
       expect(notifyAssigneeOnTelegram).toHaveBeenCalledTimes(1)
       expect(notifyRepairCreatedRequesterOnTelegram).toHaveBeenCalledTimes(1)
-      // Only member lookup was executed via queryMemberDb
-      expect(queryMemberDb).toHaveBeenCalledTimes(1)
     })
 
-    it('handles unwrapped { taskId, taskNo } response from Gateway and dispatches Telegram without SQL duplicate fallback', async () => {
+    it('handles unwrapped { taskId, taskNo } response from Gateway and dispatches Telegram', async () => {
       vi.mocked(verifyMemberSession).mockResolvedValue({
         username: 'supattra',
         email: 'supattra@thoenhospital.go.th',
         role: 'member',
       } as any)
 
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([
-        { id: 105, username: 'supattra', name: 'นางสาว สุพัตรา สุวรรณ์', department: 'กลุ่มงานจิตเวชและยาเสพติด', position: 'พยาบาล' }
-      ])
+      vi.mocked(apiGateway.app.getMemberByUsernameWithPermissions).mockResolvedValueOnce({
+        member: {
+          id: 105,
+          username: 'supattra',
+          name: 'นางสาว สุพัตรา สุวรรณ์',
+          department: 'กลุ่มงานจิตเวชและยาเสพติด',
+          position: 'พยาบาล',
+        },
+        permissions: [],
+      })
       vi.mocked(generateTaskNo).mockResolvedValueOnce('IT-2570-11-0004')
-      // Simulate unwrapped payload returned by ApiGatewayClient.request()
       vi.mocked(apiGateway.tasks.createTask).mockResolvedValueOnce({
         taskId: 'unwrapped-uuid-5678',
         taskNo: 'IT-2570-11-0004',
@@ -244,61 +243,37 @@ describe('Repair Submission APIs', () => {
           requesterId: 105,
         })
       )
-      // Must NOT fall through to local SQL INSERTs
-      expect(queryMemberDb).toHaveBeenCalledTimes(1)
     })
 
-    it('successfully falls back to direct queryMemberDb when gateway fails', async () => {
+    it('returns 500 fail-closed when gateway fails', async () => {
       vi.mocked(verifyMemberSession).mockResolvedValue({
         username: 'nurse01',
         email: 'nurse@thoenhospital.go.th',
         role: 'member',
       } as any)
 
-      // 1. Member query
-      vi.mocked(queryMemberDb).mockResolvedValueOnce([
-        { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' }
-      ])
-      // 2. generateTaskNo
+      vi.mocked(apiGateway.app.getMemberByUsernameWithPermissions).mockResolvedValueOnce({
+        member: { id: 2, username: 'nurse01', name: 'พว. วันเพ็ญ', department: 'ICU', position: 'พยาบาล' },
+        permissions: [],
+      })
       vi.mocked(generateTaskNo).mockResolvedValueOnce('IT-2570-10-0005')
-      // 3. Mock apiGateway failure
       vi.mocked(apiGateway.tasks.createTask).mockRejectedValueOnce(new Error('Gateway down'))
-      // 4. Fallback inserts
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // inbox_tasks
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // inbox_task_steps
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // repair_details
-      vi.mocked(queryMemberDb).mockResolvedValueOnce({ affectedRows: 1 } as any) // inbox_task_audit_logs
-
-      const payload = {
-        repairType: 'IT_REPAIR',
-        itemCategory: 'EQUIPMENT',
-        equipmentNumber: '7440-001-0001',
-        equipmentName: 'คอมพิวเตอร์ All-in-One Dell',
-        nonEquipmentItem: '',
-        locationId: 10,
-        locationFullName: 'อาคารผู้ป่วยนอก (OPD) ชั้น 1 ห้องตรวจ 1',
-        symptomDetail: 'เครื่องเปิดติดแต่จอดำ เข้าใช้งาน HOSxP ไม่ได้',
-        assignedTechnicianId: null,
-        urgency: 'HIGH',
-        photos: ['/uploads/repairs/2026-10/repair-1.jpg'],
-      }
 
       const req = new Request('http://localhost:3000/api/member/repairs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          repairType: 'IT_REPAIR',
+          itemCategory: 'EQUIPMENT',
+          equipmentNumber: '7440-001-0001',
+          equipmentName: 'คอมพิวเตอร์ All-in-One Dell',
+          locationFullName: 'อาคารผู้ป่วยนอก (OPD) ชั้น 1 ห้องตรวจ 1',
+          symptomDetail: 'เครื่องเปิดติดแต่จอดำ',
+        }),
       })
 
       const res = await handleCreateRepair(req)
-      expect(res.status).toBe(200)
-      const json = await res.json()
-      expect(json.success).toBe(true)
-      expect(json.message).toBe('ยื่นใบแจ้งซ่อมสำเร็จเรียบร้อยแล้ว')
-      expect(json.data.taskNo).toBe('IT-2570-10-0005')
-      expect(json.data.taskId).toBeDefined()
-
-      // 1 member lookup + 4 inserts = 5 calls
-      expect(queryMemberDb).toHaveBeenCalledTimes(5)
+      expect(res.status).toBe(500)
     })
   })
 

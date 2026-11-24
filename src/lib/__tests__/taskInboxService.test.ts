@@ -30,19 +30,18 @@ describe('taskInboxService', () => {
 
   describe('executeRepairAction state machine', () => {
     it('rejects unauthorized member trying to act on task', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            { id: 'task-1', current_assignee: 99, requester_id: 100, status: 'PENDING' },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([
-            { task_id: 'task-1', co_workers: '[]', repair_status: 'PENDING' },
-          ])
-        }
-        return Promise.resolve([])
-      })
+      const mockGw = {
+        getTaskFullDetails: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            task: { id: 'task-1', current_assignee: 99, requester_id: 100, status: 'PENDING' },
+            repairDetail: { task_id: 'task-1', co_workers: '[]', repair_status: 'PENDING' },
+            steps: [],
+            auditLogs: [],
+          },
+        }),
+        executeRepairActionV2: vi.fn(),
+      }
 
       const result = await executeRepairAction(
         {
@@ -51,102 +50,73 @@ describe('taskInboxService', () => {
           performer: { id: 5, username: 'stranger', role: 'member' },
           dispatchNotifications: false,
         },
-        mockExecutor
+        mockGw
       )
 
       expect(result.success).toBe(false)
       expect(result.statusCode).toBe(403)
+      expect(mockGw.executeRepairActionV2).not.toHaveBeenCalled()
     })
 
     it('allows assignee technician to ACCEPT_JOB and transitions states', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-1',
-              task_no: 'IT-256909-0001',
-              task_type: 'IT_REPAIR',
-              title: 'ซ่อมคอมพิวเตอร์',
-              current_assignee: 10,
-              requester_id: 20,
-              status: 'PENDING',
+      const mockGw = {
+        getTaskFullDetails: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            task: {
+              id: 'task-1', task_no: 'IT-256909-0001', task_type: 'IT_REPAIR',
+              title: 'ซ่อมคอมพิวเตอร์', current_assignee: 10, requester_id: 20, status: 'PENDING',
             },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([
-            {
-              task_id: 'task-1',
-              co_workers: '[]',
-              repair_status: 'PENDING',
-              equipment_number: 'EQ-01',
-            },
-          ])
-        }
-        return Promise.resolve({ affectedRows: 1 })
-      })
+            repairDetail: { task_id: 'task-1', co_workers: '[]', repair_status: 'PENDING', equipment_number: 'EQ-01' },
+            steps: [],
+            auditLogs: [],
+          },
+        }),
+        executeRepairActionV2: vi.fn().mockResolvedValue({ message: 'รับงานซ่อมเรียบร้อยแล้ว' }),
+      }
 
       const result = await executeRepairAction(
         {
           taskId: 'task-1',
           action: 'ACCEPT_JOB',
           performer: {
-            id: 10,
-            username: 'technician1',
-            name: 'นายช่าง ทดสอบ',
-            position: 'นายช่างเทคนิค',
-            role: 'member',
+            id: 10, username: 'technician1', name: 'นายช่าง ทดสอบ',
+            position: 'นายช่างเทคนิค', role: 'member',
           },
           dispatchNotifications: false,
         },
-        mockExecutor
+        mockGw
       )
 
       expect(result.success).toBe(true)
       expect(result.message).toBe('รับงานซ่อมเรียบร้อยแล้ว')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE inbox_tasks SET status = 'IN_PROGRESS'"),
-        ['task-1']
+      expect(mockGw.executeRepairActionV2).toHaveBeenCalledWith(
+        expect.objectContaining({ taskId: 'task-1', action: 'ACCEPT_JOB' })
       )
     })
 
     it('handles COMPLETE_REPAIR with cost and solution note', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-1',
-              task_no: 'IT-256909-0001',
-              task_type: 'IT_REPAIR',
-              title: 'ซ่อมคอมพิวเตอร์',
-              current_assignee: 10,
-              requester_id: 20,
-              status: 'IN_PROGRESS',
+      const mockGw = {
+        getTaskFullDetails: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            task: {
+              id: 'task-1', task_no: 'IT-256909-0001', task_type: 'IT_REPAIR',
+              title: 'ซ่อมคอมพิวเตอร์', current_assignee: 10, requester_id: 20, status: 'IN_PROGRESS',
             },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([
-            {
-              task_id: 'task-1',
-              co_workers: '[]',
-              repair_status: 'IN_PROGRESS',
-            },
-          ])
-        }
-        return Promise.resolve({ affectedRows: 1 })
-      })
+            repairDetail: { task_id: 'task-1', co_workers: '[]', repair_status: 'IN_PROGRESS' },
+            steps: [],
+            auditLogs: [],
+          },
+        }),
+        executeRepairActionV2: vi.fn().mockResolvedValue({ message: 'บันทึกการซ่อมเสร็จสิ้นสมบูรณ์' }),
+      }
 
       const result = await executeRepairAction(
         {
           taskId: 'task-1',
           action: 'COMPLETE_REPAIR',
-          performer: {
-            id: 10,
-            username: 'technician1',
-            name: 'นายช่าง ทดสอบ',
-            role: 'member',
-          },
+          performer: { id: 10, username: 'technician1', name: 'นายช่าง ทดสอบ', role: 'member' },
           payload: {
             foundProblem: 'พาวเวอร์ซัพพลายเสีย',
             solutionStep: 'เปลี่ยนพาวเวอร์ซัพพลายใหม่ 550W',
@@ -155,108 +125,98 @@ describe('taskInboxService', () => {
           },
           dispatchNotifications: false,
         },
-        mockExecutor
+        mockGw
       )
 
       expect(result.success).toBe(true)
       expect(result.message).toBe('บันทึกการซ่อมเสร็จสิ้นสมบูรณ์')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE inbox_tasks SET status = 'APPROVED'"),
-        ['task-1']
+      expect(mockGw.executeRepairActionV2).toHaveBeenCalledWith(
+        expect.objectContaining({ taskId: 'task-1', action: 'COMPLETE_REPAIR' })
       )
     })
 
     it('allows requester to CANCEL_JOB before completion', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-1',
-              task_no: 'IT-256909-0001',
-              task_type: 'IT_REPAIR',
-              title: 'ซ่อมคอมพิวเตอร์',
-              current_assignee: 10,
-              requester_id: 20,
-              status: 'PENDING',
+      const mockGw = {
+        getTaskFullDetails: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            task: {
+              id: 'task-1', task_no: 'IT-256909-0001', task_type: 'IT_REPAIR',
+              title: 'ซ่อมคอมพิวเตอร์', current_assignee: 10, requester_id: 20, status: 'PENDING',
             },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([
-            {
-              task_id: 'task-1',
-              co_workers: '[]',
-              repair_status: 'PENDING',
-            },
-          ])
-        }
-        return Promise.resolve({ affectedRows: 1 })
-      })
+            repairDetail: { task_id: 'task-1', co_workers: '[]', repair_status: 'PENDING' },
+            steps: [],
+            auditLogs: [],
+          },
+        }),
+        executeRepairActionV2: vi.fn().mockResolvedValue({ message: 'ยกเลิกรายการแจ้งซ่อมเรียบร้อยแล้ว' }),
+      }
 
       const result = await executeRepairAction(
         {
           taskId: 'task-1',
           action: 'CANCEL_JOB',
-          performer: {
-            id: 20,
-            username: 'requester_user',
-            name: 'ผู้ขอยกเลิก',
-            role: 'member',
-          },
-          payload: {
-            reason: 'เครื่องกลับมาเปิดติดใช้งานได้ปกติแล้ว',
-          },
+          performer: { id: 20, username: 'requester_user', name: 'ผู้ขอยกเลิก', role: 'member' },
+          payload: { reason: 'เครื่องกลับมาเปิดติดใช้งานได้ปกติแล้ว' },
           dispatchNotifications: false,
         },
-        mockExecutor
+        mockGw
       )
 
       expect(result.success).toBe(true)
       expect(result.message).toBe('ยกเลิกรายการแจ้งซ่อมเรียบร้อยแล้ว')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE inbox_tasks SET status = 'REJECTED'"),
-        ['task-1']
+      expect(mockGw.executeRepairActionV2).toHaveBeenCalledWith(
+        expect.objectContaining({ taskId: 'task-1', action: 'CANCEL_JOB' })
       )
     })
   })
 
   describe('generateTaskNo (Thai Fiscal Year 1 Oct - 30 Sep)', () => {
     it('generates fiscal year 2570 for October 2026 (Month 10)', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockResolvedValue([{ cnt: 0 }])
+      const mockGw = {
+        generateTaskNo: vi.fn().mockImplementation(async (prefix: string) => ({
+          success: true, count: 0, taskNo: `${prefix}0001`,
+        })),
+      }
       const octDate = new Date('2026-10-01T10:00:00Z')
-      const taskNo = await generateTaskNo('IT_REPAIR', mockExecutor, octDate)
+      const taskNo = await generateTaskNo('IT_REPAIR', mockGw, octDate)
       expect(taskNo).toBe('IT-2570-10-0001')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        'SELECT COUNT(*) as cnt FROM inbox_tasks WHERE task_no LIKE ?',
-        ['IT-2570-10-%']
-      )
+      expect(mockGw.generateTaskNo).toHaveBeenCalledWith('IT-2570-10-')
     })
 
     it('generates fiscal year 2570 for December 2026 (Month 12)', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockResolvedValue([{ cnt: 4 }])
+      const mockGw = {
+        generateTaskNo: vi.fn().mockResolvedValue({ success: true, count: 4, taskNo: 'GN-2570-12-0005' }),
+      }
       const decDate = new Date('2026-12-15T10:00:00Z')
-      const taskNo = await generateTaskNo('GENERAL_REPAIR', mockExecutor, decDate)
+      const taskNo = await generateTaskNo('GENERAL_REPAIR', mockGw, decDate)
       expect(taskNo).toBe('GN-2570-12-0005')
     })
 
     it('generates fiscal year 2570 for January 2027 (Month 01)', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockResolvedValue([{ cnt: 0 }])
+      const mockGw = {
+        generateTaskNo: vi.fn().mockResolvedValue({ success: true, count: 0, taskNo: 'MED-2570-01-0001' }),
+      }
       const janDate = new Date('2027-01-10T10:00:00Z')
-      const taskNo = await generateTaskNo('MEDICAL_REPAIR', mockExecutor, janDate)
+      const taskNo = await generateTaskNo('MEDICAL_REPAIR', mockGw, janDate)
       expect(taskNo).toBe('MED-2570-01-0001')
     })
 
     it('generates fiscal year 2570 for September 2027 (Month 09)', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockResolvedValue([{ cnt: 99 }])
+      const mockGw = {
+        generateTaskNo: vi.fn().mockResolvedValue({ success: true, count: 99, taskNo: 'PR-2570-09-0100' }),
+      }
       const sepDate = new Date('2027-09-30T10:00:00Z')
-      const taskNo = await generateTaskNo('MEDIA_REQUEST', mockExecutor, sepDate)
+      const taskNo = await generateTaskNo('MEDIA_REQUEST', mockGw, sepDate)
       expect(taskNo).toBe('PR-2570-09-0100')
     })
 
     it('rolls over to fiscal year 2571 on October 2027 (Month 10)', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockResolvedValue([{ cnt: 0 }])
+      const mockGw = {
+        generateTaskNo: vi.fn().mockResolvedValue({ success: true, count: 0, taskNo: 'IT-2571-10-0001' }),
+      }
       const octNextYear = new Date('2027-10-01T10:00:00Z')
-      const taskNo = await generateTaskNo('IT_REPAIR', mockExecutor, octNextYear)
+      const taskNo = await generateTaskNo('IT_REPAIR', mockGw, octNextYear)
       expect(taskNo).toBe('IT-2571-10-0001')
     })
   })
@@ -574,70 +534,62 @@ describe('taskInboxService', () => {
 
   describe('TaskInboxService.getMemberWorkSummary', () => {
     it('queries pending tasks for individual assignee and role queue', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
-        if (sql.includes('FROM inbox_tasks')) {
-          expect(params).toEqual([15, 'ช่างซ่อมบำรุง', 'member'])
-          return Promise.resolve([{ cnt: 7 }])
-        }
-        return Promise.resolve([])
-      })
+      const mockGw = {
+        getMemberWorkSummary: vi.fn().mockResolvedValue({ pendingInboxCount: 7, pendingRegistrationsCount: 0 }),
+      }
 
       const summary = await TaskInboxService.getMemberWorkSummary(
         { memberId: 15, role: 'member', position: 'ช่างซ่อมบำรุง' },
-        mockExecutor
+        mockGw
       )
 
       expect(summary.pendingInboxCount).toBe(7)
       expect(summary.pendingRegistrationsCount).toBe(0)
-      expect(mockExecutor).toHaveBeenCalledTimes(1)
+      expect(mockGw.getMemberWorkSummary).toHaveBeenCalledWith({
+        memberId: 15,
+        role: 'member',
+        position: 'ช่างซ่อมบำรุง',
+      })
     })
 
     it('queries pending registrations count for admin role', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
-        if (sql.includes('FROM inbox_tasks')) {
-          return Promise.resolve([{ cnt: 3 }])
-        }
-        if (sql.includes('FROM member_registrations')) {
-          return Promise.resolve([{ cnt: 5 }])
-        }
-        return Promise.resolve([])
-      })
+      const mockGw = {
+        getMemberWorkSummary: vi.fn().mockResolvedValue({ pendingInboxCount: 3, pendingRegistrationsCount: 5 }),
+      }
 
       const summary = await TaskInboxService.getMemberWorkSummary(
         { memberId: 1, role: 'admin', position: 'ผู้ดูแลระบบ' },
-        mockExecutor
+        mockGw
       )
 
       expect(summary.pendingInboxCount).toBe(3)
       expect(summary.pendingRegistrationsCount).toBe(5)
-      expect(mockExecutor).toHaveBeenCalledTimes(2)
     })
 
-    it('supports looking up member role and position when only memberId is passed', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
-        if (sql.includes('FROM members WHERE id = ?')) {
-          return Promise.resolve([{ id: 20, role: 'member', position: 'พยาบาลวิชาชีพ' }])
-        }
-        if (sql.includes('FROM inbox_tasks')) {
-          expect(params).toEqual([20, 'พยาบาลวิชาชีพ', 'member'])
-          return Promise.resolve([{ cnt: 2 }])
-        }
-        return Promise.resolve([])
-      })
+    it('supports passing only memberId number', async () => {
+      const mockGw = {
+        getMemberWorkSummary: vi.fn().mockResolvedValue({ pendingInboxCount: 2, pendingRegistrationsCount: 0 }),
+      }
 
-      const summary = await TaskInboxService.getMemberWorkSummary(20, mockExecutor)
+      const summary = await TaskInboxService.getMemberWorkSummary(20, mockGw)
 
       expect(summary.pendingInboxCount).toBe(2)
       expect(summary.pendingRegistrationsCount).toBe(0)
-      expect(mockExecutor).toHaveBeenCalledTimes(2)
+      expect(mockGw.getMemberWorkSummary).toHaveBeenCalledWith({
+        memberId: 20,
+        role: undefined,
+        position: undefined,
+      })
     })
 
-    it('handles query failures gracefully without throwing', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockRejectedValue(new Error('DB connection dropped'))
+    it('handles gateway failures gracefully without throwing', async () => {
+      const mockGw = {
+        getMemberWorkSummary: vi.fn().mockRejectedValue(new Error('Gateway unavailable')),
+      }
 
       const summary = await TaskInboxService.getMemberWorkSummary(
         { memberId: 99, role: 'member' },
-        mockExecutor
+        mockGw
       )
 
       expect(summary.pendingInboxCount).toBe(0)

@@ -8,7 +8,7 @@ vi.mock('../audit', () => ({
 }))
 
 vi.mock('../memberDb', () => ({
-  queryMemberDb: vi.fn().mockResolvedValue([]),
+  queryMemberDb: vi.fn().mockResolvedValue([{ telegram_chat_id: '123456789' }]),
 }))
 
 vi.mock('../telegramService', () => ({
@@ -29,63 +29,55 @@ describe('executeWorkflowAction', () => {
     requester_name: 'Requester',
     current_assignee: 2,
     current_step_no: 1,
-    status: 'PENDING'
+    status: 'PENDING',
   }
 
   const mockSteps = [
     { id: 's-1', task_id: 't-1', step_no: 1, step_name: 'Step 1', status: 'PENDING', assigned_to_id: 2 },
-    { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'PENDING', assigned_to_id: 3 }
+    { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'PENDING', assigned_to_id: 3 },
   ]
 
-  const createExecutor = (mockTaskData: any[] = [mockTask], mockStepsData: any[] = mockSteps, additionalMocks: any = {}) => {
-    return vi.fn().mockImplementation(async (sql: string, params: any[]) => {
-      if (sql.includes('SELECT * FROM inbox_tasks WHERE id = ?')) {
-        return mockTaskData
-      }
-      if (sql.includes('SELECT * FROM inbox_task_steps WHERE task_id = ?')) {
-        return mockStepsData
-      }
-      if (sql.includes('SELECT telegram_chat_id')) {
-        return additionalMocks.telegramLinks || []
-      }
-      return []
-    })
-  }
+  const createGateway = (taskData: any = mockTask, stepsData: any[] = mockSteps, wfReturn: any = {}) => ({
+    getTaskFullDetails: vi.fn().mockResolvedValue({
+      success: true,
+      data: { task: taskData, steps: stepsData, repairDetail: null, auditLogs: [] },
+    }),
+    executeWorkflowActionV2: vi.fn().mockResolvedValue({
+      message: 'ดำเนินการสำเร็จ',
+      isFinalStep: false,
+      nextStep: stepsData.find((s) => s.step_no === (taskData?.current_step_no || 0) + 1) ?? null,
+      targetStep: null,
+      ...wfReturn,
+    }),
+  })
 
   it('should approve and advance to next step', async () => {
-    const executor = createExecutor()
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 2,
-      actorUsername: 'user2',
-      actorName: 'User Two',
-      actorPosition: 'Manager',
-      actorRole: 'member',
-      action: 'APPROVE',
-      comment: 'OK',
-      signaturePath: '/sig.png'
-    }, executor)
+    const gw = createGateway()
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 2,
+        actorUsername: 'user2',
+        actorName: 'User Two',
+        actorPosition: 'Manager',
+        actorRole: 'member',
+        action: 'APPROVE',
+        comment: 'OK',
+        signaturePath: '/sig.png',
+      },
+      gw
+    )
 
     expect(result.success).toBe(true)
-    
-    // Updates current step
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_task_steps"),
-      expect.arrayContaining([2, 'User Two', 'OK', '/sig.png', expect.any(String), 's-1'])
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: 't-1',
+        action: 'APPROVE',
+        comment: 'OK',
+        signaturePath: '/sig.png',
+        signatureHash: expect.any(String),
+      })
     )
-
-    // Advances task
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks"),
-      expect.arrayContaining([2, 3, undefined, 't-1'])
-    )
-
-    // Audit log
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO inbox_task_audit_logs"),
-      expect.arrayContaining(['t-1', 'APPROVE', 2, 'User Two'])
-    )
-    
     expect(audit.logAudit).toHaveBeenCalledWith(
       'UPDATE',
       'inbox_tasks',
@@ -95,226 +87,125 @@ describe('executeWorkflowAction', () => {
   })
 
   it('should reject task', async () => {
-    const executor = createExecutor()
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 2,
-      actorUsername: 'user2',
-      actorName: 'User Two',
-      actorPosition: 'Manager',
-      actorRole: 'member',
-      action: 'REJECT',
-      comment: 'No'
-    }, executor)
+    const gw = createGateway()
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 2,
+        actorUsername: 'user2',
+        actorName: 'User Two',
+        actorPosition: 'Manager',
+        actorRole: 'member',
+        action: 'REJECT',
+        comment: 'No',
+      },
+      gw
+    )
 
     expect(result.success).toBe(true)
-    
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks SET status = 'REJECTED'"),
-      expect.arrayContaining(['t-1'])
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 't-1', action: 'REJECT', comment: 'No' })
     )
   })
 
   it('should send back task at step 1 to requester', async () => {
-    const executor = createExecutor()
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 2,
-      actorUsername: 'user2',
-      actorName: 'User Two',
-      actorPosition: 'Manager',
-      actorRole: 'member',
-      action: 'SEND_BACK',
-      comment: 'Fix this'
-    }, executor)
+    const gw = createGateway()
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 2,
+        actorUsername: 'user2',
+        actorName: 'User Two',
+        actorPosition: 'Manager',
+        actorRole: 'member',
+        action: 'SEND_BACK',
+        comment: 'Fix this',
+      },
+      gw
+    )
 
     expect(result.success).toBe(true)
-    
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks"),
-      expect.arrayContaining(['t-1']) // SENT_BACK status
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 't-1', action: 'SEND_BACK', comment: 'Fix this' })
     )
   })
 
   it('should send back task from step 3 to step 2 (previous step)', async () => {
-    const step3Task = {
-      ...mockTask,
-      current_step_no: 3,
-      current_assignee: 4,
-    }
+    const step3Task = { ...mockTask, current_step_no: 3, current_assignee: 4 }
     const threeSteps = [
       { id: 's-1', task_id: 't-1', step_no: 1, step_name: 'Step 1', status: 'COMPLETED', assigned_to_id: 2, assigned_role: 'Role 1' },
       { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'COMPLETED', assigned_to_id: 3, assigned_role: 'Role 2' },
       { id: 's-3', task_id: 't-1', step_no: 3, step_name: 'Step 3', status: 'PENDING', assigned_to_id: 4, assigned_role: 'Role 3' },
     ]
-    const executor = createExecutor([step3Task], threeSteps)
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 4,
-      actorUsername: 'user4',
-      actorName: 'User Four',
-      actorPosition: 'Director',
-      actorRole: 'member',
-      action: 'SEND_BACK',
-      targetStepNo: 2,
-      comment: 'Re-check financial detail'
-    }, executor)
+    const gw = createGateway(step3Task, threeSteps, { targetStep: threeSteps[1] })
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 4,
+        actorUsername: 'user4',
+        actorName: 'User Four',
+        actorPosition: 'Director',
+        actorRole: 'member',
+        action: 'SEND_BACK',
+        targetStepNo: 2,
+        comment: 'Re-check financial detail',
+      },
+      gw
+    )
 
     expect(result.success).toBe(true)
-
-    // Current step (s-3) set to WAITING with SEND_BACK
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'WAITING', action_taken = 'SEND_BACK'"),
-      expect.arrayContaining([4, 'User Four', 'Re-check financial detail', 's-3'])
-    )
-
-    // Target step (s-2) reset to PENDING
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'PENDING'"),
-      expect.arrayContaining(['s-2'])
-    )
-
-    // Task current_step_no updated to 2 and status PENDING
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks \n         SET status = 'PENDING', current_step_no = ?"),
-      expect.arrayContaining([2, 3, 'Role 2', 't-1'])
-    )
-  })
-
-  it('should send back task from step 3 to step 1 (skipping step 2)', async () => {
-    const step3Task = {
-      ...mockTask,
-      current_step_no: 3,
-      current_assignee: 4,
-    }
-    const threeSteps = [
-      { id: 's-1', task_id: 't-1', step_no: 1, step_name: 'Step 1', status: 'COMPLETED', assigned_to_id: 2, assigned_role: 'Role 1' },
-      { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'COMPLETED', assigned_to_id: 3, assigned_role: 'Role 2' },
-      { id: 's-3', task_id: 't-1', step_no: 3, step_name: 'Step 3', status: 'PENDING', assigned_to_id: 4, assigned_role: 'Role 3' },
-    ]
-    const executor = createExecutor([step3Task], threeSteps)
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 4,
-      actorUsername: 'user4',
-      actorName: 'User Four',
-      actorPosition: 'Director',
-      actorRole: 'member',
-      action: 'SEND_BACK',
-      targetStepNo: 1,
-      comment: 'Restart design from scratch'
-    }, executor)
-
-    expect(result.success).toBe(true)
-
-    // Intermediate step 2 reset to WAITING
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'WAITING', action_taken = NULL"),
-      expect.arrayContaining(['t-1', 1, 's-3'])
-    )
-
-    // Target step 1 reset to PENDING
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'PENDING'"),
-      expect.arrayContaining(['s-1'])
-    )
-
-    // Task updated to step 1
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks \n         SET status = 'PENDING', current_step_no = ?"),
-      expect.arrayContaining([1, 2, 'Role 1', 't-1'])
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 't-1', action: 'SEND_BACK', targetStepNo: 2 })
     )
   })
 
   it('should send back task from step 3 to requester when sendToRequester is true', async () => {
-    const step3Task = {
-      ...mockTask,
-      current_step_no: 3,
-      current_assignee: 4,
-      requester_id: 999,
-    }
+    const step3Task = { ...mockTask, current_step_no: 3, current_assignee: 4, requester_id: 999 }
     const threeSteps = [
       { id: 's-1', task_id: 't-1', step_no: 1, step_name: 'Step 1', status: 'COMPLETED', assigned_to_id: 2, assigned_role: 'Role 1' },
       { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'COMPLETED', assigned_to_id: 3, assigned_role: 'Role 2' },
       { id: 's-3', task_id: 't-1', step_no: 3, step_name: 'Step 3', status: 'PENDING', assigned_to_id: 4, assigned_role: 'Role 3' },
     ]
-    const executor = createExecutor([step3Task], threeSteps)
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 4,
-      actorUsername: 'user4',
-      actorName: 'User Four',
-      actorPosition: 'Director',
-      actorRole: 'member',
-      action: 'SEND_BACK',
-      sendToRequester: true,
-      comment: 'Need requester to amend project scope'
-    }, executor)
+    const gw = createGateway(step3Task, threeSteps, { targetStep: null })
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 4,
+        actorUsername: 'user4',
+        actorName: 'User Four',
+        actorPosition: 'Director',
+        actorRole: 'member',
+        action: 'SEND_BACK',
+        sendToRequester: true,
+        comment: 'Need requester to amend project scope',
+      },
+      gw
+    )
 
     expect(result.success).toBe(true)
-
-    // Task updated to SENT_BACK
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks \n         SET status = 'SENT_BACK', current_step_no = 1"),
-      expect.arrayContaining(['t-1'])
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 't-1', action: 'SEND_BACK', sendToRequester: true })
     )
   })
 
   it('should throw unauthorized if actor lacks permission', async () => {
-    const executor = createExecutor()
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 99, // not assignee
-      actorUsername: 'user99',
-      actorName: 'User 99',
-      actorPosition: 'Staff',
-      actorRole: 'member',
-      action: 'APPROVE',
-    }, executor).catch(e => e)
+    const gw = createGateway()
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 99,
+        actorUsername: 'user99',
+        actorName: 'User 99',
+        actorPosition: 'Staff',
+        actorRole: 'member',
+        action: 'APPROVE',
+      },
+      gw
+    ).catch((e) => e)
 
     expect(result).toBeInstanceOf(Error)
     expect(result.message).toContain('ไม่มีสิทธิ์')
-  })
-
-  it('should handle MEDIA_REQUEST step approval and complete workflow', async () => {
-    const mediaTask = {
-      id: 'pr-1',
-      task_no: 'PR-2570-10-0001',
-      task_type: 'MEDIA_REQUEST',
-      title: 'วิดีโอประชาสัมพันธ์',
-      requester_id: 10,
-      requester_name: 'Requester Name',
-      requester_dept: 'งานเวชนิทัศน์',
-      current_assignee: null,
-      current_role: 'นักประชาสัมพันธ์',
-      current_step_no: 1,
-      status: 'PENDING',
-    }
-    const mediaSteps = [
-      { id: 's-1', task_id: 'pr-1', step_no: 1, step_name: 'นักประชาสัมพันธ์ ตรวจสอบ', status: 'PENDING', assigned_role: 'นักประชาสัมพันธ์' },
-      { id: 's-2', task_id: 'pr-1', step_no: 2, step_name: 'หัวหน้ากลุ่มงานดิจิทัลฯ', status: 'WAITING', assigned_role: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' },
-    ]
-
-    const executor = createExecutor([mediaTask], mediaSteps, {
-      telegramLinks: [{ telegram_chat_id: '123456789' }],
-    })
-
-    const result = await executeWorkflowAction({
-      taskId: 'pr-1',
-      actorMemberId: 5,
-      actorUsername: 'pr_officer',
-      actorName: 'นายประชาสัมพันธ์',
-      actorPosition: 'นักประชาสัมพันธ์',
-      actorRole: 'member',
-      action: 'APPROVE',
-      comment: 'ตรวจสอบแล้ว ถูกต้อง',
-    }, executor)
-
-    expect(result.success).toBe(true)
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE inbox_tasks'),
-      expect.arrayContaining([2, null, 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์', 'pr-1'])
-    )
+    expect(gw.executeWorkflowActionV2).not.toHaveBeenCalled()
   })
 
   it('should not send duplicate Telegram broadcast when advancing MEDIA_REQUEST to a PR_OFFICER step', async () => {
@@ -335,74 +226,23 @@ describe('executeWorkflowAction', () => {
       { id: 's-5', task_id: 'pr-1', step_no: 5, step_name: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ', status: 'PENDING', assigned_role: 'ผู้อำนวยการโรงพยาบาลเถิน' },
       { id: 's-6', task_id: 'pr-1', step_no: 6, step_name: 'นักประชาสัมพันธ์ ดำเนินการสั่งพิมพ์/ผลิตสื่อ', status: 'WAITING', assigned_role: 'นักประชาสัมพันธ์' },
     ]
+    const gw = createGateway(mediaTaskStep5, mediaSteps, { nextStep: mediaSteps[1] })
 
-    const executor = createExecutor([mediaTaskStep5], mediaSteps, {
-      telegramLinks: [{ telegram_chat_id: '123456789' }],
-    })
-
-    const result = await executeWorkflowAction({
-      taskId: 'pr-1',
-      actorMemberId: 1,
-      actorUsername: 'director',
-      actorName: 'ผู้อำนวยการ',
-      actorPosition: 'ผู้อำนวยการโรงพยาบาลเถิน',
-      actorRole: 'member',
-      action: 'APPROVE',
-      comment: 'อนุมัติ',
-    }, executor)
-
-    expect(result.success).toBe(true)
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE inbox_tasks'),
-      expect.arrayContaining([6, null, 'นักประชาสัมพันธ์', 'pr-1'])
+    const result = await executeWorkflowAction(
+      {
+        taskId: 'pr-1',
+        actorMemberId: 1,
+        actorUsername: 'director',
+        actorName: 'ผู้อำนวยการ',
+        actorPosition: 'ผู้อำนวยการโรงพยาบาลเถิน',
+        actorRole: 'member',
+        action: 'APPROVE',
+        comment: 'อนุมัติ',
+      },
+      gw
     )
 
-    // Verify Telegram service calls: should ONLY contain step approval notification, NOT the duplicate "มีงานจัดทำสื่อประชาสัมพันธ์" new job notification
-    const telegramCalls = vi.mocked(telegramService.sendTelegramMessage).mock.calls
-    const newJobMessages = telegramCalls.filter(([_, msg]) => msg.includes('มีงานจัดทำสื่อประชาสัมพันธ์'))
-    expect(newJobMessages.length).toBe(0)
-  })
-
-  it('should not send duplicate Telegram broadcast when advancing MEDIA_REQUEST from Step 6 to Step 7', async () => {
-    const mediaTaskStep6 = {
-      id: 'pr-1',
-      task_no: 'PR-2570-10-0001',
-      task_type: 'MEDIA_REQUEST',
-      title: 'โลโก้กระทรวงสาธารณสุข',
-      requester_id: 10,
-      requester_name: 'นาย ธนยศ กันทะมา',
-      requester_dept: 'กลุ่มงานบริหารทั่วไป',
-      current_assignee: null,
-      current_role: 'นักประชาสัมพันธ์',
-      current_step_no: 6,
-      status: 'PENDING',
-    }
-    const mediaSteps = [
-      { id: 's-6', task_id: 'pr-1', step_no: 6, step_name: 'นักประชาสัมพันธ์ ดำเนินการสั่งพิมพ์/ผลิตสื่อ', status: 'PENDING', assigned_role: 'นักประชาสัมพันธ์' },
-      { id: 's-7', task_id: 'pr-1', step_no: 7, step_name: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน', status: 'WAITING', assigned_role: 'นักประชาสัมพันธ์' },
-    ]
-
-    const executor = createExecutor([mediaTaskStep6], mediaSteps, {
-      telegramLinks: [{ telegram_chat_id: '123456789' }],
-    })
-
-    const result = await executeWorkflowAction({
-      taskId: 'pr-1',
-      actorMemberId: 5,
-      actorUsername: 'pr_staff',
-      actorName: 'พรพิมล มีศรี',
-      actorPosition: 'นักประชาสัมพันธ์',
-      actorRole: 'member',
-      action: 'APPROVE',
-      comment: 'สั่งพิมพ์เรียบร้อย',
-    }, executor)
-
     expect(result.success).toBe(true)
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE inbox_tasks'),
-      expect.arrayContaining([7, null, 'นักประชาสัมพันธ์', 'pr-1'])
-    )
-
     const telegramCalls = vi.mocked(telegramService.sendTelegramMessage).mock.calls
     const newJobMessages = telegramCalls.filter(([_, msg]) => msg.includes('มีงานจัดทำสื่อประชาสัมพันธ์'))
     expect(newJobMessages.length).toBe(0)
@@ -425,92 +265,79 @@ describe('executeWorkflowAction', () => {
     const mediaSteps = [
       { id: 's-7', task_id: 'pr-1', step_no: 7, step_name: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน', status: 'PENDING', assigned_role: 'นักประชาสัมพันธ์' },
     ]
+    const gw = createGateway(mediaTaskStep7, mediaSteps, { isFinalStep: true, nextStep: null })
 
-    const executor = createExecutor([mediaTaskStep7], mediaSteps, {
-      telegramLinks: [{ telegram_chat_id: '123456789' }],
-    })
-
-    const result = await executeWorkflowAction({
-      taskId: 'pr-1',
-      actorMemberId: 5,
-      actorUsername: 'pr_staff',
-      actorName: 'พรพิมล มีศรี',
-      actorPosition: 'นักประชาสัมพันธ์',
-      actorRole: 'member',
-      action: 'APPROVE',
-      comment: 'ส่งมอบงานเรียบร้อย',
-    }, executor)
-
-    expect(result.success).toBe(true)
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks SET status = 'APPROVED'"),
-      expect.arrayContaining(['pr-1'])
+    const result = await executeWorkflowAction(
+      {
+        taskId: 'pr-1',
+        actorMemberId: 5,
+        actorUsername: 'pr_staff',
+        actorName: 'พรพิมล มีศรี',
+        actorPosition: 'นักประชาสัมพันธ์',
+        actorRole: 'member',
+        action: 'APPROVE',
+        comment: 'ส่งมอบงานเรียบร้อย',
+      },
+      gw
     )
 
+    expect(result.success).toBe(true)
     const telegramCalls = vi.mocked(telegramService.sendTelegramMessage).mock.calls
-    const finalMessages = telegramCalls.filter(([_, msg]) => msg.includes('คำขอสื่อประชาสัมพันธ์ผ่านการอนุมัติสมบูรณ์แล้ว'))
+    const finalMessages = telegramCalls.filter(([_, msg]) =>
+      msg.includes('คำขอสื่อประชาสัมพันธ์ผ่านการอนุมัติสมบูรณ์แล้ว')
+    )
     expect(finalMessages.length).toBeGreaterThan(0)
-    const newJobMessages = telegramCalls.filter(([_, msg]) => msg.includes('มีงานจัดทำสื่อประชาสัมพันธ์'))
-    expect(newJobMessages.length).toBe(0)
   })
 
   it('should hold task with hold reason and details', async () => {
-    const executor = createExecutor()
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 2,
-      actorUsername: 'user2',
-      actorName: 'User Two',
-      actorPosition: 'Manager',
-      actorRole: 'member',
-      action: 'HOLD',
-      holdReason: 'รอการจัดสรรงบ',
-      holdDetails: 'รองบประมาณปี 2570 ไตรมาส 1',
-    }, executor)
+    const gw = createGateway(mockTask, mockSteps, { message: 'พักงานเรียบร้อยแล้ว' })
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 2,
+        actorUsername: 'user2',
+        actorName: 'User Two',
+        actorPosition: 'Manager',
+        actorRole: 'member',
+        action: 'HOLD',
+        holdReason: 'รอการจัดสรรงบ',
+        holdDetails: 'รองบประมาณปี 2570 ไตรมาส 1',
+      },
+      gw
+    )
 
     expect(result.success).toBe(true)
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks SET status = 'ON_HOLD'"),
-      expect.arrayContaining([
-        expect.stringContaining('รอการจัดสรรงบ'),
-        't-1',
-      ])
-    )
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("'HOLD_TASK'"),
-      expect.arrayContaining(['t-1', 2, 'User Two'])
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: 't-1',
+        action: 'HOLD',
+        holdReason: 'รอการจัดสรรงบ',
+      })
     )
   })
 
   it('should resume held task back to pending', async () => {
-    const heldTask = {
-      ...mockTask,
-      status: 'ON_HOLD',
-      custom_payload: JSON.stringify({
-        holdReason: 'รอการจัดสรรงบ',
-        holdDetails: 'รองบประมาณปี 2570',
-      }),
-    }
-    const executor = createExecutor([heldTask])
-    const result = await executeWorkflowAction({
-      taskId: 't-1',
-      actorMemberId: 2,
-      actorUsername: 'user2',
-      actorName: 'User Two',
-      actorPosition: 'Manager',
-      actorRole: 'member',
-      action: 'RESUME',
-      comment: 'งบประมาณได้รับการอนุมัติแล้ว ดำเนินการต่อ',
-    }, executor)
+    const heldTask = { ...mockTask, status: 'ON_HOLD' }
+    const gw = createGateway(heldTask, mockSteps, {
+      message: 'ปลดพักงานและกลับมาดำเนินการต่อเรียบร้อยแล้ว',
+    })
+    const result = await executeWorkflowAction(
+      {
+        taskId: 't-1',
+        actorMemberId: 2,
+        actorUsername: 'user2',
+        actorName: 'User Two',
+        actorPosition: 'Manager',
+        actorRole: 'member',
+        action: 'RESUME',
+        comment: 'งบประมาณได้รับการอนุมัติแล้ว ดำเนินการต่อ',
+      },
+      gw
+    )
 
     expect(result.success).toBe(true)
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks SET status = ?"),
-      expect.arrayContaining(['PENDING', 't-1'])
-    )
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("'RESUME_TASK'"),
-      expect.arrayContaining(['t-1', 2, 'User Two'])
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 't-1', action: 'RESUME' })
     )
   })
 
@@ -526,20 +353,12 @@ describe('executeWorkflowAction', () => {
       current_assignee: 5,
       current_step_no: 2,
       status: 'IN_PROGRESS',
-      custom_payload: JSON.stringify({
-        deliveryDate: '2026-10-25',
-      }),
     }
     const mediaSteps = [
       { id: 'ms-1', task_id: 'mr-1', step_no: 1, step_name: 'รับเรื่อง', status: 'COMPLETED', assigned_to_id: 5 },
       { id: 'ms-2', task_id: 'mr-1', step_no: 2, step_name: 'พิจารณาอนุมัติ', status: 'PENDING', assigned_to_id: 6 },
-      { id: 'ms-3', task_id: 'mr-1', step_no: 3, step_name: 'ผลิตสื่อ', status: 'WAITING', assigned_to_id: 5 },
-      { id: 'ms-4', task_id: 'mr-1', step_no: 4, step_name: 'ส่งมอบงาน', status: 'WAITING', assigned_to_id: 5 },
     ]
-
-    const executor = createExecutor([mediaTask], mediaSteps, {
-      telegramLinks: [{ telegram_chat_id: '999888777' }],
-    })
+    const gw = createGateway(mediaTask, mediaSteps)
 
     const result = await executeWorkflowAction(
       {
@@ -552,24 +371,13 @@ describe('executeWorkflowAction', () => {
         action: 'COMPLETE',
         comment: 'จัดทำป้ายไวนิลและส่งมอบเรียบร้อยแล้ว',
       },
-      executor
+      gw
     )
 
     expect(result.success).toBe(true)
-
-    // Updates task status to APPROVED while keeping steps untouched for external manual paper signatures
-    expect(executor).toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_tasks \n       SET status = 'APPROVED'"),
-      expect.arrayContaining(['mr-1'])
+    expect(gw.executeWorkflowActionV2).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 'mr-1', action: 'COMPLETE' })
     )
-
-    // Does NOT update inbox_task_steps
-    expect(executor).not.toHaveBeenCalledWith(
-      expect.stringContaining("UPDATE inbox_task_steps"),
-      expect.anything()
-    )
-
-    // Writes audit log
     expect(audit.logAudit).toHaveBeenCalledWith(
       'UPDATE',
       'inbox_tasks',
@@ -579,11 +387,8 @@ describe('executeWorkflowAction', () => {
   })
 
   it('should disallow COMPLETE action for non-media request task', async () => {
-    const itRepairTask = {
-      ...mockTask,
-      task_type: 'IT_REPAIR',
-    }
-    const executor = createExecutor([itRepairTask])
+    const itRepairTask = { ...mockTask, task_type: 'IT_REPAIR' }
+    const gw = createGateway(itRepairTask)
 
     await expect(
       executeWorkflowAction(
@@ -596,7 +401,7 @@ describe('executeWorkflowAction', () => {
           actorRole: 'admin',
           action: 'COMPLETE',
         },
-        executor
+        gw
       )
     ).rejects.toThrow('ฟังก์ชันเสร็จสิ้นทันทีรองรับเฉพาะงานสื่อประชาสัมพันธ์เท่านั้น')
   })
