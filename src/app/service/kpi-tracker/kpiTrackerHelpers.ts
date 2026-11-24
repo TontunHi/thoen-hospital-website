@@ -1,4 +1,3 @@
-import type { KpiAiAuditItem } from '@/lib/kpi/kpiAuditService'
 import {
   isPercentageIndicator,
   calculateIndicatorResult,
@@ -103,34 +102,6 @@ export function formatAnswerDisplay(
   }
 
   return { main, sub, fullSub }
-}
-
-export function formatAiAuditNumbers(audit: KpiAiAuditItem, ind?: IndicatorMetricMeta | null): string {
-  if (audit.aiResult === null || audit.aiResult === undefined) {
-    return '-'
-  }
-  const main = formatKpiResultValue(audit.aiResult, ind)
-  if (audit.aiNumerator !== null && audit.aiDenominator !== null) {
-    return `${main} (${formatKpiNumber(audit.aiNumerator)}/${formatKpiNumber(audit.aiDenominator)})`
-  }
-  return main
-}
-
-export function getAiAuditStatusLabel(status: KpiAiAuditItem['status']): string {
-  switch (status) {
-    case 'MATCH':
-      return 'AI ตรงกัน'
-    case 'MISMATCH':
-      return 'AI พบคลาดเคลื่อน'
-    case 'NO_HUMAN_ENTRY':
-      return 'HOSxP พร้อมตรวจ'
-    case 'MANUAL_OR_HYBRID':
-      return 'กึ่งอัตโนมัติ/Manual'
-    case 'SQL_ERROR':
-      return 'ตรวจ HOSxP ขัดข้อง'
-    default:
-      return 'ยังไม่ตั้ง Rule'
-  }
 }
 
 export function evaluateTargetClient(

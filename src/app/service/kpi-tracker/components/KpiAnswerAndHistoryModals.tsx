@@ -10,8 +10,6 @@ import {
   AlertCircle,
   Clock,
   Lock,
-  ShieldCheck,
-  AlertTriangle,
   Edit,
 } from 'lucide-react'
 import type { KpiIndicatorItem } from '@/lib/kpi/kpiService'
@@ -31,8 +29,6 @@ import {
 import {
   formatThaiDateTime,
   formatAnswerDisplay,
-  formatAiAuditNumbers,
-  getAiAuditStatusLabel,
 } from '../kpiTrackerHelpers'
 
 export function KpiAnswerAndHistoryModals(props: {
@@ -447,11 +443,6 @@ export function KpiAnswerAndHistoryModals(props: {
                     const dueStatus = checkIndicatorDueStatus(historyIndicator.frequency, selectedYear)
                     const isCurrentPeriod = matchesPeriodKey(p.key, dueStatus.relevantPeriod.key)
                     const canEdit = canAnswerIndicator(historyIndicator)
-                    const roundAiAudit =
-                      historyIndicator.aiAudits?.find(a => matchesPeriodKey(a.periodKey, p.key)) ||
-                      (historyIndicator.aiAudit && matchesPeriodKey(historyIndicator.aiAudit.periodKey, p.key)
-                        ? historyIndicator.aiAudit
-                        : null)
 
                     return (
                       <div
@@ -540,39 +531,6 @@ export function KpiAnswerAndHistoryModals(props: {
                             </div>
                           )}
                         </div>
-
-                        {roundAiAudit && (
-                          <div className={`kpiHistoryAiAuditBox ${roundAiAudit.status.toLowerCase()}`}>
-                            <div className="kpiHistoryAiAuditHeader">
-                              <span className="kpiHistoryAiAuditTitle">
-                                {roundAiAudit.status === 'MATCH' ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
-                                <span>ตรวจเทียบ AI / HOSxP (THIP 2026) — {getAiAuditStatusLabel(roundAiAudit.status)}</span>
-                              </span>
-                              {roundAiAudit.auditedAt && (
-                                <span className="kpiHistoryAiAuditTime">
-                                  ตรวจล่าสุด: {formatThaiDateTime(roundAiAudit.auditedAt)}
-                                </span>
-                              )}
-                            </div>
-
-                            {roundAiAudit.aiResult !== null && (
-                              <div className="kpiHistoryAiAuditNumbers">
-                                <span>
-                                  <strong>ผลจาก HOSxP:</strong> {formatAiAuditNumbers(roundAiAudit, historyIndicator)}
-                                </span>
-                                {roundAiAudit.thipManualRef && (
-                                  <span className="kpiHistoryAiRef">{roundAiAudit.thipManualRef}</span>
-                                )}
-                              </div>
-                            )}
-
-                            {roundAiAudit.explanationTh && (
-                              <div className="kpiHistoryAiAuditExplain">
-                                {roundAiAudit.explanationTh}
-                              </div>
-                            )}
-                          </div>
-                        )}
 
                         {/* Card Footer */}
                         <div className="kpiHistoryRoundFooter">

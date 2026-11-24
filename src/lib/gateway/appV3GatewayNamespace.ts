@@ -444,33 +444,7 @@ export function createAppV3GatewayNamespace(client: AppHttpClient) {
       )
     },
 
-    // ── Phase 4C: KPI Audits & Topics V2 ──
-    ensureKpiAuditsTableV2: () => {
-      return client.post<{ ensured: boolean }>('/api/v1/app/v2/kpi/audits/ensure-table', {})
-    },
-
-    upsertKpiAuditBatchV2: (body: {
-      fiscalYear: string
-      periodKey: string
-      auditedAtSql?: string | null
-      items: Array<Record<string, unknown>>
-    }) => {
-      return client.post<{ savedCount: number; skippedCount: number }>(
-        '/api/v1/app/v2/kpi/audits/upsert-batch',
-        body
-      )
-    },
-
-    getKpiAuditsByTopicV2: (params: {
-      topicId: number
-      fiscalYear?: string
-      periodKey?: string
-    }) => {
-      return client.get<Array<Record<string, unknown>>>(
-        `/api/v1/app/v2/kpi/audits${buildQuery(params)}`
-      )
-    },
-
+    // ── Phase 4C: KPI Topics V2 ──
     getKpiTopicByIdV2: (topicId: number) => {
       return client.get<Record<string, unknown> | null>(`/api/v1/app/v2/kpi/topics/${topicId}`)
     },

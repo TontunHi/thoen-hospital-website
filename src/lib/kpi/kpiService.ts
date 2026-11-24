@@ -8,7 +8,6 @@ import {
   isPercentageIndicator,
   calculateIndicatorResult,
 } from './kpiTimeUtils'
-import type { KpiAiAuditItem } from './kpiAuditService'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
@@ -93,8 +92,6 @@ export interface KpiIndicatorItem {
   displayOrder: number
   currentEntry?: KpiEntryItem | null
   entries?: KpiEntryItem[]
-  aiAudit?: KpiAiAuditItem | null
-  aiAudits?: KpiAiAuditItem[]
 }
 
 export interface SaveEntryInput {

@@ -20,7 +20,6 @@ import {
   Calculator,
   AlertTriangle,
   Building2,
-  ShieldCheck,
   ChevronDown,
   UploadCloud,
   AlertCircle,
@@ -33,7 +32,6 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import type { KpiAiAuditItem } from '@/lib/kpi/kpiAuditService'
 import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiDecimal, formatKpiNumber, shouldDisplayPerThousandDays, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
@@ -42,8 +40,6 @@ import {
   formatThaiDate,
   formatThaiDateTime,
   formatAnswerDisplay,
-  formatAiAuditNumbers,
-  getAiAuditStatusLabel,
   evaluateTargetClient,
 } from './kpiTrackerHelpers'
 import { KpiAnswerAndHistoryModals } from './components/KpiAnswerAndHistoryModals'
@@ -69,7 +65,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [selectedFilledStatus, setSelectedFilledStatus] = useState<'ALL' | 'FILLED' | 'UNFILLED'>('ALL')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'ALL' | 'MY' | 'DUE' | 'AI_MISMATCH'>('ALL')
+  const [activeTab, setActiveTab] = useState<'ALL' | 'MY' | 'DUE'>('ALL')
   const [sortField, setSortField] = useState<'sequence' | 'title' | 'frequency' | 'status'>('sequence')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
@@ -492,12 +488,6 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       if (activeTab === 'DUE') {
         const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
         if (!dueStatus.isDue) {
-          return false
-        }
-      }
-      if (activeTab === 'AI_MISMATCH') {
-        const audit = ind.aiAudit
-        if (!audit || audit.status !== 'MISMATCH') {
           return false
         }
       }
@@ -1517,15 +1507,6 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
               >
                 ตัวที่ถึงเวลา ({dueIndicatorsCount})
               </button>
-              {indicators.some(ind => ind.aiAudit) && (
-                <button
-                  type="button"
-                  className={`kpiTabPill kpiTabPillAudit ${activeTab === 'AI_MISMATCH' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('AI_MISMATCH')}
-                >
-                  AI พบคลาดเคลื่อน ({indicators.filter(ind => ind.aiAudit?.status === 'MISMATCH').length})
-                </button>
-              )}
             </div>
           </div>
         </section>

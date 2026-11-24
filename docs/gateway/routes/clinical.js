@@ -23,11 +23,19 @@ fastify.get('/api/v1/clinical/er/status', {
   try {
     const data = await getCached(`er-status-${isTvMode ? 'tv' : 'summary'}`, 8000, async () => {
       const [levels] = await hosPool.query(`
-        SELECT eel.er_emergency_level_id, eel.er_emergency_level_name, count(er.vn) as total
+        SELECT eel.er_emergency_level_id, eel.er_emergency_level_name, count(active_er.vn) as total
         FROM er_emergency_level eel
-        LEFT JOIN er_regist er ON eel.er_emergency_level_id = er.er_emergency_level_id 
-          AND er.vstdate = CURRENT_DATE 
-          AND (er.er_leave_status_id IS NULL OR er.er_leave_status_id = '')
+        LEFT JOIN (
+          SELECT er.vn, er.er_emergency_level_id
+          FROM er_regist er
+          LEFT OUTER JOIN vn_stat vn ON er.vn = vn.vn
+          LEFT OUTER JOIN an_stat an ON er.vn = an.vn
+          LEFT OUTER JOIN ward w ON an.ward = w.ward
+          LEFT OUTER JOIN referout r ON vn.vn = r.vn
+          LEFT OUTER JOIN hospcode h ON r.refer_hospcode = h.hospcode
+          WHERE er.vstdate = CURRENT_DATE
+            AND ((er.er_dch_type IN ('2','3','5','6','7','8','9') AND w.name IS NULL) AND h.name IS NULL)
+        ) active_er ON eel.er_emergency_level_id = active_er.er_emergency_level_id
         GROUP BY eel.er_emergency_level_id, eel.er_emergency_level_name
         ORDER BY eel.er_emergency_level_id
       `)

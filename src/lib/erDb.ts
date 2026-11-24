@@ -39,21 +39,56 @@ export interface ErLiveStatusRawData {
   }
 }
 
+/**
+ * Compute triage level summary directly from active ER patients so card totals
+ * always match the active patient list shown on `/service/er-in-status` and TV mode.
+ */
+export function summarizeErActiveLevels(activePatients: ErPatientRow[]) {
+  let critical = 0
+  let emergency = 0
+  let urgency = 0
+  let semiUrgency = 0
+  let nonUrgency = 0
+
+  for (const patient of activePatients) {
+    switch (Number(patient.er_emergency_level_id)) {
+      case 1:
+        critical += 1
+        break
+      case 2:
+        emergency += 1
+        break
+      case 3:
+        urgency += 1
+        break
+      case 4:
+        semiUrgency += 1
+        break
+      case 5:
+        nonUrgency += 1
+        break
+    }
+  }
+
+  return {
+    totalActive: activePatients.length,
+    critical,
+    emergency,
+    urgency,
+    semiUrgency,
+    nonUrgency,
+  }
+}
+
 export type ErLiveDashboardFetcher = () => Promise<ErLiveStatusRawData>
 
 const defaultErFetcher: ErLiveDashboardFetcher = async () => {
   const data = await apiGateway.clinical.getErLiveDashboard()
+  const activePatients = (data?.activePatients || []) as ErPatientRow[]
   return {
-    activePatients: (data?.activePatients || []) as ErPatientRow[],
+    activePatients,
     errorStatusList: data?.errorStatusList || { total: 0, list: [] },
-    summary: data?.summary || {
-      totalActive: 0,
-      critical: 0,
-      emergency: 0,
-      urgency: 0,
-      semiUrgency: 0,
-      nonUrgency: 0,
-    },
+    summary: summarizeErActiveLevels(activePatients),
     stats: data?.stats || { ptTypes: [], emergencyLevels: [], dischargeTypes: [] },
   }
 }

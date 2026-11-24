@@ -2,14 +2,11 @@
 
 import React from 'react'
 import {
-  AlertTriangle,
   Check,
   ChevronDown,
-  Clock,
   Edit,
   History,
   Search,
-  ShieldCheck,
   Trash2,
   X,
 } from 'lucide-react'
@@ -24,10 +21,8 @@ import {
   type IndicatorDueStatus,
 } from '@/lib/kpi/kpiTimeUtils'
 import {
-  formatAiAuditNumbers,
   formatAnswerDisplay,
   formatThaiDateTime,
-  getAiAuditStatusLabel,
 } from '../kpiTrackerHelpers'
 
 export interface KpiCategoryFilterProps {
@@ -355,27 +350,6 @@ export function KpiIndicatorRow({
           <span className={answerDisplay ? 'kpiResultValue' : ''}>
             {answerDisplay ? `${answerDisplay.main} ${answerDisplay.sub || ''}`.trim() : '-'}
           </span>
-          {ind.aiAudit && (
-            <button
-              type="button"
-              className={`kpiAiAuditBadge ${ind.aiAudit.status.toLowerCase()}`}
-              onClick={() => handleOpenHistoryModal(ind)}
-              title={ind.aiAudit.explanationTh || getAiAuditStatusLabel(ind.aiAudit.status)}
-            >
-              {ind.aiAudit.status === 'MATCH' && <ShieldCheck size={11} />}
-              {ind.aiAudit.status === 'MISMATCH' && <AlertTriangle size={11} />}
-              {(ind.aiAudit.status === 'NO_HUMAN_ENTRY' || ind.aiAudit.status === 'MANUAL_OR_HYBRID') && <Clock size={11} />}
-              <span>
-                {ind.aiAudit.status === 'MATCH'
-                  ? 'AI ตรงกัน'
-                  : ind.aiAudit.status === 'MISMATCH'
-                    ? `AI: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
-                    : ind.aiAudit.status === 'NO_HUMAN_ENTRY'
-                      ? `HOSxP: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
-                      : getAiAuditStatusLabel(ind.aiAudit.status)}
-              </span>
-            </button>
-          )}
           <button
             type="button"
             className="kpiHistoryBtn"
@@ -420,27 +394,6 @@ export function KpiIndicatorRow({
           >
             ตอบแล้ว {answeredRounds}/{totalRounds} รอบ
           </span>
-        )}
-        {ind.aiAudit && (
-          <button
-            type="button"
-            className={`kpiAiAuditBadge ${ind.aiAudit.status.toLowerCase()}`}
-            onClick={() => handleOpenHistoryModal(ind)}
-            title={ind.aiAudit.explanationTh || getAiAuditStatusLabel(ind.aiAudit.status)}
-          >
-            {ind.aiAudit.status === 'MATCH' && <ShieldCheck size={11} />}
-            {ind.aiAudit.status === 'MISMATCH' && <AlertTriangle size={11} />}
-            {(ind.aiAudit.status === 'NO_HUMAN_ENTRY' || ind.aiAudit.status === 'MANUAL_OR_HYBRID') && <Clock size={11} />}
-            <span>
-              {ind.aiAudit.status === 'MATCH'
-                ? 'AI ตรงกัน'
-                : ind.aiAudit.status === 'MISMATCH'
-                  ? `AI: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
-                  : ind.aiAudit.status === 'NO_HUMAN_ENTRY'
-                    ? `HOSxP: ${formatAiAuditNumbers(ind.aiAudit, ind)}`
-                    : getAiAuditStatusLabel(ind.aiAudit.status)}
-            </span>
-          </button>
         )}
       </div>
 
