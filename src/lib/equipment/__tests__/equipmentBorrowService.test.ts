@@ -327,18 +327,14 @@ describe('EquipmentBorrowService', () => {
       expect(result.status).toBe('RETURNED')
     })
 
-    it('processes return inspection via queryExecutor without passing raw Date objects', async () => {
-      const mockQueryExecutor = vi.fn()
-      const sqlService = new EquipmentBorrowService(null, mockQueryExecutor)
-
+    it('processes return inspection via gateway Named Endpoint cleanly', async () => {
       const mockReq = {
         id: 1,
         request_no: 'BR-202610-0001',
-        status: 'APPROVED',
+        status: 'RETURNED',
         requester_id: 10,
         requester_name: 'นนธภพ',
       }
-
       const mockItems = [
         {
           id: 101,
@@ -347,29 +343,21 @@ describe('EquipmentBorrowService', () => {
           material_id: 3,
           item_name: 'ถุงมือสีขาว',
           quantity: 2,
-          returned_qty: 0,
-          status: 'BORROWED',
+          returned_qty: 2,
+          status: 'RETURNED',
           mat_name: 'ถุงมือสีขาว',
           mat_unit: 'คู่',
           mat_type: 'REUSABLE',
         },
       ]
 
-      mockQueryExecutor
-        // 1. getBorrowRequestById initial
-        .mockResolvedValueOnce([mockReq])
-        .mockResolvedValueOnce(mockItems)
-        // 2. update item
-        .mockResolvedValueOnce({ affectedRows: 1 })
-        // 3. update material stock
-        .mockResolvedValueOnce({ affectedRows: 1 })
-        // 4. select updated items for allDone check
-        .mockResolvedValueOnce([{ quantity: 2, returned_qty: 2, status: 'RETURNED' }])
-        // 5. update request status
-        .mockResolvedValueOnce({ affectedRows: 1 })
-        // 6. getBorrowRequestById final
-        .mockResolvedValueOnce([{ ...mockReq, status: 'RETURNED' }])
-        .mockResolvedValueOnce([{ ...mockItems[0], returned_qty: 2, status: 'RETURNED' }])
+      const mockGw = {
+        returnBorrowItemsV2: vi.fn().mockResolvedValue({
+          updated: { request: mockReq, items: mockItems },
+          allDone: true,
+        }),
+      } as any
+      const gwService = new EquipmentBorrowService(null, mockGw)
 
       const returnData = [
         {
@@ -380,22 +368,9 @@ describe('EquipmentBorrowService', () => {
         },
       ]
 
-      const result = await sqlService.processItemReturn(1, returnData, actor)
+      const result = await gwService.processItemReturn(1, returnData, actor)
 
-      const updateReqCall = mockQueryExecutor.mock.calls.find(([sql]) =>
-        sql.includes('UPDATE equipment_borrow_requests')
-      )
-      expect(updateReqCall).toBeDefined()
-      expect(updateReqCall![0]).toContain("actual_return_date = CASE WHEN ? = 'RETURNED' THEN NOW() ELSE NULL END")
-      expect(updateReqCall![1]).toEqual(['RETURNED', 'RETURNED', 1])
-
-      for (const call of mockQueryExecutor.mock.calls) {
-        const params = call[1] || []
-        for (const p of params) {
-          expect(p instanceof Date).toBe(false)
-        }
-      }
-
+      expect(mockGw.returnBorrowItemsV2).toHaveBeenCalledWith(1, returnData, actor)
       expect(result.status).toBe('RETURNED')
     })
   })
@@ -521,7 +496,7 @@ describe('EquipmentBorrowService', () => {
         telegramChatId: '987654321',
       })
 
-      const customService = new EquipmentBorrowService(mockDb, vi.fn(), mockTelegramSender)
+      const customService = new EquipmentBorrowService(mockDb, undefined, mockTelegramSender)
       const res = await customService.dispatchOverdueNotifications({ siteUrl: 'https://thlp.moph.go.th' })
 
       expect(res.success).toBe(true)
@@ -570,7 +545,7 @@ describe('EquipmentBorrowService', () => {
       // No telegram link found
       mockDb.memberTelegramLink.findFirst.mockResolvedValueOnce(null)
 
-      const customService = new EquipmentBorrowService(mockDb, vi.fn(), mockTelegramSender)
+      const customService = new EquipmentBorrowService(mockDb, undefined, mockTelegramSender)
       const res = await customService.dispatchOverdueNotifications()
 
       expect(res.totalOverdue).toBe(1)
@@ -600,7 +575,7 @@ describe('EquipmentBorrowService', () => {
 
       mockTelegramSender.mockRejectedValueOnce(new Error('Telegram API Bot Blocked'))
 
-      const customService = new EquipmentBorrowService(mockDb, vi.fn(), mockTelegramSender)
+      const customService = new EquipmentBorrowService(mockDb, undefined, mockTelegramSender)
       const res = await customService.dispatchOverdueNotifications()
 
       expect(res.totalOverdue).toBe(1)
@@ -610,41 +585,34 @@ describe('EquipmentBorrowService', () => {
       expect(res.details[0].error).toContain('Telegram API Bot Blocked')
     })
 
-    it('works with Zero-DB queryExecutor for production environment', async () => {
-      const mockQueryExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
-        if (sql.includes('FROM equipment_borrow_requests r')) {
-          return Promise.resolve([
-            {
-              id: 20,
-              request_no: 'BR-202610-0020',
-              requester_id: 200,
-              requester_name: 'ผู้ยืมระบบเกตเวย์',
-              requester_dept: 'IT',
-              purpose: 'ทดสอบระบบ',
-              expected_return_date: '2026-10-18',
-              overdue_days: 1,
-            },
-          ])
-        }
-        if (sql.includes('FROM equipment_borrow_items')) {
-          return Promise.resolve([
-            {
-              id: 50,
-              item_name: 'จอภาพ Dell 24 นิ้ว',
-              item_code: '7440-002-0050',
-              quantity: 1,
-              returned_qty: 0,
-              status: 'BORROWED',
-            },
-          ])
-        }
-        if (sql.includes('FROM member_telegram_links')) {
-          return Promise.resolve([{ telegram_chat_id: '55667788' }])
-        }
-        return Promise.resolve([])
-      })
+    it('works with Zero-SQL gateway Named Endpoint for production environment', async () => {
+      const mockGw = {
+        getOverdueBorrowTargetsV2: vi.fn().mockResolvedValue([
+          {
+            id: 20,
+            request_no: 'BR-202610-0020',
+            requester_id: 200,
+            requester_name: 'ผู้ยืมระบบเกตเวย์',
+            requester_dept: 'IT',
+            purpose: 'ทดสอบระบบ',
+            expected_return_date: '2026-10-18',
+            overdue_days: 1,
+            telegram_chat_id: '55667788',
+            items: [
+              {
+                id: 50,
+                item_name: 'จอภาพ Dell 24 นิ้ว',
+                item_code: '7440-002-0050',
+                quantity: 1,
+                returned_qty: 0,
+                status: 'BORROWED',
+              },
+            ],
+          },
+        ]),
+      } as any
 
-      const customService = new EquipmentBorrowService(null, mockQueryExecutor, mockTelegramSender)
+      const customService = new EquipmentBorrowService(null, mockGw, mockTelegramSender)
       const res = await customService.dispatchOverdueNotifications()
 
       expect(res.totalOverdue).toBe(1)
@@ -659,94 +627,51 @@ describe('EquipmentBorrowService', () => {
   })
 
   describe('Inventory Reconciliation and Pre-validation', () => {
-    it('reconciles availableQty against currently borrowed items when totalQty is updated in Zero-DB', async () => {
-      const mockQueryExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
-        if (sql.includes('SELECT * FROM hospital_materials WHERE id = ?')) {
-          return Promise.resolve([
-            { id: 2, name: 'พวงมาลาสีชมพู', total_qty: 1, available_qty: 0, is_active: 1 },
-          ])
-        }
-        if (sql.includes('SELECT COALESCE(SUM(i.quantity - i.returned_qty)')) {
-          // 0 currently borrowed
-          return Promise.resolve([{ borrowed: 0 }])
-        }
-        if (sql.includes('UPDATE hospital_materials SET')) {
-          return Promise.resolve({ affectedRows: 1 })
-        }
-        return Promise.resolve([])
-      })
+    it('reconciles availableQty against currently borrowed items when totalQty is updated via Gateway', async () => {
+      const mockGw = {
+        updateBorrowMaterialV2: vi.fn().mockResolvedValue({
+          id: 2,
+          name: 'พวงมาลาสีชมพู',
+          category: 'GENERAL',
+          material_type: 'REUSABLE',
+          total_qty: 1,
+          available_qty: 1,
+          unit: 'ชิ้น',
+          is_active: 1,
+        }),
+      } as any
 
-      const customService = new EquipmentBorrowService(null, mockQueryExecutor)
-      await customService.updateMaterial(2, { totalQty: 1 }, actor)
+      const customService = new EquipmentBorrowService(null, mockGw)
+      const updated = await customService.updateMaterial(2, { totalQty: 1 }, actor)
 
-      const updateCall = mockQueryExecutor.mock.calls.find(([sql]) =>
-        sql.includes('UPDATE hospital_materials SET')
-      )
-      expect(updateCall).toBeDefined()
-      // total_qty = 1, available_qty = 1 (1 - 0 borrowed)
-      expect(updateCall![0]).toContain('available_qty = ?')
-      expect(updateCall![1]).toContain(1)
+      expect(mockGw.updateBorrowMaterialV2).toHaveBeenCalledWith(2, { totalQty: 1 })
+      expect(updated.availableQty).toBe(1)
     })
 
-    it('pre-validates all material stock before executing any updates during approval in Zero-DB', async () => {
-      const mockQueryExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
-        if (sql.includes('FROM equipment_borrow_requests WHERE id = ?')) {
-          return Promise.resolve([
-            { id: 2, request_no: 'BR-202610-4958', status: 'PENDING', requester_id: 121 },
-          ])
-        }
-        if (sql.includes('FROM equipment_borrow_items i') && sql.includes('WHERE i.request_id = ?')) {
-          return Promise.resolve([
-            { id: 10, request_id: 2, item_type: 'MATERIAL', material_id: 2, item_name: 'พวงมาลาสีชมพู', quantity: 1, returned_qty: 0, status: 'PENDING' },
-            { id: 11, request_id: 2, item_type: 'MATERIAL', material_id: 3, item_name: 'ถุงมือสีขาว', quantity: 2, returned_qty: 0, status: 'PENDING' },
-          ])
-        }
-        if (sql.includes('SELECT id, name, available_qty, unit, material_type FROM hospital_materials WHERE id = ?')) {
-          const matId = params?.[0]
-          if (matId === 2) {
-            return Promise.resolve([{ id: 2, name: 'พวงมาลาสีชมพู', available_qty: 1, unit: 'ชิ้น', material_type: 'REUSABLE' }])
-          }
-          if (matId === 3) {
-            // Insufficient stock for material 3!
-            return Promise.resolve([{ id: 3, name: 'ถุงมือสีขาว', available_qty: 0, unit: 'คู่', material_type: 'REUSABLE' }])
-          }
-        }
-        return Promise.resolve([])
-      })
+    it('propagates Gateway insufficient stock error during approval', async () => {
+      const mockGw = {
+        approveBorrowRequestV2: vi
+          .fn()
+          .mockRejectedValue(new Error('ยอดคงเหลือไม่เพียงพอสำหรับ ถุงมือสีขาว (ต้องการ 2, คงเหลือ 0)')),
+      } as any
 
-      const customService = new EquipmentBorrowService(null, mockQueryExecutor)
+      const customService = new EquipmentBorrowService(null, mockGw)
 
       await expect(customService.approveAndDispenseRequest(2, actor)).rejects.toThrow(
         /ยอดคงเหลือไม่เพียงพอสำหรับ ถุงมือสีขาว/
       )
-
-      // Ensure that hospital_materials update was NEVER called for item 1
-      const updateCalls = mockQueryExecutor.mock.calls.filter(([sql]) =>
-        sql.includes('UPDATE hospital_materials SET')
-      )
-      expect(updateCalls.length).toBe(0)
     })
 
-    it('deleteMaterial permanently deletes material and detaches borrow items in Zero-DB', async () => {
-      const mockQueryExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM hospital_materials WHERE id = ?')) {
-          return Promise.resolve([{ id: 99, name: 'กระดานไวท์บอร์ด' }])
-        }
-        return Promise.resolve([])
-      })
+    it('deleteMaterial delegates to Gateway Named Endpoint and writes audit log', async () => {
+      const mockGw = {
+        deleteBorrowMaterialV2: vi.fn().mockResolvedValue({ name: 'กระดานไวท์บอร์ด' }),
+      } as any
 
-      const customService = new EquipmentBorrowService(null, mockQueryExecutor)
+      const customService = new EquipmentBorrowService(null, mockGw)
       const res = await customService.deleteMaterial(99, actor)
 
       expect(res).toEqual({ success: true })
-      expect(mockQueryExecutor).toHaveBeenCalledWith(
-        'UPDATE equipment_borrow_items SET material_id = NULL WHERE material_id = ?',
-        [99]
-      )
-      expect(mockQueryExecutor).toHaveBeenCalledWith(
-        'DELETE FROM hospital_materials WHERE id = ?',
-        [99]
-      )
+      expect(mockGw.deleteBorrowMaterialV2).toHaveBeenCalledWith(99)
     })
   })
 })

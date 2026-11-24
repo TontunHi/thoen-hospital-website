@@ -1,7 +1,6 @@
-import crypto from 'crypto'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { resolveTaskPermissions, MemberLike } from '@/lib/taskPermissionResolver'
-import { getMediaRequestWorkflowSteps, MemberDbExecutor } from './taskDefinitionsAndRepairAction'
+import { getMediaRequestWorkflowSteps } from './taskDefinitionsAndRepairAction'
 
 export interface UpdateTaskManagerPayload {
   title?: string
@@ -44,29 +43,32 @@ export interface UpdateTaskManagerResult {
   diff?: Record<string, { from: any; to: any }>
 }
 
+export interface TaskManagerEditGateway {
+  getInboxTaskBundleV2: typeof apiGateway.app.getInboxTaskBundleV2
+  submitManagerTaskEditV2: typeof apiGateway.app.submitManagerTaskEditV2
+}
+
 /**
  * Domain Service: Update task details by authorized manager/technician/requester
  * Handles dynamic workflow transformations (Step 4 for Media Request),
- * repair details updates, and writes structured field-diff audit logs.
+ * repair details updates, and writes structured field-diff audit logs via Gateway Named Endpoints.
  */
 export async function updateTaskByManager(
   params: UpdateTaskManagerParams,
-  executor: MemberDbExecutor = queryMemberDb
+  gateway: TaskManagerEditGateway = apiGateway.app
 ): Promise<UpdateTaskManagerResult> {
   const { taskId, performer, updates } = params
 
-  // 1. Fetch Task
-  const tasks = await executor('SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1', [taskId])
-  if (!tasks || tasks.length === 0) {
+  // 1-3. Fetch Task, Repair Detail, and Steps atomically via Gateway
+  const bundle = await gateway.getInboxTaskBundleV2(taskId)
+  const task: any = bundle?.task
+  if (!task) {
     return { success: false, error: 'ไม่พบข้อมูลงานนี้', statusCode: 404 }
   }
-  const task = tasks[0]
 
-  // 2. Fetch Repair Detail (if any)
-  const repairRows = await executor('SELECT * FROM repair_details WHERE task_id = ? LIMIT 1', [taskId])
-  let repairDetail = null
-  if (repairRows && repairRows.length > 0) {
-    const row = repairRows[0]
+  let repairDetail: any = null
+  if (bundle?.repairDetail) {
+    const row: any = bundle.repairDetail
     let photos = []
     let coWorkers = []
     try {
@@ -82,11 +84,7 @@ export async function updateTaskByManager(
     }
   }
 
-  // 3. Fetch Steps
-  const steps = await executor(
-    'SELECT * FROM inbox_task_steps WHERE task_id = ? ORDER BY step_no ASC',
-    [taskId]
-  )
+  const steps: any[] = bundle?.steps || []
 
   // 4. Permission Check via Domain Resolver
   const permissions = resolveTaskPermissions(performer, task, { repairDetail, steps })
@@ -104,6 +102,11 @@ export async function updateTaskByManager(
 
   const diff: Record<string, { from: any; to: any }> = {}
   const updatedTaskFields: Record<string, any> = {}
+  let stepSync: {
+    mode: 'HAS_COST' | 'NO_COST'
+    targetSteps: Array<{ stepNo: number; stepName: string; assignedRole: string }>
+  } | null = null
+  let repairUpdates: Record<string, unknown> | null = null
 
   // Basic task field diff & updates
   if (updates.title !== undefined && updates.title.trim() && updates.title.trim() !== task.title) {
@@ -128,56 +131,22 @@ export async function updateTaskByManager(
         customPayload.costType = updates.costType
 
         if (updates.costType === 'HAS_COST') {
-          const targetSteps = getMediaRequestWorkflowSteps(true)
-          for (const s of targetSteps) {
-            if (s.stepNo > 2) {
-              const stepRows = await executor(
-                'SELECT id, status FROM inbox_task_steps WHERE task_id = ? AND step_no = ? LIMIT 1',
-                [taskId, s.stepNo]
-              )
-              if (!Array.isArray(stepRows) || stepRows.length === 0) {
-                const stepId = crypto.randomUUID()
-                await executor(
-                  `INSERT INTO inbox_task_steps 
-                   (id, task_id, step_no, step_name, assignee_type, assigned_role, status)
-                   VALUES (?, ?, ?, ?, 'ROLE', ?, 'WAITING')`,
-                  [stepId, taskId, s.stepNo, s.stepName, s.assignedRole]
-                )
-              } else if (stepRows[0] && (stepRows[0].status === 'WAITING' || stepRows[0].status === 'PENDING')) {
-                await executor(
-                  `UPDATE inbox_task_steps 
-                   SET step_name = ?, assigned_role = ?
-                   WHERE id = ?`,
-                  [s.stepName, s.assignedRole, stepRows[0].id]
-                )
-              }
-            }
+          stepSync = {
+            mode: 'HAS_COST',
+            targetSteps: getMediaRequestWorkflowSteps(true).map((s) => ({
+              stepNo: s.stepNo,
+              stepName: s.stepName,
+              assignedRole: s.assignedRole || '',
+            })),
           }
-          await executor(
-            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no > ? AND status IN ('PENDING', 'WAITING')`,
-            [taskId, targetSteps.length]
-          )
         } else if (updates.costType === 'NO_COST') {
-          const targetSteps = getMediaRequestWorkflowSteps(false)
-          await executor(
-            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no > 4 AND status IN ('PENDING', 'WAITING')`,
-            [taskId]
-          )
-          for (const s of targetSteps) {
-            if (s.stepNo > 2) {
-              const stepRows = await executor(
-                'SELECT id, status FROM inbox_task_steps WHERE task_id = ? AND step_no = ? LIMIT 1',
-                [taskId, s.stepNo]
-              )
-              if (Array.isArray(stepRows) && stepRows.length > 0 && stepRows[0] && (stepRows[0].status === 'WAITING' || stepRows[0].status === 'PENDING')) {
-                await executor(
-                  `UPDATE inbox_task_steps 
-                   SET step_name = ?, assigned_role = ?
-                   WHERE id = ?`,
-                  [s.stepName, s.assignedRole, stepRows[0].id]
-                )
-              }
-            }
+          stepSync = {
+            mode: 'NO_COST',
+            targetSteps: getMediaRequestWorkflowSteps(false).map((s) => ({
+              stepNo: s.stepNo,
+              stepName: s.stepName,
+              assignedRole: s.assignedRole || '',
+            })),
           }
         }
       }
@@ -272,28 +241,15 @@ export async function updateTaskByManager(
       diff.symptomDetail = { from: repairDetail.symptom_detail, to: updates.symptomDetail }
     }
 
-    await executor(
-      `UPDATE repair_details SET 
-        item_category = ?, 
-        equipment_number = ?, 
-        equipment_name = ?, 
-        non_equipment_item = ?, 
-        location_id = ?, 
-        location_full_name = ?, 
-        symptom_detail = ?, 
-        updated_at = NOW() 
-       WHERE task_id = ?`,
-      [
-        finalItemCat,
-        finalEqNum?.trim() || null,
-        finalEqName?.trim() || null,
-        finalNonEq?.trim() || null,
-        finalLocId || null,
-        finalLocName?.trim() || 'โรงพยาบาลเถิน',
-        finalSymptom?.trim() || '',
-        taskId,
-      ]
-    )
+    repairUpdates = {
+      itemCategory: finalItemCat,
+      equipmentNumber: finalEqNum?.trim() || null,
+      equipmentName: finalEqName?.trim() || null,
+      nonEquipmentItem: finalNonEq?.trim() || null,
+      locationId: finalLocId || null,
+      locationFullName: finalLocName?.trim() || 'โรงพยาบาลเถิน',
+      symptomDetail: finalSymptom?.trim() || '',
+    }
 
     const itemName = finalItemCat === 'EQUIPMENT'
       ? (finalEqName ? `${finalEqName} (${finalEqNum || 'ไม่ระบุเลข'})` : `ครุภัณฑ์เลขที่ ${finalEqNum}`)
@@ -312,51 +268,22 @@ export async function updateTaskByManager(
     updatedTaskFields.custom_payload = JSON.stringify(customPayload)
   }
 
-  // Update inbox_tasks table if there are changes
-  const updateSets: string[] = ['updated_at = NOW()']
-  const updateParams: any[] = []
-
-  if (updatedTaskFields.title) {
-    updateSets.push('title = ?')
-    updateParams.push(updatedTaskFields.title)
-  }
-  if (updatedTaskFields.description !== undefined) {
-    updateSets.push('description = ?')
-    updateParams.push(updatedTaskFields.description)
-  }
-  if (updatedTaskFields.urgency) {
-    updateSets.push('urgency = ?')
-    updateParams.push(updatedTaskFields.urgency)
-  }
-  if (updatedTaskFields.custom_payload) {
-    updateSets.push('custom_payload = ?')
-    updateParams.push(updatedTaskFields.custom_payload)
-  }
-
-  updateParams.push(taskId)
-  await executor(
-    `UPDATE inbox_tasks SET ${updateSets.join(', ')} WHERE id = ?`,
-    updateParams
-  )
-
-  // Write structured field-diff Audit Log
-  const auditId = crypto.randomUUID()
-  await executor(
-    `INSERT INTO inbox_task_audit_logs (id, task_id, action, performed_by, performer_name, details)
-     VALUES (?, ?, 'MANAGER_EDIT_TASK', ?, ?, ?)`,
-    [
-      auditId,
-      taskId,
-      performer.id,
-      performer.name || performer.username,
-      JSON.stringify({
+  // Persist task updates, step sync, repair details & audit log in a single Gateway transaction
+  await gateway.submitManagerTaskEditV2(taskId, {
+    taskUpdates: updatedTaskFields,
+    repairUpdates,
+    stepSync,
+    auditEntry: {
+      performedBy: performer.id ?? 0,
+      performerName: performer.name || performer.username || 'unknown',
+      details: {
         diff,
         updatedFields: updates,
         taskType: task.task_type,
         editorRole: performer.position || performer.role,
-      }),
-    ]
-  )
+      },
+    },
+  })
 
   return {
     success: true,

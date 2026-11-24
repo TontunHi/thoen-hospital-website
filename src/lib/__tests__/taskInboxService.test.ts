@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   executeRepairAction,
   updateTaskByManager,
-  MemberDbExecutor,
   generateSignatureStampHash,
   generateTaskNo,
   TaskInboxService,
@@ -223,37 +222,26 @@ describe('taskInboxService', () => {
 
   describe('updateTaskByManager', () => {
     it('updates media request costType to HAS_COST and dynamically adds steps', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-pr-1',
-              task_no: 'PR-2570-10-0001',
-              task_type: 'MEDIA_REQUEST',
-              title: 'ขอทำป้ายประชาสัมพันธ์',
-              description: 'รายละเอียดป้าย',
-              urgency: 'NORMAL',
-              requester_id: 10,
-              current_assignee: null,
-              current_role: 'นักประชาสัมพันธ์',
-              status: 'PENDING',
-              custom_payload: JSON.stringify({ costType: 'NO_COST' }),
-            },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([])
-        }
-        if (sql.includes('SELECT * FROM inbox_task_steps')) {
-          return Promise.resolve([
-            { id: 's1', step_no: 1, status: 'PENDING' },
-          ])
-        }
-        if (sql.includes('FROM inbox_task_steps WHERE task_id = ? AND step_no = ?')) {
-          return Promise.resolve([])
-        }
-        return Promise.resolve({ affectedRows: 1 })
-      })
+      const mockGw = {
+        getInboxTaskBundleV2: vi.fn().mockResolvedValue({
+          task: {
+            id: 'task-pr-1',
+            task_no: 'PR-2570-10-0001',
+            task_type: 'MEDIA_REQUEST',
+            title: 'ขอทำป้ายประชาสัมพันธ์',
+            description: 'รายละเอียดป้าย',
+            urgency: 'NORMAL',
+            requester_id: 10,
+            current_assignee: null,
+            current_role: 'นักประชาสัมพันธ์',
+            status: 'PENDING',
+            custom_payload: JSON.stringify({ costType: 'NO_COST' }),
+          },
+          repairDetail: null,
+          steps: [{ id: 's1', step_no: 1, status: 'PENDING' }],
+        }),
+        submitManagerTaskEditV2: vi.fn().mockResolvedValue({ updated: true }),
+      }
 
       const adminPerformer = {
         id: 1,
@@ -270,46 +258,39 @@ describe('taskInboxService', () => {
             estimatedBudget: 5000,
           },
         },
-        mockExecutor
+        mockGw
       )
 
       expect(res.success).toBe(true)
       expect(res.diff?.costType).toEqual({ from: 'NO_COST', to: 'HAS_COST' })
       expect(res.diff?.estimatedBudget).toEqual({ from: undefined, to: 5000 })
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO inbox_task_steps'),
-        expect.arrayContaining(['task-pr-1'])
-      )
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO inbox_task_audit_logs'),
-        expect.any(Array)
+      expect(mockGw.submitManagerTaskEditV2).toHaveBeenCalledWith(
+        'task-pr-1',
+        expect.objectContaining({
+          stepSync: expect.objectContaining({ mode: 'HAS_COST' }),
+          auditEntry: expect.objectContaining({ performedBy: 1 }),
+        })
       )
     })
 
     it('removes Steps when media request is changed back to NO_COST', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-pr-2',
-              task_no: 'PR-2570-10-0002',
-              task_type: 'MEDIA_REQUEST',
-              title: 'ขอทำป้ายประชาสัมพันธ์',
-              description: 'รายละเอียดป้าย',
-              urgency: 'NORMAL',
-              requester_id: 10,
-              current_assignee: null,
-              current_role: 'นักประชาสัมพันธ์',
-              status: 'PENDING',
-              custom_payload: JSON.stringify({ costType: 'HAS_COST' }),
-            },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([])
-        }
-        if (sql.includes('SELECT * FROM inbox_task_steps')) {
-          return Promise.resolve([
+      const mockGw = {
+        getInboxTaskBundleV2: vi.fn().mockResolvedValue({
+          task: {
+            id: 'task-pr-2',
+            task_no: 'PR-2570-10-0002',
+            task_type: 'MEDIA_REQUEST',
+            title: 'ขอทำป้ายประชาสัมพันธ์',
+            description: 'รายละเอียดป้าย',
+            urgency: 'NORMAL',
+            requester_id: 10,
+            current_assignee: null,
+            current_role: 'นักประชาสัมพันธ์',
+            status: 'PENDING',
+            custom_payload: JSON.stringify({ costType: 'HAS_COST' }),
+          },
+          repairDetail: null,
+          steps: [
             { id: 's1', step_no: 1, status: 'PENDING' },
             { id: 's2', step_no: 2, status: 'PENDING' },
             { id: 's3', step_no: 3, status: 'PENDING' },
@@ -317,13 +298,10 @@ describe('taskInboxService', () => {
             { id: 's5', step_no: 5, status: 'PENDING' },
             { id: 's6', step_no: 6, status: 'PENDING' },
             { id: 's7', step_no: 7, status: 'PENDING' },
-          ])
-        }
-        if (sql.includes('FROM inbox_task_steps WHERE task_id = ? AND step_no = ?')) {
-          return Promise.resolve([])
-        }
-        return Promise.resolve({ affectedRows: 1 })
-      })
+          ],
+        }),
+        submitManagerTaskEditV2: vi.fn().mockResolvedValue({ updated: true }),
+      }
 
       const prPerformer = {
         id: 30,
@@ -340,34 +318,36 @@ describe('taskInboxService', () => {
             costType: 'NO_COST',
           },
         },
-        mockExecutor
+        mockGw
       )
 
       expect(res.success).toBe(true)
       expect(res.diff?.costType).toEqual({ from: 'HAS_COST', to: 'NO_COST' })
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining("DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no > 4 AND status IN ('PENDING', 'WAITING')"),
-        ['task-pr-2']
+      expect(mockGw.submitManagerTaskEditV2).toHaveBeenCalledWith(
+        'task-pr-2',
+        expect.objectContaining({
+          stepSync: expect.objectContaining({ mode: 'NO_COST' }),
+        })
       )
     })
 
     it('rejects unauthorized user trying to edit task', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-pr-3',
-              task_type: 'MEDIA_REQUEST',
-              requester_id: 10,
-              requester_dept: 'กลุ่มงานการพยาบาล',
-              current_assignee: null,
-              current_role: 'นักประชาสัมพันธ์',
-              status: 'PENDING',
-            },
-          ])
-        }
-        return Promise.resolve([])
-      })
+      const mockGw = {
+        getInboxTaskBundleV2: vi.fn().mockResolvedValue({
+          task: {
+            id: 'task-pr-3',
+            task_type: 'MEDIA_REQUEST',
+            requester_id: 10,
+            requester_dept: 'กลุ่มงานการพยาบาล',
+            current_assignee: null,
+            current_role: 'นักประชาสัมพันธ์',
+            status: 'PENDING',
+          },
+          repairDetail: null,
+          steps: [],
+        }),
+        submitManagerTaskEditV2: vi.fn(),
+      }
 
       const stranger = {
         id: 999,
@@ -382,46 +362,41 @@ describe('taskInboxService', () => {
           performer: stranger,
           updates: { title: 'แอบแก้' },
         },
-        mockExecutor
+        mockGw
       )
 
       expect(res.success).toBe(false)
       expect(res.statusCode).toBe(403)
+      expect(mockGw.submitManagerTaskEditV2).not.toHaveBeenCalled()
     })
 
     it('updates full media request details including workTypes, channels, phone, driveLink, and attachments', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-pr-4',
-              task_no: 'PR-2570-10-0004',
-              task_type: 'MEDIA_REQUEST',
-              title: 'ขอทำป้ายประชาสัมพันธ์เดิม',
-              description: 'รายละเอียดเดิม',
-              urgency: 'NORMAL',
-              requester_id: 10,
-              current_assignee: null,
-              current_role: 'นักประชาสัมพันธ์',
-              status: 'PENDING',
-              custom_payload: JSON.stringify({
-                costType: 'NO_COST',
-                phone: '0811111111',
-                workTypes: [{ key: 'poster', label: 'โปสเตอร์', customDetail: 'A4' }],
-                channels: [{ key: 'facebook_page', label: 'Page Facebook' }],
-                attachments: [{ fileName: 'old.pdf', filePath: '/uploads/old.pdf' }],
-              }),
-            },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([])
-        }
-        if (sql.includes('SELECT * FROM inbox_task_steps')) {
-          return Promise.resolve([{ id: 's1', step_no: 1, status: 'PENDING' }])
-        }
-        return Promise.resolve({ affectedRows: 1 })
-      })
+      const mockGw = {
+        getInboxTaskBundleV2: vi.fn().mockResolvedValue({
+          task: {
+            id: 'task-pr-4',
+            task_no: 'PR-2570-10-0004',
+            task_type: 'MEDIA_REQUEST',
+            title: 'ขอทำป้ายประชาสัมพันธ์เดิม',
+            description: 'รายละเอียดเดิม',
+            urgency: 'NORMAL',
+            requester_id: 10,
+            current_assignee: null,
+            current_role: 'นักประชาสัมพันธ์',
+            status: 'PENDING',
+            custom_payload: JSON.stringify({
+              costType: 'NO_COST',
+              phone: '0811111111',
+              workTypes: [{ key: 'poster', label: 'โปสเตอร์', customDetail: 'A4' }],
+              channels: [{ key: 'facebook_page', label: 'Page Facebook' }],
+              attachments: [{ fileName: 'old.pdf', filePath: '/uploads/old.pdf' }],
+            }),
+          },
+          repairDetail: null,
+          steps: [{ id: 's1', step_no: 1, status: 'PENDING' }],
+        }),
+        submitManagerTaskEditV2: vi.fn().mockResolvedValue({ updated: true }),
+      }
 
       const adminPerformer = { id: 1, username: 'admin', role: 'admin' }
 
@@ -450,7 +425,7 @@ describe('taskInboxService', () => {
             attachments: newAttachments,
           },
         },
-        mockExecutor
+        mockGw
       )
 
       expect(res.success).toBe(true)
@@ -462,42 +437,41 @@ describe('taskInboxService', () => {
       expect(res.diff?.channels).toBeDefined()
       expect(res.diff?.attachments).toBeDefined()
 
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE inbox_tasks SET'),
-        expect.arrayContaining(['ขอทำป้ายประชาสัมพันธ์และ AW เว็บไซต์', 'รายละเอียดที่แก้ไขใหม่'])
+      expect(mockGw.submitManagerTaskEditV2).toHaveBeenCalledWith(
+        'task-pr-4',
+        expect.objectContaining({
+          taskUpdates: expect.objectContaining({
+            title: 'ขอทำป้ายประชาสัมพันธ์และ AW เว็บไซต์',
+            description: 'รายละเอียดที่แก้ไขใหม่',
+          }),
+        })
       )
     })
 
     it('updates quotations array when manager edits media request', async () => {
-      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT * FROM inbox_tasks')) {
-          return Promise.resolve([
-            {
-              id: 'task-pr-5',
-              task_no: 'PR-2570-10-0005',
-              task_type: 'MEDIA_REQUEST',
-              title: 'ขอทำป้ายไวนิล',
-              description: 'รายละเอียดป้ายไวนิล',
-              urgency: 'URGENT',
-              requester_id: 10,
-              current_assignee: null,
-              current_role: 'นักประชาสัมพันธ์',
-              status: 'PENDING',
-              custom_payload: JSON.stringify({
-                costType: 'HAS_COST',
-                quotations: [{ fileName: 'quote_v1.pdf', filePath: '/uploads/quote_v1.pdf' }],
-              }),
-            },
-          ])
-        }
-        if (sql.includes('SELECT * FROM repair_details')) {
-          return Promise.resolve([])
-        }
-        if (sql.includes('SELECT * FROM inbox_task_steps')) {
-          return Promise.resolve([{ id: 's1', step_no: 1, status: 'PENDING' }])
-        }
-        return Promise.resolve({ affectedRows: 1 })
-      })
+      const mockGw = {
+        getInboxTaskBundleV2: vi.fn().mockResolvedValue({
+          task: {
+            id: 'task-pr-5',
+            task_no: 'PR-2570-10-0005',
+            task_type: 'MEDIA_REQUEST',
+            title: 'ขอทำป้ายไวนิล',
+            description: 'รายละเอียดป้ายไวนิล',
+            urgency: 'URGENT',
+            requester_id: 10,
+            current_assignee: null,
+            current_role: 'นักประชาสัมพันธ์',
+            status: 'PENDING',
+            custom_payload: JSON.stringify({
+              costType: 'HAS_COST',
+              quotations: [{ fileName: 'quote_v1.pdf', filePath: '/uploads/quote_v1.pdf' }],
+            }),
+          },
+          repairDetail: null,
+          steps: [{ id: 's1', step_no: 1, status: 'PENDING' }],
+        }),
+        submitManagerTaskEditV2: vi.fn().mockResolvedValue({ updated: true }),
+      }
 
       const prPerformer = {
         id: 30,
@@ -519,15 +493,19 @@ describe('taskInboxService', () => {
             quotations: updatedQuotations,
           },
         },
-        mockExecutor
+        mockGw
       )
 
       expect(res.success).toBe(true)
       expect(res.diff?.quotations).toBeDefined()
       expect(res.diff?.quotations.to).toEqual(updatedQuotations)
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE inbox_tasks SET'),
-        expect.any(Array)
+      expect(mockGw.submitManagerTaskEditV2).toHaveBeenCalledWith(
+        'task-pr-5',
+        expect.objectContaining({
+          taskUpdates: expect.objectContaining({
+            custom_payload: expect.any(String),
+          }),
+        })
       )
     })
   })

@@ -1,10 +1,15 @@
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import type { OverdueNotificationResult } from './equipmentBorrowTypes'
 
+export interface OverdueBorrowGateway {
+  getOverdueBorrowTargetsV2: typeof apiGateway.app.getOverdueBorrowTargetsV2
+}
+
 export async function dispatchOverdueBorrowNotifications(
   db: any,
-  queryExecutor: (sql: string, params?: any[]) => Promise<any[]>,
+  gateway: OverdueBorrowGateway = apiGateway.app,
   telegramSender: (chatId: string | number, text: string, options?: any) => Promise<any>,
   options: { siteUrl?: string } = {}
 ): Promise<OverdueNotificationResult> {
@@ -146,29 +151,15 @@ export async function dispatchOverdueBorrowNotifications(
     return result
   }
 
-  // Zero-DB Gateway implementation
-  const overdueRequests = await queryExecutor(`
-    SELECT 
-      r.id, r.request_no, r.requester_id, r.requester_name, r.requester_dept,
-      r.purpose, r.location, r.borrow_date, r.expected_return_date, r.phone,
-      r.status, r.created_at,
-      GREATEST(1, DATEDIFF(CURDATE(), r.expected_return_date)) AS overdue_days
-    FROM equipment_borrow_requests r
-    WHERE r.status IN ('APPROVED', 'PARTIAL_RETURNED')
-      AND r.expected_return_date < CURDATE()
-    ORDER BY r.expected_return_date ASC
-  `)
+  // Zero-DB Gateway Named Endpoint implementation
+  const overdueRequests = (await gateway.getOverdueBorrowTargetsV2()) as Array<Record<string, any>>
 
   result.totalOverdue = overdueRequests.length
 
   for (const req of overdueRequests) {
-    const itemRows = await queryExecutor(`
-      SELECT id, item_type, asset_id, material_id, item_name, item_code, quantity, returned_qty, status
-      FROM equipment_borrow_items
-      WHERE request_id = ?
-    `, [req.id])
+    const itemRows = Array.isArray(req.items) ? req.items : []
 
-    const remainingItems = (itemRows || []).filter(
+    const remainingItems = itemRows.filter(
       (it: any) => (Number(it.quantity || 0) - Number(it.returned_qty || 0)) > 0 && it.status !== 'CONSUMED'
     )
     if (remainingItems.length === 0) continue
@@ -179,11 +170,7 @@ export async function dispatchOverdueBorrowNotifications(
       ? expDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
       : String(req.expected_return_date || '-')
 
-    const linkRows = await queryExecutor(
-      `SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1`,
-      [req.requester_id]
-    )
-    const chatId = linkRows[0]?.telegram_chat_id
+    const chatId = req.telegram_chat_id
 
     if (!chatId) {
       result.skippedNoTelegramCount += 1

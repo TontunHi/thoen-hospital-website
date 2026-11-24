@@ -1,7 +1,17 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { sendTelegramMessage } from '@/lib/telegramService'
 import { logger } from '@/lib/logger'
 import { MEDIA_REQUEST_ROLES, MEDIA_REQUEST_ROLE_CIDS, REGISTERED_TASK_TYPES } from '@/lib/taskInboxService'
+
+async function lookupTelegramChatIds(params: {
+  memberId?: number
+  username?: string
+  prRole?: boolean
+  rolePattern?: string
+}): Promise<Array<string | number>> {
+  const res = await apiGateway.app.getInboxTelegramTargetsV2(params)
+  return res?.chatIds || []
+}
 
 export function formatUrgency(urgency?: string | null, taskType?: string | null) {
   if (urgency === 'VERY_URGENT') return '🔴 ด่วนที่สุด (Emergency)'
@@ -55,43 +65,27 @@ export async function notifyAssigneeOnTelegram(params: {
     } else if (isMediaRequest) {
       // 1. Direct Assignee if specified
       if (params.assigneeId) {
-        const links = await queryMemberDb(
-          'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-          [params.assigneeId]
-        )
-        if (links && links.length > 0) {
-          chatIds.push(links[0].telegram_chat_id)
+        const ids = await lookupTelegramChatIds({ memberId: params.assigneeId })
+        if (ids.length > 0) {
+          chatIds.push(ids[0])
         }
       } else if (params.targetRole) {
         // 2. Match role against designated Citizen ID
         const targetCid = MEDIA_REQUEST_ROLE_CIDS[params.targetRole]
         if (targetCid) {
-          const links = await queryMemberDb(
-            `SELECT l.telegram_chat_id 
-             FROM member_telegram_links l
-             JOIN members m ON l.member_id = m.id
-             WHERE m.username = ? LIMIT 1`,
-            [targetCid]
-          )
-          if (links && links.length > 0) {
-            chatIds.push(links[0].telegram_chat_id)
+          const ids = await lookupTelegramChatIds({ username: targetCid })
+          if (ids.length > 0) {
+            chatIds.push(ids[0])
           }
         } else if (
           params.targetRole === MEDIA_REQUEST_ROLES.PR_OFFICER ||
           params.targetRole.includes('ประชาสัมพันธ์')
         ) {
           // 3. For PR Officer, notify all users with PR position who have linked Telegram, and PR group
-          const links = await queryMemberDb(
-            `SELECT DISTINCT l.telegram_chat_id 
-             FROM member_telegram_links l
-             JOIN members m ON l.member_id = m.id
-             WHERE (m.position LIKE '%ประชาสัมพันธ์%' OR m.department LIKE '%ประชาสัมพันธ์%' OR m.role = 'pr')`
-          )
-          if (links && links.length > 0) {
-            for (const row of links) {
-              if (!chatIds.includes(row.telegram_chat_id)) {
-                chatIds.push(row.telegram_chat_id)
-              }
+          const ids = await lookupTelegramChatIds({ prRole: true })
+          for (const id of ids) {
+            if (!chatIds.includes(id)) {
+              chatIds.push(id)
             }
           }
           const mediaGroupChatId = process.env.TELEGRAM_GROUP_MEDIA_REQUEST || process.env.TELEGRAM_GROUP_PR || '-5235759439'
@@ -100,18 +94,10 @@ export async function notifyAssigneeOnTelegram(params: {
           }
         } else {
           // Fallback to position/department matching
-          const links = await queryMemberDb(
-            `SELECT l.telegram_chat_id 
-             FROM member_telegram_links l
-             JOIN members m ON l.member_id = m.id
-             WHERE (m.position LIKE ? OR m.department LIKE ?)`,
-            [`%${params.targetRole}%`, `%${params.targetRole}%`]
-          )
-          if (links && links.length > 0) {
-            for (const row of links) {
-              if (!chatIds.includes(row.telegram_chat_id)) {
-                chatIds.push(row.telegram_chat_id)
-              }
+          const ids = await lookupTelegramChatIds({ rolePattern: params.targetRole })
+          for (const id of ids) {
+            if (!chatIds.includes(id)) {
+              chatIds.push(id)
             }
           }
         }
@@ -119,24 +105,15 @@ export async function notifyAssigneeOnTelegram(params: {
     } else {
       if (params.assigneeId) {
         // 1. Check if direct assignee is linked to Telegram (Notify ONLY this assigned person)
-        const links = await queryMemberDb(
-          'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-          [params.assigneeId]
-        )
-        if (links && links.length > 0) {
-          chatIds.push(links[0].telegram_chat_id)
+        const ids = await lookupTelegramChatIds({ memberId: params.assigneeId })
+        if (ids.length > 0) {
+          chatIds.push(ids[0])
         }
       } else if (params.targetRole) {
         // 2. If no direct assignee, notify ONLY members in that specific role/position/department (NO admin broadcast)
-        const links = await queryMemberDb(
-          `SELECT l.telegram_chat_id 
-           FROM member_telegram_links l
-           JOIN members m ON l.member_id = m.id
-           WHERE (m.position LIKE ? OR m.department LIKE ?)`,
-          [`%${params.targetRole}%`, `%${params.targetRole}%`]
-        )
-        if (links && links.length > 0) {
-          chatIds = links.map((r: any) => r.telegram_chat_id)
+        const ids = await lookupTelegramChatIds({ rolePattern: params.targetRole })
+        if (ids.length > 0) {
+          chatIds = ids
         }
       }
     }
@@ -278,14 +255,10 @@ export async function notifyRepairCreatedRequesterOnTelegram(params: {
   if (!params.requesterId) return
 
   try {
-    const links = await queryMemberDb(
-      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-      [params.requesterId]
-    )
+    const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+    if (ids.length === 0) return
 
-    if (!links || links.length === 0) return
-
-    const chatId = links[0].telegram_chat_id
+    const chatId = ids[0]
     const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
     const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
 
@@ -353,14 +326,10 @@ export async function notifyRepairAcceptedOnTelegram(params: {
   if (!params.requesterId) return
 
   try {
-    const links = await queryMemberDb(
-      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-      [params.requesterId]
-    )
+    const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+    if (ids.length === 0) return
 
-    if (!links || links.length === 0) return
-
-    const chatId = links[0].telegram_chat_id
+    const chatId = ids[0]
     const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
     const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
 
@@ -423,14 +392,10 @@ export async function notifyRepairCompletedOnTelegram(params: {
   if (!params.requesterId) return
 
   try {
-    const links = await queryMemberDb(
-      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-      [params.requesterId]
-    )
+    const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+    if (ids.length === 0) return
 
-    if (!links || links.length === 0) return
-
-    const chatId = links[0].telegram_chat_id
+    const chatId = ids[0]
     const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
     const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
 
@@ -497,14 +462,10 @@ export async function notifyRepairCancelledOnTelegram(params: {
   if (!params.targetMemberId) return
 
   try {
-    const links = await queryMemberDb(
-      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-      [params.targetMemberId]
-    )
+    const ids = await lookupTelegramChatIds({ memberId: params.targetMemberId })
+    if (ids.length === 0) return
 
-    if (!links || links.length === 0) return
-
-    const chatId = links[0].telegram_chat_id
+    const chatId = ids[0]
     const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
     const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
 
@@ -565,14 +526,10 @@ export async function notifyMediaRequestCreatedRequesterOnTelegram(params: {
   if (!params.requesterId) return
 
   try {
-    const links = await queryMemberDb(
-      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-      [params.requesterId]
-    )
+    const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+    if (ids.length === 0) return
 
-    if (!links || links.length === 0) return
-
-    const chatId = links[0].telegram_chat_id
+    const chatId = ids[0]
     const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
     const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
 
@@ -649,12 +606,9 @@ export async function notifyMediaRequestStepApprovedOnTelegram(params: {
 
     // 2. Requester Private Chat ID
     if (params.requesterId) {
-      const links = await queryMemberDb(
-        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-        [params.requesterId]
-      )
-      if (links && links.length > 0) {
-        const reqChatId = links[0].telegram_chat_id
+      const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+      if (ids.length > 0) {
+        const reqChatId = String(ids[0])
         if (!targetChatIds.includes(reqChatId)) {
           targetChatIds.push(reqChatId)
         }
@@ -742,12 +696,9 @@ export async function notifyMediaRequestCompletedImmediatelyOnTelegram(params: {
 
     // 2. Requester Private Chat ID
     if (params.requesterId) {
-      const links = await queryMemberDb(
-        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-        [params.requesterId]
-      )
-      if (links && links.length > 0) {
-        const reqChatId = links[0].telegram_chat_id
+      const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+      if (ids.length > 0) {
+        const reqChatId = String(ids[0])
         if (!targetChatIds.includes(reqChatId)) {
           targetChatIds.push(reqChatId)
         }
@@ -832,12 +783,9 @@ export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {
 
     // 2. Requester Private Chat ID
     if (params.requesterId) {
-      const links = await queryMemberDb(
-        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-        [params.requesterId]
-      )
-      if (links && links.length > 0) {
-        const reqChatId = links[0].telegram_chat_id
+      const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+      if (ids.length > 0) {
+        const reqChatId = String(ids[0])
         if (!targetChatIds.includes(reqChatId)) {
           targetChatIds.push(reqChatId)
         }
@@ -846,12 +794,9 @@ export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {
 
     // 3. Target Assignee Private Chat ID (if sent back to specific person)
     if (params.targetAssigneeId && params.targetAssigneeId !== params.requesterId) {
-      const targetLinks = await queryMemberDb(
-        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-        [params.targetAssigneeId]
-      )
-      if (targetLinks && targetLinks.length > 0) {
-        const targetChatId = targetLinks[0].telegram_chat_id
+      const ids = await lookupTelegramChatIds({ memberId: params.targetAssigneeId })
+      if (ids.length > 0) {
+        const targetChatId = String(ids[0])
         if (!targetChatIds.includes(targetChatId)) {
           targetChatIds.push(targetChatId)
         }
@@ -934,12 +879,9 @@ export async function notifyTaskHoldOnTelegram(params: {
   try {
     const targetChatIds: (string | number)[] = []
     if (params.requesterId) {
-      const links = await queryMemberDb(
-        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-        [params.requesterId]
-      )
-      if (links && links.length > 0) {
-        targetChatIds.push(links[0].telegram_chat_id)
+      const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+      if (ids.length > 0) {
+        targetChatIds.push(ids[0])
       }
     }
     if (targetChatIds.length === 0) return
@@ -996,12 +938,9 @@ export async function notifyTaskResumeOnTelegram(params: {
   try {
     const targetChatIds: (string | number)[] = []
     if (params.requesterId) {
-      const links = await queryMemberDb(
-        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-        [params.requesterId]
-      )
-      if (links && links.length > 0) {
-        targetChatIds.push(links[0].telegram_chat_id)
+      const ids = await lookupTelegramChatIds({ memberId: params.requesterId })
+      if (ids.length > 0) {
+        targetChatIds.push(ids[0])
       }
     }
     if (targetChatIds.length === 0) return

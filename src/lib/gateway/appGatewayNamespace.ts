@@ -1,5 +1,6 @@
 import type { RequestOptions } from './gatewayTypes'
 import { createAppV2GatewayNamespace } from './appV2GatewayNamespace'
+import { createAppV3GatewayNamespace } from './appV3GatewayNamespace'
 
 export interface AppHttpClient {
   get: <T = unknown>(path: string, options?: RequestOptions) => Promise<T>
@@ -12,6 +13,7 @@ export interface AppHttpClient {
 export function createAppNamespace(client: AppHttpClient) {
   return {
     ...createAppV2GatewayNamespace(client),
+    ...createAppV3GatewayNamespace(client),
     /**
      * Executes a read-only SELECT query against the Website MySQL database.
      */

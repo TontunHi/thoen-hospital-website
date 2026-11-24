@@ -143,17 +143,10 @@ describe('Hospital Architecture & Build Guardrails', () => {
       // Phase 2D: RCM Extra Funds (completed -> 0)
       // Phase 2E: Chronic Care & Home Visit (completed -> 0)
       // Phase 3: Auth, Permissions, Audit & Integrations (completed -> 0)
-      // Phase 4: Hospital Operations App DB (14)
-      'src/lib/assets/assetService.ts',
+      // Phase 4A+4B: Inbox Aux, Assets, Equipment Borrow, Events (completed -> 0)
+      // Phase 4C: Hospital Operations App DB (6)
       'src/lib/cms/EthicsDocumentService.ts',
       'src/lib/departments/departmentService.ts',
-      'src/lib/equipment/equipmentBorrowOverdueNotifier.ts',
-      'src/lib/equipment/equipmentBorrowService.ts',
-      'src/lib/events/eventLeaderboardService.ts',
-      'src/lib/events/hospitalEventService.ts',
-      'src/lib/inbox/taskAuditLogger.ts',
-      'src/lib/inbox/taskManagerEditService.ts',
-      'src/lib/inbox/taskNotificationHelper.ts',
       'src/lib/internalPhones/internalPhoneService.ts',
       'src/lib/kpi/kpiAuditService.ts',
       'src/lib/kpi/kpiExportService.ts',

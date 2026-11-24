@@ -1,4 +1,4 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { sendTelegramMessage } from '@/lib/telegramService'
@@ -31,14 +31,30 @@ export {
   type BorrowDashboardStats,
 }
 
+function mapBorrowBundleToRequest(bundle: {
+  request: Record<string, unknown>
+  items: Array<Record<string, unknown>>
+}) {
+  const mappedItems = (bundle.items || []).map((it: any) => ({
+    ...it,
+    asset: it.asset_id
+      ? { id: it.asset_id, name: it.asset_name, brand: it.asset_brand, articleNum: it.asset_code }
+      : null,
+    material: it.material_id
+      ? { id: it.material_id, name: it.mat_name, unit: it.mat_unit, materialType: it.mat_type }
+      : null,
+  }))
+  return mapDbRowToRequest(bundle.request, mappedItems)
+}
+
 /**
  * Deep Domain Service for Equipment & Material Borrowing Management
- * Zero-DB Architecture: routes queries via queryMemberDb / API Gateway.
+ * Zero-SQL Architecture: routes queries via Gateway Named Endpoints.
  */
 export class EquipmentBorrowService {
   constructor(
     private readonly db: any = null,
-    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb,
+    private readonly gateway = apiGateway.app,
     private readonly telegramSender: (chatId: string | number, text: string, options?: any) => Promise<any> = sendTelegramMessage
   ) {}
 
@@ -90,39 +106,17 @@ export class EquipmentBorrowService {
       }
     }
 
-    const whereClauses: string[] = []
-    const params: any[] = []
+    const { total: rawTotal, items: itemRows } = await this.gateway.listBorrowMaterialsV2({
+      search,
+      category,
+      materialType,
+      isActive,
+      page,
+      limit,
+    })
 
-    if (search && search.trim()) {
-      const q = `%${search.trim()}%`
-      whereClauses.push('(name LIKE ? OR location LIKE ? OR notes LIKE ?)')
-      params.push(q, q, q)
-    }
-    if (category && category !== 'ALL') {
-      whereClauses.push('category = ?')
-      params.push(category)
-    }
-    if (materialType && materialType !== 'ALL') {
-      whereClauses.push('material_type = ?')
-      params.push(materialType)
-    }
-    if (typeof isActive === 'boolean') {
-      whereClauses.push('is_active = ?')
-      params.push(isActive ? 1 : 0)
-    }
-
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-
-    const [countRows, itemRows] = await Promise.all([
-      this.queryExecutor(`SELECT COUNT(*) AS total FROM hospital_materials ${whereSql}`, params),
-      this.queryExecutor(
-        `SELECT * FROM hospital_materials ${whereSql} ORDER BY name ASC LIMIT ? OFFSET ?`,
-        [...params, limit, skip]
-      ),
-    ])
-
-    const total = Number(countRows[0]?.total || 0)
-    const items = itemRows.map(mapDbRowToMaterial)
+    const total = Number(rawTotal || 0)
+    const items = (itemRows || []).map(mapDbRowToMaterial)
 
     return {
       items,
@@ -163,26 +157,19 @@ export class EquipmentBorrowService {
       return material
     }
 
-    const res: any = await this.queryExecutor(`
-      INSERT INTO hospital_materials (
-        name, category, material_type, total_qty, available_qty, unit,
-        location, image_url, notes, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `, [
-      input.name.trim(),
-      input.category || 'GENERAL',
-      input.materialType || 'REUSABLE',
+    const createdRow = await this.gateway.createBorrowMaterialV2({
+      name: input.name.trim(),
+      category: input.category || 'GENERAL',
+      materialType: input.materialType || 'REUSABLE',
       totalQty,
       availableQty,
-      input.unit?.trim() || 'ชิ้น',
-      input.location?.trim() || null,
-      input.imageUrl?.trim() || null,
-      input.notes?.trim() || null,
-      input.isActive ?? true ? 1 : 0,
-    ])
-
-    const rows = await this.queryExecutor('SELECT * FROM hospital_materials WHERE id = ?', [res.insertId])
-    const material = mapDbRowToMaterial(rows[0])
+      unit: input.unit?.trim() || 'ชิ้น',
+      location: input.location?.trim() || null,
+      imageUrl: input.imageUrl?.trim() || null,
+      notes: input.notes?.trim() || null,
+      isActive: input.isActive ?? true,
+    })
+    const material = mapDbRowToMaterial(createdRow)
 
     await logAudit(
       'CREATE',
@@ -246,58 +233,20 @@ export class EquipmentBorrowService {
       return updated
     }
 
-    const existingRows = await this.queryExecutor('SELECT * FROM hospital_materials WHERE id = ?', [id])
-    if (existingRows.length === 0) {
-      throw new Error(`ไม่พบวัสดุรหัส ${id}`)
-    }
-    const existing = existingRows[0]
+    const payload: Record<string, unknown> = {}
+    if (input.name !== undefined) payload.name = input.name.trim()
+    if (input.category !== undefined) payload.category = input.category
+    if (input.materialType !== undefined) payload.materialType = input.materialType
+    if (input.unit !== undefined) payload.unit = input.unit.trim()
+    if (input.location !== undefined) payload.location = input.location?.trim() || null
+    if (input.imageUrl !== undefined) payload.imageUrl = input.imageUrl?.trim() || null
+    if (input.notes !== undefined) payload.notes = input.notes?.trim() || null
+    if (input.isActive !== undefined) payload.isActive = input.isActive
+    if (input.totalQty !== undefined) payload.totalQty = Math.max(0, input.totalQty)
+    if (input.availableQty !== undefined) payload.availableQty = Math.max(0, input.availableQty)
 
-    const fields: string[] = []
-    const params: any[] = []
-
-    if (input.name !== undefined) { fields.push('name = ?'); params.push(input.name.trim()) }
-    if (input.category !== undefined) { fields.push('category = ?'); params.push(input.category) }
-    if (input.materialType !== undefined) { fields.push('material_type = ?'); params.push(input.materialType) }
-    if (input.unit !== undefined) { fields.push('unit = ?'); params.push(input.unit.trim()) }
-    if (input.location !== undefined) { fields.push('location = ?'); params.push(input.location?.trim() || null) }
-    if (input.imageUrl !== undefined) { fields.push('image_url = ?'); params.push(input.imageUrl?.trim() || null) }
-    if (input.notes !== undefined) { fields.push('notes = ?'); params.push(input.notes?.trim() || null) }
-    if (input.isActive !== undefined) { fields.push('is_active = ?'); params.push(input.isActive ? 1 : 0) }
-
-    if (input.totalQty !== undefined) {
-      const newTotalQty = Math.max(0, input.totalQty)
-      fields.push('total_qty = ?')
-      params.push(newTotalQty)
-
-      if (input.availableQty !== undefined) {
-        fields.push('available_qty = ?')
-        params.push(Math.max(0, input.availableQty))
-      } else {
-        const borrowedRows = await this.queryExecutor(`
-          SELECT COALESCE(SUM(i.quantity - i.returned_qty), 0) AS borrowed
-          FROM equipment_borrow_items i
-          JOIN equipment_borrow_requests r ON i.request_id = r.id
-          WHERE r.status IN ('APPROVED', 'PARTIAL_RETURNED')
-            AND i.status = 'BORROWED'
-            AND i.material_id = ?
-        `, [id])
-        const currentlyBorrowed = Number(borrowedRows[0]?.borrowed || 0)
-        fields.push('available_qty = ?')
-        params.push(Math.max(0, newTotalQty - currentlyBorrowed))
-      }
-    } else if (input.availableQty !== undefined) {
-      fields.push('available_qty = ?')
-      params.push(Math.max(0, input.availableQty))
-    }
-
-    if (fields.length > 0) {
-      fields.push('updated_at = NOW()')
-      params.push(id)
-      await this.queryExecutor(`UPDATE hospital_materials SET ${fields.join(', ')} WHERE id = ?`, params)
-    }
-
-    const updatedRows = await this.queryExecutor('SELECT * FROM hospital_materials WHERE id = ?', [id])
-    const updated = mapDbRowToMaterial(updatedRows[0])
+    const updatedRow = await this.gateway.updateBorrowMaterialV2(id, payload)
+    const updated = mapDbRowToMaterial(updatedRow)
 
     await logAudit(
       'UPDATE',
@@ -332,19 +281,11 @@ export class EquipmentBorrowService {
       return { success: true }
     }
 
-    const existingRows = await this.queryExecutor('SELECT * FROM hospital_materials WHERE id = ?', [id])
-    if (existingRows.length === 0) {
-      throw new Error(`ไม่พบวัสดุรหัส ${id}`)
-    }
-    const existing = existingRows[0]
-
-    // Detach referencing borrow items to maintain borrow history without foreign key violations
-    await this.queryExecutor('UPDATE equipment_borrow_items SET material_id = NULL WHERE material_id = ?', [id])
-    await this.queryExecutor('DELETE FROM hospital_materials WHERE id = ?', [id])
+    const { name } = await this.gateway.deleteBorrowMaterialV2(id)
     await logAudit(
       'DELETE',
       'hospital_materials',
-      JSON.stringify({ materialId: id, name: existing.name }),
+      JSON.stringify({ materialId: id, name }),
       { username: actor.username || 'system' }
     )
     return { success: true }
@@ -372,22 +313,16 @@ export class EquipmentBorrowService {
       return updated
     }
 
-    const existingRows = await this.queryExecutor('SELECT id, article_num FROM hospital_assets WHERE id = ?', [assetId])
-    if (existingRows.length === 0) {
-      throw new Error(`ไม่พบครุภัณฑ์รหัส ${assetId}`)
-    }
-
-    await this.queryExecutor('UPDATE hospital_assets SET is_loanable = ?, updated_at = NOW() WHERE id = ?', [isLoanable ? 1 : 0, assetId])
-    const rows = await this.queryExecutor('SELECT * FROM hospital_assets WHERE id = ?', [assetId])
+    const { asset, articleNum } = await this.gateway.toggleBorrowAssetLoanableV2(assetId, isLoanable)
 
     await logAudit(
       'UPDATE',
       'hospital_assets',
-      JSON.stringify({ assetId, articleNum: existingRows[0].article_num, isLoanable }),
+      JSON.stringify({ assetId, articleNum, isLoanable }),
       { username: actor.username || 'system' }
     )
 
-    return rows[0]
+    return asset
   }
 
   async getLoanableAssets(options: {
@@ -434,33 +369,18 @@ export class EquipmentBorrowService {
       }
     }
 
-    const whereClauses: string[] = ['is_loanable = ?']
-    const params: any[] = [isLoanable ? 1 : 0]
+    const { total: rawTotal, items: itemRows } = await this.gateway.listLoanableAssetsV2({
+      search,
+      category,
+      isLoanable,
+      page,
+      limit,
+    })
 
-    if (search && search.trim()) {
-      const q = `%${search.trim()}%`
-      whereClauses.push('(name LIKE ? OR article_num LIKE ? OR brand LIKE ? OR model LIKE ?)')
-      params.push(q, q, q, q)
-    }
-    if (category && category !== 'ALL') {
-      whereClauses.push('category = ?')
-      params.push(category)
-    }
-
-    const whereSql = `WHERE ${whereClauses.join(' AND ')}`
-
-    const [countRows, itemRows] = await Promise.all([
-      this.queryExecutor(`SELECT COUNT(*) AS total FROM hospital_assets ${whereSql}`, params),
-      this.queryExecutor(
-        `SELECT id, article_num AS articleNum, fsn_num AS fsnNum, name, brand, model, serial_no AS serialNo, category, location_full_name AS locationFullName, is_loanable AS isLoanable, status FROM hospital_assets ${whereSql} ORDER BY name ASC LIMIT ? OFFSET ?`,
-        [...params, limit, skip]
-      ),
-    ])
-
-    const total = Number(countRows[0]?.total || 0)
+    const total = Number(rawTotal || 0)
 
     return {
-      items: itemRows,
+      items: itemRows || [],
       total,
       page,
       limit,
@@ -575,93 +495,38 @@ export class EquipmentBorrowService {
       return results
     }
 
-    if (type === 'ALL' || type === 'ASSET') {
-      const assetClauses = ['is_loanable = 1', "status = 'ACTIVE'"]
-      const assetParams: any[] = []
-      if (search && search.trim()) {
-        const q = `%${search.trim()}%`
-        assetClauses.push('(name LIKE ? OR article_num LIKE ? OR brand LIKE ?)')
-        assetParams.push(q, q, q)
-      }
-      if (category && category !== 'ALL') {
-        assetClauses.push('category = ?')
-        assetParams.push(category)
-      }
+    const catalog = await this.gateway.getBorrowCatalogV2({ search, category, type })
+    const borrowedAssetIdSet = new Set((catalog.borrowedAssetIds || []).map((id) => Number(id)))
 
-      const [assets, activeBorrowedAssets] = await Promise.all([
-        this.queryExecutor(`
-          SELECT id, name, brand, article_num AS articleNum, category, location_full_name AS locationFullName, image_url AS imageUrl
-          FROM hospital_assets
-          WHERE ${assetClauses.join(' AND ')}
-          ORDER BY name ASC
-          LIMIT 100
-        `, assetParams),
-        this.queryExecutor(`
-          SELECT DISTINCT i.asset_id
-          FROM equipment_borrow_items i
-          JOIN equipment_borrow_requests r ON i.request_id = r.id
-          WHERE r.status IN ('APPROVED', 'PARTIAL_RETURNED')
-            AND i.status = 'BORROWED'
-            AND i.item_type = 'ASSET'
-            AND (i.quantity - i.returned_qty) > 0
-            AND i.asset_id IS NOT NULL
-        `),
-      ])
-
-      const borrowedAssetIdSet = new Set(activeBorrowedAssets.map((r: any) => Number(r.asset_id)))
-
-      for (const a of assets) {
-        const isBorrowed = borrowedAssetIdSet.has(Number(a.id))
-        results.push({
-          id: a.id,
-          itemType: 'ASSET',
-          name: a.name + (a.brand ? ` (${a.brand})` : ''),
-          code: a.articleNum,
-          category: a.category,
-          subType: 'ครุภัณฑ์',
-          availableQty: isBorrowed ? 0 : 1,
-          unit: 'เครื่อง/ชิ้น',
-          location: a.locationFullName,
-          imageUrl: a.imageUrl,
-        })
-      }
+    for (const a of (catalog.assets || []) as Array<Record<string, any>>) {
+      const isBorrowed = borrowedAssetIdSet.has(Number(a.id))
+      results.push({
+        id: a.id,
+        itemType: 'ASSET',
+        name: a.name + (a.brand ? ` (${a.brand})` : ''),
+        code: a.articleNum,
+        category: a.category,
+        subType: 'ครุภัณฑ์',
+        availableQty: isBorrowed ? 0 : 1,
+        unit: 'เครื่อง/ชิ้น',
+        location: a.locationFullName,
+        imageUrl: a.imageUrl,
+      })
     }
 
-    if (type === 'ALL' || type === 'MATERIAL') {
-      const matClauses = ['is_active = 1', 'available_qty > 0']
-      const matParams: any[] = []
-      if (search && search.trim()) {
-        const q = `%${search.trim()}%`
-        matClauses.push('(name LIKE ? OR location LIKE ?)')
-        matParams.push(q, q)
-      }
-      if (category && category !== 'ALL') {
-        matClauses.push('category = ?')
-        matParams.push(category)
-      }
-
-      const materials = await this.queryExecutor(`
-        SELECT id, name, category, material_type AS materialType, available_qty AS availableQty, unit, location, image_url AS imageUrl
-        FROM hospital_materials
-        WHERE ${matClauses.join(' AND ')}
-        ORDER BY name ASC
-        LIMIT 100
-      `, matParams)
-
-      for (const m of materials) {
-        results.push({
-          id: m.id,
-          itemType: 'MATERIAL',
-          name: m.name,
-          code: `MAT-${m.id.toString().padStart(4, '0')}`,
-          category: m.category,
-          subType: m.materialType === 'REUSABLE' ? 'วัสดุยืม-คืน' : 'วัสดุสิ้นเปลือง',
-          availableQty: m.availableQty,
-          unit: m.unit,
-          location: m.location,
-          imageUrl: m.imageUrl,
-        })
-      }
+    for (const m of (catalog.materials || []) as Array<Record<string, any>>) {
+      results.push({
+        id: m.id,
+        itemType: 'MATERIAL',
+        name: m.name,
+        code: `MAT-${m.id.toString().padStart(4, '0')}`,
+        category: m.category,
+        subType: m.materialType === 'REUSABLE' ? 'วัสดุยืม-คืน' : 'วัสดุสิ้นเปลือง',
+        availableQty: m.availableQty,
+        unit: m.unit,
+        location: m.location,
+        imageUrl: m.imageUrl,
+      })
     }
 
     return results
@@ -778,54 +643,7 @@ export class EquipmentBorrowService {
       return request
     }
 
-    // Zero-DB Gateway implementation
-    for (const item of input.items) {
-      if (item.quantity <= 0) {
-        throw new Error(`จำนวนของรายการ ${item.itemName} ต้องมากกว่า 0`)
-      }
-      if (item.itemType === 'MATERIAL') {
-        if (!item.materialId) throw new Error('ไม่พบรหัสวัสดุ')
-        const matRows = await this.queryExecutor('SELECT id, is_active, available_qty, unit FROM hospital_materials WHERE id = ?', [item.materialId])
-        if (matRows.length === 0 || !matRows[0].is_active) {
-          throw new Error(`วัสดุ ${item.itemName} ไม่พร้อมให้บริการ`)
-        }
-        if (matRows[0].available_qty < item.quantity) {
-          throw new Error(`ยอดคงเหลือไม่เพียงพอสำหรับ ${item.itemName} (คงเหลือ ${matRows[0].available_qty} ${matRows[0].unit})`)
-        }
-      } else if (item.itemType === 'ASSET') {
-        if (!item.assetId) throw new Error('ไม่พบรหัสครุภัณฑ์')
-        const assetRows = await this.queryExecutor('SELECT id, is_loanable, status FROM hospital_assets WHERE id = ?', [item.assetId])
-        if (assetRows.length === 0 || !assetRows[0].is_loanable || assetRows[0].status !== 'ACTIVE') {
-          throw new Error(`ครุภัณฑ์ ${item.itemName} ไม่อยู่ในสถานะพร้อมให้ยืม`)
-        }
-        const activeLoans = await this.queryExecutor(
-          `SELECT i.id FROM equipment_borrow_items i
-           JOIN equipment_borrow_requests r ON i.request_id = r.id
-           WHERE i.item_type = 'ASSET' AND i.asset_id = ? AND i.status = 'BORROWED'
-             AND r.status IN ('APPROVED', 'PARTIAL_RETURNED') LIMIT 1`,
-          [item.assetId]
-        )
-        if (activeLoans && activeLoans.length > 0) {
-          throw new Error(`ครุภัณฑ์ ${item.itemName} อยู่ระหว่างการยืมโดยผู้อื่นในขณะนี้`)
-        }
-      }
-    }
-
-    const now = new Date()
-    const yearMonth = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`
-    const prefix = `BR-${yearMonth}-`
-    const latestRows = await this.queryExecutor(
-      'SELECT request_no FROM equipment_borrow_requests WHERE request_no LIKE ? ORDER BY request_no DESC LIMIT 1',
-      [`${prefix}%`]
-    )
-    let nextSeq = 1
-    if (latestRows && latestRows.length > 0 && latestRows[0].request_no) {
-      const parts = String(latestRows[0].request_no).split('-')
-      const lastNum = parseInt(parts[parts.length - 1], 10)
-      if (!isNaN(lastNum)) nextSeq = lastNum + 1
-    }
-    const requestNo = `${prefix}${nextSeq.toString().padStart(4, '0')}`
-
+    // Zero-SQL Gateway Named Endpoint implementation
     const formattedBorrowDate = input.borrowDate instanceof Date
       ? input.borrowDate.toISOString().slice(0, 10)
       : String(input.borrowDate).slice(0, 10)
@@ -835,52 +653,29 @@ export class EquipmentBorrowService {
           : String(input.expectedReturnDate).slice(0, 10))
       : null
 
-    const res: any = await this.queryExecutor(`
-      INSERT INTO equipment_borrow_requests (
-        request_no, requester_id, requester_name, requester_dept, purpose,
-        location, borrow_date, expected_return_date, phone, notes, status,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', NOW(), NOW())
-    `, [
-      requestNo,
-      requester.id,
-      requester.name,
-      requester.department || null,
-      input.purpose.trim(),
-      input.location?.trim() || null,
-      formattedBorrowDate,
-      formattedExpectedReturnDate,
-      input.phone?.trim() || null,
-      input.notes?.trim() || null,
-    ])
+    const fullBundle = await this.gateway.createBorrowRequestV2({
+      input: {
+        purpose: input.purpose.trim(),
+        location: input.location?.trim() || null,
+        borrowDate: formattedBorrowDate,
+        expectedReturnDate: formattedExpectedReturnDate,
+        phone: input.phone?.trim() || null,
+        notes: input.notes?.trim() || null,
+        items: input.items,
+      },
+      requester,
+    })
 
-    const requestId = res.insertId
-
-    for (const it of input.items) {
-      await this.queryExecutor(`
-        INSERT INTO equipment_borrow_items (
-          request_id, item_type, asset_id, material_id, item_name,
-          item_code, quantity, returned_qty, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'PENDING', NOW(), NOW())
-      `, [
-        requestId,
-        it.itemType,
-        it.assetId || null,
-        it.materialId || null,
-        it.itemName,
-        it.itemCode || null,
-        it.quantity,
-      ])
-    }
+    const created = mapBorrowBundleToRequest(fullBundle)
 
     await logAudit(
       'CREATE',
       'equipment_borrow_requests',
-      JSON.stringify({ requestId, requestNo, itemsCount: input.items.length }),
+      JSON.stringify({ requestId: created.id, requestNo: created.requestNo, itemsCount: input.items.length }),
       { username: requester.name }
     )
 
-    return this.getBorrowRequestById(requestId)
+    return created
   }
 
   async getMyBorrowRequests(requesterId: number, options: { status?: string; page?: number; limit?: number } = {}) {
@@ -911,30 +706,15 @@ export class EquipmentBorrowService {
       }
     }
 
-    const whereClauses = ['requester_id = ?']
-    const params: any[] = [requesterId]
-    if (status && status !== 'ALL') {
-      whereClauses.push('status = ?')
-      params.push(status)
-    }
+    const { total: rawTotal, bundles } = await this.gateway.listBorrowRequestsV2({
+      requesterId,
+      status,
+      page,
+      limit,
+    })
 
-    const whereSql = `WHERE ${whereClauses.join(' AND ')}`
-
-    const [countRows, reqRows] = await Promise.all([
-      this.queryExecutor(`SELECT COUNT(*) AS total FROM equipment_borrow_requests ${whereSql}`, params),
-      this.queryExecutor(
-        `SELECT * FROM equipment_borrow_requests ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-        [...params, limit, skip]
-      ),
-    ])
-
-    const total = Number(countRows[0]?.total || 0)
-    const items = await Promise.all(
-      reqRows.map(async (r) => {
-        const itemRows = await this.queryExecutor('SELECT * FROM equipment_borrow_items WHERE request_id = ?', [r.id])
-        return mapDbRowToRequest(r, itemRows)
-      })
-    )
+    const total = Number(rawTotal || 0)
+    const items = (bundles || []).map(mapBorrowBundleToRequest)
 
     return {
       items,
@@ -957,27 +737,8 @@ export class EquipmentBorrowService {
       })
     }
 
-    const reqRows = await this.queryExecutor('SELECT * FROM equipment_borrow_requests WHERE id = ?', [id])
-    if (reqRows.length === 0) return null
-
-    const itemRows = await this.queryExecutor(`
-      SELECT 
-        i.*,
-        a.name AS asset_name, a.brand AS asset_brand, a.article_num AS asset_code,
-        m.name AS mat_name, m.unit AS mat_unit, m.material_type AS mat_type
-      FROM equipment_borrow_items i
-      LEFT JOIN hospital_assets a ON i.asset_id = a.id
-      LEFT JOIN hospital_materials m ON i.material_id = m.id
-      WHERE i.request_id = ?
-    `, [id])
-
-    const mappedItems = itemRows.map((it: any) => ({
-      ...it,
-      asset: it.asset_id ? { id: it.asset_id, name: it.asset_name, brand: it.asset_brand, articleNum: it.asset_code } : null,
-      material: it.material_id ? { id: it.material_id, name: it.mat_name, unit: it.mat_unit, materialType: it.mat_type } : null,
-    }))
-
-    return mapDbRowToRequest(reqRows[0], mappedItems)
+    const bundle = await this.gateway.getBorrowRequestByIdV2(id)
+    return bundle ? mapBorrowBundleToRequest(bundle) : null
   }
 
   // ==========================================
@@ -1034,52 +795,15 @@ export class EquipmentBorrowService {
       }
     }
 
-    const whereClauses: string[] = []
-    const params: any[] = []
+    const { total: rawTotal, bundles } = await this.gateway.listBorrowRequestsV2({
+      status,
+      search,
+      page,
+      limit,
+    })
 
-    if (status && status !== 'ALL') {
-      whereClauses.push('status = ?')
-      params.push(status)
-    }
-    if (search && search.trim()) {
-      const q = `%${search.trim()}%`
-      whereClauses.push('(request_no LIKE ? OR requester_name LIKE ? OR purpose LIKE ? OR location LIKE ?)')
-      params.push(q, q, q, q)
-    }
-
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-
-    const [countRows, reqRows] = await Promise.all([
-      this.queryExecutor(`SELECT COUNT(*) AS total FROM equipment_borrow_requests ${whereSql}`, params),
-      this.queryExecutor(
-        `SELECT * FROM equipment_borrow_requests ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-        [...params, limit, skip]
-      ),
-    ])
-
-    const total = Number(countRows[0]?.total || 0)
-    const items = await Promise.all(
-      reqRows.map(async (r) => {
-        const itemRows = await this.queryExecutor(`
-          SELECT 
-            i.*,
-            a.name AS asset_name, a.brand AS asset_brand, a.article_num AS asset_code,
-            m.name AS mat_name, m.unit AS mat_unit, m.material_type AS mat_type
-          FROM equipment_borrow_items i
-          LEFT JOIN hospital_assets a ON i.asset_id = a.id
-          LEFT JOIN hospital_materials m ON i.material_id = m.id
-          WHERE i.request_id = ?
-        `, [r.id])
-
-        const mappedItems = itemRows.map((it: any) => ({
-          ...it,
-          asset: it.asset_id ? { id: it.asset_id, name: it.asset_name, brand: it.asset_brand, articleNum: it.asset_code } : null,
-          material: it.material_id ? { id: it.material_id, name: it.mat_name, unit: it.mat_unit, materialType: it.mat_type } : null,
-        }))
-
-        return mapDbRowToRequest(r, mappedItems)
-      })
-    )
+    const total = Number(rawTotal || 0)
+    const items = (bundles || []).map(mapBorrowBundleToRequest)
 
     return {
       items,
@@ -1197,91 +921,19 @@ export class EquipmentBorrowService {
       })
     }
 
-    const request = await this.getBorrowRequestById(id)
-    if (!request) throw new Error(`ไม่พบคำขอยืมรหัส ${id}`)
-    if (request.status !== 'PENDING') throw new Error(`คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ (สถานะปัจจุบัน: ${request.status})`)
-
-    // 1. Pre-validate stock availability for materials and check asset availability
-    for (const item of request.items) {
-      if (item.itemType === 'ASSET' && item.assetId) {
-        const activeLoans = await this.queryExecutor(
-          `SELECT i.id FROM equipment_borrow_items i
-           JOIN equipment_borrow_requests r ON i.request_id = r.id
-           WHERE i.item_type = 'ASSET' AND i.asset_id = ? AND i.status = 'BORROWED' AND i.request_id != ?
-             AND r.status IN ('APPROVED', 'PARTIAL_RETURNED') LIMIT 1`,
-          [item.assetId, id]
-        )
-        if (activeLoans && activeLoans.length > 0) {
-          throw new Error(`ครุภัณฑ์ ${item.itemName} กำลังถูกยืมโดยคำขออื่นในขณะนี้ ไม่สามารถอนุมัติจ่ายซ้ำได้`)
-        }
-      }
-    }
-
-    const requiredQuantities = new Map<number, number>()
-    for (const item of request.items) {
-      if (item.itemType === 'MATERIAL' && item.materialId) {
-        const currentReq = requiredQuantities.get(item.materialId) || 0
-        requiredQuantities.set(item.materialId, currentReq + item.quantity)
-      }
-    }
-
-    const materialCache = new Map<number, any>()
-    for (const [matId, totalNeeded] of requiredQuantities.entries()) {
-      const matRows = await this.queryExecutor('SELECT id, name, available_qty, unit, material_type FROM hospital_materials WHERE id = ?', [matId])
-      const mat = matRows[0]
-      if (!mat || mat.available_qty < totalNeeded) {
-        const item = request.items.find((i: any) => i.materialId === matId)
-        throw new Error(`ยอดคงเหลือไม่เพียงพอสำหรับ ${mat?.name || item?.itemName || 'วัสดุ'} (ต้องการ ${totalNeeded}, คงเหลือ ${mat?.available_qty || 0})`)
-      }
-      materialCache.set(matId, mat)
-    }
-
-    // 2. Deduct stock for each item and set status to BORROWED or CONSUMED
-    for (const item of request.items) {
-      if (item.itemType === 'MATERIAL' && item.materialId) {
-        const mat = materialCache.get(item.materialId)
-        await this.queryExecutor('UPDATE hospital_materials SET available_qty = available_qty - ?, updated_at = NOW() WHERE id = ?', [item.quantity, item.materialId])
-
-        if (mat?.material_type === 'CONSUMABLE') {
-          await this.queryExecutor("UPDATE equipment_borrow_items SET status = 'CONSUMED', returned_qty = ?, returned_at = NOW(), updated_at = NOW() WHERE id = ?", [item.quantity, item.id])
-        } else {
-          await this.queryExecutor("UPDATE equipment_borrow_items SET status = 'BORROWED', updated_at = NOW() WHERE id = ?", [item.id])
-        }
-      } else if (item.itemType === 'ASSET') {
-        await this.queryExecutor("UPDATE equipment_borrow_items SET status = 'BORROWED', updated_at = NOW() WHERE id = ?", [item.id])
-      }
-    }
-
-    const hasReturnableItems = request.items.some(
-      (it: any) => it.itemType === 'ASSET' || it.material?.materialType !== 'CONSUMABLE'
-    )
-    const nextStatus = hasReturnableItems ? 'APPROVED' : 'RETURNED'
-
-    await this.queryExecutor(`
-      UPDATE equipment_borrow_requests SET
-        status = ?,
-        approved_by_id = ?,
-        approved_by_name = ?,
-        approved_at = NOW(),
-        actual_return_date = CASE WHEN ? = 'RETURNED' THEN NOW() ELSE NULL END,
-        updated_at = NOW()
-      WHERE id = ?
-    `, [
-      nextStatus,
-      actor.id || null,
-      actor.name || actor.username || 'Admin',
-      nextStatus,
+    const { updated, nextStatus, requestNo } = await this.gateway.approveBorrowRequestV2(
       id,
-    ])
+      actor as unknown as Record<string, unknown>
+    )
 
     await logAudit(
       'UPDATE',
       'equipment_borrow_requests',
-      JSON.stringify({ requestId: id, requestNo: request.requestNo, nextStatus }),
+      JSON.stringify({ requestId: id, requestNo, nextStatus }),
       { username: actor.username || 'admin' }
     )
 
-    return this.getBorrowRequestById(id)
+    return mapBorrowBundleToRequest(updated)
   }
 
   async rejectBorrowRequest(id: number, reason: string, actor: Actor) {
@@ -1318,27 +970,11 @@ export class EquipmentBorrowService {
       return updated
     }
 
-    const request = await this.getBorrowRequestById(id)
-    if (!request) throw new Error(`ไม่พบคำขอยืมรหัส ${id}`)
-    if (request.status !== 'PENDING') throw new Error(`คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ (สถานะปัจจุบัน: ${request.status})`)
-
-    await this.queryExecutor(`
-      UPDATE equipment_borrow_requests SET
-        status = 'REJECTED',
-        reject_reason = ?,
-        approved_by_id = ?,
-        approved_by_name = ?,
-        approved_at = NOW(),
-        updated_at = NOW()
-      WHERE id = ?
-    `, [
-      reason.trim(),
-      actor.id || null,
-      actor.name || actor.username || 'Admin',
+    const updatedBundle = await this.gateway.rejectBorrowRequestV2(
       id,
-    ])
-
-    await this.queryExecutor("UPDATE equipment_borrow_items SET status = 'REJECTED', updated_at = NOW() WHERE request_id = ?", [id])
+      reason,
+      actor as unknown as Record<string, unknown>
+    )
 
     await logAudit(
       'UPDATE',
@@ -1347,7 +983,7 @@ export class EquipmentBorrowService {
       { username: actor.username || 'admin' }
     )
 
-    return this.getBorrowRequestById(id)
+    return mapBorrowBundleToRequest(updatedBundle)
   }
 
   // ==========================================
@@ -1401,52 +1037,16 @@ export class EquipmentBorrowService {
       }
     }
 
-    const whereClauses: string[] = ["status IN ('APPROVED', 'PARTIAL_RETURNED')"]
-    const params: any[] = []
+    const { total: rawTotal, bundles } = await this.gateway.listBorrowRequestsV2({
+      search,
+      overdueOnly,
+      activeOnly: true,
+      page,
+      limit,
+    })
 
-    if (overdueOnly) {
-      whereClauses.push('expected_return_date < CURDATE()')
-    }
-
-    if (search && search.trim()) {
-      const q = `%${search.trim()}%`
-      whereClauses.push('(request_no LIKE ? OR requester_name LIKE ? OR purpose LIKE ?)')
-      params.push(q, q, q)
-    }
-
-    const whereSql = `WHERE ${whereClauses.join(' AND ')}`
-
-    const [countRows, reqRows] = await Promise.all([
-      this.queryExecutor(`SELECT COUNT(*) AS total FROM equipment_borrow_requests ${whereSql}`, params),
-      this.queryExecutor(
-        `SELECT * FROM equipment_borrow_requests ${whereSql} ORDER BY expected_return_date ASC LIMIT ? OFFSET ?`,
-        [...params, limit, skip]
-      ),
-    ])
-
-    const total = Number(countRows[0]?.total || 0)
-    const items = await Promise.all(
-      reqRows.map(async (r) => {
-        const itemRows = await this.queryExecutor(`
-          SELECT 
-            i.*,
-            a.name AS asset_name, a.brand AS asset_brand, a.article_num AS asset_code,
-            m.name AS mat_name, m.unit AS mat_unit, m.material_type AS mat_type
-          FROM equipment_borrow_items i
-          LEFT JOIN hospital_assets a ON i.asset_id = a.id
-          LEFT JOIN hospital_materials m ON i.material_id = m.id
-          WHERE i.request_id = ?
-        `, [r.id])
-
-        const mappedItems = itemRows.map((it: any) => ({
-          ...it,
-          asset: it.asset_id ? { id: it.asset_id, name: it.asset_name, brand: it.asset_brand, articleNum: it.asset_code } : null,
-          material: it.material_id ? { id: it.material_id, name: it.mat_name, unit: it.mat_unit, materialType: it.mat_type } : null,
-        }))
-
-        return mapDbRowToRequest(r, mappedItems)
-      })
-    )
+    const total = Number(rawTotal || 0)
+    const items = (bundles || []).map(mapBorrowBundleToRequest)
 
     return {
       items,
@@ -1537,69 +1137,11 @@ export class EquipmentBorrowService {
       })
     }
 
-    const request = await this.getBorrowRequestById(requestId)
-    if (!request) throw new Error(`ไม่พบคำขอยืมรหัส ${requestId}`)
-    if (!['APPROVED', 'PARTIAL_RETURNED'].includes(request.status)) {
-      throw new Error(`คำขอนี้ไม่ได้อยู่ในสถานะกำลังยืม (สถานะปัจจุบัน: ${request.status})`)
-    }
-
-    for (const ret of returns) {
-      const item = request.items.find((i: any) => i.id === ret.itemId)
-      if (!item) continue
-
-      const returnQty = Math.min(ret.returnedQty, item.quantity - item.returnedQty)
-      if (returnQty <= 0) continue
-
-      const totalReturned = item.returnedQty + returnQty
-      const isItemFullyReturned = totalReturned >= item.quantity
-
-      let itemStatus = 'BORROWED'
-      if (isItemFullyReturned) {
-        itemStatus = ret.condition === 'LOST' ? 'LOST' : ret.condition === 'DAMAGED' ? 'DAMAGED' : 'RETURNED'
-      }
-
-      await this.queryExecutor(`
-        UPDATE equipment_borrow_items SET
-          returned_qty = ?,
-          status = ?,
-          return_condition = ?,
-          return_notes = ?,
-          returned_at = NOW(),
-          inspected_by_id = ?,
-          inspected_by_name = ?,
-          updated_at = NOW()
-        WHERE id = ?
-      `, [
-        totalReturned,
-        itemStatus,
-        ret.condition,
-        ret.notes?.trim() || null,
-        actor.id || null,
-        actor.name || actor.username || 'Admin',
-        item.id,
-      ])
-
-      if (item.itemType === 'MATERIAL' && item.materialId && item.material?.materialType === 'REUSABLE') {
-        if (ret.condition === 'NORMAL') {
-          await this.queryExecutor('UPDATE hospital_materials SET available_qty = available_qty + ?, updated_at = NOW() WHERE id = ?', [returnQty, item.materialId])
-        }
-      }
-    }
-
-    const updatedItemRows = await this.queryExecutor('SELECT quantity, returned_qty, status FROM equipment_borrow_items WHERE request_id = ?', [requestId])
-    const allDone = updatedItemRows.every((it: any) => Number(it.returned_qty || 0) >= Number(it.quantity || 0) || it.status === 'CONSUMED')
-
-    await this.queryExecutor(`
-      UPDATE equipment_borrow_requests SET
-        status = ?,
-        actual_return_date = CASE WHEN ? = 'RETURNED' THEN NOW() ELSE NULL END,
-        updated_at = NOW()
-      WHERE id = ?
-    `, [
-      allDone ? 'RETURNED' : 'PARTIAL_RETURNED',
-      allDone ? 'RETURNED' : 'PARTIAL_RETURNED',
+    const { updated, allDone } = await this.gateway.returnBorrowItemsV2(
       requestId,
-    ])
+      returns as unknown as Array<Record<string, unknown>>,
+      actor as unknown as Record<string, unknown>
+    )
 
     await logAudit(
       'UPDATE',
@@ -1608,7 +1150,7 @@ export class EquipmentBorrowService {
       { username: actor.username || 'admin' }
     )
 
-    return this.getBorrowRequestById(requestId)
+    return mapBorrowBundleToRequest(updated)
   }
 
   // ==========================================
@@ -1714,49 +1256,8 @@ export class EquipmentBorrowService {
       }
     }
 
-    // Zero-DB Production Execution
-    const [loanableRows, materialAggRows, borrowedItemRows, overdueRows] = await Promise.all([
-      this.queryExecutor("SELECT COUNT(*) AS cnt FROM hospital_assets WHERE is_loanable = 1 AND status = 'ACTIVE'"),
-      this.queryExecutor('SELECT COALESCE(SUM(total_qty), 0) AS totalMaterials, COALESCE(SUM(available_qty), 0) AS availableMaterials FROM hospital_materials WHERE is_active = 1'),
-      this.queryExecutor(`
-        SELECT i.item_type, i.quantity, i.returned_qty
-        FROM equipment_borrow_items i
-        JOIN equipment_borrow_requests r ON i.request_id = r.id
-        WHERE r.status IN ('APPROVED', 'PARTIAL_RETURNED') AND i.status = 'BORROWED'
-      `),
-      this.queryExecutor(`
-        SELECT i.quantity, i.returned_qty
-        FROM equipment_borrow_items i
-        JOIN equipment_borrow_requests r ON i.request_id = r.id
-        WHERE r.status IN ('APPROVED', 'PARTIAL_RETURNED') AND r.expected_return_date < CURDATE() AND i.status = 'BORROWED'
-      `),
-    ])
-
-    const loanableAssetsCount = Number(loanableRows[0]?.cnt || 0)
-    const totalMaterials = Number(materialAggRows[0]?.totalMaterials || 0)
-    const availableMaterials = Number(materialAggRows[0]?.availableMaterials || 0)
-
-    let borrowedPiecesCount = 0
-    let borrowedAssetsCount = 0
-    for (const it of borrowedItemRows) {
-      const remaining = Math.max(0, Number(it.quantity || 0) - Number(it.returned_qty || 0))
-      borrowedPiecesCount += remaining
-      if (it.item_type === 'ASSET') borrowedAssetsCount += remaining
-    }
-
-    const availableAssets = Math.max(0, loanableAssetsCount - borrowedAssetsCount)
-
-    let overduePiecesCount = 0
-    for (const it of overdueRows) {
-      overduePiecesCount += Math.max(0, Number(it.quantity || 0) - Number(it.returned_qty || 0))
-    }
-
-    return {
-      totalItems: loanableAssetsCount + totalMaterials,
-      availableItems: availableAssets + availableMaterials,
-      borrowedItems: borrowedPiecesCount,
-      overdueRequests: overduePiecesCount,
-    }
+    // Zero-SQL Production Execution
+    return this.gateway.getBorrowStatsV2()
   }
 
   // ==========================================
@@ -1764,7 +1265,7 @@ export class EquipmentBorrowService {
   // ==========================================
 
   async dispatchOverdueNotifications(options: { siteUrl?: string } = {}): Promise<OverdueNotificationResult> {
-    return dispatchOverdueBorrowNotifications(this.db, this.queryExecutor, this.telegramSender, options)
+    return dispatchOverdueBorrowNotifications(this.db, this.gateway, this.telegramSender, options)
   }
 }
 

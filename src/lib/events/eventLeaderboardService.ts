@@ -1,4 +1,4 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { calculateCurrentFiscalYear } from './hospitalEventService'
 
 export interface LeaderboardFilterOptions {
@@ -32,7 +32,7 @@ export interface DepartmentRankItem {
 export class EventLeaderboardService {
   constructor(
     private db: any = null,
-    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
+    private readonly gateway = apiGateway.app
   ) {}
 
   async getIndividualLeaderboard(options: LeaderboardFilterOptions = {}): Promise<IndividualRankItem[]> {
@@ -62,28 +62,12 @@ export class EventLeaderboardService {
         orderBy: { checkedInAt: 'desc' },
       })
     } else {
-      const whereClauses: string[] = []
-      const params: any[] = []
+      const rows = await this.gateway.getEventIndividualLeaderboardRawV2({
+        fiscalYear,
+        timeframe: options.timeframe,
+      })
 
-      if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
-        whereClauses.push('e.fiscal_year = ?')
-        params.push(fiscalYear)
-      }
-
-      const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-
-      const rows = await this.queryExecutor(`
-        SELECT 
-          a.id, a.event_id, a.member_id, a.points_awarded AS pointsAwarded, a.checked_in_at AS checkedInAt,
-          m.id AS m_id, m.name AS m_name, m.department AS m_department, m.position AS m_position, m.profile_path AS m_profile_path
-        FROM event_attendances a
-        LEFT JOIN members m ON a.member_id = m.id
-        LEFT JOIN hospital_events e ON a.event_id = e.id
-        ${whereSql}
-        ORDER BY a.checked_in_at DESC
-      `, params)
-
-      attendances = rows.map((r: any) => ({
+      attendances = (rows || []).map((r: any) => ({
         id: r.id,
         memberId: r.member_id,
         pointsAwarded: r.pointsAwarded,
@@ -201,31 +185,13 @@ export class EventLeaderboardService {
       members = results[0]
       attendances = results[1]
     } else {
-      const whereClauses: string[] = []
-      const params: any[] = []
+      const { members: memberRows, attRows } = await this.gateway.getEventDepartmentLeaderboardRawV2({
+        fiscalYear,
+        timeframe: options.timeframe,
+      })
 
-      if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
-        whereClauses.push('e.fiscal_year = ?')
-        params.push(fiscalYear)
-      }
-
-      const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-
-      const [memberRows, attRows] = await Promise.all([
-        this.queryExecutor('SELECT id, department FROM members'),
-        this.queryExecutor(`
-          SELECT 
-            a.id, a.points_awarded AS pointsAwarded,
-            m.id AS m_id, m.department AS m_department
-          FROM event_attendances a
-          LEFT JOIN members m ON a.member_id = m.id
-          LEFT JOIN hospital_events e ON a.event_id = e.id
-          ${whereSql}
-        `, params),
-      ])
-
-      members = memberRows
-      attendances = attRows.map((r: any) => ({
+      members = memberRows || []
+      attendances = (attRows || []).map((r: any) => ({
         id: r.id,
         pointsAwarded: r.pointsAwarded,
         member: r.m_id ? { id: r.m_id, department: r.m_department } : null,
@@ -302,8 +268,7 @@ export class EventLeaderboardService {
       return years
     }
 
-    const rows = await this.queryExecutor('SELECT DISTINCT fiscal_year AS fiscalYear FROM hospital_events WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC')
-    const years = rows.map((r: any) => r.fiscalYear).filter(Boolean)
+    const years = [...((await this.gateway.getEventFiscalYearsV2()) || [])]
     const currentYear = calculateCurrentFiscalYear()
     if (!years.includes(currentYear)) {
       years.unshift(currentYear)

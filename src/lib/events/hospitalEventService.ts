@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -91,7 +91,7 @@ export const calculateCurrentFiscalYear = calculateThaiFiscalYear
 export class HospitalEventService {
   constructor(
     private db: any = null,
-    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
+    private readonly gateway = apiGateway.app
   ) {
     this.addAttachment = this.addAttachment.bind(this)
     this.getAttachments = this.getAttachments.bind(this)
@@ -211,82 +211,24 @@ export class HospitalEventService {
       })
     }
 
-    // Zero-DB Gateway Production Implementation
-    let borrowRequestId: number | null = null
-    if (input.borrowItems && input.borrowItems.length > 0) {
-      const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '')
-      const rand4 = Math.floor(1000 + Math.random() * 9000)
-      const requestNo = `BR-${yyyymm}-${rand4}`
-
-      const borrowRes: any = await this.queryExecutor(`
-        INSERT INTO equipment_borrow_requests (
-          request_no, requester_id, requester_name, requester_dept,
-          purpose, location, borrow_date, expected_return_date, status,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', NOW(), NOW())
-      `, [
-        requestNo,
-        actor.id,
-        actor.name || 'บุคลากรโรงพยาบาลเถิน',
-        actor.department || null,
-        `สำหรับกิจกรรม: ${input.title.trim()}`,
-        input.location?.trim() || null,
-        toDbSqlDateTime(startDate),
-        toDbSqlDateTime(endDate),
-      ])
-      borrowRequestId = borrowRes.insertId
-
-      for (const item of input.borrowItems) {
-        await this.queryExecutor(`
-          INSERT INTO equipment_borrow_items (
-            request_id, item_type, asset_id, material_id,
-            item_name, item_code, quantity, status, returned_qty,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, NOW(), NOW())
-        `, [
-          borrowRequestId,
-          item.itemType,
-          item.assetId || null,
-          item.materialId || null,
-          item.itemName,
-          item.itemCode || null,
-          item.quantity || 1,
-        ])
-      }
-    }
-
-    const eventRes: any = await this.queryExecutor(`
-      INSERT INTO hospital_events (
-        title, description, location, banner_url,
-        event_start_date, event_end_date, checkin_open_time, checkin_close_time,
-        head_organizer_id, borrow_request_id, qr_token, fiscal_year, status,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UPCOMING', NOW(), NOW())
-    `, [
-      input.title.trim(),
-      input.description?.trim() || null,
-      input.location?.trim() || null,
-      input.bannerUrl?.trim() || null,
-      toDbSqlDateTime(startDate),
-      toDbSqlDateTime(endDate),
-      toDbSqlDateTime(checkinOpen),
-      toDbSqlDateTime(checkinClose),
-      actor.id,
-      borrowRequestId,
-      qrToken,
-      fiscalYear,
-    ])
-    const eventId = eventRes.insertId
-
-    if (input.coOrganizerMemberIds && input.coOrganizerMemberIds.length > 0) {
-      const uniqueIds = Array.from(new Set(input.coOrganizerMemberIds.filter((id) => id !== actor.id)))
-      for (const mId of uniqueIds) {
-        await this.queryExecutor(`
-          INSERT INTO event_organizers (event_id, member_id, role_title)
-          VALUES (?, ?, 'ผู้รับผิดชอบร่วม')
-        `, [eventId, mId])
-      }
-    }
+    // Zero-SQL Gateway Production Implementation
+    const { eventId, borrowRequestId } = await this.gateway.createEventV2({
+      payload: {
+        title: input.title.trim(),
+        description: input.description?.trim() || null,
+        location: input.location?.trim() || null,
+        bannerUrl: input.bannerUrl?.trim() || null,
+        eventStartDate: toDbSqlDateTime(startDate),
+        eventEndDate: toDbSqlDateTime(endDate),
+        checkinOpenTime: toDbSqlDateTime(checkinOpen),
+        checkinCloseTime: toDbSqlDateTime(checkinClose),
+        qrToken,
+        fiscalYear,
+      },
+      actor: actor as unknown as Record<string, unknown>,
+      borrowItems: (input.borrowItems || []) as unknown as Array<Record<string, unknown>>,
+      coOrganizerMemberIds: input.coOrganizerMemberIds || [],
+    })
 
     try {
       await logAudit(
@@ -337,20 +279,11 @@ export class HospitalEventService {
 
     try {
       const dbNow = referenceTime ? toDbSqlDateTime(referenceTime) || getNowBangkokForDbSql() : getNowBangkokForDbSql()
-      const [compRes, onRes]: any = await Promise.all([
-        this.queryExecutor(
-          "UPDATE hospital_events SET status = 'COMPLETED', updated_at = NOW() WHERE status IN ('UPCOMING', 'ONGOING') AND event_end_date < ?",
-          [dbNow]
-        ),
-        this.queryExecutor(
-          "UPDATE hospital_events SET status = 'ONGOING', updated_at = NOW() WHERE status = 'UPCOMING' AND event_start_date <= ? AND event_end_date >= ?",
-          [dbNow, dbNow]
-        ),
-      ])
+      const res = await this.gateway.syncEventStatusesV2(dbNow)
 
       return {
-        updatedToCompleted: compRes?.affectedRows || 0,
-        updatedToOngoing: onRes?.affectedRows || 0,
+        updatedToCompleted: res?.updatedToCompleted || 0,
+        updatedToOngoing: res?.updatedToOngoing || 0,
       }
     } catch (err) {
       logger.error({ err }, 'Error syncing event statuses automatically via gateway')
@@ -469,114 +402,58 @@ export class HospitalEventService {
       }
     }
 
-    // Gateway implementation
-    const whereClauses: string[] = []
-    const params: any[] = []
+    // Gateway Named Endpoint implementation
+    const { total: rawTotal, events: eventRows } = await this.gateway.listEventsV2({
+      status,
+      search,
+      fiscalYear,
+      memberId,
+      onlyUpcoming,
+      onlyCompleted,
+      onlyMyEvents,
+      onlyMyRegistrations,
+      dbNow: typeof dbNow === 'string' ? dbNow : getNowBangkokForDbSql(),
+      page,
+      limit,
+    })
 
-    if (onlyUpcoming) {
-      whereClauses.push('e.event_end_date >= ?')
-      params.push(dbNow)
-    } else if (onlyCompleted) {
-      whereClauses.push('e.event_end_date < ?')
-      params.push(dbNow)
-    }
+    const total = Number(rawTotal || 0)
 
-    if (status && status !== 'ALL') {
-      whereClauses.push('e.status = ?')
-      params.push(status)
-    }
-    if (fiscalYear && fiscalYear !== 'ALL') {
-      whereClauses.push('e.fiscal_year = ?')
-      params.push(fiscalYear)
-    }
-    if (search && search.trim()) {
-      const q = `%${search.trim()}%`
-      whereClauses.push('(e.title LIKE ? OR e.description LIKE ? OR e.location LIKE ?)')
-      params.push(q, q, q)
-    }
-    if (onlyMyEvents && memberId) {
-      whereClauses.push('(e.head_organizer_id = ? OR EXISTS (SELECT 1 FROM event_organizers WHERE event_id = e.id AND member_id = ?))')
-      params.push(memberId, memberId)
-    }
-    if (onlyMyRegistrations && memberId) {
-      whereClauses.push('EXISTS (SELECT 1 FROM event_registrations WHERE event_id = e.id AND member_id = ?)')
-      params.push(memberId)
-    }
+    const mapped = (eventRows || []).map((ev: any) => {
+      const coRows = Array.isArray(ev.coRows) ? ev.coRows : []
+      const isHeadOrganizer = memberId ? ev.headOrganizerId === memberId : false
+      const isCoOrganizer = memberId ? coRows.some((c: any) => c.member_id === memberId) : false
 
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-
-    let sortSql = 'e.event_start_date DESC'
-    if (onlyCompleted) sortSql = 'e.event_end_date DESC'
-    else if (onlyUpcoming) sortSql = 'e.event_start_date ASC'
-
-    const [countRows, eventRows] = await Promise.all([
-      this.queryExecutor(`SELECT COUNT(*) AS total FROM hospital_events e ${whereSql}`, params),
-      this.queryExecutor(`
-        SELECT 
-          e.id, e.title, e.description, e.location, e.banner_url AS bannerUrl,
-          e.event_start_date AS eventStartDate, e.event_end_date AS eventEndDate,
-          e.checkin_open_time AS checkinOpenTime, e.checkin_close_time AS checkinCloseTime,
-          e.head_organizer_id AS headOrganizerId, e.borrow_request_id AS borrowRequestId,
-          e.qr_token AS qrToken, e.fiscal_year AS fiscalYear, e.status,
-          e.created_at AS createdAt, e.updated_at AS updatedAt,
-          m.id AS head_id, m.name AS head_name, m.department AS head_dept, m.profile_path AS head_profile,
-          (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) AS registrationCount,
-          (SELECT COUNT(*) FROM event_attendances WHERE event_id = e.id) AS attendanceCount
-          ${memberId ? `, (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND member_id = ${Number(memberId)}) AS userRegCount` : ''}
-          ${memberId ? `, (SELECT COUNT(*) FROM event_attendances WHERE event_id = e.id AND member_id = ${Number(memberId)}) AS userAttCount` : ''}
-        FROM hospital_events e
-        LEFT JOIN members m ON e.head_organizer_id = m.id
-        ${whereSql}
-        ORDER BY ${sortSql}
-        LIMIT ? OFFSET ?
-      `, [...params, limit, skip]),
-    ])
-
-    const total = Number(countRows[0]?.total || 0)
-
-    const mapped = await Promise.all(
-      eventRows.map(async (ev: any) => {
-        const coRows = await this.queryExecutor(`
-          SELECT o.member_id, o.role_title, m.id, m.name, m.department, m.profile_path AS profilePath
-          FROM event_organizers o
-          JOIN members m ON o.member_id = m.id
-          WHERE o.event_id = ?
-        `, [ev.id])
-
-        const isHeadOrganizer = memberId ? ev.headOrganizerId === memberId : false
-        const isCoOrganizer = memberId ? coRows.some((c: any) => c.member_id === memberId) : false
-
-        return {
-          id: ev.id,
-          title: ev.title,
-          description: ev.description,
-          location: ev.location,
-          bannerUrl: ev.bannerUrl,
-          eventStartDate: toBangkokIsoString(ev.eventStartDate) || ev.eventStartDate,
-          eventEndDate: toBangkokIsoString(ev.eventEndDate) || ev.eventEndDate,
-          checkinOpenTime: toBangkokIsoString(ev.checkinOpenTime) || ev.checkinOpenTime,
-          checkinCloseTime: toBangkokIsoString(ev.checkinCloseTime) || ev.checkinCloseTime,
-          headOrganizerId: ev.headOrganizerId,
-          borrowRequestId: ev.borrowRequestId,
-          qrToken: ev.qrToken,
-          fiscalYear: ev.fiscalYear,
-          status: ev.status,
-          createdAt: ev.createdAt,
-          updatedAt: ev.updatedAt,
-          headOrganizer: ev.head_id ? { id: ev.head_id, name: ev.head_name, department: ev.head_dept, profilePath: ev.head_profile } : null,
-          coOrganizers: coRows.map((c: any) => ({
-            memberId: c.member_id,
-            roleTitle: c.role_title,
-            member: { id: c.id, name: c.name, department: c.department, profilePath: c.profilePath },
-          })),
-          registrationCount: Number(ev.registrationCount || 0),
-          attendanceCount: Number(ev.attendanceCount || 0),
-          isOrganizer: isHeadOrganizer || isCoOrganizer,
-          hasRegistered: memberId ? Number(ev.userRegCount || 0) > 0 : false,
-          hasAttended: memberId ? Number(ev.userAttCount || 0) > 0 : false,
-        }
-      })
-    )
+      return {
+        id: ev.id,
+        title: ev.title,
+        description: ev.description,
+        location: ev.location,
+        bannerUrl: ev.bannerUrl,
+        eventStartDate: toBangkokIsoString(ev.eventStartDate) || ev.eventStartDate,
+        eventEndDate: toBangkokIsoString(ev.eventEndDate) || ev.eventEndDate,
+        checkinOpenTime: toBangkokIsoString(ev.checkinOpenTime) || ev.checkinOpenTime,
+        checkinCloseTime: toBangkokIsoString(ev.checkinCloseTime) || ev.checkinCloseTime,
+        headOrganizerId: ev.headOrganizerId,
+        borrowRequestId: ev.borrowRequestId,
+        qrToken: ev.qrToken,
+        fiscalYear: ev.fiscalYear,
+        status: ev.status,
+        createdAt: ev.createdAt,
+        updatedAt: ev.updatedAt,
+        headOrganizer: ev.head_id ? { id: ev.head_id, name: ev.head_name, department: ev.head_dept, profilePath: ev.head_profile } : null,
+        coOrganizers: coRows.map((c: any) => ({
+          memberId: c.member_id,
+          roleTitle: c.role_title,
+          member: { id: c.id, name: c.name, department: c.department, profilePath: c.profilePath },
+        })),
+        registrationCount: Number(ev.registrationCount || 0),
+        attendanceCount: Number(ev.attendanceCount || 0),
+        isOrganizer: isHeadOrganizer || isCoOrganizer,
+        hasRegistered: memberId ? Number(ev.userRegCount || 0) > 0 : false,
+        hasAttended: memberId ? Number(ev.userAttCount || 0) > 0 : false,
+      }
+    })
 
     return {
       events: mapped,
@@ -685,76 +562,30 @@ export class HospitalEventService {
       }
     }
 
-    const rows = await this.queryExecutor(`
-      SELECT 
-        e.id, e.title, e.description, e.location, e.banner_url AS bannerUrl,
-        e.event_start_date AS eventStartDate, e.event_end_date AS eventEndDate,
-        e.checkin_open_time AS checkinOpenTime, e.checkin_close_time AS checkinCloseTime,
-        e.head_organizer_id AS headOrganizerId, e.borrow_request_id AS borrowRequestId,
-        e.qr_token AS qrToken, e.fiscal_year AS fiscalYear, e.status,
-        e.created_at AS createdAt, e.updated_at AS updatedAt,
-        m.id AS head_id, m.name AS head_name, m.department AS head_dept, m.profile_path AS head_profile, m.position AS head_pos
-      FROM hospital_events e
-      LEFT JOIN members m ON e.head_organizer_id = m.id
-      WHERE e.id = ?
-      LIMIT 1
-    `, [id])
-
-    if (rows.length === 0) return null
-    const event = rows[0]
+    const bundle = await this.gateway.getEventByIdV2(id)
+    if (!bundle || !bundle.event) return null
+    const event: any = bundle.event
 
     // Just-in-Time status auto update
     if (event.status !== 'CANCELLED') {
       const dbNow = getNowBangkokForDb()
+      const startDate = event.eventStartDate instanceof Date ? event.eventStartDate : new Date(event.eventStartDate)
+      const endDate = event.eventEndDate instanceof Date ? event.eventEndDate : new Date(event.eventEndDate)
       let nextStatus: string | null = null
-      if (dbNow > event.eventEndDate && event.status !== 'COMPLETED') nextStatus = 'COMPLETED'
-      else if (dbNow >= event.eventStartDate && dbNow <= event.eventEndDate && event.status === 'UPCOMING') nextStatus = 'ONGOING'
+      if (!isNaN(endDate.getTime()) && dbNow > endDate && event.status !== 'COMPLETED') nextStatus = 'COMPLETED'
+      else if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && dbNow >= startDate && dbNow <= endDate && event.status === 'UPCOMING') nextStatus = 'ONGOING'
 
       if (nextStatus) {
-        await this.queryExecutor('UPDATE hospital_events SET status = ?, updated_at = NOW() WHERE id = ?', [nextStatus, id])
+        await this.gateway.updateEventStatusV2(id, nextStatus)
         event.status = nextStatus
       }
     }
 
-    const [coRows, regRows, attRows, borrowRows, attachRows] = await Promise.all([
-      this.queryExecutor(`
-        SELECT o.member_id, o.role_title, m.id, m.name, m.department, m.profile_path AS profilePath, m.position
-        FROM event_organizers o
-        JOIN members m ON o.member_id = m.id
-        WHERE o.event_id = ?
-      `, [id]),
-      this.queryExecutor(`
-        SELECT r.id, r.event_id, r.member_id, r.registered_at AS registeredAt,
-          m.id AS m_id, m.name AS m_name, m.department AS m_department, m.profile_path AS m_profile_path
-        FROM event_registrations r
-        JOIN members m ON r.member_id = m.id
-        WHERE r.event_id = ?
-        ORDER BY r.registered_at DESC
-      `, [id]),
-      this.queryExecutor(`
-        SELECT a.id, a.event_id, a.member_id, a.citizen_id, a.checked_in_at AS checkedInAt, a.points_awarded AS pointsAwarded,
-          m.id AS m_id, m.name AS m_name, m.department AS m_department, m.profile_path AS m_profile_path
-        FROM event_attendances a
-        JOIN members m ON a.member_id = m.id
-        WHERE a.event_id = ?
-        ORDER BY a.checked_in_at DESC
-      `, [id]),
-      event.borrowRequestId
-        ? this.queryExecutor('SELECT * FROM equipment_borrow_requests WHERE id = ?', [event.borrowRequestId])
-        : Promise.resolve([]),
-      this.queryExecutor(`
-        SELECT a.id, a.event_id AS eventId, a.attachment_type AS attachmentType,
-               a.title, a.file_path AS filePath, a.file_type AS fileType,
-               a.file_size AS fileSize, a.text_content AS textContent,
-               a.uploaded_by_member_id AS uploadedByMemberId, a.display_order AS displayOrder,
-               a.created_at AS createdAt, a.updated_at AS updatedAt,
-               m.id AS uploader_id, m.name AS uploader_name, m.department AS uploader_dept, m.profile_path AS uploader_profile
-        FROM event_attachments a
-        LEFT JOIN members m ON a.uploaded_by_member_id = m.id
-        WHERE a.event_id = ?
-        ORDER BY a.display_order ASC, a.created_at DESC
-      `, [id]),
-    ])
+    const coRows: any[] = bundle.coRows || []
+    const regRows: any[] = bundle.regRows || []
+    const attRows: any[] = bundle.attRows || []
+    const attachRows: any[] = bundle.attachRows || []
+    const borrowRequest = bundle.borrowRequest || null
 
     const isHeadOrganizer = memberId ? event.headOrganizerId === memberId : false
     const isCoOrganizer = memberId ? coRows.some((c: any) => c.member_id === memberId) : false
@@ -789,7 +620,7 @@ export class HospitalEventService {
         checkedInAt: toBangkokIsoString(a.checkedInAt) || a.checkedInAt,
         member: { id: a.m_id, name: a.m_name, department: a.m_department, profilePath: a.m_profile_path },
       })),
-      attachments: (attachRows || []).map((r: any) => ({
+      attachments: attachRows.map((r: any) => ({
         id: r.id,
         eventId: r.eventId,
         attachmentType: r.attachmentType,
@@ -809,7 +640,7 @@ export class HospitalEventService {
           profilePath: r.uploader_profile,
         } : null,
       })),
-      borrowRequest: borrowRows[0] || null,
+      borrowRequest,
       registrationCount: regRows.length,
       attendanceCount: attRows.length,
       canManage: isHeadOrganizer || isCoOrganizer,
@@ -885,51 +716,29 @@ export class HospitalEventService {
       })
     }
 
-    const existingRows = await this.queryExecutor('SELECT id, title, head_organizer_id FROM hospital_events WHERE id = ?', [id])
-    if (existingRows.length === 0) throw new Error('ไม่พบข้อมูลกิจกรรม')
-    const existing = existingRows[0]
+    const fields: Record<string, unknown> = {}
+    if (input.title !== undefined) fields.title = input.title.trim()
+    if (input.description !== undefined) fields.description = input.description?.trim() || null
+    if (input.location !== undefined) fields.location = input.location?.trim() || null
+    if (input.bannerUrl !== undefined) fields.bannerUrl = input.bannerUrl?.trim() || null
+    if (input.status !== undefined) fields.status = input.status
+    if (input.fiscalYear !== undefined) fields.fiscalYear = input.fiscalYear
+    if (input.eventStartDate !== undefined) fields.eventStartDate = toDbSqlDateTime(input.eventStartDate)
+    if (input.eventEndDate !== undefined) fields.eventEndDate = toDbSqlDateTime(input.eventEndDate)
+    if (input.checkinOpenTime !== undefined) fields.checkinOpenTime = toDbSqlDateTime(input.checkinOpenTime)
+    if (input.checkinCloseTime !== undefined) fields.checkinCloseTime = toDbSqlDateTime(input.checkinCloseTime)
 
-    const coRows = await this.queryExecutor('SELECT member_id FROM event_organizers WHERE event_id = ?', [id])
-    const isAuthorized =
-      actor.role === 'admin' ||
-      existing.head_organizer_id === actor.id ||
-      coRows.some((c: any) => c.member_id === actor.id)
-
-    if (!isAuthorized) throw new Error('คุณไม่มีสิทธิ์แก้ไขกิจกรรมนี้')
-
-    const fields: string[] = []
-    const params: any[] = []
-
-    if (input.title !== undefined) { fields.push('title = ?'); params.push(input.title.trim()) }
-    if (input.description !== undefined) { fields.push('description = ?'); params.push(input.description?.trim() || null) }
-    if (input.location !== undefined) { fields.push('location = ?'); params.push(input.location?.trim() || null) }
-    if (input.bannerUrl !== undefined) { fields.push('banner_url = ?'); params.push(input.bannerUrl?.trim() || null) }
-    if (input.status !== undefined) { fields.push('status = ?'); params.push(input.status) }
-    if (input.fiscalYear !== undefined) { fields.push('fiscal_year = ?'); params.push(input.fiscalYear) }
-    if (input.eventStartDate !== undefined) { fields.push('event_start_date = ?'); params.push(toDbSqlDateTime(input.eventStartDate)) }
-    if (input.eventEndDate !== undefined) { fields.push('event_end_date = ?'); params.push(toDbSqlDateTime(input.eventEndDate)) }
-    if (input.checkinOpenTime !== undefined) { fields.push('checkin_open_time = ?'); params.push(toDbSqlDateTime(input.checkinOpenTime)) }
-    if (input.checkinCloseTime !== undefined) { fields.push('checkin_close_time = ?'); params.push(toDbSqlDateTime(input.checkinCloseTime)) }
-
-    if (fields.length > 0) {
-      fields.push('updated_at = NOW()')
-      params.push(id)
-      await this.queryExecutor(`UPDATE hospital_events SET ${fields.join(', ')} WHERE id = ?`, params)
-    }
-
-    if (input.coOrganizerMemberIds !== undefined) {
-      await this.queryExecutor('DELETE FROM event_organizers WHERE event_id = ?', [id])
-      const uniqueIds = Array.from(new Set(input.coOrganizerMemberIds.filter((mId) => mId !== existing.head_organizer_id)))
-      for (const mId of uniqueIds) {
-        await this.queryExecutor("INSERT INTO event_organizers (event_id, member_id, role_title) VALUES (?, ?, 'ผู้รับผิดชอบร่วม')", [id, mId])
-      }
-    }
+    const { title } = await this.gateway.updateEventV2(id, {
+      fields,
+      coOrganizerMemberIds: input.coOrganizerMemberIds,
+      actor: actor as unknown as Record<string, unknown>,
+    })
 
     try {
       await logAudit(
         'UPDATE',
         'hospital_events',
-        `แก้ไขข้อมูลกิจกรรม: "${input.title || existing.title}" (ID: ${id}) โดย ${actor.name || actor.username}`,
+        `แก้ไขข้อมูลกิจกรรม: "${title}" (ID: ${id}) โดย ${actor.name || actor.username}`,
         { eventId: id, changes: input }
       )
     } catch (err) {
@@ -970,29 +779,14 @@ export class HospitalEventService {
       return { success: true, message: 'ลบกิจกรรมเรียบร้อยแล้ว' }
     }
 
-    const rows = await this.queryExecutor('SELECT id, title, head_organizer_id FROM hospital_events WHERE id = ?', [id])
-    if (rows.length === 0) throw new Error('ไม่พบข้อมูลกิจกรรม')
-    const existing = rows[0]
-
-    const coRows = await this.queryExecutor('SELECT member_id FROM event_organizers WHERE event_id = ?', [id])
-    const isAuthorized =
-      actor.role === 'admin' ||
-      existing.head_organizer_id === actor.id ||
-      coRows.some((c: any) => c.member_id === actor.id)
-
-    if (!isAuthorized) throw new Error('คุณไม่มีสิทธิ์ลบกิจกรรมนี้')
-
-    await this.queryExecutor('DELETE FROM event_attendances WHERE event_id = ?', [id])
-    await this.queryExecutor('DELETE FROM event_registrations WHERE event_id = ?', [id])
-    await this.queryExecutor('DELETE FROM event_organizers WHERE event_id = ?', [id])
-    await this.queryExecutor('DELETE FROM hospital_events WHERE id = ?', [id])
+    const { title } = await this.gateway.deleteEventV2(id, actor as unknown as Record<string, unknown>)
 
     try {
       await logAudit(
         'DELETE',
         'hospital_events',
-        `ลบกิจกรรม: "${existing.title}" (ID: ${id}) โดย ${actor.name || actor.username || 'ผู้ดูแลระบบ'}`,
-        { eventId: id, title: existing.title }
+        `ลบกิจกรรม: "${title}" (ID: ${id}) โดย ${actor.name || actor.username || 'ผู้ดูแลระบบ'}`,
+        { eventId: id, title }
       )
     } catch (err) {
       logger.error({ err }, 'Failed to write audit log for event deletion')
@@ -1022,20 +816,11 @@ export class HospitalEventService {
       return { success: true, message: 'ลงทะเบียนเข้าร่วมกิจกรรมเรียบร้อยแล้ว', registration }
     }
 
-    const eventRows = await this.queryExecutor('SELECT id, status FROM hospital_events WHERE id = ?', [eventId])
-    if (eventRows.length === 0) throw new Error('ไม่พบข้อมูลกิจกรรม')
-    const event = eventRows[0]
-    if (event.status === 'COMPLETED' || event.status === 'CANCELLED') {
-      throw new Error('ไม่สามารถลงทะเบียนกิจกรรมที่สิ้นสุดหรือถูกยกเลิกแล้ว')
+    const res = await this.gateway.registerForEventV2(eventId, memberId)
+    if (res.alreadyRegistered) {
+      return { success: true, message: 'คุณได้ลงทะเบียนไว้แล้ว', registration: res.registration }
     }
-
-    const regRows = await this.queryExecutor('SELECT id FROM event_registrations WHERE event_id = ? AND member_id = ?', [eventId, memberId])
-    if (regRows.length > 0) {
-      return { success: true, message: 'คุณได้ลงทะเบียนไว้แล้ว', registration: regRows[0] }
-    }
-
-    const res: any = await this.queryExecutor('INSERT INTO event_registrations (event_id, member_id, registered_at) VALUES (?, ?, NOW())', [eventId, memberId])
-    return { success: true, message: 'ลงทะเบียนเข้าร่วมกิจกรรมเรียบร้อยแล้ว', registration: { id: res.insertId, eventId, memberId } }
+    return { success: true, message: 'ลงทะเบียนเข้าร่วมกิจกรรมเรียบร้อยแล้ว', registration: res.registration }
   }
 
   async cancelRegistration(eventId: number, memberId: number) {
@@ -1046,7 +831,7 @@ export class HospitalEventService {
       return { success: true, message: 'ยกเลิกการลงทะเบียนเรียบร้อยแล้ว' }
     }
 
-    await this.queryExecutor('DELETE FROM event_registrations WHERE event_id = ? AND member_id = ?', [eventId, memberId])
+    await this.gateway.cancelEventRegistrationV2(eventId, memberId)
     return { success: true, message: 'ยกเลิกการลงทะเบียนเรียบร้อยแล้ว' }
   }
 
@@ -1116,31 +901,31 @@ export class HospitalEventService {
       }
     }
 
-    const eventRows = await this.queryExecutor('SELECT id, title, location, checkin_open_time, checkin_close_time FROM hospital_events WHERE qr_token = ?', [qrToken])
-    if (eventRows.length === 0) throw new Error('ไม่พบข้อมูลกิจกรรมจาก QR Code นี้ หรือรหัสไม่ถูกต้อง')
-    const event = eventRows[0]
+    const event: any = await this.gateway.getEventByQrTokenV2(qrToken)
+    if (!event) throw new Error('ไม่พบข้อมูลกิจกรรมจาก QR Code นี้ หรือรหัสไม่ถูกต้อง')
 
-    const windowCheck = validateCheckinWindow(event.checkin_open_time, event.checkin_close_time, now)
+    const windowCheck = validateCheckinWindow(event.checkinOpenTime, event.checkinCloseTime, now)
     if (windowCheck.isEarly) throw new Error(`ยังไม่ถึงเวลาเปิดรับสแกนเช็คอิน (เปิดรับสแกนเวลา ${windowCheck.openTimeStr})`)
     if (windowCheck.isLate) throw new Error(`หมดเวลาเช็คอินสำหรับกิจกรรมนี้แล้ว (ปิดรับสแกนเมื่อเวลา ${windowCheck.closeTimeStr})`)
 
-    const memberRows = await this.queryExecutor('SELECT id, name, department, position, username FROM members WHERE username = ?', [sanitizedPid])
-    if (memberRows.length === 0) throw new Error('ไม่พบข้อมูลบุคลากรในระบบ กรุณาติดต่อกลุ่มงานทรัพยากรบุคคลหรือลงทะเบียนสมาชิกโรงพยาบาลเถินก่อนเช็คอิน')
-    const member = memberRows[0]
+    const dbThaiNow = toDbThaiDateTime(now)
+    const checkedInAt = dbThaiNow ? toDbSqlDateTime(dbThaiNow)! : getNowBangkokForDbSql()
+    const checkinRes = await this.gateway.checkinEventViaThaidV2({
+      eventId: Number(event.id),
+      citizenId: sanitizedPid,
+      checkedInAt,
+    })
 
-    const attRows = await this.queryExecutor('SELECT id, checked_in_at FROM event_attendances WHERE event_id = ? AND member_id = ?', [event.id, member.id])
-    if (attRows.length > 0) {
-      const timeMatch = String(attRows[0].checked_in_at).match(/[T ](\d{2}:\d{2})/)
-      const checkedTime = timeMatch ? timeMatch[1] : new Date(attRows[0].checked_in_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok', hour12: false })
+    if (checkinRes.duplicate) {
+      const existingAt = checkinRes.existingCheckedInAt
+      const timeMatch = String(existingAt).match(/[T ](\d{2}:\d{2})/)
+      const checkedTime = timeMatch
+        ? timeMatch[1]
+        : new Date(String(existingAt)).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok', hour12: false })
       throw new Error(`ท่านได้เช็คอินเข้าร่วมกิจกรรมนี้ไปแล้วเมื่อเวลา ${checkedTime} น.`)
     }
 
-    const dbThaiNow = toDbThaiDateTime(now)
-    const checkedInAt = dbThaiNow ? toDbSqlDateTime(dbThaiNow)! : getNowBangkokForDbSql()
-    await this.queryExecutor(`
-      INSERT INTO event_attendances (event_id, member_id, citizen_id, points_awarded, checked_in_at)
-      VALUES (?, ?, ?, 1, ?)
-    `, [event.id, member.id, sanitizedPid, checkedInAt])
+    const member: any = checkinRes.member
 
     try {
       await logAudit(
@@ -1226,48 +1011,32 @@ export class HospitalEventService {
       }
     }
 
-    const eventRows = await this.queryExecutor('SELECT id, title, head_organizer_id FROM hospital_events WHERE id = ?', [eventId])
-    if (eventRows.length === 0) throw new Error('ไม่พบข้อมูลกิจกรรม')
-    const event = eventRows[0]
-
-    const coRows = await this.queryExecutor('SELECT member_id FROM event_organizers WHERE event_id = ?', [eventId])
-    const isAuthorized =
-      actor.role === 'admin' ||
-      event.head_organizer_id === actor.id ||
-      coRows.some((c: any) => c.member_id === actor.id)
-
-    if (!isAuthorized) throw new Error('คุณไม่มีสิทธิ์จัดการรายชื่อผู้เข้าร่วมกิจกรรมนี้')
-
-    const memberRows = await this.queryExecutor('SELECT id, name, department, position, username, profile_path AS profilePath FROM members WHERE id = ?', [data.memberId])
-    if (memberRows.length === 0) throw new Error('ไม่พบข้อมูลบุคลากรที่ระบุ')
-    const member = memberRows[0]
-
-    const attRows = await this.queryExecutor('SELECT id FROM event_attendances WHERE event_id = ? AND member_id = ?', [eventId, member.id])
-    if (attRows.length > 0) throw new Error(`${member.name || 'บุคลากรท่านนี้'} มีรายชื่อเข้าร่วมกิจกรรมนี้แล้ว`)
-
     const checkedInAt = data.checkedInAt
       ? (toDbSqlDateTime(toDbThaiDateTime(data.checkedInAt)) || getNowBangkokForDbSql())
       : getNowBangkokForDbSql()
     const pointsAwarded = data.pointsAwarded !== undefined ? data.pointsAwarded : 1
 
-    const res: any = await this.queryExecutor(`
-      INSERT INTO event_attendances (event_id, member_id, citizen_id, points_awarded, checked_in_at)
-      VALUES (?, ?, ?, ?, ?)
-    `, [eventId, member.id, member.username, pointsAwarded, checkedInAt])
+    const res = await this.gateway.addEventAttendanceV2(eventId, {
+      memberId: data.memberId,
+      pointsAwarded,
+      checkedInAt,
+      actor: actor as unknown as Record<string, unknown>,
+    })
+    const member: any = res.member
 
     try {
       await logAudit(
         'CREATE',
         'event_attendances',
-        `ผู้ดูแลเพิ่มผู้เข้าร่วมงาน: ${member.name} ในกิจกรรม "${event.title}" (+${pointsAwarded} คะแนน) โดย ${actor.name || actor.username}`,
-        { eventId, memberId: member.id, attendanceId: res.insertId, addedBy: actor.id, note: data.note }
+        `ผู้ดูแลเพิ่มผู้เข้าร่วมงาน: ${member.name} ในกิจกรรม "${res.eventTitle}" (+${pointsAwarded} คะแนน) โดย ${actor.name || actor.username}`,
+        { eventId, memberId: member.id, attendanceId: res.id, addedBy: actor.id, note: data.note }
       )
     } catch (err) {
       logger.error({ err }, 'Failed to log manual attendance audit')
     }
 
     return {
-      id: res.insertId,
+      id: res.id,
       eventId,
       memberId: member.id,
       citizenId: member.username,
@@ -1330,69 +1099,24 @@ export class HospitalEventService {
       }
     }
 
-    const eventRows = await this.queryExecutor('SELECT id, title, head_organizer_id FROM hospital_events WHERE id = ?', [eventId])
-    if (eventRows.length === 0) throw new Error('ไม่พบข้อมูลกิจกรรม')
-    const event = eventRows[0]
-
-    const coRows = await this.queryExecutor('SELECT member_id FROM event_organizers WHERE event_id = ?', [eventId])
-    const isAuthorized =
-      actor.role === 'admin' ||
-      event.head_organizer_id === actor.id ||
-      coRows.some((c: any) => c.member_id === actor.id)
-
-    if (!isAuthorized) throw new Error('คุณไม่มีสิทธิ์จัดการรายชื่อผู้เข้าร่วมกิจกรรมนี้')
-
-    const attRows = await this.queryExecutor(`
-      SELECT a.*, m.name
-      FROM event_attendances a
-      JOIN members m ON a.member_id = m.id
-      WHERE a.id = ?
-    `, [attendanceId])
-
-    if (attRows.length === 0 || attRows[0].event_id !== eventId) {
-      throw new Error('ไม่พบข้อมูลการเข้าร่วมกิจกรรมที่ต้องการแก้ไข')
-    }
-
-    const fields: string[] = []
-    const params: any[] = []
-
-    if (data.pointsAwarded !== undefined) {
-      fields.push('points_awarded = ?')
-      params.push(data.pointsAwarded)
-    }
-    if (data.checkedInAt) {
-      fields.push('checked_in_at = ?')
-      params.push(toDbSqlDateTime(toDbThaiDateTime(data.checkedInAt))!)
-    }
-
-    if (fields.length > 0) {
-      params.push(attendanceId)
-      await this.queryExecutor(`UPDATE event_attendances SET ${fields.join(', ')} WHERE id = ?`, params)
-    }
+    const res = await this.gateway.updateEventAttendanceV2(eventId, attendanceId, {
+      pointsAwarded: data.pointsAwarded,
+      checkedInAt: data.checkedInAt ? (toDbSqlDateTime(toDbThaiDateTime(data.checkedInAt)) || undefined) : undefined,
+      actor: actor as unknown as Record<string, unknown>,
+    })
 
     try {
       await logAudit(
         'UPDATE',
         'event_attendances',
-        `ผู้ดูแลแก้ไขข้อมูลการเข้าร่วม: ${attRows[0].name} ในกิจกรรม "${event.title}" (คะแนน: ${data.pointsAwarded}) โดย ${actor.name || actor.username}`,
+        `ผู้ดูแลแก้ไขข้อมูลการเข้าร่วม: ${res.memberName} ในกิจกรรม "${res.eventTitle}" (คะแนน: ${data.pointsAwarded}) โดย ${actor.name || actor.username}`,
         { eventId, attendanceId, changes: data, updatedBy: actor.id }
       )
     } catch (err) {
       logger.error({ err }, 'Failed to log attendance update audit')
     }
 
-    const updatedRows = await this.queryExecutor(`
-      SELECT 
-        a.id, a.event_id AS eventId, a.member_id AS memberId, a.citizen_id AS citizenId,
-        a.points_awarded AS pointsAwarded, a.checked_in_at AS checkedInAt,
-        a.created_at AS createdAt, a.updated_at AS updatedAt,
-        m.id AS m_id, m.name, m.department, m.position, m.profile_path AS profilePath
-      FROM event_attendances a
-      JOIN members m ON a.member_id = m.id
-      WHERE a.id = ?
-    `, [attendanceId])
-
-    const row = updatedRows[0]
+    const row: any = res.row
     return {
       id: row.id,
       eventId: row.eventId,
@@ -1448,37 +1172,18 @@ export class HospitalEventService {
       return { success: true, message: 'ลบรายชื่อผู้เข้าร่วมเรียบร้อยแล้ว' }
     }
 
-    const eventRows = await this.queryExecutor('SELECT id, title, head_organizer_id FROM hospital_events WHERE id = ?', [eventId])
-    if (eventRows.length === 0) throw new Error('ไม่พบข้อมูลกิจกรรม')
-    const event = eventRows[0]
-
-    const coRows = await this.queryExecutor('SELECT member_id FROM event_organizers WHERE event_id = ?', [eventId])
-    const isAuthorized =
-      actor.role === 'admin' ||
-      event.head_organizer_id === actor.id ||
-      coRows.some((c: any) => c.member_id === actor.id)
-
-    if (!isAuthorized) throw new Error('คุณไม่มีสิทธิ์จัดการรายชื่อผู้เข้าร่วมกิจกรรมนี้')
-
-    const attRows = await this.queryExecutor(`
-      SELECT a.*, m.name
-      FROM event_attendances a
-      JOIN members m ON a.member_id = m.id
-      WHERE a.id = ?
-    `, [attendanceId])
-
-    if (attRows.length === 0 || attRows[0].event_id !== eventId) {
-      throw new Error('ไม่พบข้อมูลการเข้าร่วมกิจกรรมที่ต้องการลบ')
-    }
-
-    await this.queryExecutor('DELETE FROM event_attendances WHERE id = ?', [attendanceId])
+    const res = await this.gateway.deleteEventAttendanceV2(
+      eventId,
+      attendanceId,
+      actor as unknown as Record<string, unknown>
+    )
 
     try {
       await logAudit(
         'DELETE',
         'event_attendances',
-        `ผู้ดูแลลบรายชื่อผู้เข้าร่วม: ${attRows[0].name} ออกจากกิจกรรม "${event.title}" โดย ${actor.name || actor.username}`,
-        { eventId, attendanceId, memberId: attRows[0].member_id, deletedBy: actor.id }
+        `ผู้ดูแลลบรายชื่อผู้เข้าร่วม: ${res.memberName} ออกจากกิจกรรม "${res.eventTitle}" โดย ${actor.name || actor.username}`,
+        { eventId, attendanceId, memberId: res.memberId, deletedBy: actor.id }
       )
     } catch (err) {
       logger.error({ err }, 'Failed to log attendance delete audit')
@@ -1506,18 +1211,7 @@ export class HospitalEventService {
       }))
     }
 
-    const rows = await this.queryExecutor(`
-      SELECT a.id, a.event_id AS eventId, a.attachment_type AS attachmentType,
-             a.title, a.file_path AS filePath, a.file_type AS fileType,
-             a.file_size AS fileSize, a.text_content AS textContent,
-             a.uploaded_by_member_id AS uploadedByMemberId, a.display_order AS displayOrder,
-             a.created_at AS createdAt, a.updated_at AS updatedAt,
-             m.id AS uploader_id, m.name AS uploader_name, m.department AS uploader_dept, m.profile_path AS uploader_profile
-      FROM event_attachments a
-      LEFT JOIN members m ON a.uploaded_by_member_id = m.id
-      WHERE a.event_id = ?
-      ORDER BY a.display_order ASC, a.created_at DESC
-    `, [eventId])
+    const rows = await this.gateway.getEventAttachmentsV2(eventId)
 
     return (rows || []).map((r: any) => ({
       id: r.id,
@@ -1594,23 +1288,18 @@ export class HospitalEventService {
       }
     }
 
-    const res: any = await this.queryExecutor(`
-      INSERT INTO event_attachments (
-        event_id, attachment_type, title, file_path, file_type, file_size, text_content, uploaded_by_member_id, display_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `, [
-      eventId,
-      input.attachmentType,
-      input.title.trim(),
-      input.filePath || null,
-      input.fileType || null,
-      input.fileSize || null,
-      input.textContent?.trim() || null,
-      actor.id,
-      input.displayOrder ?? 0,
-    ])
+    const res = await this.gateway.addEventAttachmentV2(eventId, {
+      attachmentType: input.attachmentType,
+      title: input.title.trim(),
+      filePath: input.filePath || null,
+      fileType: input.fileType || null,
+      fileSize: input.fileSize ? Number(input.fileSize) : null,
+      textContent: input.textContent?.trim() || null,
+      uploadedByMemberId: actor.id,
+      displayOrder: input.displayOrder ?? 0,
+    })
 
-    const insertId = res?.insertId || res?.[0]?.insertId
+    const insertId = res?.insertId
     const list = await this.getAttachments(eventId)
     return list.find((a: any) => a.id === insertId) || list[0]
   }
@@ -1646,25 +1335,11 @@ export class HospitalEventService {
       filePathToDelete = existing.filePath
       await this.db.eventAttachment.delete({ where: { id: attachmentId } })
     } else {
-      const rows = await this.queryExecutor(
-        'SELECT id, event_id, file_path, uploaded_by_member_id FROM event_attachments WHERE id = ?',
-        [attachmentId]
-      )
-      const existing = rows?.[0]
-      if (!existing || existing.event_id !== eventId) {
-        throw new Error('ไม่พบข้อมูลเอกสารหรือไฟล์แนบที่ต้องการลบ')
-      }
-
-      const isUploader = Boolean(
-        actor.id &&
-        (existing.uploaded_by_member_id === actor.id || existing.uploadedByMemberId === actor.id)
-      )
-      if (!isOrganizer && !isUploader) {
-        throw new Error('คุณไม่มีสิทธิ์ลบเอกสารหรือรูปภาพในกิจกรรมนี้')
-      }
-
-      filePathToDelete = existing.file_path
-      await this.queryExecutor('DELETE FROM event_attachments WHERE id = ?', [attachmentId])
+      const delRes = await this.gateway.deleteEventAttachmentV2(eventId, attachmentId, {
+        actor: actor as unknown as Record<string, unknown>,
+        isOrganizer: Boolean(isOrganizer),
+      })
+      filePathToDelete = delRes.filePath
     }
 
     if (filePathToDelete) {
@@ -1686,36 +1361,15 @@ export class HospitalEventService {
     checkinOpenTime: Date | string
     checkinCloseTime: Date | string
   } | null> {
-    const eventRows = await this.queryExecutor(
-      `
-      SELECT id, title, qr_token AS qrToken, checkin_open_time AS checkinOpenTime, checkin_close_time AS checkinCloseTime
-      FROM hospital_events
-      WHERE qr_token = ?
-      LIMIT 1
-    `,
-      [token]
-    )
-    return eventRows.length > 0 ? eventRows[0] : null
+    const row = await this.gateway.getEventByQrTokenV2(token)
+    return (row as any) ?? null
   }
 
   async getMemberEventParticipationStats(memberId: number): Promise<{
     totalPoints: number
     registeredCount: number
   }> {
-    const [pointsRows, regRows] = await Promise.all([
-      this.queryExecutor(
-        'SELECT COUNT(*) AS count FROM event_attendances WHERE member_id = ?',
-        [memberId]
-      ),
-      this.queryExecutor(
-        'SELECT COUNT(*) AS count FROM event_registrations WHERE member_id = ?',
-        [memberId]
-      ),
-    ])
-    return {
-      totalPoints: Number(pointsRows[0]?.count ?? 0),
-      registeredCount: Number(regRows[0]?.count ?? 0),
-    }
+    return this.gateway.getEventMemberStatsV2(memberId)
   }
 
   async getEventCreationPreloadData(excludeMemberId: number): Promise<{
@@ -1723,29 +1377,15 @@ export class HospitalEventService {
     loanableAssets: any[]
     hospitalMembers: any[]
   }> {
-    const [materials, assets, members] = await Promise.all([
-      this.queryExecutor(
-        'SELECT id, name, category, available_qty AS availableQty, unit FROM hospital_materials WHERE is_active = 1 ORDER BY name ASC'
-      ),
-      this.queryExecutor(
-        'SELECT id, article_num AS articleNum, name, category FROM hospital_assets WHERE is_loanable = 1 AND status = "ACTIVE" ORDER BY name ASC'
-      ),
-      this.queryExecutor(
-        'SELECT id, name, department, position FROM members ORDER BY name ASC'
-      ),
-    ])
+    const { materials, assets, members } = await this.gateway.getEventsPreloadV2()
     return {
-      loanableMaterials: materials,
-      loanableAssets: assets,
-      hospitalMembers: members.filter((m: any) => m.name && m.id !== excludeMemberId),
+      loanableMaterials: materials || [],
+      loanableAssets: assets || [],
+      hospitalMembers: (members || []).filter((m: any) => m.name && m.id !== excludeMemberId),
     }
   }
 
   async listAvailableMembersForPicker(): Promise<any[]> {
-    return this.queryExecutor(`
-      SELECT id, name, department, position
-      FROM members
-      ORDER BY name ASC
-    `)
+    return this.gateway.getEventsMembersPickerV2()
   }
 }
