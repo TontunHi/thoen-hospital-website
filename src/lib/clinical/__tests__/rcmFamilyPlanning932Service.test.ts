@@ -1,25 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import { RcmFamilyPlanningService } from '../rcmFamilyPlanningService'
 
 describe('RcmFamilyPlanningService - 9.3.2 บริการคุมกำเนิดกึ่งถาวร ในหญิงอายุ 20 ปีขึ้นไป', () => {
   beforeEach(() => {
+    clearMemoryCache()
     vi.clearAllMocks()
   })
 
   it('checks ADP mapping for format 1 (FP001, FP002) and format 2 (20003, 20004)', async () => {
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('FROM s_drugitems')) {
-        return Promise.resolve([
+    const mockGateway = {
+      getFp932AdpMapping: vi.fn().mockResolvedValue({
+        isMapped: true,
+        mappedCount: 2,
+        adpCodes: ['FP001', 'FP002'],
+        items: [
           { icode: '3000798', name: 'ห่วงอนามัย', strength: null, nhso_adp_code: 'FP001' },
           { icode: '3000799', name: 'ยาฝังคุมกำเนิด', strength: null, nhso_adp_code: 'FP002' },
-        ])
-      }
-      return Promise.resolve([])
-    })
+        ],
+      }),
+    }
 
     const result = await RcmFamilyPlanningService.checkFamilyPlanning932AdpMapping(
       'NEW_ECLAIM',
-      mockExecutor
+      mockGateway
     )
 
     expect(result.isMapped).toBe(true)
@@ -91,15 +95,21 @@ describe('RcmFamilyPlanningService - 9.3.2 บริการคุมกำเ�
       },
     ]
 
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('FROM s_drugitems') || sql.includes('FROM nondrugitems')) {
-        return Promise.resolve([
-          { icode: '3000798', name: 'ห่วงอนามัย', strength: null, nhso_adp_code: 'FP001' },
-          { icode: '3000799', name: 'ยาฝังคุมกำเนิด', strength: null, nhso_adp_code: 'FP002' },
-        ])
-      }
-      return Promise.resolve(mockRows)
-    })
+    const mockGateway = {
+      getFp932Raw: vi.fn().mockResolvedValue({
+        rawRows: mockRows,
+        adpMapping: {
+          isMapped: true,
+          mappedCount: 2,
+          adpCodes: ['FP001', 'FP002'],
+          items: [
+            { icode: '3000798', name: 'ห่วงอนามัย', strength: null, nhso_adp_code: 'FP001' },
+            { icode: '3000799', name: 'ยาฝังคุมกำเนิด', strength: null, nhso_adp_code: 'FP002' },
+          ],
+        },
+      }),
+      seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+    }
 
     const report = await RcmFamilyPlanningService.getFamilyPlanning932Report(
       {
@@ -107,7 +117,7 @@ describe('RcmFamilyPlanningService - 9.3.2 บริการคุมกำเ�
         endDate: '2026-11-06',
         format: 'NEW_ECLAIM',
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(report.summary.totalCases).toBe(2)
@@ -163,12 +173,18 @@ describe('RcmFamilyPlanningService - 9.3.2 บริการคุมกำเ�
       },
     ]
 
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('FROM s_drugitems') || sql.includes('FROM nondrugitems')) {
-        return Promise.resolve([])
-      }
-      return Promise.resolve(mockRows)
-    })
+    const mockGateway = {
+      getFp932Raw: vi.fn().mockResolvedValue({
+        rawRows: mockRows,
+        adpMapping: {
+          isMapped: false,
+          mappedCount: 0,
+          adpCodes: ['FP001', 'FP002'],
+          items: [],
+        },
+      }),
+      seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+    }
 
     const resultCompensated = await RcmFamilyPlanningService.getFamilyPlanning932Report(
       {
@@ -176,7 +192,7 @@ describe('RcmFamilyPlanningService - 9.3.2 บริการคุมกำเ�
         endDate: '2026-11-06',
         cardFilter: 'COMPENSATED',
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(resultCompensated.items.length).toBe(1)
@@ -188,7 +204,7 @@ describe('RcmFamilyPlanningService - 9.3.2 บริการคุมกำเ�
         endDate: '2026-11-06',
         search: 'สมศรี',
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(resultSearch.items.length).toBe(1)

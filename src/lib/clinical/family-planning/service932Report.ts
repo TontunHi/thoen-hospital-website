@@ -1,45 +1,11 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
+import { resolveFiscalDateRange } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
 import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
-  NEW_ECLAIM_ADP_CODES,
-  KRUNGTHAI_ADP_CODES,
-  IUD_ADP_CODES,
-  getAdpCodeForReport,
-  getExpectedDxForReport,
-  getReportTitle,
-  evaluateFamilyPlanningDiscrepancy,
-  type FamilyPlanningReportType,
-  type FamilyPlanningPatientType,
-  type FamilyPlanningCardFilter,
-  type FamilyPlanningSearchField,
-  type FamilyPlanningSortField,
-  type FamilyPlanningReportParams,
-  type FamilyPlanningAdpMappingItem,
-  type FamilyPlanningAdpMappingCheck,
-  type FamilyPlanningFormat,
-  type FamilyPlanning91CardFilter,
-  type FamilyPlanning91SearchField,
-  type FamilyPlanning91SortField,
-  type FamilyPlanning91Item,
-  type FamilyPlanning91Summary,
-  type FamilyPlanning91ReportResult,
-  type FamilyPlanningItem,
-  type FamilyPlanningSummary,
-  type FamilyPlanningReportResult,
-  type IudPatientType,
-  type IudCardFilter,
-  type IudSearchField,
-  type IudSortField,
-  type IudReportParams,
-  type IudAdpMappingCheck,
-  type IudItem,
-  type IudSummary,
-  type IudReportResult,
+  defaultFpV2Gateway,
+  type FamilyPlanningV2GatewayAdapter,
   type FamilyPlanning932Format,
   type FamilyPlanning932CardFilter,
   type FamilyPlanning932SearchField,
@@ -51,100 +17,60 @@ import {
   type FamilyPlanning932ReportResult,
 } from './typesAndHelpers'
 
-  // ── 9.3.2 บริการคุมกำเนิดกึ่งถาวร ในหญิงอายุ 20 ปีขึ้นไป ─────────────────────────
-
-  /**
-   * Check ADP code mapping for 9.3.2 (FP001, FP002 or 20003, 20004).
-   */
 export async function checkFamilyPlanning932AdpMapping(
-    format: FamilyPlanning932Format = 'NEW_ECLAIM',
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<FamilyPlanning932AdpMappingCheck> {
-    const adpCodes = format === 'KRUNGTHAI' ? ['20003', '20004'] : ['FP001', 'FP002']
-    const cacheKey = `rcm-fp-932-adp-mapping-${format}`
+  format: FamilyPlanning932Format = 'NEW_ECLAIM',
+  gateway: Partial<FamilyPlanningV2GatewayAdapter> = {}
+): Promise<FamilyPlanning932AdpMappingCheck> {
+  const gw = { ...defaultFpV2Gateway, ...gateway }
+  const adpCodes = format === 'KRUNGTHAI' ? ['20003', '20004'] : ['FP001', 'FP002']
+  const cacheKey = `rcm-fp-932-adp-mapping-${format}`
 
-    return await getCachedData(
-      cacheKey,
-      async () => {
-        try {
-          const placeholders = adpCodes.map(() => '?').join(', ')
-          const sRows = await executor(
-            `SELECT icode, name, strength, nhso_adp_code
-             FROM s_drugitems
-             WHERE nhso_adp_code IN (${placeholders})
-             ORDER BY name ASC`,
-            adpCodes,
-            { timeoutMs: 15000 }
-          )
+  return await getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        return await gw.getFp932AdpMapping(format)
+      } catch {
+        return { isMapped: true, mappedCount: 0, adpCodes, items: [] }
+      }
+    },
+    86400000
+  )
+}
 
-          const ndRows = await executor(
-            `SELECT icode, name, NULL AS strength, nhso_adp_code
-             FROM nondrugitems
-             WHERE nhso_adp_code IN (${placeholders})
-             ORDER BY name ASC`,
-            adpCodes,
-            { timeoutMs: 15000 }
-          )
+export async function getFamilyPlanning932Report(
+  params: FamilyPlanning932Params = {},
+  gateway: Partial<FamilyPlanningV2GatewayAdapter> = {}
+): Promise<FamilyPlanning932ReportResult> {
+  const gw = { ...defaultFpV2Gateway, ...gateway }
+  const format: FamilyPlanning932Format = params.format || 'NEW_ECLAIM'
+  const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+  const cardFilter: FamilyPlanning932CardFilter = params.cardFilter || 'ALL'
+  const searchField: FamilyPlanning932SearchField = params.searchField || 'ALL'
+  const search = (params.search || '').trim().toLowerCase()
+  const sortBy: FamilyPlanning932SortField = params.sortBy || 'vstdate'
+  const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
+  const page = Math.max(1, Number(params.page || 1))
+  const pageSize = Math.max(1, Number(params.pageSize || 50))
+  const exportAll = Boolean(params.exportAll)
 
-          const combined = [...(sRows || []), ...(ndRows || [])]
-          const uniqueItems = Array.from(
-            new Map(combined.map((item: any) => [item.icode, item])).values()
-          ) as FamilyPlanningAdpMappingItem[]
-
-          return {
-            isMapped: uniqueItems.length > 0,
-            mappedCount: uniqueItems.length,
-            adpCodes,
-            items: uniqueItems,
-          }
-        } catch {
-          return {
-            isMapped: true,
-            mappedCount: 0,
-            adpCodes,
-            items: [],
-          }
-        }
-      },
-      86400000
-    )
+  const cacheKey = `rcm-fp-932-${format}-${ds1}-${ds2}`
+  if (params.refresh) {
+    invalidateCacheKey(cacheKey)
+    invalidateCacheKey(`rcm-fp-932-adp-mapping-${format}`)
   }
 
-  /**
-   * 9.3.2 บริการคุมกำเนิดกึ่งถาวร ในหญิงอายุ 20 ปีขึ้นไป report implementation.
-   */
-export async function getFamilyPlanning932Report(
-    params: FamilyPlanning932Params = {},
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<FamilyPlanning932ReportResult> {
-    const format: FamilyPlanning932Format = params.format || 'NEW_ECLAIM'
-    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
-    const cardFilter: FamilyPlanning932CardFilter = params.cardFilter || 'ALL'
-    const searchField: FamilyPlanning932SearchField = params.searchField || 'ALL'
-    const search = (params.search || '').trim().toLowerCase()
-    const sortBy: FamilyPlanning932SortField = params.sortBy || 'vstdate'
-    const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
-    const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.max(1, Number(params.pageSize || 50))
-    const exportAll = Boolean(params.exportAll)
-
-    const cacheKey = `rcm-fp-932-${format}-${ds1}-${ds2}`
-    if (params.refresh) {
-      invalidateCacheKey(cacheKey)
-      invalidateCacheKey(`rcm-fp-932-adp-mapping-${format}`)
-    }
-
-    const { rawRows, adpMapping } = await getCachedData(
-      cacheKey,
-      async () => {
-        const [mappingRes, rows] = await Promise.all([
-          checkFamilyPlanning932AdpMapping(format, executor),
-          queryFamilyPlanning932Rows(ds1, ds2, format, executor),
-        ])
-        return { rawRows: rows, adpMapping: mappingRes }
-      },
-      300000
-    )
+  const { rawRows, adpMapping } = await getCachedData(
+    cacheKey,
+    async () =>
+      gw.getFp932Raw({
+        startDate: ds1,
+        endDate: ds2,
+        format,
+        refresh: Boolean(params.refresh),
+      }),
+    300000
+  )
 
     let allItems: FamilyPlanning932Item[] = (rawRows || []).map((row: any, idx: number) => {
       const compensatedEclaim = Number(row.compensated_eclaim) || 0
@@ -212,7 +138,7 @@ export async function getFamilyPlanning932Report(
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, gw.seamlessFetcher, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
@@ -367,243 +293,5 @@ export async function getFamilyPlanning932Report(
       },
       items: paginatedItems,
       repBreakdown,
-    }
-  }
-
-  /**
-   * Execute SQL Query for Family Planning 9.3.2 (หญิงอายุ 20 ปีขึ้นไป).
-   */
-export async function queryFamilyPlanning932Rows(
-    ds1: string,
-    ds2: string,
-    format: FamilyPlanning932Format,
-    executor: QueryExecutor
-  ): Promise<any[]> {
-    const adp1 = format === 'KRUNGTHAI' ? '20003' : 'FP001'
-    const adp2 = format === 'KRUNGTHAI' ? '20004' : 'FP002'
-
-    try {
-      const sql = `
-        SELECT 
-          o.vn,
-          IFNULL(o.an, '') AS an,
-          IFNULL(pt.cid, '') AS cid,
-          o.hn,
-          CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-          IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
-          COALESCE(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
-          DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-          TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-          CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          ptt.pttype_eclaim_id,
-          COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(cc2.auth_code), ''), NULLIF(TRIM(cc2.claim_code), ''), '') AS authencode,
-          dep.department AS department,
-          spc.name AS clinic,
-          IFNULL(v.income, 0) AS income,
-          drug_sub.drugname,
-          drug_sub.drug_adp,
-          fp_sub.listname,
-          fp_sub.fp_adp,
-          CONCAT_WS(',', NULLIF(drug_sub.drug_adp, ''), NULLIF(fp_sub.fp_adp, '')) AS adpcode,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ') AS dx,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS op,
-          COALESCE(e.income, 0) AS compensated_eclaim,
-          COALESCE(r.income, 0) AS compensated_rep,
-          COALESCE(n.income, 0) AS compensated_nhso,
-          COALESCE(NULLIF(e.rep, ''), NULLIF(nn.Rep, ''), '') AS rep_eclaim,
-          COALESCE(r.rep, '') AS rep_rep,
-          COALESCE(n.rep, '') AS rep_nhso,
-          CASE
-            WHEN n.vn IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
-            WHEN r.vn IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
-            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
-            WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
-            ELSE '- :: ยังไม่ได้ส่ง'
-          END AS status
-        FROM (
-          SELECT DISTINCT oo.vn
-          FROM opitemrece oo
-          LEFT JOIN drugitems d ON d.icode = oo.icode
-          LEFT JOIN nondrugitems nd ON nd.icode = oo.icode
-          WHERE oo.vstdate BETWEEN ? AND ?
-            AND IFNULL(oo.vn, '') <> ''
-            AND (
-              d.name REGEXP 'norplant|implanon|jadelle'
-              OR d.name LIKE '%ยาฝัง%'
-              OR d.name LIKE '%ยาคุมกำเนิดชนิดฝัง%'
-              OR nd.nhso_adp_code IN (?, ?)
-            )
-        ) filtered_vn
-        JOIN ovst o ON o.vn = filtered_vn.vn
-        JOIN patient pt ON pt.hn = o.hn
-        LEFT JOIN vn_stat v ON v.vn = o.vn
-        LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-        LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-        LEFT JOIN spclty spc ON spc.spclty = o.spclty
-        LEFT JOIN ovstdiag dx ON dx.vn = o.vn
-        LEFT JOIN (
-          SELECT oo.vn,
-                 GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS drugname,
-                 GROUP_CONCAT(DISTINCT d.nhso_adp_code SEPARATOR ', ') AS drug_adp
-          FROM opitemrece oo
-          JOIN drugitems d ON d.icode = oo.icode
-          WHERE oo.vstdate BETWEEN ? AND ?
-            AND (
-              d.name REGEXP 'norplant|implanon|jadelle'
-              OR d.name LIKE '%ยาฝัง%'
-              OR d.name LIKE '%ยาคุมกำเนิดชนิดฝัง%'
-            )
-          GROUP BY oo.vn
-        ) drug_sub ON drug_sub.vn = o.vn
-        LEFT JOIN (
-          SELECT oo.vn,
-                 GROUP_CONCAT(DISTINCT nd.name SEPARATOR ', ') AS listname,
-                 GROUP_CONCAT(DISTINCT nd.nhso_adp_code SEPARATOR ', ') AS fp_adp
-          FROM opitemrece oo
-          JOIN nondrugitems nd ON nd.icode = oo.icode
-          WHERE oo.vstdate BETWEEN ? AND ?
-            AND nd.nhso_adp_code IN (?, ?)
-          GROUP BY oo.vn
-        ) fp_sub ON fp_sub.vn = o.vn
-        LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-        LEFT JOIN visit_pttype cc2 ON cc2.vn = o.vn
-        LEFT JOIN (
-          SELECT e.opdseq AS vn,
-                 SUM(COALESCE(cc.totpay1, 0)) AS income,
-                 SUBSTRING_INDEX(GROUP_CONCAT(IF(e.status = '4', e.rep, NULL) ORDER BY e.eclaim_no DESC), ',', 1) AS rep
-          FROM eclaimdb.m_registerdata e
-          JOIN eclaimdb.m_serviceother cc ON cc.eclaim_no = e.eclaim_no
-          WHERE e.person_type = '1'
-            AND e.dateadm BETWEEN ? AND ?
-          GROUP BY e.opdseq
-        ) e ON e.vn = o.vn
-        LEFT JOIN (
-          SELECT vn,
-                 SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
-                 GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-          FROM rcmdb.repdata
-          WHERE department = 'OP'
-          GROUP BY vn
-        ) r ON r.vn = o.vn
-        LEFT JOIN (
-          SELECT vn,
-                 SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
-                 GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-          FROM rcmdb.repeclaim
-          WHERE department = 'OP'
-          GROUP BY vn
-        ) n ON n.vn = o.vn
-        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-        LEFT JOIN (
-          SELECT m.opdseq AS vn,
-                 SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                 SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status
-          FROM eclaimdb.m_registerdata m
-          WHERE m.person_type = '1'
-            AND m.opdseq IS NOT NULL
-            AND m.dateadm BETWEEN ? AND ?
-          GROUP BY m.opdseq
-        ) m ON m.vn = o.vn
-        LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-        WHERE o.vstdate BETWEEN ? AND ?
-          AND pt.sex = '2'
-          AND (v.age_y >= 20 OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) >= 20)
-          AND (drug_sub.vn IS NOT NULL OR fp_sub.vn IS NOT NULL)
-        GROUP BY o.vn
-        ORDER BY o.vstdate DESC, o.vsttime DESC;
-      `
-
-      return await executor(
-        sql,
-        [ds1, ds2, adp1, adp2, ds1, ds2, ds1, ds2, adp1, adp2, ds1, ds2, ds1, ds2, ds1, ds2],
-        { timeoutMs: 90000 }
-      )
-    } catch {
-      const fallbackSql = `
-        SELECT 
-          o.vn,
-          IFNULL(o.an, '') AS an,
-          IFNULL(pt.cid, '') AS cid,
-          o.hn,
-          CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-          IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
-          COALESCE(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
-          DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-          TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-          CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          COALESCE(NULLIF(TRIM(cc2.auth_code), ''), NULLIF(TRIM(cc2.claim_code), ''), '') AS authencode,
-          dep.department AS department,
-          spc.name AS clinic,
-          IFNULL(v.income, 0) AS income,
-          drug_sub.drugname,
-          drug_sub.drug_adp,
-          fp_sub.listname,
-          fp_sub.fp_adp,
-          CONCAT_WS(',', NULLIF(drug_sub.drug_adp, ''), NULLIF(fp_sub.fp_adp, '')) AS adpcode,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ') AS dx,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS op,
-          0 AS compensated_eclaim,
-          0 AS compensated_rep,
-          0 AS compensated_nhso,
-          '' AS rep_eclaim,
-          '' AS rep_rep,
-          '' AS rep_nhso,
-          '- :: ยังไม่ได้ส่ง' AS status
-        FROM (
-          SELECT DISTINCT oo.vn
-          FROM opitemrece oo
-          LEFT JOIN drugitems d ON d.icode = oo.icode
-          LEFT JOIN nondrugitems nd ON nd.icode = oo.icode
-          WHERE oo.vstdate BETWEEN ? AND ?
-            AND IFNULL(oo.vn, '') <> ''
-            AND (
-              d.name REGEXP 'norplant|implanon|jadelle'
-              OR d.name LIKE '%ยาฝัง%'
-              OR d.name LIKE '%ยาคุมกำเนิดชนิดฝัง%'
-              OR nd.nhso_adp_code IN (?, ?)
-            )
-        ) filtered_vn
-        JOIN ovst o ON o.vn = filtered_vn.vn
-        JOIN patient pt ON pt.hn = o.hn
-        LEFT JOIN vn_stat v ON v.vn = o.vn
-        LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-        LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-        LEFT JOIN spclty spc ON spc.spclty = o.spclty
-        LEFT JOIN ovstdiag dx ON dx.vn = o.vn
-        LEFT JOIN (
-          SELECT oo.vn,
-                 GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS drugname,
-                 GROUP_CONCAT(DISTINCT d.nhso_adp_code SEPARATOR ', ') AS drug_adp
-          FROM opitemrece oo
-          JOIN drugitems d ON d.icode = oo.icode
-          WHERE oo.vstdate BETWEEN ? AND ?
-            AND (
-              d.name REGEXP 'norplant|implanon|jadelle'
-              OR d.name LIKE '%ยาฝัง%'
-              OR d.name LIKE '%ยาคุมกำเนิดชนิดฝัง%'
-            )
-          GROUP BY oo.vn
-        ) drug_sub ON drug_sub.vn = o.vn
-        LEFT JOIN (
-          SELECT oo.vn,
-                 GROUP_CONCAT(DISTINCT nd.name SEPARATOR ', ') AS listname,
-                 GROUP_CONCAT(DISTINCT nd.nhso_adp_code SEPARATOR ', ') AS fp_adp
-          FROM opitemrece oo
-          JOIN nondrugitems nd ON nd.icode = oo.icode
-          WHERE oo.vstdate BETWEEN ? AND ?
-            AND nd.nhso_adp_code IN (?, ?)
-          GROUP BY oo.vn
-        ) fp_sub ON fp_sub.vn = o.vn
-        LEFT JOIN visit_pttype cc2 ON cc2.vn = o.vn
-        WHERE o.vstdate BETWEEN ? AND ?
-          AND pt.sex = '2'
-          AND (v.age_y >= 20 OR TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) >= 20)
-          AND (drug_sub.vn IS NOT NULL OR fp_sub.vn IS NOT NULL)
-        GROUP BY o.vn
-        ORDER BY o.vstdate DESC, o.vsttime DESC;
-      `
-      return await executor(fallbackSql, [ds1, ds2, adp1, adp2, ds1, ds2, ds1, ds2, adp1, adp2, ds1, ds2], {
-        timeoutMs: 60000,
-      })
     }
   }

@@ -1,17 +1,11 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
-import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { resolveFiscalDateRange } from '../rcmDashboardService'
 import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
   classifyPpSpecialCodes,
-  PERSON_SELECT_COLUMNS,
-  PERSON_FROM_JOINS,
-  chunkArray,
   compareTargetItems,
-  compareScreenedItems,
-  compareService1B004NItems,
+  defaultCcsGateway,
+  type CcsGatewayAdapter,
   type CcsTargetPopulationParams,
   type CcsTargetPopulationResult,
   type CcsTargetPopulationItem,
@@ -21,196 +15,73 @@ import {
   type CcsTargetSortField,
   type CcsTargetRowMatchType,
   type RepIndividualPersonLookup,
-  type CcsScreenedRecipientsParams,
-  type CcsScreenedRecipientsResult,
-  type CcsScreenedRecipientItem,
-  type CcsScreenedRecipientsSummary,
-  type CcsMethodFilter,
-  type CcsOkFilter,
-  type CcsResultStatusFilter,
-  type CcsCompensationFilter,
-  type CcsScreenedSearchField,
-  type CcsScreenedSortField,
-  type CcsAdpMappingCheck,
-  type CcsAdpMappingItem,
-  type CcsService1B004NParams,
-  type CcsService1B004NResult,
-  type CcsService1B004NItem,
-  type CcsService1B004NSummary,
-  type CcsService1B004NCompensationFilter,
-  type CcsService1B004NSearchField,
-  type CcsService1B004NSortField,
-  type CcsService1B004PParams,
-  type CcsService1B004PResult,
-  type CcsService1B004PItem,
-  type CcsService1B004PSummary,
-  type CcsService1B004PCompensationFilter,
-  type CcsService1B004PSearchField,
-  type CcsService1B004PSortField,
-  type CcsService1B004_0NParams,
-  type CcsService1B004_0NResult,
-  type CcsService1B004_0NCompensationFilter,
-  type CcsService1B004_0NSearchField,
-  type CcsService1B004_0NSortField,
-  type CcsService1B005Params,
-  type CcsService1B005Result,
-  type CcsService1B005CompensationFilter,
-  type CcsService1B005SearchField,
-  type CcsService1B005SortField,
 } from './typesAndHelpers'
 
-  /**
-   * Look up person demographics by 13-digit CIDs (FoxPro `Proc QueryPerson`).
-   */
+/**
+ * Look up person demographics by 13-digit CIDs via Gateway Named API.
+ */
 export async function lookupPersonsByCids(
-    cids: string[],
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<Map<string, RepIndividualPersonLookup>> {
-    const map = new Map<string, RepIndividualPersonLookup>()
-    const uniqueCids = Array.from(
-      new Set(cids.map((c) => c.replace(/\D/g, '')).filter((c) => c.length === 13))
-    )
-    if (uniqueCids.length === 0) return map
+  cids: string[],
+  gateway: Partial<CcsGatewayAdapter> = {}
+): Promise<Map<string, RepIndividualPersonLookup>> {
+  const gw = { ...defaultCcsGateway, ...gateway }
+  const map = new Map<string, RepIndividualPersonLookup>()
+  const uniqueCids = Array.from(
+    new Set(cids.map((c) => c.replace(/\D/g, '')).filter((c) => c.length === 13))
+  )
+  if (uniqueCids.length === 0) return map
 
-    for (const chunk of chunkArray(uniqueCids, 400)) {
-      const ph = chunk.map(() => '?').join(',')
-      const rows = await executor(
-        `SELECT ${PERSON_SELECT_COLUMNS} ${PERSON_FROM_JOINS} WHERE p.cid IN (${ph})`,
-        chunk,
-        { timeoutMs: 45000 }
-      )
-      for (const r of rows || []) {
-        const cid = String(r.cid || '').replace(/\D/g, '')
-        if (!cid || map.has(cid)) continue
-        map.set(cid, {
-          person_id: String(r.person_id || ''),
-          hn: String(r.hn || '').trim(),
-          cid,
-          ptname: String(r.ptname || '').trim(),
-          birthdate: r.birthdate ? String(r.birthdate) : null,
-          age: r.age != null ? Number(r.age) : null,
-          sex: r.sex ? String(r.sex) : null,
-          nation: r.nation ? String(r.nation).trim() : null,
-          person_discharge_id: r.person_discharge_id != null ? Number(r.person_discharge_id) : null,
-          typearea: String(r.typearea || '').trim(),
-          address: String(r.address || '').trim(),
-        })
-      }
-    }
-
-    return map
+  const rows = await gw.lookupCcsPersonsByCids(uniqueCids)
+  for (const r of rows || []) {
+    const cid = String(r.cid || '').replace(/\D/g, '')
+    if (!cid || map.has(cid)) continue
+    map.set(cid, {
+      person_id: String(r.person_id || ''),
+      hn: String(r.hn || '').trim(),
+      cid,
+      ptname: String(r.ptname || '').trim(),
+      birthdate: r.birthdate ? String(r.birthdate) : null,
+      age: r.age != null ? Number(r.age) : null,
+      sex: r.sex ? String(r.sex) : null,
+      nation: r.nation ? String(r.nation).trim() : null,
+      person_discharge_id: r.person_discharge_id != null ? Number(r.person_discharge_id) : null,
+      typearea: String(r.typearea || '').trim(),
+      address: String(r.address || '').trim(),
+    })
   }
 
-  /**
-   * 1. หญิงไทยอายุ 30 - 60 ปี ได้รับการตรวจคัดกรองมะเร็งปากมดลูก
-   * Reconciles HOSxP `person` target population (female, Thai, age 30-60, discharge=9)
-   * with OPD CCS screening visits (`tmpPapSmear`), `rcmdb.seamless` (`tmpCCS`),
-   * `rcmdb.repeclaim` (`nhso` HPV), and CID-level `CheckData` + `QueryPerson`.
-   */
+  return map
+}
+
 export async function getTargetPopulationReport(
-    params: CcsTargetPopulationParams = {},
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<CcsTargetPopulationResult> {
-    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
-    const screeningFilter: CcsTargetScreeningFilter = params.screeningFilter || 'ALL'
-    const typeareaFilter: 'ALL' | '1_3' = params.typeareaFilter || 'ALL'
-    const searchField: CcsTargetSearchField = params.searchField || 'ALL'
-    const search = (params.search || '').trim().toLowerCase()
-    const sortBy: CcsTargetSortField = params.sortBy || 'hn'
-    const sortOrder: 'asc' | 'desc' = params.sortOrder || 'asc'
-    const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.max(1, Number(params.pageSize || 50))
-    const exportAll = Boolean(params.exportAll)
+  params: CcsTargetPopulationParams = {},
+  gateway: Partial<CcsGatewayAdapter> = {}
+): Promise<CcsTargetPopulationResult> {
+  const gw = { ...defaultCcsGateway, ...gateway }
+  const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+  const screeningFilter: CcsTargetScreeningFilter = params.screeningFilter || 'ALL'
+  const typeareaFilter: 'ALL' | '1_3' = params.typeareaFilter || 'ALL'
+  const searchField: CcsTargetSearchField = params.searchField || 'ALL'
+  const search = (params.search || '').trim().toLowerCase()
+  const sortBy: CcsTargetSortField = params.sortBy || 'hn'
+  const sortOrder: 'asc' | 'desc' = params.sortOrder || 'asc'
+  const page = Math.max(1, Number(params.page || 1))
+  const pageSize = Math.max(1, Number(params.pageSize || 50))
+  const exportAll = Boolean(params.exportAll)
 
-    const cacheKey = `rcm-ccs-p1-target-${ds1}-${ds2}`
-    if (params.refresh) {
-      invalidateCacheKey(cacheKey)
-    }
+  const cacheKey = `rcm-ccs-p1-target-${ds1}-${ds2}`
+  if (params.refresh) {
+    invalidateCacheKey(cacheKey)
+  }
 
-    const allRows = await getCachedData(
-      cacheKey,
-      async () => {
-        const [personRows, visitRows, seamlessRows, hpvRepRows] = await Promise.all([
-          executor(
-            `
-            SELECT ${PERSON_SELECT_COLUMNS}
-            ${PERSON_FROM_JOINS}
-            WHERE TIMESTAMPDIFF(YEAR, p.birthdate, NOW()) BETWEEN 30 AND 60
-              AND p.sex = '2'
-              AND p.nationality = '99'
-              AND p.person_discharge_id = 9
-            ORDER BY p.patient_hn ASC, p.person_id ASC
-            `,
-            [],
-            { timeoutMs: 90000 }
-          ),
-          executor(
-            `
-            SELECT
-              o.vn,
-              o.hn,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              NULLIF(TRIM(s.cc), '') AS cc,
-              CONCAT_WS(',', NULLIF(v.pdx,''), NULLIF(v.dx0,''), NULLIF(v.dx1,''), NULLIF(v.dx2,''), NULLIF(v.dx3,''), NULLIF(v.dx4,''), NULLIF(v.dx5,'')) AS icd10,
-              GROUP_CONCAT(DISTINCT IFNULL(hc.name, NULLIF(pp.dest_hospcode, ''))) AS hospital,
-              GROUP_CONCAT(DISTINCT doc.name) AS doctorname,
-              GROUP_CONCAT(DISTINCT t.pp_special_code) AS pp_codes
-            FROM ovst o
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN opdscreen s ON s.vn = o.vn
-            LEFT JOIN pp_special pp ON pp.vn = o.vn
-            LEFT JOIN pp_special_type t ON t.pp_special_type_id = pp.pp_special_type_id
-            LEFT JOIN hospcode hc ON hc.hospcode = pp.dest_hospcode
-            LEFT JOIN doctor doc ON doc.code = pp.doctor
-            WHERE o.vstdate BETWEEN ? AND ?
-              AND (
-                t.pp_special_code REGEXP '^1B004|^1B30|^1B40|^0320277'
-                OR CONCAT_WS(',', v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5) REGEXP 'Z124'
-              )
-            GROUP BY o.vn
-            ORDER BY o.vn ASC
-            `,
-            [ds1, ds2],
-            { timeoutMs: 60000 }
-          ),
-          executor(
-            `
-            SELECT
-              VN AS vn,
-              HN AS hn,
-              PID AS cid,
-              Ptname AS ptname,
-              Rep AS rep,
-              DATE_FORMAT(AdmDate, '%Y-%m-%d') AS admdate,
-              PayNo AS payno,
-              Status AS status,
-              IFNULL(Compensated, 0) AS compensated,
-              HSub AS hsub,
-              Note AS note
-            FROM rcmdb.seamless
-            WHERE Rep REGEXP 'CCS'
-              AND AdmDate >= ? AND AdmDate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND IFNULL(Compensated, 0) > 0
-            `,
-            [ds1, ds2],
-            { timeoutMs: 60000 }
-          ),
-          executor(
-            `
-            SELECT
-              VN AS vn,
-              HN AS hn,
-              PID AS cid,
-              Rep AS rep,
-              IFNULL(Compensated, 0) AS compensated
-            FROM rcmdb.repeclaim
-            WHERE AdmDate >= ? AND AdmDate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND FileName REGEXP 'HPV'
-            `,
-            [ds1, ds2],
-            { timeoutMs: 60000 }
-          ),
-        ])
+  const allRows = await getCachedData(
+    cacheKey,
+    async () => {
+      const { personRows, visitRows, seamlessRows, hpvRepRows } = await gw.getCcsTargetPopulationRaw({
+        startDate: ds1,
+        endDate: ds2,
+        refresh: Boolean(params.refresh),
+      })
 
         // Group screening visits by HN (ordered by o.vn ASC)
         const visitsByHn = new Map<string, Record<string, unknown>[]>()
@@ -448,7 +319,7 @@ export async function getTargetPopulationReport(
 
         const extraPersonMap =
           unmatchedCids.length > 0
-            ? await lookupPersonsByCids(unmatchedCids, executor)
+            ? await lookupPersonsByCids(unmatchedCids, gw)
             : new Map<string, RepIndividualPersonLookup>()
 
         for (const cidKey of unmatchedCids) {
@@ -571,7 +442,7 @@ export async function getTargetPopulationReport(
 
         const newExcelCids = Array.from(excelDatesByCid.keys()).filter((c) => !matchedExcelCids.has(c))
         if (newExcelCids.length > 0) {
-          const personLookup = await lookupPersonsByCids(newExcelCids, executor)
+          const personLookup = await lookupPersonsByCids(newExcelCids, gw)
           for (const cidKey of newExcelCids) {
             const found = personLookup.get(cidKey)
             const dates = Array.from(excelDatesByCid.get(cidKey) || [])

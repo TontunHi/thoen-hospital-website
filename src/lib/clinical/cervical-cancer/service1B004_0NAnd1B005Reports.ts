@@ -1,52 +1,13 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
+import { resolveFiscalDateRange } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
 import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
-  classifyPpSpecialCodes,
-  PERSON_SELECT_COLUMNS,
-  PERSON_FROM_JOINS,
-  chunkArray,
-  compareTargetItems,
-  compareScreenedItems,
   compareService1B004NItems,
-  type CcsTargetPopulationParams,
-  type CcsTargetPopulationResult,
-  type CcsTargetPopulationItem,
-  type CcsTargetPopulationSummary,
-  type CcsTargetScreeningFilter,
-  type CcsTargetSearchField,
-  type CcsTargetSortField,
-  type CcsTargetRowMatchType,
-  type RepIndividualPersonLookup,
-  type CcsScreenedRecipientsParams,
-  type CcsScreenedRecipientsResult,
-  type CcsScreenedRecipientItem,
-  type CcsScreenedRecipientsSummary,
-  type CcsMethodFilter,
-  type CcsOkFilter,
-  type CcsResultStatusFilter,
-  type CcsCompensationFilter,
-  type CcsScreenedSearchField,
-  type CcsScreenedSortField,
+  defaultCcsGateway,
+  type CcsGatewayAdapter,
   type CcsAdpMappingCheck,
-  type CcsAdpMappingItem,
-  type CcsService1B004NParams,
-  type CcsService1B004NResult,
-  type CcsService1B004NItem,
-  type CcsService1B004NSummary,
-  type CcsService1B004NCompensationFilter,
-  type CcsService1B004NSearchField,
-  type CcsService1B004NSortField,
-  type CcsService1B004PParams,
-  type CcsService1B004PResult,
-  type CcsService1B004PItem,
-  type CcsService1B004PSummary,
-  type CcsService1B004PCompensationFilter,
-  type CcsService1B004PSearchField,
-  type CcsService1B004PSortField,
   type CcsService1B004_0NParams,
   type CcsService1B004_0NResult,
   type CcsService1B004_0NItem,
@@ -63,159 +24,47 @@ import {
   type CcsService1B005SortField,
 } from './typesAndHelpers'
 
-  /**
-   * Checks whether the NHSO ADP Code '1B004_0N' is mapped in `s_drugitems` (FoxPro `updatedrugitems` check).
-   */
 export async function check1B004_0NAdpMapping(
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<CcsAdpMappingCheck> {
-    try {
-      const rows = (await executor(
-        `
-        SELECT 
-          d.icode, 
-          d.name, 
-          d.strength, 
-          d.nhso_adp_code
-        FROM s_drugitems d
-        WHERE TRIM(d.nhso_adp_code) IN ('1B004_0N', '1b004_0n')
-        ORDER BY d.icode ASC
-        `,
-        [],
-        { timeoutMs: 15000 }
-      )) as CcsAdpMappingItem[]
+  gateway: Partial<CcsGatewayAdapter> = {}
+): Promise<CcsAdpMappingCheck> {
+  const gw = { ...defaultCcsGateway, ...gateway }
+  try {
+    return await gw.getCcsAdpMapping('1B004_0N')
+  } catch {
+    return { isMapped: false, mappedCount: 0, items: [] }
+  }
+}
 
-      return {
-        isMapped: rows.length > 0,
-        mappedCount: rows.length,
-        items: rows.map((r) => ({
-          icode: String(r.icode || ''),
-          name: String(r.name || ''),
-          strength: r.strength ? String(r.strength) : null,
-          nhso_adp_code: String(r.nhso_adp_code || ''),
-        })),
-      }
-    } catch {
-      return {
-        isMapped: false,
-        mappedCount: 0,
-        items: [],
-      }
-    }
+export async function getService1B004_0NReport(
+  params: CcsService1B004_0NParams = {},
+  gateway: Partial<CcsGatewayAdapter> = {}
+): Promise<CcsService1B004_0NResult> {
+  const gw = { ...defaultCcsGateway, ...gateway }
+  const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+  const compensationFilter: CcsService1B004_0NCompensationFilter = params.compensationFilter || 'ALL'
+  const searchField: CcsService1B004_0NSearchField = params.searchField || 'ALL'
+  const search = (params.search || '').trim().toLowerCase()
+  const sortBy: CcsService1B004_0NSortField = params.sortBy || 'vstdate'
+  const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
+  const page = Math.max(1, Number(params.page || 1))
+  const pageSize = Math.max(1, Number(params.pageSize || 50))
+  const exportAll = Boolean(params.exportAll)
+
+  const cacheKey = `rcm-ccs-p5-1b004-0n-${ds1}-${ds2}`
+  if (params.refresh) {
+    invalidateCacheKey(cacheKey)
   }
 
-  /**
-   * 1.5 บริการ 1B004_0N (VIA / Cervical Screening Service Report)
-   * Corresponds to FoxPro `1.5.บริการ 1B004_0N` report:
-   * Queries OPD visits in date range receiving prescribed ADP code 1B004_0N in `opitemrece` + `s_drugitems`,
-   * reconciles with AuthenCode, diagnoses (pdx, dx0..dx5), procedures (op0..op5),
-   * and reimbursement status (NHSO / Rep / NewEclaim / EClaim).
-   */
-export async function getService1B004_0NReport(
-    params: CcsService1B004_0NParams = {},
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<CcsService1B004_0NResult> {
-    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
-    const compensationFilter: CcsService1B004_0NCompensationFilter = params.compensationFilter || 'ALL'
-    const searchField: CcsService1B004_0NSearchField = params.searchField || 'ALL'
-    const search = (params.search || '').trim().toLowerCase()
-    const sortBy: CcsService1B004_0NSortField = params.sortBy || 'vstdate'
-    const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
-    const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.max(1, Number(params.pageSize || 50))
-    const exportAll = Boolean(params.exportAll)
-
-    const cacheKey = `rcm-ccs-p5-1b004-0n-${ds1}-${ds2}`
-    if (params.refresh) {
-      invalidateCacheKey(cacheKey)
-    }
-
-    const { rawRows, adpMapping } = await getCachedData(
-      cacheKey,
-      async () => {
-        const [mappingRes, rows] = await Promise.all([
-          check1B004_0NAdpMapping(executor),
-          executor(
-            `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) AS age,
-              IFNULL(nat.name, pt.nationality) AS nation,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              ptt.name AS pttypename,
-              dep.department,
-              spc.name AS clinic,
-              v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-              v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-              dd.name AS listname,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
-              COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-              COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated
-            FROM ovst o
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            JOIN (
-              SELECT 
-                oo.vn, 
-                GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              WHERE IFNULL(oo.vn, '') <> ''
-                AND oo.vstdate BETWEEN ? AND ?
-                AND TRIM(d.nhso_adp_code) IN ('1B004_0N', '1b004_0n')
-              GROUP BY oo.vn
-            ) dd ON dd.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'Rep :: มี Rep แล้ว' AS statusname
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-              FROM eclaimdb.m_registerdata m
-              LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-              GROUP BY m.opdseq
-            ) m ON m.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ?
-            GROUP BY o.vn
-            ORDER BY o.hn ASC, o.vn ASC
-            `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
-          ),
-        ])
-
-        return { rawRows: rows as Record<string, unknown>[], adpMapping: mappingRes }
-      },
-      600
-    )
+  const { rawRows, adpMapping } = await getCachedData(
+    cacheKey,
+    async () =>
+      gw.getCcsServiceRaw('1B004_0N', {
+        startDate: ds1,
+        endDate: ds2,
+        refresh: Boolean(params.refresh),
+      }),
+    600
+  )
 
     const allItems: CcsService1B004_0NItem[] = rawRows.map((r, idx) => {
       const compensated = Number(r.compensated || 0)
@@ -309,7 +158,7 @@ export async function getService1B004_0NReport(
     let filtered = await enrichItemsWithSeamlessCache(
       cacheKey,
       allItems,
-      executor,
+      gw.seamlessFetcher,
       Boolean(params.refresh)
     )
     const repBreakdown = buildRepBreakdownSummary(filtered)
@@ -396,204 +245,91 @@ export async function getService1B004_0NReport(
     }
   }
 
-  /**
-   * Checks whether the NHSO ADP Code '1B005' is mapped in `s_drugitems` (FoxPro `updatedrugitems` check).
-   */
 export async function check1B005AdpMapping(
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<CcsAdpMappingCheck> {
-    try {
-      const rows = (await executor(
-        `
-        SELECT 
-          d.icode, 
-          d.name, 
-          d.strength, 
-          d.nhso_adp_code
-        FROM s_drugitems d
-        WHERE TRIM(d.nhso_adp_code) IN ('1B005', '1b005')
-        ORDER BY d.icode ASC
-        `,
-        [],
-        { timeoutMs: 15000 }
-      )) as CcsAdpMappingItem[]
+  gateway: Partial<CcsGatewayAdapter> = {}
+): Promise<CcsAdpMappingCheck> {
+  const gw = { ...defaultCcsGateway, ...gateway }
+  try {
+    return await gw.getCcsAdpMapping('1B005')
+  } catch {
+    return { isMapped: false, mappedCount: 0, items: [] }
+  }
+}
 
-      return {
-        isMapped: rows.length > 0,
-        mappedCount: rows.length,
-        items: rows.map((r) => ({
-          icode: String(r.icode || ''),
-          name: String(r.name || ''),
-          strength: r.strength ? String(r.strength) : null,
-          nhso_adp_code: String(r.nhso_adp_code || ''),
-        })),
-      }
-    } catch {
-      return {
-        isMapped: false,
-        mappedCount: 0,
-        items: [],
-      }
-    }
+export async function getService1B005Report(
+  params: CcsService1B005Params = {},
+  gateway: Partial<CcsGatewayAdapter> = {}
+): Promise<CcsService1B005Result> {
+  const gw = { ...defaultCcsGateway, ...gateway }
+  const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+  const compensationFilter: CcsService1B005CompensationFilter = params.compensationFilter || 'ALL'
+  const searchField: CcsService1B005SearchField = params.searchField || 'ALL'
+  const search = (params.search || '').trim().toLowerCase()
+  const sortBy: CcsService1B005SortField = params.sortBy || 'vstdate'
+  const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
+  const page = Math.max(1, Number(params.page || 1))
+  const pageSize = Math.max(1, Number(params.pageSize || 50))
+  const exportAll = Boolean(params.exportAll)
+
+  const cacheKey = `rcm-ccs-p10-1b005-${ds1}-${ds2}`
+  if (params.refresh) {
+    invalidateCacheKey(cacheKey)
   }
 
-  /**
-   * 1.10 บริการ 1B005 (Pap Smear / Cervical Cancer Screening Service Report)
-   * Corresponds to FoxPro `1.10.บริการ 1B005` report:
-   * Queries OPD visits in date range receiving prescribed ADP code 1B005 in `opitemrece` + `s_drugitems`,
-   * reconciles with AuthenCode, diagnoses (pdx, dx0..dx5), procedures (op0..op5),
-   * and reimbursement status (NHSO / Rep / NewEclaim / EClaim).
-   */
-export async function getService1B005Report(
-    params: CcsService1B005Params = {},
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<CcsService1B005Result> {
-    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
-    const compensationFilter: CcsService1B005CompensationFilter = params.compensationFilter || 'ALL'
-    const searchField: CcsService1B005SearchField = params.searchField || 'ALL'
-    const search = (params.search || '').trim().toLowerCase()
-    const sortBy: CcsService1B005SortField = params.sortBy || 'vstdate'
-    const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
-    const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.max(1, Number(params.pageSize || 50))
-    const exportAll = Boolean(params.exportAll)
-
-    const cacheKey = `rcm-ccs-p10-1b005-${ds1}-${ds2}`
-    if (params.refresh) {
-      invalidateCacheKey(cacheKey)
-    }
-
-    const { rawRows, adpMapping } = await getCachedData(
-      cacheKey,
-      async () => {
-        const [mappingRes, rows] = await Promise.all([
-          check1B005AdpMapping(executor),
-          executor(
-            `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) AS age,
-              IFNULL(nat.name, pt.nationality) AS nation,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              ptt.name AS pttypename,
-              ptt.pttype_eclaim_id AS pttype_eclaim_id,
-              dep.department,
-              spc.name AS clinic,
-              v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-              v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-              dd.name AS listname,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
-              COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-              COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated
-            FROM ovst o
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            JOIN (
-              SELECT 
-                oo.vn, 
-                GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              WHERE IFNULL(oo.vn, '') <> ''
-                AND oo.vstdate BETWEEN ? AND ?
-                AND TRIM(d.nhso_adp_code) IN ('1B005', '1b005')
-              GROUP BY oo.vn
-            ) dd ON dd.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'Rep :: มี Rep แล้ว' AS statusname
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-              FROM eclaimdb.m_registerdata m
-              LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-              GROUP BY m.opdseq
-            ) m ON m.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ?
-            GROUP BY o.vn
-            ORDER BY o.hn ASC, o.vn ASC
-            `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
-          ),
-        ])
-
-        return { rawRows: rows as Record<string, unknown>[], adpMapping: mappingRes }
-      },
-      600
-    )
-
-    const allMappedItems: CcsService1B005Item[] = await enrichItemsWithSeamlessCache(
-      cacheKey,
-      rawRows.map((row, idx) => {
-        const compVal = Number(row.compensated || 0)
-        return {
-          no: idx + 1,
-          vn: String(row.vn || ''),
-          cid: String(row.cid || ''),
-          hn: String(row.hn || ''),
-          ptname: String(row.ptname || ''),
-          age: row.age !== null && row.age !== undefined ? Number(row.age) : null,
-          nation: row.nation ? String(row.nation) : null,
-          vstdate: String(row.vstdate || ''),
-          vsttime: String(row.vsttime || ''),
-          authencode: row.authencode ? String(row.authencode) : null,
-          pttypename: row.pttypename ? String(row.pttypename) : null,
-          pttype_eclaim_id: row.pttype_eclaim_id ? String(row.pttype_eclaim_id).trim() : null,
-          isUc: isUcEclaimCode(row.pttype_eclaim_id ? String(row.pttype_eclaim_id) : null),
-          department: row.department ? String(row.department) : null,
-          clinic: row.clinic ? String(row.clinic) : null,
-          pdx: row.pdx ? String(row.pdx) : null,
-          dx0: row.dx0 ? String(row.dx0) : null,
-          dx1: row.dx1 ? String(row.dx1) : null,
-          dx2: row.dx2 ? String(row.dx2) : null,
-          dx3: row.dx3 ? String(row.dx3) : null,
-          dx4: row.dx4 ? String(row.dx4) : null,
-          dx5: row.dx5 ? String(row.dx5) : null,
-          op0: row.op0 ? String(row.op0) : null,
-          op1: row.op1 ? String(row.op1) : null,
-          op2: row.op2 ? String(row.op2) : null,
-          op3: row.op3 ? String(row.op3) : null,
-          op4: row.op4 ? String(row.op4) : null,
-          op5: row.op5 ? String(row.op5) : null,
-          listname: row.listname ? String(row.listname) : null,
-          status: row.status ? String(row.status) : null,
-          rep: row.rep ? String(row.rep) : null,
-          compensated: compVal,
-          isCompensated: compVal > 0,
-        }
+  const { rawRows, adpMapping } = await getCachedData(
+    cacheKey,
+    async () =>
+      gw.getCcsServiceRaw('1B005', {
+        startDate: ds1,
+        endDate: ds2,
+        refresh: Boolean(params.refresh),
       }),
-      executor,
-      Boolean(params.refresh)
-    )
+    600
+  )
+
+  const allMappedItems: CcsService1B005Item[] = await enrichItemsWithSeamlessCache(
+    cacheKey,
+    rawRows.map((row, idx) => {
+      const compVal = Number(row.compensated || 0)
+      return {
+        no: idx + 1,
+        vn: String(row.vn || ''),
+        cid: String(row.cid || ''),
+        hn: String(row.hn || ''),
+        ptname: String(row.ptname || ''),
+        age: row.age !== null && row.age !== undefined ? Number(row.age) : null,
+        nation: row.nation ? String(row.nation) : null,
+        vstdate: String(row.vstdate || ''),
+        vsttime: String(row.vsttime || ''),
+        authencode: row.authencode ? String(row.authencode) : null,
+        pttypename: row.pttypename ? String(row.pttypename) : null,
+        pttype_eclaim_id: row.pttype_eclaim_id ? String(row.pttype_eclaim_id).trim() : null,
+        isUc: isUcEclaimCode(row.pttype_eclaim_id ? String(row.pttype_eclaim_id) : null),
+        department: row.department ? String(row.department) : null,
+        clinic: row.clinic ? String(row.clinic) : null,
+        pdx: row.pdx ? String(row.pdx) : null,
+        dx0: row.dx0 ? String(row.dx0) : null,
+        dx1: row.dx1 ? String(row.dx1) : null,
+        dx2: row.dx2 ? String(row.dx2) : null,
+        dx3: row.dx3 ? String(row.dx3) : null,
+        dx4: row.dx4 ? String(row.dx4) : null,
+        dx5: row.dx5 ? String(row.dx5) : null,
+        op0: row.op0 ? String(row.op0) : null,
+        op1: row.op1 ? String(row.op1) : null,
+        op2: row.op2 ? String(row.op2) : null,
+        op3: row.op3 ? String(row.op3) : null,
+        op4: row.op4 ? String(row.op4) : null,
+        op5: row.op5 ? String(row.op5) : null,
+        listname: row.listname ? String(row.listname) : null,
+        status: row.status ? String(row.status) : null,
+        rep: row.rep ? String(row.rep) : null,
+        compensated: compVal,
+        isCompensated: compVal > 0,
+      }
+    }),
+    gw.seamlessFetcher,
+    Boolean(params.refresh)
+  )
 
     // Full Page Filter: Apply pttypes / ucOnly filter across all cohort items before summary & pagination
     const summaryCohort = allMappedItems.filter((i) => {

@@ -1,9 +1,24 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from '../rcmDashboardService'
-import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import { apiGateway } from '@/lib/apiGateway'
+import type { FiscalDateRangeParams } from '../rcmDashboardService'
 import type { RepBreakdownSummary } from '../rcmRepTagHelper'
+import type { SeamlessEnricherFetcher } from '../rcmSeamlessEnricher'
+
+export interface CcsGatewayAdapter {
+  lookupCcsPersonsByCids: typeof apiGateway.clinical.lookupCcsPersonsByCids
+  getCcsTargetPopulationRaw: typeof apiGateway.clinical.getCcsTargetPopulationRaw
+  getCcsScreenedRecipientsRaw: typeof apiGateway.clinical.getCcsScreenedRecipientsRaw
+  getCcsAdpMapping: typeof apiGateway.clinical.getCcsAdpMapping
+  getCcsServiceRaw: typeof apiGateway.clinical.getCcsServiceRaw
+  seamlessFetcher?: SeamlessEnricherFetcher
+}
+
+export const defaultCcsGateway: CcsGatewayAdapter = {
+  lookupCcsPersonsByCids: (cids) => apiGateway.clinical.lookupCcsPersonsByCids(cids),
+  getCcsTargetPopulationRaw: (params) => apiGateway.clinical.getCcsTargetPopulationRaw(params),
+  getCcsScreenedRecipientsRaw: (params) => apiGateway.clinical.getCcsScreenedRecipientsRaw(params),
+  getCcsAdpMapping: (code) => apiGateway.clinical.getCcsAdpMapping(code),
+  getCcsServiceRaw: (code, params) => apiGateway.clinical.getCcsServiceRaw(code, params),
+}
 
 // ── 1. PP Special Screening Classification Helper ──────────────────────
 
@@ -688,38 +703,6 @@ export interface CcsService1B005Result {
 }
 
 // ── 8. Internal Helpers ────────────────────────────────────────────────
-
-export const PERSON_SELECT_COLUMNS = `
-  CAST(p.person_id AS CHAR(20)) AS person_id,
-  IFNULL(p.patient_hn, '') AS hn,
-  IFNULL(p.cid, '') AS cid,
-  CONCAT(IFNULL(p.pname, ''), IFNULL(p.fname, ''), ' ', IFNULL(p.lname, '')) AS ptname,
-  DATE_FORMAT(p.birthdate, '%Y-%m-%d') AS birthdate,
-  TIMESTAMPDIFF(YEAR, p.birthdate, NOW()) AS age,
-  CASE WHEN p.sex = '1' THEN 'ชาย' WHEN p.sex = '2' THEN 'หญิง' ELSE IFNULL(p.sex, '') END AS sex,
-  IFNULL(nat.name, 'ไทย') AS nation,
-  p.person_discharge_id,
-  CAST(IFNULL(p.house_regist_type_id, '') AS CHAR(2)) AS typearea,
-  TRIM(CONCAT_WS(' ',
-    IF(IFNULL(vil.village_moo, 0) = 0, pa.addrpart, h.address),
-    IF(IFNULL(vil.village_moo, 0) = 0,
-       IF(IFNULL(pa.moopart, '') <> '', CONCAT('ม.', pa.moopart), NULL),
-       CONCAT('ม.', CAST(vil.village_moo AS UNSIGNED))),
-    IF(IFNULL(vil.village_moo, 0) = 0, ta_pa.full_name, ta_h.full_name)
-  )) AS address,
-  IFNULL(ptt.name, IFNULL(p.pttype, '')) AS person_pttypename
-`
-
-export const PERSON_FROM_JOINS = `
-  FROM person p
-  LEFT JOIN house h ON h.house_id = p.house_id
-  LEFT JOIN village vil ON vil.village_id = h.village_id
-  LEFT JOIN thaiaddress ta_h ON ta_h.addressid = vil.address_id
-  LEFT JOIN person_address pa ON pa.person_id = p.person_id
-  LEFT JOIN thaiaddress ta_pa ON ta_pa.addressid = CONCAT(IFNULL(pa.chwpart,''), IFNULL(pa.amppart,''), IFNULL(pa.tmbpart,''))
-  LEFT JOIN nationality nat ON nat.nationality = p.nationality
-  LEFT JOIN pttype ptt ON ptt.pttype = p.pttype
-`
 
 export function chunkArray<T>(items: T[], chunkSize: number): T[][] {
   const chunks: T[][] = []

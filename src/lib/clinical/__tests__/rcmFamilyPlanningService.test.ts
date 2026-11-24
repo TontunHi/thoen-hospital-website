@@ -500,9 +500,16 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         { icode: '3000091', name: 'ค่าใส่ห่วง ไม่รวม IUD', strength: '', nhso_adp_code: '71681' },
         { icode: '3000798', name: 'ห่วงอนามัย', strength: '', nhso_adp_code: 'FP001' },
       ]
-      const mockExecutor = vi.fn().mockResolvedValueOnce(mockAdpRows)
+      const mockGateway = {
+        getFpIudAdpMapping: vi.fn().mockResolvedValue({
+          isMapped: true,
+          mappedCount: 2,
+          adpCodes: ['20003', 'FP001', '71681', '71682'],
+          items: mockAdpRows,
+        }),
+      }
 
-      const mapping = await RcmFamilyPlanningService.checkIudAdpMapping(mockExecutor)
+      const mapping = await RcmFamilyPlanningService.checkIudAdpMapping(mockGateway)
       expect(mapping.isMapped).toBe(true)
       expect(mapping.mappedCount).toBe(2)
       expect(mapping.adpCodes).toEqual(['20003', 'FP001', '71681', '71682'])
@@ -560,10 +567,18 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([{ icode: '3000798', name: 'ห่วงอนามัย', nhso_adp_code: 'FP001' }])
-        .mockResolvedValueOnce(mockOpdRows)
+      const mockGateway = {
+        getFpIudRaw: vi.fn().mockResolvedValue({
+          rawRows: mockOpdRows,
+          adpMapping: {
+            isMapped: true,
+            mappedCount: 1,
+            adpCodes: ['20003', 'FP001', '71681', '71682'],
+            items: [{ icode: '3000798', name: 'ห่วงอนามัย', nhso_adp_code: 'FP001' }],
+          },
+        }),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const result = await RcmFamilyPlanningService.getIudReport(
         {
@@ -573,7 +588,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
           endDate: '2024-08-31',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.summary.totalCases).toBe(2)
@@ -629,10 +644,18 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(mockOpdRows)
+      const mockGateway = {
+        getFpIudRaw: vi.fn().mockResolvedValue({
+          rawRows: mockOpdRows,
+          adpMapping: {
+            isMapped: false,
+            mappedCount: 0,
+            adpCodes: ['20003', 'FP001', '71681', '71682'],
+            items: [],
+          },
+        }),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const result = await RcmFamilyPlanningService.getIudReport(
         {
@@ -642,7 +665,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
           endDate: '2024-08-31',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)

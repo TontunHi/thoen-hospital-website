@@ -1,5 +1,6 @@
 import type { RequestOptions } from './gatewayTypes'
 import { createRcmV2Namespace } from './rcmV2GatewayNamespace'
+import { createClinicalV2GatewayNamespace } from './clinicalV2GatewayNamespace'
 
 export interface ClinicalHttpClient {
   get: <T = unknown>(path: string, options?: RequestOptions) => Promise<T>
@@ -9,6 +10,7 @@ export interface ClinicalHttpClient {
 
 export function createClinicalNamespace(client: ClinicalHttpClient) {
   const ns = {
+    ...createClinicalV2GatewayNamespace(client),
     /**
      * Executes a read-only SELECT query against the HOSxP MySQL database.
      */

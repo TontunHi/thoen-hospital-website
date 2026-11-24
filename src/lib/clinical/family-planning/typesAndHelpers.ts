@@ -1,10 +1,22 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
-import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from '../rcmDashboardService'
-import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
+import type { FiscalDateRangeParams } from '../rcmDashboardService'
 import type { RepBreakdownSummary } from '../rcmRepTagHelper'
+import type { SeamlessEnricherFetcher } from '../rcmSeamlessEnricher'
+
+export interface FamilyPlanningV2GatewayAdapter {
+  getFpIudAdpMapping: typeof apiGateway.clinical.getFpIudAdpMapping
+  getFpIudRaw: typeof apiGateway.clinical.getFpIudRaw
+  getFp932AdpMapping: typeof apiGateway.clinical.getFp932AdpMapping
+  getFp932Raw: typeof apiGateway.clinical.getFp932Raw
+  seamlessFetcher?: SeamlessEnricherFetcher
+}
+
+export const defaultFpV2Gateway: FamilyPlanningV2GatewayAdapter = {
+  getFpIudAdpMapping: () => apiGateway.clinical.getFpIudAdpMapping(),
+  getFpIudRaw: (params) => apiGateway.clinical.getFpIudRaw(params),
+  getFp932AdpMapping: (format) => apiGateway.clinical.getFp932AdpMapping(format),
+  getFp932Raw: (params) => apiGateway.clinical.getFp932Raw(params),
+}
 
 // ── 1. Domain Types ──────────────────────────────────────────────────────────
 

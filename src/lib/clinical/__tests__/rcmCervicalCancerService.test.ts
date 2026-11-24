@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   classifyPpSpecialCodes,
   RcmCervicalCancerService,
+  type CcsGatewayAdapter,
 } from '../rcmCervicalCancerService'
 import { clearMemoryCache } from '@/lib/cache'
 
@@ -32,9 +33,9 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
   })
 
   it('reconciles 30-60 target women, seamless Rep comeback, and QueryPerson for outside-target CIDs', async () => {
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('WHERE TIMESTAMPDIFF(YEAR, p.birthdate, NOW()) BETWEEN 30 AND 60')) {
-        return [
+    const mockGateway: Partial<CcsGatewayAdapter> = {
+      getCcsTargetPopulationRaw: vi.fn().mockResolvedValue({
+        personRows: [
           {
             person_id: '101',
             hn: '0000101',
@@ -63,11 +64,8 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
             address: '99 ม.2 ต.นาโป่ง',
             person_pttypename: 'บัตรทอง',
           },
-        ]
-      }
-
-      if (sql.includes('FROM ovst o')) {
-        return [
+        ],
+        visitRows: [
           {
             vn: '690101080001',
             hn: '0000101',
@@ -78,11 +76,8 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
             doctorname: 'พญ.ทดสอบ ระบบ',
             pp_codes: '1B0046_1',
           },
-        ]
-      }
-
-      if (sql.includes('FROM rcmdb.seamless')) {
-        return [
+        ],
+        seamlessRows: [
           {
             vn: '690101080001',
             hn: '0000101',
@@ -109,39 +104,31 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
             hsub: '11119',
             note: 'นอกกลุ่มอายุ',
           },
-        ]
-      }
-
-      if (sql.includes('FROM rcmdb.repeclaim')) {
-        return []
-      }
-
-      // QueryPerson lookup for CID 1000000000999
-      if (sql.includes('WHERE p.cid IN')) {
-        return [
-          {
-            person_id: '999',
-            hn: '0000999',
-            cid: '1000000000999',
-            ptname: 'นาง นอกเกณฑ์ อายุเกิน',
-            birthdate: '1963-01-01',
-            age: 63,
-            sex: 'หญิง',
-            nation: 'ไทย',
-            person_discharge_id: 9,
-            typearea: '1',
-            address: '55 ม.4 ต.แม่ถอด',
-            person_pttypename: 'บัตรทอง',
-          },
-        ]
-      }
-
-      return []
-    })
+        ],
+        hpvRepRows: [],
+      }),
+      lookupCcsPersonsByCids: vi.fn().mockResolvedValue([
+        {
+          person_id: '999',
+          hn: '0000999',
+          cid: '1000000000999',
+          ptname: 'นาง นอกเกณฑ์ อายุเกิน',
+          birthdate: '1963-01-01',
+          age: 63,
+          sex: 'หญิง',
+          nation: 'ไทย',
+          person_discharge_id: 9,
+          typearea: '1',
+          address: '55 ม.4 ต.แม่ถอด',
+          person_pttypename: 'บัตรทอง',
+        },
+      ]),
+      seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+    }
 
     const res = await RcmCervicalCancerService.getTargetPopulationReport(
       { ds1: '2025-10-01', ds2: '2026-09-30' },
-      mockExecutor
+      mockGateway
     )
 
     expect(res.summary.totalTarget).toBe(3)
@@ -169,9 +156,9 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
   })
 
   it('overlays extraRepRows from Rep_Individual Excel and filters by searchField & sortBy', async () => {
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('WHERE TIMESTAMPDIFF(YEAR, p.birthdate, NOW()) BETWEEN 30 AND 60')) {
-        return [
+    const mockGateway: Partial<CcsGatewayAdapter> = {
+      getCcsTargetPopulationRaw: vi.fn().mockResolvedValue({
+        personRows: [
           {
             person_id: '201',
             hn: '0000201',
@@ -186,13 +173,14 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
             address: '1 ม.1',
             person_pttypename: 'บัตรทอง',
           },
-        ]
-      }
-      if (sql.includes('WHERE p.cid IN')) {
-        return []
-      }
-      return []
-    })
+        ],
+        visitRows: [],
+        seamlessRows: [],
+        hpvRepRows: [],
+      }),
+      lookupCcsPersonsByCids: vi.fn().mockResolvedValue([]),
+      seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+    }
 
     const res = await RcmCervicalCancerService.getTargetPopulationReport(
       {
@@ -207,7 +195,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
           { cid: '2000000000999', comebackDate: '2026-02-15' },
         ],
       },
-      mockExecutor
+      mockGateway
     )
 
     // Summary includes both target row and newly appended Excel Rep row
@@ -222,116 +210,119 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
   })
 
   it('runs getScreenedRecipientsReport, computing KPIs, OK status, and method filters', async () => {
-    const mockExecutor = vi.fn(async () => [
-      {
-        vn: '671001001',
-        an: null,
-        cid: '3520900015321',
-        hn: '0100001',
-        ptname: 'นาง ทดสอบ หนึ่ง',
-        age: 42,
-        nation: 'ไทย',
-        vstdate: '2024-10-01',
-        vsttime: '08:30:00',
-        authencode: 'AUTH123',
-        pttypename_patient: 'บัตรทอง',
-        pttypename_visit: 'บัตรทอง',
-        department: 'กลุ่มงานเวชปฏิบัติครอบครัว',
-        clinic: 'เวชกรรม',
-        pdx: 'Z124',
-        ok: 'Y',
-        papsmear: '1B004N',
-        papsmear_result: 'ปกติ',
-        via: null,
-        via_result: null,
-        hpv: null,
-        hpv_result: null,
-        other: null,
-        other_result: null,
-        colposcopy: null,
-        type: 'OP',
-        rep: 'REP01',
-        compensated: 450,
-        note: 'จ่ายแล้ว',
-        paydate: '2024-11-01',
-        listname: '1B004N',
-        status: 'NHSO :: มี Invoice แล้ว',
-        rep_nhso: 'NHSO01',
-        nhso: 450,
-      },
-      {
-        vn: '671001002',
-        an: null,
-        cid: '3520900015322',
-        hn: '0100002',
-        ptname: 'นาง ทดสอบ สอง',
-        age: 48,
-        nation: 'ไทย',
-        vstdate: '2024-10-02',
-        vsttime: '09:15:00',
-        authencode: null,
-        pttypename_patient: 'ประกันสังคม',
-        pttypename_visit: 'ประกันสังคม',
-        department: 'ห้องตรวจสูติ',
-        clinic: 'สูตินรีเวช',
-        pdx: 'N879',
-        ok: 'Y',
-        papsmear: null,
-        papsmear_result: null,
-        via: null,
-        via_result: null,
-        hpv: '1B0046_1',
-        hpv_result: 'ผิดปกติ',
-        other: null,
-        other_result: null,
-        colposcopy: 'Y',
-        type: null,
-        rep: null,
-        compensated: 0,
-        note: null,
-        paydate: null,
-        listname: '1B005',
-        status: null,
-        rep_nhso: null,
-        nhso: 0,
-      },
-      {
-        vn: '671001003',
-        an: null,
-        cid: '3520900015323',
-        hn: '0100003',
-        ptname: 'นาง ทดสอบ สาม',
-        age: 35,
-        nation: 'ไทย',
-        vstdate: '2024-10-03',
-        vsttime: '10:00:00',
-        authencode: null,
-        pttypename_patient: 'บัตรทอง',
-        pttypename_visit: 'บัตรทอง',
-        department: 'ห้องตรวจเวช',
-        clinic: 'เวชกรรม',
-        pdx: 'Z124',
-        ok: null, // lacks valid screening code
-        papsmear: null,
-        papsmear_result: null,
-        via: null,
-        via_result: null,
-        hpv: null,
-        hpv_result: null,
-        other: null,
-        other_result: null,
-        colposcopy: null,
-        type: null,
-        rep: null,
-        compensated: 0,
-        note: null,
-        paydate: null,
-        listname: null,
-        status: null,
-        rep_nhso: null,
-        nhso: 0,
-      },
-    ])
+    const mockGateway: Partial<CcsGatewayAdapter> = {
+      getCcsScreenedRecipientsRaw: vi.fn().mockResolvedValue([
+        {
+          vn: '671001001',
+          an: null,
+          cid: '3520900015321',
+          hn: '0100001',
+          ptname: 'นาง ทดสอบ หนึ่ง',
+          age: 42,
+          nation: 'ไทย',
+          vstdate: '2024-10-01',
+          vsttime: '08:30:00',
+          authencode: 'AUTH123',
+          pttypename_patient: 'บัตรทอง',
+          pttypename_visit: 'บัตรทอง',
+          department: 'กลุ่มงานเวชปฏิบัติครอบครัว',
+          clinic: 'เวชกรรม',
+          pdx: 'Z124',
+          ok: 'Y',
+          papsmear: '1B004N',
+          papsmear_result: 'ปกติ',
+          via: null,
+          via_result: null,
+          hpv: null,
+          hpv_result: null,
+          other: null,
+          other_result: null,
+          colposcopy: null,
+          type: 'OP',
+          rep: 'REP01',
+          compensated: 450,
+          note: 'จ่ายแล้ว',
+          paydate: '2024-11-01',
+          listname: '1B004N',
+          status: 'NHSO :: มี Invoice แล้ว',
+          rep_nhso: 'NHSO01',
+          nhso: 450,
+        },
+        {
+          vn: '671001002',
+          an: null,
+          cid: '3520900015322',
+          hn: '0100002',
+          ptname: 'นาง ทดสอบ สอง',
+          age: 48,
+          nation: 'ไทย',
+          vstdate: '2024-10-02',
+          vsttime: '09:15:00',
+          authencode: null,
+          pttypename_patient: 'ประกันสังคม',
+          pttypename_visit: 'ประกันสังคม',
+          department: 'ห้องตรวจสูติ',
+          clinic: 'สูตินรีเวช',
+          pdx: 'N879',
+          ok: 'Y',
+          papsmear: null,
+          papsmear_result: null,
+          via: null,
+          via_result: null,
+          hpv: '1B0046_1',
+          hpv_result: 'ผิดปกติ',
+          other: null,
+          other_result: null,
+          colposcopy: 'Y',
+          type: null,
+          rep: null,
+          compensated: 0,
+          note: null,
+          paydate: null,
+          listname: '1B005',
+          status: null,
+          rep_nhso: null,
+          nhso: 0,
+        },
+        {
+          vn: '671001003',
+          an: null,
+          cid: '3520900015323',
+          hn: '0100003',
+          ptname: 'นาง ทดสอบ สาม',
+          age: 35,
+          nation: 'ไทย',
+          vstdate: '2024-10-03',
+          vsttime: '10:00:00',
+          authencode: null,
+          pttypename_patient: 'บัตรทอง',
+          pttypename_visit: 'บัตรทอง',
+          department: 'ห้องตรวจเวช',
+          clinic: 'เวชกรรม',
+          pdx: 'Z124',
+          ok: null, // lacks valid screening code
+          papsmear: null,
+          papsmear_result: null,
+          via: null,
+          via_result: null,
+          hpv: null,
+          hpv_result: null,
+          other: null,
+          other_result: null,
+          colposcopy: null,
+          type: null,
+          rep: null,
+          compensated: 0,
+          note: null,
+          paydate: null,
+          listname: null,
+          status: null,
+          rep_nhso: null,
+          nhso: 0,
+        },
+      ]),
+      seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+    }
 
     const res = await RcmCervicalCancerService.getScreenedRecipientsReport(
       {
@@ -340,7 +331,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         methodFilter: 'ALL',
         okFilter: 'ALL',
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(res.totalCount).toBe(3)
@@ -362,7 +353,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds2: '2025-09-30',
         methodFilter: 'PapSmear',
       },
-      mockExecutor
+      mockGateway
     )
     expect(papRes.items).toHaveLength(1)
     expect(papRes.items[0].vn).toBe('671001001')
@@ -374,7 +365,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds2: '2025-09-30',
         okFilter: 'NOT_OK',
       },
-      mockExecutor
+      mockGateway
     )
     expect(notOkRes.items).toHaveLength(1)
     expect(notOkRes.items[0].vn).toBe('671001003')
@@ -386,27 +377,31 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds2: '2025-09-30',
         resultStatusFilter: 'ABNORMAL',
       },
-      mockExecutor
+      mockGateway
     )
     expect(abnRes.items).toHaveLength(1)
     expect(abnRes.items[0].vn).toBe('671001002')
   })
 
   it('checks 1B004N ADP mapping in s_drugitems and queries 1.3 service report with summary and filters', async () => {
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM s_drugitems d') && sql.includes('WHERE TRIM(d.nhso_adp_code) IN')) {
-        return [
-          {
-            icode: '3001234',
-            name: 'ตรวจ HPV DNA (1B004N)',
-            strength: '1 test',
-            nhso_adp_code: '1B004N',
-          },
-        ]
-      }
+    const adpMapping = {
+      isMapped: true,
+      mappedCount: 1,
+      items: [
+        {
+          icode: '3001234',
+          name: 'ตรวจ HPV DNA (1B004N)',
+          strength: '1 test',
+          nhso_adp_code: '1B004N',
+        },
+      ],
+    }
 
-      if (sql.includes('FROM ovst o') && sql.includes('JOIN (') && sql.includes('1B004N')) {
-        return [
+    const mockGateway: Partial<CcsGatewayAdapter> = {
+      getCcsAdpMapping: vi.fn().mockResolvedValue(adpMapping),
+      getCcsServiceRaw: vi.fn().mockResolvedValue({
+        adpMapping,
+        rawRows: [
           {
             vn: '680101080001',
             cid: '1000000000201',
@@ -469,14 +464,13 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
             rep: null,
             compensated: 0,
           },
-        ]
-      }
-
-      return []
-    })
+        ],
+      }),
+      seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+    }
 
     // Test check1B004NAdpMapping
-    const mapRes = await RcmCervicalCancerService.check1B004NAdpMapping(mockExecutor)
+    const mapRes = await RcmCervicalCancerService.check1B004NAdpMapping(mockGateway)
     expect(mapRes.isMapped).toBe(true)
     expect(mapRes.mappedCount).toBe(1)
     expect(mapRes.items[0].nhso_adp_code).toBe('1B004N')
@@ -487,7 +481,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds1: '2025-10-01',
         ds2: '2026-09-30',
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(repRes.summary.totalVisits).toBe(2)
@@ -509,7 +503,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds2: '2026-09-30',
         compensationFilter: 'COMPENSATED',
       },
-      mockExecutor
+      mockGateway
     )
     expect(compOnly.items).toHaveLength(1)
     expect(compOnly.items[0].hn).toBe('0000201')
@@ -521,27 +515,31 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds2: '2026-09-30',
         search: 'จิตรา',
       },
-      mockExecutor
+      mockGateway
     )
     expect(searchRes.items).toHaveLength(1)
     expect(searchRes.items[0].hn).toBe('0000202')
   })
 
   it('runs check1B004_0NAdpMapping and getService1B004_0NReport, computing KPIs and filters', async () => {
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM s_drugitems d') && sql.includes('WHERE TRIM(d.nhso_adp_code) IN')) {
-        return [
-          {
-            icode: '1590002',
-            name: 'ตรวจคัดกรองมะเร็งปากมดลูก (1B004_0N)',
-            strength: '1 ครั้ง',
-            nhso_adp_code: '1B004_0N',
-          },
-        ]
-      }
+    const adpMapping = {
+      isMapped: true,
+      mappedCount: 1,
+      items: [
+        {
+          icode: '1590002',
+          name: 'ตรวจคัดกรองมะเร็งปากมดลูก (1B004_0N)',
+          strength: '1 ครั้ง',
+          nhso_adp_code: '1B004_0N',
+        },
+      ],
+    }
 
-      if (sql.includes('FROM ovst o')) {
-        return [
+    const mockGateway: Partial<CcsGatewayAdapter> = {
+      getCcsAdpMapping: vi.fn().mockResolvedValue(adpMapping),
+      getCcsServiceRaw: vi.fn().mockResolvedValue({
+        adpMapping,
+        rawRows: [
           {
             vn: '671001003',
             cid: '3520900015555',
@@ -604,14 +602,13 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
             rep: null,
             compensated: 0,
           },
-        ]
-      }
-
-      return []
-    })
+        ],
+      }),
+      seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+    }
 
     // Test check1B004_0NAdpMapping
-    const mapRes = await RcmCervicalCancerService.check1B004_0NAdpMapping(mockExecutor)
+    const mapRes = await RcmCervicalCancerService.check1B004_0NAdpMapping(mockGateway)
     expect(mapRes.isMapped).toBe(true)
     expect(mapRes.mappedCount).toBe(1)
     expect(mapRes.items[0].nhso_adp_code).toBe('1B004_0N')
@@ -622,7 +619,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds1: '2025-10-01',
         ds2: '2026-09-30',
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(repRes.summary.totalVisits).toBe(2)
@@ -644,7 +641,7 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds2: '2026-09-30',
         compensationFilter: 'COMPENSATED',
       },
-      mockExecutor
+      mockGateway
     )
     expect(compOnly.items).toHaveLength(1)
     expect(compOnly.items[0].hn).toBe('0000301')
@@ -656,11 +653,9 @@ describe('rcmCervicalCancerService (CCS 1. Target Population)', () => {
         ds2: '2026-09-30',
         search: 'กัญญารัตน์',
       },
-      mockExecutor
+      mockGateway
     )
     expect(searchRes.items).toHaveLength(1)
     expect(searchRes.items[0].hn).toBe('0000302')
   })
 })
-
-

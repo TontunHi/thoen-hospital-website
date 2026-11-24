@@ -1,26 +1,12 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
+import { getCachedData } from '@/lib/cache'
+import { resolveFiscalDateRange } from '../rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
 import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
 import {
-  classifyPpSpecialCodes,
-  PERSON_SELECT_COLUMNS,
-  PERSON_FROM_JOINS,
-  chunkArray,
-  compareTargetItems,
   compareScreenedItems,
-  compareService1B004NItems,
-  type CcsTargetPopulationParams,
-  type CcsTargetPopulationResult,
-  type CcsTargetPopulationItem,
-  type CcsTargetPopulationSummary,
-  type CcsTargetScreeningFilter,
-  type CcsTargetSearchField,
-  type CcsTargetSortField,
-  type CcsTargetRowMatchType,
-  type RepIndividualPersonLookup,
+  defaultCcsGateway,
+  type CcsGatewayAdapter,
   type CcsScreenedRecipientsParams,
   type CcsScreenedRecipientsResult,
   type CcsScreenedRecipientItem,
@@ -31,195 +17,38 @@ import {
   type CcsCompensationFilter,
   type CcsScreenedSearchField,
   type CcsScreenedSortField,
-  type CcsAdpMappingCheck,
-  type CcsAdpMappingItem,
-  type CcsService1B004NParams,
-  type CcsService1B004NResult,
-  type CcsService1B004NItem,
-  type CcsService1B004NSummary,
-  type CcsService1B004NCompensationFilter,
-  type CcsService1B004NSearchField,
-  type CcsService1B004NSortField,
-  type CcsService1B004PParams,
-  type CcsService1B004PResult,
-  type CcsService1B004PItem,
-  type CcsService1B004PSummary,
-  type CcsService1B004PCompensationFilter,
-  type CcsService1B004PSearchField,
-  type CcsService1B004PSortField,
-  type CcsService1B004_0NParams,
-  type CcsService1B004_0NResult,
-  type CcsService1B004_0NCompensationFilter,
-  type CcsService1B004_0NSearchField,
-  type CcsService1B004_0NSortField,
-  type CcsService1B005Params,
-  type CcsService1B005Result,
-  type CcsService1B005CompensationFilter,
-  type CcsService1B005SearchField,
-  type CcsService1B005SortField,
 } from './typesAndHelpers'
 
-  /**
-   * 1.2 รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก (Screened Recipients)
-   * Corresponds to FoxPro `1.1.รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก` report:
-   * Queries OPD visits in date range receiving CCS screening (PP special code,
-   * Z124 diagnosis, Colposcopy ADP 1B005, or mapped CCS ADP items),
-   * reconciles with Seamless (`rcmdb.seamless` CCS), HPV Rep (`rcmdb.repeclaim`),
-   * AuthenCode, and NHSO / Rep / NewEclaim / EClaim reimbursement status.
-   */
 export async function getScreenedRecipientsReport(
-    params: CcsScreenedRecipientsParams = {},
-    executor: QueryExecutor = queryClinicalDb
-  ): Promise<CcsScreenedRecipientsResult> {
-    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
-    const methodFilter: CcsMethodFilter = params.methodFilter || 'ALL'
-    const okFilter: CcsOkFilter = params.okFilter || 'ALL'
-    const resultStatusFilter: CcsResultStatusFilter = params.resultStatusFilter || 'ALL'
-    const compensationFilter: CcsCompensationFilter = params.compensationFilter || 'ALL'
-    const searchField: CcsScreenedSearchField = params.searchField || 'ALL'
-    const search = (params.search || '').trim().toLowerCase()
-    const sortBy: CcsScreenedSortField = params.sortBy || 'vstdate'
-    const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
-    const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.max(1, Number(params.pageSize || 50))
-    const exportAll = Boolean(params.exportAll)
+  params: CcsScreenedRecipientsParams = {},
+  gateway: Partial<CcsGatewayAdapter> = {}
+): Promise<CcsScreenedRecipientsResult> {
+  const gw = { ...defaultCcsGateway, ...gateway }
+  const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+  const methodFilter: CcsMethodFilter = params.methodFilter || 'ALL'
+  const okFilter: CcsOkFilter = params.okFilter || 'ALL'
+  const resultStatusFilter: CcsResultStatusFilter = params.resultStatusFilter || 'ALL'
+  const compensationFilter: CcsCompensationFilter = params.compensationFilter || 'ALL'
+  const searchField: CcsScreenedSearchField = params.searchField || 'ALL'
+  const search = (params.search || '').trim().toLowerCase()
+  const sortBy: CcsScreenedSortField = params.sortBy || 'vstdate'
+  const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
+  const page = Math.max(1, Number(params.page || 1))
+  const pageSize = Math.max(1, Number(params.pageSize || 50))
+  const exportAll = Boolean(params.exportAll)
 
-    const cacheKey = `rcm-ccs-p2-recipients-${ds1}-${ds2}`
+  const cacheKey = `rcm-ccs-p2-recipients-${ds1}-${ds2}`
 
-    const rawRows = await getCachedData(
-      cacheKey,
-      async () => {
-        const sql = `
-          SELECT 
-            o.vn,
-            o.an,
-            IFNULL(pt.cid, '') AS cid,
-            o.hn,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-            TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) AS age,
-            IFNULL(nat.name, pt.nationality) AS nation,
-            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-            ptt_pt.name AS pttypename_patient,
-            ptt_o.name AS pttypename_visit,
-            ptt_o.pttype_eclaim_id AS pttype_eclaim_id,
-            dep.department,
-            spc.name AS clinic,
-            v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-            IF(GROUP_CONCAT(DISTINCT IF(t.pp_special_code REGEXP '^1B004|^1B30' OR pap.checkup = 'Y', 'Y', NULL)) IS NOT NULL, 'Y', NULL) AS ok,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0044','1B30','1B40','1B004N','1B004P'), t.pp_special_code, NULL)) AS papsmear,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0044','1B30','1B004N'), 'ปกติ', IF(t.pp_special_code IN ('1B40','1B004P'), 'ผิดปกติ', NULL))) AS papsmear_result,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0040','1B0041','1B0042','1B0043','1B0045','1B004_0N','1B004_0P'), t.pp_special_code, NULL)) AS via,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0040','1B0043','1B004_0N'), 'ปกติ', IF(t.pp_special_code IN ('1B0041','1B0042','1B0043','1B0045','1B004_0P'), 'ผิดปกติ', NULL))) AS via_result,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code REGEXP '^1B0046', t.pp_special_code, NULL)) AS hpv,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code REGEXP '1B0046_[12]', 'ผิดปกติ', IF(t.pp_special_code REGEXP '1B0046', 'ปกติ', NULL))) AS hpv_result,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0048','1B0049','0320277_0','0320277_1'), t.pp_special_code, NULL)) AS other,
-            GROUP_CONCAT(DISTINCT IF(t.pp_special_code IN ('1B0048','1B0049','0320277_0'), 'ปกติ', IF(t.pp_special_code IN ('0320277_1'), 'ผิดปกติ', NULL))) AS other_result,
-            pap.checkup AS colposcopy,
-            sm.type AS type,
-            IF(rr.vn IS NOT NULL, rr.rep, sm.rep) AS rep,
-            IF(rr.vn IS NOT NULL, rr.compensated, sm.compensated) AS compensated,
-            sm.note,
-            sm.paydate,
-            c.name AS listname,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
-            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep_nhso,
-            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated) AS nhso
-          FROM ovst o
-          LEFT JOIN patient pt ON pt.hn = o.hn
-          LEFT JOIN vn_stat v ON v.vn = o.vn
-          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-          LEFT JOIN pttype ptt_pt ON ptt_pt.pttype = pt.pttype
-          LEFT JOIN pttype ptt_o ON ptt_o.pttype = o.pttype
-          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-          LEFT JOIN spclty spc ON spc.spclty = o.spclty
-          LEFT JOIN pp_special pp ON o.vn = pp.vn
-          LEFT JOIN pp_special_type t ON t.pp_special_type_id = pp.pp_special_type_id
-          LEFT JOIN (
-            SELECT
-              vn,
-              GROUP_CONCAT(DISTINCT type ORDER BY type SEPARATOR ', ') AS type,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(note, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS note,
-              DATE_FORMAT(MAX(paydate), '%Y-%m-%d') AS paydate
-            FROM rcmdb.seamless
-            WHERE IFNULL(vn, '') <> '' AND rep REGEXP 'CCS'
-            GROUP BY vn
-          ) sm ON sm.vn = o.vn
-          LEFT JOIN (
-            SELECT
-              vn,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repeclaim
-            WHERE IFNULL(vn, '') <> '' AND filename REGEXP 'HPV'
-            GROUP BY vn
-          ) rr ON rr.vn = o.vn
-          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: มี Invoice แล้ว' AS statusname
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) nhso ON nhso.vn = o.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'Rep :: มี Rep แล้ว' AS statusname
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) rep ON rep.vn = o.vn
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-          LEFT JOIN (
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-          LEFT JOIN (
-            SELECT o2.vn, 'Y' AS checkup
-            FROM ovst o2
-            JOIN opitemrece oo ON oo.vn = o2.vn
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE o2.vstdate BETWEEN ? AND ? AND d.nhso_adp_code = '1B005'
-            GROUP BY o2.vn
-          ) pap ON pap.vn = o.vn
-          LEFT JOIN (
-            SELECT oo.vn, GROUP_CONCAT(DISTINCT d.nhso_adp_code) AS name
-            FROM opitemrece oo
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE IFNULL(oo.vn,'') <> '' AND oo.vstdate BETWEEN ? AND ?
-              AND d.nhso_adp_code IN ('1B0046_0','1B0046_01','1B0046_1','1B0046_11','1B0046_2','1B0046_21','1B004_0N','1B004_0P','1B004N','1B004P','1B005')
-            GROUP BY oo.vn
-          ) c ON c.vn = o.vn
-          WHERE o.vstdate BETWEEN ? AND ?
-            AND (
-              t.pp_special_code REGEXP '^1B004|^1B30|^01B40|^0320277'
-              OR CONCAT_WS(',', v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5) REGEXP 'Z124'
-              OR pap.checkup = 'Y'
-              OR c.vn IS NOT NULL
-            )
-          GROUP BY o.vn
-          ORDER BY o.vstdate DESC, o.vsttime DESC
-        `
-        return (await executor(
-          sql,
-          [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-          { timeoutMs: 60000 }
-        )) as Record<string, unknown>[]
-      },
-      300000
-    )
+  const rawRows = await getCachedData(
+    cacheKey,
+    async () =>
+      gw.getCcsScreenedRecipientsRaw({
+        startDate: ds1,
+        endDate: ds2,
+        refresh: Boolean((params as any).refresh),
+      }),
+    300000
+  )
 
     const items: CcsScreenedRecipientItem[] = (rawRows || []).map((r) => {
       const papsmear_result = r.papsmear_result ? String(r.papsmear_result).trim() : null
@@ -284,7 +113,7 @@ export async function getScreenedRecipientsReport(
     const enrichedItems = await enrichItemsWithSeamlessCache(
       cacheKey,
       items,
-      executor,
+      gw.seamlessFetcher,
       Boolean((params as any).refresh)
     )
 
