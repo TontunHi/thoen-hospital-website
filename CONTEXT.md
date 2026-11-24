@@ -78,7 +78,7 @@ This document serves as the canonical domain glossary, ubiquitous language dicti
 ---
 
 ### Revenue Cycle Management (ระบบบริหารจัดการวงจรรายได้โรงพยาบาลเถิน — RCM Analytics)
-- **Definition:** ศูนย์กลางกำกับและติดตามรายได้โรงพยาบาล สิทธิเบิกชดเชย e-Claim และลูกหนี้ค่ารักษาพยาบาล รพ.เถิน เชื่อมต่อ HOSxP MySQL ผ่าน Unified API Gateway (`@/lib/clinicalDb.ts` และ `@/lib/clinical/rcmDashboardService.ts`):
+- **Definition:** ศูนย์กลางกำกับและติดตามรายได้โรงพยาบาล สิทธิเบิกชดเชย e-Claim และลูกหนี้ค่ารักษาพยาบาล รพ.เถิน เชื่อมต่อ HOSxP MySQL ผ่าน Unified API Gateway Named APIs (`@/lib/apiGateway` และ `@/lib/clinical/rcmDashboardService.ts`, Zero-SQL ในฝั่ง Next.js):
 - **10 แผนกคลินิกหลัก (Clinical Department Classification):**
   - ฟังก์ชันมาตรฐาน: `buildDepartmentSqlCase()` และ `classifySpecialty()`
   1. `01. อายุรกรรม` (`medicine`): spclty 01, 21 หรือชื่อมี 'อายุร'
@@ -280,5 +280,5 @@ This document serves as the canonical domain glossary, ubiquitous language dicti
 ## 3. Permanent Deletions & Security Boundaries
 
 1. **ระบบรับเรื่องร้องเรียนและฟอร์มติดต่อสอบถาม:** ถูกถอดถอนออกจากระบบอย่างถาวร (ทั้ง UI หน้าเว็บและ API Routes) ห้ามสร้าง route หรือ form สำหรับ contact inquiries กลับมา
-2. **Zero Direct Database Sockets:** ตัวเว็บแอปพลิเคชันไม่มีการเปิด connection ไปยัง MySQL พอร์ต 3306 ทุกการสืบค้นและบันทึกข้อมูลต้องส่งผ่าน Thoen Hospital Unified API Gateway (`@/lib/apiGateway`) เท่านั้น
+2. **100% Zero Direct Database Sockets & Zero-SQL Architecture:** ตัวเว็บแอปพลิเคชันไม่มีการเปิด connection ไปยัง MySQL พอร์ต 3306 และไม่มี Raw SQL string ใดๆ ภายใต้ `src/` โมดูล legacy (`clinicalDb.ts`, `memberDb.ts`, `salaryDb.ts`) และ Gateway `routes/rawSql.js` ถูกปลดระวางอย่างถาวร (บังคับโดย Invariant #8 ใน `architectureGuardrails.test.ts`) ทุกการสืบค้นและบันทึกข้อมูลต้องส่งผ่าน Named Endpoints ของ Thoen Hospital Unified API Gateway (`@/lib/apiGateway`) เท่านั้น
 3. **Strict PHI Masking:** แสดงผลข้อมูลผู้ป่วยและเลขบัตรประชาชนในส่วนสาธารณะด้วยการ Mask (แสดงเฉพาะ 4 หลักท้าย) เสมอ

@@ -115,9 +115,9 @@
 โปรเจกต์นี้ผสานแนวปฏิบัติจาก **pstack** และ **Clean Architecture**:
 
 - **Boundary Discipline:** วาง Validation (Zod) และ Auth Checks อย่างรัดกุมที่ System Boundaries (API Routes, Form Actions) ขณะที่ Domain Logic ภายในเป็น Pure Functions ที่เชื่อถือ Typings
-- **Thin Route Adapters & File Size Guardrails:** API Routes (`src/app/api/**`) ทำหน้าที่เป็น HTTP Adapter เท่านั้น (`<= 200` บรรทัด, ไม่มี Raw SQL หรือ Raw `fs`) และไม่มีไฟล์ `.ts`/`.tsx` ใดใน `src/` เกิน `2,000` บรรทัด รวมถึงบังคับใช้ `await import('exceljs')` แบบ Dynamic ใน Client Components (ตรวจสอบอัตโนมัติใน `src/lib/__tests__/architectureGuardrails.test.ts`)
+- **Thin Route Adapters & Architecture Guardrails (8 Invariants):** API Routes (`src/app/api/**`) ทำหน้าที่เป็น HTTP Adapter เท่านั้น (`<= 200` บรรทัด, ไม่มี Raw SQL หรือ Raw `fs`), ไม่มีไฟล์ `.ts`/`.tsx` ใดใน `src/` เกิน `2,000` บรรทัด, บังคับใช้ `await import('exceljs')` แบบ Dynamic ใน Client Components, และ **บังคับ 100% Zero-SQL Enforcement (Allowlist = 0)** ห้ามมี Raw SQL หรือ Legacy DB Wrappers ใน `src/lib/**` ทั้งหมด (ตรวจสอบอัตโนมัติใน `src/lib/__tests__/architectureGuardrails.test.ts`)
 - **Model the Domain:** ตัดลด Boolean flags ซับซ้อนด้วย State Machine หรือ Discriminated Unions เพื่อให้สถานะที่ไม่ถูกต้องทางกฎหมาย (Invalid State) ไม่สามารถคอมไพล์ผ่านได้
-- **Dependency Injection:** Domain Services ทุกตัวรับพารามิเตอร์ `QueryExecutor` เพื่อให้สามารถรัน Unit Tests บน Vitest ได้ 100% โดยไม่ต้องเชื่อมต่อฐานข้อมูลจริง
+- **Dependency Injection:** Domain Services รับพารามิเตอร์ Gateway Adapter (`@/lib/apiGateway` Named APIs) เพื่อให้สามารถรัน Unit Tests บน Vitest ได้ 100% โดยไม่ต้องเชื่อมต่อฐานข้อมูลหรือ Gateway จริง
 - **Fix Root Causes & Prove It Works:** สืบหาและแก้ไขข้อผิดพลาดที่ต้นตอของข้อมูล พร้อมพิสูจน์ด้วยชุดทดสอบ Vitest และหลักฐาน Runtime เสมอ
 
 ---
@@ -208,7 +208,7 @@ cmd.exe /c "npm run start"
 |---|---|
 | `cmd.exe /c "npm run dev"` | เริ่มต้น Dev Server (Next.js 16 Turbopack บน `0.0.0.0:3000`) |
 | `cmd.exe /c "npm run build"` | คอมไพล์โปรเจกต์สำหรับ Production |
-| `cmd.exe /c "npm run test"` | รันชุดทดสอบ Vitest ทั้งหมด (320 test suites, 2,207 tests, แยก `node`/`jsdom` + `vmThreads`) |
+| `cmd.exe /c "npm run test"` | รันชุดทดสอบ Vitest ทั้งหมด (323 test suites, 2,219 tests, แยก `node`/`jsdom` + `vmThreads` พร้อม 8 Architecture Guardrails) |
 | `cmd.exe /c "npm run test:watch"` | รัน Vitest ในโหมด Watch สำหรับพัฒนา |
 | `cmd.exe /c "npm run lint"` | ตรวจสอบคุณภาพโค้ดด้วย ESLint |
 | `cmd.exe /c "npx tsc --noEmit"` | ตรวจสอบ Type Safety ด้วย TypeScript Compiler |

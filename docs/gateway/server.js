@@ -17,8 +17,26 @@ import tasksRoutes from './routes/tasks.js'
 import gtwRoutes from './routes/gtw.js'
 import mokRoutes from './routes/mok.js'
 import rcmFundsRoutes from './routes/rcmFunds.js'
+import rcmFundsReconcileRoutes from './routes/rcmFundsReconcile.js'
+import rcmImportsV2Routes from './routes/rcmImportsV2.js'
+import rcmFundsSpecialV2Routes from './routes/rcmFundsSpecialV2.js'
+import rcmFundsBatch2V2Routes from './routes/rcmFundsBatch2V2.js'
+import clinicalCoreV2Routes from './routes/clinicalCoreV2.js'
+import rcmSeamlessAndFundsV2Routes from './routes/rcmSeamlessAndFundsV2.js'
+import salaryPortalRoutes from './routes/salaryPortal.js'
 import onlineMediaRoutes from './routes/onlineMedia.js'
-import rawSqlRoutes from './routes/rawSql.js'
+import palliativeLtcV2Routes from './routes/palliativeLtcV2.js'
+import appCoreV2Routes from './routes/appCoreV2.js'
+import rcmCervicalCancerRoutes from './routes/rcmCervicalCancer.js'
+import rcmFamilyPlanningV2Routes from './routes/rcmFamilyPlanningV2.js'
+import rcmDashboardV2Routes from './routes/rcmDashboardV2.js'
+import rcmExtraFundsV2Routes from './routes/rcmExtraFundsV2.js'
+import clinicalChronicV2Routes from './routes/clinicalChronicV2.js'
+import appAuthV2Routes from './routes/appAuthV2.js'
+import appIntegrationsV2Routes from './routes/appIntegrationsV2.js'
+import appTasksV2Routes from './routes/appTasksV2.js'
+import appOpsAssetsEventsV2Routes from './routes/appOpsAssetsEventsV2.js'
+import appOpsCmsDirV2Routes from './routes/appOpsCmsDirV2.js'
 
 const fastify = Fastify({
   logger: { level: 'info' },
@@ -231,8 +249,26 @@ await fastify.register(tasksRoutes, routeContext)
 await fastify.register(gtwRoutes, routeContext)
 await fastify.register(mokRoutes, routeContext)
 await fastify.register(rcmFundsRoutes, routeContext)
+await fastify.register(rcmFundsReconcileRoutes, routeContext)
+await fastify.register(rcmImportsV2Routes, routeContext)
+await fastify.register(rcmFundsSpecialV2Routes, routeContext)
+await fastify.register(rcmFundsBatch2V2Routes, routeContext)
+await fastify.register(clinicalCoreV2Routes, routeContext)
+await fastify.register(rcmSeamlessAndFundsV2Routes, routeContext)
+await fastify.register(salaryPortalRoutes, routeContext)
 await fastify.register(onlineMediaRoutes, routeContext)
-await fastify.register(rawSqlRoutes, routeContext)
+await fastify.register(palliativeLtcV2Routes, routeContext)
+await fastify.register(appCoreV2Routes, routeContext)
+await fastify.register(rcmCervicalCancerRoutes, routeContext)
+await fastify.register(rcmFamilyPlanningV2Routes, routeContext)
+await fastify.register(rcmDashboardV2Routes, routeContext)
+await fastify.register(rcmExtraFundsV2Routes, routeContext)
+await fastify.register(clinicalChronicV2Routes, routeContext)
+await fastify.register(appAuthV2Routes, routeContext)
+await fastify.register(appIntegrationsV2Routes, routeContext)
+await fastify.register(appTasksV2Routes, routeContext)
+await fastify.register(appOpsAssetsEventsV2Routes, routeContext)
+await fastify.register(appOpsCmsDirV2Routes, routeContext)
 
 // ------------------------------------------------------------------
 // Start Server
