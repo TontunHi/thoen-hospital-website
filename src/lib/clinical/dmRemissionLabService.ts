@@ -15,16 +15,15 @@ import {
 } from './dmRemissionLabDomain'
 import {
   DM_ANTIDIABETIC_DRUGS,
-  DM_ANTIDIABETIC_ICODES,
   type DmLabPatientTimeline,
   type DmLabTrackingFilters,
   type DmLabTrackingRecord,
   type DmLabTrackingResult,
 } from './dmRemissionLabTypes'
 
-export interface DmRemissionLabDbDeps {
-  appQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
-  clinicalQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
+export interface DmRemissionLabGatewayDeps {
+  getDmRemissionLabDatasetRaw: typeof apiGateway.clinical.getDmRemissionLabDatasetRaw
+  getDmRemissionLabTimelineRaw: typeof apiGateway.clinical.getDmRemissionLabTimelineRaw
 }
 
 interface LabBaseSqlRow {
@@ -90,21 +89,6 @@ const DRUG_NAME_BY_ICODE = new Map<string, string>(
   DM_ANTIDIABETIC_DRUGS.map((item) => [item.icode, item.name])
 )
 
-const HOSXP_CHUNK_SIZE = 900
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  if (items.length === 0) return []
-  const chunks: T[][] = []
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size))
-  }
-  return chunks
-}
-
-function buildPlaceholders(count: number): string {
-  return Array.from({ length: count }, () => '?').join(', ')
-}
-
 function parsePrevEntry(prevEntry: string | null): {
   prevA1c: number | null
   prevA1cDate: string | null
@@ -130,20 +114,18 @@ function shiftIsoDateDays(isoDate: string, deltaDays: number): string {
   return dt.toISOString().slice(0, 10)
 }
 
-function createDefaultDeps(): DmRemissionLabDbDeps {
-  return {
-    appQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) =>
-      apiGateway.app.query<T>(sql, params),
-    clinicalQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) =>
-      apiGateway.clinical.query<T>(sql, params, { timeoutMs: 90_000 }),
-  }
-}
-
 export class DmRemissionLabService {
-  private readonly deps: DmRemissionLabDbDeps
+  private readonly gw: DmRemissionLabGatewayDeps
 
-  constructor(deps?: DmRemissionLabDbDeps) {
-    this.deps = deps ?? createDefaultDeps()
+  constructor(deps?: Partial<DmRemissionLabGatewayDeps>) {
+    this.gw = {
+      getDmRemissionLabDatasetRaw:
+        deps?.getDmRemissionLabDatasetRaw ??
+        ((p) => apiGateway.clinical.getDmRemissionLabDatasetRaw(p)),
+      getDmRemissionLabTimelineRaw:
+        deps?.getDmRemissionLabTimelineRaw ??
+        ((hn) => apiGateway.clinical.getDmRemissionLabTimelineRaw(hn)),
+    }
   }
 
   private async loadFiscalYearDataset(
@@ -151,271 +133,41 @@ export class DmRemissionLabService {
     a1cMax: number
   ): Promise<CachedFiscalYearDataset> {
     const { startDate, endDate } = getFiscalYearDateRange(fiscalYear)
+    const raw = await this.gw.getDmRemissionLabDatasetRaw({
+      startDate,
+      endDate,
+      fiscalYear,
+      a1cMax,
+    })
 
-    const totalQuerySql = `
-      SELECT COUNT(DISTINCT lh.hn) AS total_tested
-      FROM lab_head lh
-      INNER JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-      WHERE lh.order_date >= ?
-        AND lh.order_date <= ?
-        AND lo.lab_items_code = 3073
-        AND lo.confirm = 'Y'
-        AND lo.lab_order_result REGEXP '^[0-9]+(\\.[0-9]+)?$'
-    `
-
-    const basePoolSql = `
-      SELECT
-        t.hn,
-        p.cid,
-        CONCAT(COALESCE(p.pname, ''), COALESCE(p.fname, ''), ' ', COALESCE(p.lname, '')) AS patient_name,
-        TIMESTAMPDIFF(YEAR, p.birthday, t.visit_date) AS age_years,
-        CASE p.sex WHEN '1' THEN 'ชาย' WHEN '2' THEN 'หญิง' ELSE NULL END AS sex_label,
-        CASE WHEN COALESCE(p.death, 'N') = 'Y' OR COALESCE(MAX(ps.death), 'N') = 'Y' THEN 1 ELSE 0 END AS death_flag,
-        t.visit_date,
-        t.latest_vn AS vn,
-        t.lab_order_number,
-        t.latest_a1c,
-        t.a1c_test_count,
-        t.prev_entry,
-        o.pttype AS visit_pttype_code,
-        pt_v.name AS visit_pttype_name,
-        CASE WHEN pt_v.hipdata_code = 'UCS' THEN 1 ELSE 0 END AS is_uc_visit,
-        p.pttype AS current_pttype_code,
-        pt_p.name AS current_pttype_name,
-        CASE WHEN pt_p.hipdata_code = 'UCS' THEN 1 ELSE 0 END AS is_uc_current,
-        MAX(ta.name) AS tambon_name,
-        MAX(v.village_name) AS village_name,
-        MAX(v.village_moo) AS village_moo
-      FROM (
-        SELECT
-          raw_agg.hn,
-          raw_agg.a1c_test_count,
-          SUBSTRING_INDEX(SUBSTRING_INDEX(raw_agg.entries_csv, ',', 1), '|', 1) AS visit_date,
-          CAST(
-            SUBSTRING_INDEX(
-              SUBSTRING_INDEX(
-                SUBSTRING_INDEX(raw_agg.entries_csv, ',', 1),
-                '|',
-                2
-              ),
-              '|',
-              -1
-            ) AS UNSIGNED
-          ) AS lab_order_number,
-          CAST(
-            SUBSTRING_INDEX(
-              SUBSTRING_INDEX(
-                SUBSTRING_INDEX(raw_agg.entries_csv, ',', 1),
-                '|',
-                3
-              ),
-              '|',
-              -1
-            ) AS DECIMAL(5,2)
-          ) AS latest_a1c,
-          SUBSTRING_INDEX(SUBSTRING_INDEX(raw_agg.entries_csv, ',', 1), '|', -1) AS latest_vn,
-          CASE
-            WHEN raw_agg.a1c_test_count >= 2 THEN
-              SUBSTRING_INDEX(SUBSTRING_INDEX(raw_agg.entries_csv, ',', 2), ',', -1)
-            ELSE NULL
-          END AS prev_entry
-        FROM (
-          SELECT
-            lh.hn,
-            COUNT(*) AS a1c_test_count,
-            GROUP_CONCAT(
-              CONCAT(DATE_FORMAT(lh.order_date, '%Y-%m-%d'), '|', lh.lab_order_number, '|', TRIM(lo.lab_order_result), '|', COALESCE(lh.vn, ''))
-              ORDER BY lh.order_date DESC, lh.lab_order_number DESC
-              SEPARATOR ','
-            ) AS entries_csv
-          FROM lab_head lh
-          INNER JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-          WHERE lh.order_date >= ?
-            AND lh.order_date <= ?
-            AND lo.lab_items_code = 3073
-            AND lo.confirm = 'Y'
-            AND lo.lab_order_result REGEXP '^[0-9]+(\\.[0-9]+)?$'
-          GROUP BY lh.hn
-        ) raw_agg
-        HAVING latest_a1c <= ?
-      ) t
-      INNER JOIN patient p ON p.hn = t.hn
-      LEFT JOIN ovst o ON o.vn = t.latest_vn
-      LEFT JOIN pttype pt_v ON pt_v.pttype = o.pttype
-      LEFT JOIN pttype pt_p ON pt_p.pttype = p.pttype
-      LEFT JOIN person ps ON ps.patient_hn = p.hn
-      LEFT JOIN village v ON v.village_id = ps.village_id
-      LEFT JOIN thaiaddress ta
-        ON ta.chwpart = p.chwpart
-        AND ta.amppart = p.amppart
-        AND ta.tmbpart = p.tmbpart
-        AND ta.codetype = '3'
-      GROUP BY
-        t.hn, p.cid, p.pname, p.fname, p.lname, p.birthday, p.sex, p.death,
-        t.visit_date, t.latest_vn, t.lab_order_number, t.latest_a1c, t.a1c_test_count, t.prev_entry,
-        o.pttype, pt_v.name, pt_v.hipdata_code, p.pttype, pt_p.name, pt_p.hipdata_code
-    `
-
-    const [totalRows, baseRows] = await Promise.all([
-      this.deps.clinicalQuery<{ total_tested: number | string }>(totalQuerySql, [
-        startDate,
-        endDate,
-      ]),
-      this.deps.clinicalQuery<LabBaseSqlRow>(basePoolSql, [startDate, endDate, a1cMax]),
-    ])
-
-    const totalA1cTested = Number(totalRows[0]?.total_tested ?? 0)
+    const totalA1cTested = Number(raw.totalA1cTested ?? 0)
     const fetchedAt = new Date().toISOString()
+    const baseRows = (raw.baseRows ?? []) as unknown as LabBaseSqlRow[]
 
     if (baseRows.length === 0) {
       return { totalA1cTested, basePool: [], fetchedAt }
     }
 
-    const hns = Array.from(new Set(baseRows.map((r) => r.hn).filter(Boolean)))
-    const vns = Array.from(
-      new Set(baseRows.map((r) => r.vn?.trim()).filter((v): v is string => Boolean(v)))
-    )
-    const cids = Array.from(
-      new Set(
-        baseRows.flatMap((r) => {
-          const raw = r.cid?.trim()
-          const norm = normalizeCid(raw)
-          return [raw, norm].filter((v): v is string => Boolean(v))
-        })
-      )
-    )
-
-    const hnChunks = chunkArray(hns, HOSXP_CHUNK_SIZE)
-    const vnChunks = chunkArray(vns, HOSXP_CHUNK_SIZE)
-    const cidChunks = chunkArray(cids, HOSXP_CHUNK_SIZE)
-    const icodePlaceholders = buildPlaceholders(DM_ANTIDIABETIC_ICODES.length)
-
-    const [
-      e11ChunkResults,
-      sameVnChunkResults,
-      rxChunkResults,
-      cohortRows,
-      t1dmChunkResults,
-      t1dmMirrorRows,
-    ] = await Promise.all([
-      Promise.all(
-        hnChunks.map((chunk) =>
-          this.deps.clinicalQuery<E11AggSqlRow>(
-            `
-              SELECT
-                od.hn,
-                DATE_FORMAT(MAX(od.vstdate), '%Y-%m-%d') AS last_e11_date,
-                SUBSTRING_INDEX(GROUP_CONCAT(od.icd10 ORDER BY od.vstdate DESC, od.vn DESC SEPARATOR ','), ',', 1) AS last_e11_icd10,
-                SUM(CASE WHEN od.vstdate >= ? AND od.vstdate <= ? THEN 1 ELSE 0 END) AS in_fy_e11_count
-              FROM ovstdiag od
-              WHERE od.hn IN (${buildPlaceholders(chunk.length)})
-                AND od.icd10 LIKE 'E11%'
-              GROUP BY od.hn
-            `,
-            [startDate, endDate, ...chunk]
-          )
-        )
-      ),
-      Promise.all(
-        vnChunks.map((chunk) =>
-          this.deps.clinicalQuery<SameVnE11SqlRow>(
-            `
-              SELECT DISTINCT od.vn
-              FROM ovstdiag od
-              WHERE od.vn IN (${buildPlaceholders(chunk.length)})
-                AND od.icd10 LIKE 'E11%'
-            `,
-            chunk
-          )
-        )
-      ),
-      Promise.all(
-        hnChunks.map((chunk) =>
-          this.deps.clinicalQuery<DmDrugVisitSqlRow>(
-            `
-              SELECT
-                op.hn,
-                op.vn,
-                DATE_FORMAT(op.vstdate, '%Y-%m-%d') AS vstdate,
-                GROUP_CONCAT(DISTINCT op.icode SEPARATOR ',') AS icodes
-              FROM opitemrece op
-              WHERE op.vstdate >= DATE_SUB(?, INTERVAL 90 DAY)
-                AND op.vstdate <= ?
-                AND op.icode IN (${icodePlaceholders})
-                AND op.hn IN (${buildPlaceholders(chunk.length)})
-              GROUP BY op.hn, op.vn, op.vstdate
-            `,
-            [startDate, endDate, ...DM_ANTIDIABETIC_ICODES, ...chunk]
-          )
-        )
-      ),
-      this.deps
-        .appQuery<CohortLookupSqlRow>(
-          `
-            SELECT hn, cid, summary_remission
-            FROM dm_remission_cohorts
-            WHERE fiscal_year = ?
-          `,
-          [fiscalYear]
-        )
-        .catch(() => [] as CohortLookupSqlRow[]),
-      Promise.all(
-        cidChunks.map((chunk) =>
-          this.deps
-            .clinicalQuery<T1dmLookupSqlRow>(
-              `
-                SELECT
-                  TRIM(PID) AS pid,
-                  MAX(NULLIF(TRIM(Type), '')) AS type
-                FROM rcmdb.t1dm
-                WHERE PID IN (${buildPlaceholders(chunk.length)})
-                GROUP BY TRIM(PID)
-              `,
-              chunk
-            )
-            .catch(() => [] as T1dmLookupSqlRow[])
-        )
-      ),
-      this.deps
-        .appQuery<T1dmLookupSqlRow>(
-          `
-            SELECT
-              TRIM(pid) AS pid,
-              MAX(NULLIF(TRIM(type), '')) AS type
-            FROM t1dm_registries
-            WHERE pid IS NOT NULL AND pid <> ''
-            GROUP BY TRIM(pid)
-          `
-        )
-        .catch(() => [] as T1dmLookupSqlRow[]),
-    ])
-
     const e11ByHn = new Map<string, E11AggSqlRow>()
-    for (const rows of e11ChunkResults) {
-      for (const row of rows) {
-        e11ByHn.set(row.hn, row)
-      }
+    for (const row of (raw.e11Rows ?? []) as unknown as E11AggSqlRow[]) {
+      e11ByHn.set(row.hn, row)
     }
 
     const sameVnE11Set = new Set<string>()
-    for (const rows of sameVnChunkResults) {
-      for (const row of rows) {
-        if (row.vn) sameVnE11Set.add(row.vn)
-      }
+    for (const row of (raw.sameVnRows ?? []) as unknown as SameVnE11SqlRow[]) {
+      if (row.vn) sameVnE11Set.add(row.vn)
     }
 
     const rxByHn = new Map<string, DmDrugVisitSqlRow[]>()
-    for (const rows of rxChunkResults) {
-      for (const row of rows) {
-        const list = rxByHn.get(row.hn) ?? []
-        list.push(row)
-        rxByHn.set(row.hn, list)
-      }
+    for (const row of (raw.rxRows ?? []) as unknown as DmDrugVisitSqlRow[]) {
+      const list = rxByHn.get(row.hn) ?? []
+      list.push(row)
+      rxByHn.set(row.hn, list)
     }
 
     const cohortByHn = new Map<string, string | null>()
     const cohortByCid = new Map<string, string | null>()
-    for (const row of cohortRows ?? []) {
+    for (const row of (raw.cohortRows ?? []) as unknown as CohortLookupSqlRow[]) {
       const normHn = normalizeHn(row.hn)
       if (normHn) cohortByHn.set(normHn, row.summary_remission ?? null)
       const normCid = normalizeCid(row.cid)
@@ -425,15 +177,13 @@ export class DmRemissionLabService {
     // Match the registration source of /service/dashboard-rcm/funds/t1dm-gdm-pdm/2
     // (rcmdb.t1dm + Website DB mirror table t1dm_registries by PID/CID).
     const t1dmByCid = new Map<string, string | null>()
-    for (const rows of t1dmChunkResults) {
-      for (const row of rows ?? []) {
-        const normPid = normalizeCid(row.pid)
-        if (normPid) {
-          t1dmByCid.set(normPid, row.type?.trim() || null)
-        }
+    for (const row of (raw.t1dmRows ?? []) as unknown as T1dmLookupSqlRow[]) {
+      const normPid = normalizeCid(row.pid)
+      if (normPid) {
+        t1dmByCid.set(normPid, row.type?.trim() || null)
       }
     }
-    for (const row of t1dmMirrorRows ?? []) {
+    for (const row of (raw.t1dmMirrorRows ?? []) as unknown as T1dmLookupSqlRow[]) {
       const normPid = normalizeCid(row.pid)
       if (normPid) {
         const existing = t1dmByCid.get(normPid) ?? null
@@ -605,106 +355,40 @@ export class DmRemissionLabService {
 
   async getPatientLabTimeline(rawHn: string): Promise<DmLabPatientTimeline | null> {
     const hn = normalizeHn(rawHn) ?? rawHn.trim()
-    const icodePlaceholders = buildPlaceholders(DM_ANTIDIABETIC_ICODES.length)
+    const raw = await this.gw.getDmRemissionLabTimelineRaw(hn)
+    const patientRows = (raw.patientRows ?? []) as Array<{
+      hn: string
+      cid: string | null
+      patient_name: string | null
+      age_years: number | string | null
+      pttype_name: string | null
+    }>
 
-    const [patientRows, labRows, diagRows, rxRows] = await Promise.all([
-      this.deps.clinicalQuery<{
-        hn: string
-        cid: string | null
-        patient_name: string | null
-        age_years: number | string | null
-        pttype_name: string | null
-      }>(
-        `
-          SELECT
-            p.hn,
-            p.cid,
-            CONCAT(COALESCE(p.pname, ''), COALESCE(p.fname, ''), ' ', COALESCE(p.lname, '')) AS patient_name,
-            TIMESTAMPDIFF(YEAR, p.birthday, CURDATE()) AS age_years,
-            pt.name AS pttype_name
-          FROM patient p
-          LEFT JOIN pttype pt ON pt.pttype = p.pttype
-          WHERE p.hn = ?
-          LIMIT 1
-        `,
-        [hn]
-      ),
-      this.deps.clinicalQuery<{
-        lab_order_number: number | string
-        order_date: string
-        vn: string | null
-        a1c_result: string | null
-        fpg_result: string | null
-      }>(
-        `
-          SELECT
-            lh.lab_order_number,
-            DATE_FORMAT(lh.order_date, '%Y-%m-%d') AS order_date,
-            lh.vn,
-            MAX(CASE WHEN lo.lab_items_code = 3073 AND lo.confirm = 'Y' THEN TRIM(lo.lab_order_result) ELSE NULL END) AS a1c_result,
-            MAX(CASE WHEN lo.lab_items_code = 3324 AND lo.confirm = 'Y' THEN TRIM(lo.lab_order_result) ELSE NULL END) AS fpg_result
-          FROM lab_head lh
-          INNER JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-          WHERE lh.hn = ?
-            AND lo.lab_items_code IN (3073, 3324)
-            AND lo.confirm = 'Y'
-          GROUP BY lh.lab_order_number, lh.order_date, lh.vn
-          HAVING a1c_result IS NOT NULL OR fpg_result IS NOT NULL
-          ORDER BY lh.order_date DESC, lh.lab_order_number DESC
-          LIMIT 15
-        `,
-        [hn]
-      ),
-      this.deps.clinicalQuery<{
-        vstdate: string
-        vn: string
-        icd10: string
-        diagtype: string | null
-      }>(
-        `
-          SELECT
-            DATE_FORMAT(od.vstdate, '%Y-%m-%d') AS vstdate,
-            od.vn,
-            od.icd10,
-            od.diagtype
-          FROM ovstdiag od
-          WHERE od.hn = ?
-            AND od.icd10 LIKE 'E11%'
-          ORDER BY od.vstdate DESC, od.vn DESC
-          LIMIT 15
-        `,
-        [hn]
-      ),
-      this.deps.clinicalQuery<{
-        vstdate: string
-        vn: string
-        icode: string
-        drug_name: string | null
-        qty: number | string | null
-      }>(
-        `
-          SELECT
-            DATE_FORMAT(op.vstdate, '%Y-%m-%d') AS vstdate,
-            op.vn,
-            op.icode,
-            d.name AS drug_name,
-            op.qty
-          FROM opitemrece op
-          LEFT JOIN drugitems d ON d.icode = op.icode
-          WHERE op.hn = ?
-            AND op.icode IN (${icodePlaceholders})
-          ORDER BY op.vstdate DESC, op.vn DESC
-          LIMIT 25
-        `,
-        [hn, ...DM_ANTIDIABETIC_ICODES]
-      ),
-    ])
-
-    if (!patientRows || patientRows.length === 0) {
+    if (patientRows.length === 0) {
       return null
     }
 
     const patient = patientRows[0]
+    const labRows = (raw.labRows ?? []) as Array<{
+      lab_order_number: number | string
+      order_date: string
+      vn: string | null
+      a1c_result: string | null
+      fpg_result: string | null
+    }>
+    const diagRows = (raw.diagRows ?? []) as Array<{
+      vstdate: string
+      vn: string
+      icd10: string
+      diagtype: string | null
+    }>
+    const rxRows = (raw.rxRows ?? []) as Array<{
+      vstdate: string
+      vn: string
+      icode: string
+      drug_name: string | null
+      qty: number | string | null
+    }>
 
     return {
       hn: patient.hn,
@@ -712,20 +396,20 @@ export class DmRemissionLabService {
       cid: patient.cid?.trim() || null,
       ageYears: toNullableNumber(patient.age_years),
       currentPttypeName: patient.pttype_name ?? null,
-      labHistory: (labRows ?? []).map((r) => ({
+      labHistory: labRows.map((r) => ({
         labOrderNumber: Number(r.lab_order_number),
         orderDate: r.order_date,
         vn: r.vn ?? '',
         a1c: toNullableNumber(r.a1c_result),
         fpg: toNullableNumber(r.fpg_result),
       })),
-      e11Diagnoses: (diagRows ?? []).map((r) => ({
+      e11Diagnoses: diagRows.map((r) => ({
         vstdate: r.vstdate,
         vn: r.vn,
         icd10: r.icd10,
         diagType: r.diagtype ?? null,
       })),
-      dmPrescriptions: (rxRows ?? []).map((r) => ({
+      dmPrescriptions: rxRows.map((r) => ({
         vstdate: r.vstdate,
         vn: r.vn,
         icode: r.icode,

@@ -5,27 +5,28 @@ vi.mock('@/lib/audit', () => ({
 }))
 
 import { logAudit } from '@/lib/audit'
+import { GatewayError, GatewayNotFoundError } from '@/lib/apiGateway'
 import {
   DmRemissionConflictError,
   DmRemissionNotFoundError,
   DmRemissionService,
   DmRemissionValidationError,
-  type DmRemissionDbDeps,
+  type DmRemissionGatewayDeps,
 } from '../dmRemissionService'
 
-function createMockDeps() {
+function createMockGw() {
   return {
-    // Mocked query returns heterogeneous row shapes across test cases
-    appQuery: vi.fn<(sql: string, params?: unknown[]) => Promise<any[]>>(),
-    appTransaction: vi.fn<DmRemissionDbDeps['appTransaction']>().mockResolvedValue({
-      count: 2,
-      results: [
-        { affectedRows: 0, insertId: null },
-        { affectedRows: 1, insertId: 1 },
-      ],
-    }),
-    // Mocked HOSxP query returns heterogeneous row shapes across test cases
-    clinicalQuery: vi.fn<(sql: string, params?: unknown[]) => Promise<any[]>>(),
+    ensureDmRemissionSchema: vi.fn<DmRemissionGatewayDeps['ensureDmRemissionSchema']>().mockResolvedValue({ ensured: true }),
+    lookupDmRemissionPatientByHn: vi.fn<DmRemissionGatewayDeps['lookupDmRemissionPatientByHn']>(),
+    listDmRemissionOptionsRaw: vi.fn<DmRemissionGatewayDeps['listDmRemissionOptionsRaw']>(),
+    createDmRemissionOption: vi.fn<DmRemissionGatewayDeps['createDmRemissionOption']>(),
+    updateDmRemissionOption: vi.fn<DmRemissionGatewayDeps['updateDmRemissionOption']>(),
+    deleteDmRemissionOption: vi.fn<DmRemissionGatewayDeps['deleteDmRemissionOption']>(),
+    getDmRemissionCohortsBundle: vi.fn<DmRemissionGatewayDeps['getDmRemissionCohortsBundle']>(),
+    createDmRemissionCohort: vi.fn<DmRemissionGatewayDeps['createDmRemissionCohort']>(),
+    updateDmRemissionCohort: vi.fn<DmRemissionGatewayDeps['updateDmRemissionCohort']>(),
+    deleteDmRemissionCohort: vi.fn<DmRemissionGatewayDeps['deleteDmRemissionCohort']>(),
+    carryoverDmRemissionCohorts: vi.fn<DmRemissionGatewayDeps['carryoverDmRemissionCohorts']>(),
   }
 }
 
@@ -68,59 +69,36 @@ function makeDbCohortRow(overrides: Record<string, unknown> = {}) {
 }
 
 describe('DmRemissionService', () => {
-  let deps: ReturnType<typeof createMockDeps>
+  let gw: ReturnType<typeof createMockGw>
   let service: DmRemissionService
   const actor = { username: 'nurse01', email: 'nurse01@thoen.local' }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    deps = createMockDeps()
-    service = new DmRemissionService(deps)
+    gw = createMockGw()
+    service = new DmRemissionService(gw)
   })
 
   describe('ensureSchema', () => {
-    it('creates tables with SET NAMES utf8mb4, seeds remission options once, and caches state', async () => {
-      deps.appQuery.mockResolvedValueOnce([{ cnt: 0 }])
-
+    it('ensures schema via Gateway once and caches state', async () => {
       await service.ensureSchema()
       await service.ensureSchema()
-
-      expect(deps.appTransaction).toHaveBeenCalledTimes(2)
-      expect(deps.appTransaction.mock.calls[0][0][0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(deps.appTransaction.mock.calls[0][0][1].sql).toContain(
-        'CREATE TABLE IF NOT EXISTS dm_remission_cohorts'
-      )
-      expect(deps.appTransaction.mock.calls[0][0][2].sql).toContain(
-        'CREATE TABLE IF NOT EXISTS dm_remission_options'
-      )
-
-      const seedCalls = deps.appTransaction.mock.calls[1][0]
-      expect(seedCalls[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(seedCalls).toHaveLength(4)
-      expect(seedCalls[1].params?.[1]).toBe('Remission')
-      expect(seedCalls[2].params?.[1]).toBe('ไม่ Remission')
-      expect(seedCalls[3].params?.[1]).toBe('รอ lab A1c')
-    })
-
-    it('skips seeding when remission options already exist', async () => {
-      deps.appQuery.mockResolvedValueOnce([{ cnt: 3 }])
-
-      await service.ensureSchema()
-      expect(deps.appTransaction).toHaveBeenCalledTimes(1)
+      expect(gw.ensureDmRemissionSchema).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('lookupPatientByHn', () => {
-    it('normalizes HN and queries HOSxP patient table', async () => {
-      deps.clinicalQuery.mockResolvedValueOnce([
-        { hn: '0001234', cid: '1-5200-00000-00-1', ptname: 'นายใจดี มีสุข', age: '62' },
-      ])
+    it('normalizes HN and queries Gateway lookup endpoint', async () => {
+      gw.lookupDmRemissionPatientByHn.mockResolvedValueOnce({
+        hn: '0001234',
+        cid: '1-5200-00000-00-1',
+        ptname: 'นายใจดี มีสุข',
+        age: '62',
+      })
 
       const result = await service.lookupPatientByHn('1234')
 
-      expect(deps.clinicalQuery).toHaveBeenCalledWith(expect.stringContaining('FROM patient pt'), [
-        '0001234',
-      ])
+      expect(gw.lookupDmRemissionPatientByHn).toHaveBeenCalledWith('0001234')
       expect(result).toEqual({
         hn: '0001234',
         cid: '1520000000001',
@@ -131,18 +109,18 @@ describe('DmRemissionService', () => {
 
     it('returns null for blank HN or missing patient', async () => {
       expect(await service.lookupPatientByHn('   ')).toBeNull()
-      expect(deps.clinicalQuery).not.toHaveBeenCalled()
+      expect(gw.lookupDmRemissionPatientByHn).not.toHaveBeenCalled()
 
-      deps.clinicalQuery.mockResolvedValueOnce([])
+      gw.lookupDmRemissionPatientByHn.mockResolvedValueOnce(null)
       expect(await service.lookupPatientByHn('9999999')).toBeNull()
     })
   })
 
   describe('listCohorts', () => {
-    it('loads options, years, PCUs, scopes stats to fiscalYear+pcuName, and filters items', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema count
-        .mockResolvedValueOnce([
+    it('loads bundle, scopes stats to fiscalYear+pcuName, and filters items', async () => {
+      gw.getDmRemissionCohortsBundle.mockResolvedValueOnce({
+        targetFiscalYear: 2569,
+        optionRows: [
           {
             id: 1,
             category: 'remission',
@@ -173,10 +151,10 @@ describe('DmRemissionService', () => {
             createdAt: '2026-10-01',
             updatedAt: '2026-10-01',
           },
-        ])
-        .mockResolvedValueOnce([{ fiscalYear: 2569 }, { fiscalYear: 2567 }])
-        .mockResolvedValueOnce([{ pcuName: 'รพ.สต.ล้อมแรด' }])
-        .mockResolvedValueOnce([
+        ],
+        yearRows: [{ fiscalYear: 2569 }, { fiscalYear: 2567 }],
+        pcuRows: [{ pcuName: 'รพ.สต.ล้อมแรด' }],
+        cohortRows: [
           makeDbCohortRow({
             id: 1,
             pcuName: 'รพ.สต.ล้อมแรด',
@@ -199,7 +177,8 @@ describe('DmRemissionService', () => {
             cid: '1520000000003',
             summaryRemission: null,
           }),
-        ])
+        ],
+      })
 
       const result = await service.listCohorts({
         fiscalYear: 2569,
@@ -211,49 +190,37 @@ describe('DmRemissionService', () => {
       expect(result.fiscalYear).toBe(2569)
       expect(result.availableFiscalYears).toContain(2567)
       expect(result.availablePcus).toEqual(['รพ.สต.แม่วะ', 'รพ.สต.ล้อมแรด'])
-      // Stats reflect both records in รพ.สต.ล้อมแรด before remissionStatus/search narrowing
       expect(result.stats.totalPatients).toBe(2)
       expect(result.stats.remissionCount).toBe(1)
       expect(result.stats.remissionRate).toBe(50)
-      // Items reflect remissionStatus + search narrowing
       expect(result.items).toHaveLength(1)
       expect(result.items[0].id).toBe(2)
       expect(result.items[0].bmiBefore).toBe(27.34)
     })
 
-    it('resolves omitted fiscalYear to the latest populated DB year and returns only populated years', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
-        .mockResolvedValueOnce([{ fiscalYear: 2569 }, { fiscalYear: 2565 }]) // yearRows
-        .mockResolvedValueOnce([]) // options
-        .mockResolvedValueOnce([{ pcuName: 'รพ.สต.ล้อมแรด' }]) // pcuRows
-        .mockResolvedValueOnce([makeDbCohortRow({ id: 20, fiscalYear: 2569 })])
+    it('resolves omitted fiscalYear to the latest populated DB year', async () => {
+      gw.getDmRemissionCohortsBundle.mockResolvedValueOnce({
+        targetFiscalYear: 2569,
+        optionRows: [],
+        yearRows: [{ fiscalYear: 2569 }, { fiscalYear: 2565 }],
+        pcuRows: [{ pcuName: 'รพ.สต.ล้อมแรด' }],
+        cohortRows: [makeDbCohortRow({ id: 20, fiscalYear: 2569 })],
+      })
 
       const result = await service.listCohorts({})
 
       expect(result.fiscalYear).toBe(2569)
       expect(result.availableFiscalYears).toEqual([2569, 2565])
       expect(result.items).toHaveLength(1)
-      expect(deps.appQuery.mock.calls[4][1]).toEqual([2569])
+      expect(gw.getDmRemissionCohortsBundle).toHaveBeenCalledWith(undefined)
     })
   })
 
   describe('createCohort / updateCohort / deleteCohort', () => {
     it('creates a cohort with normalized HN/CID and writes non-PHI audit log', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
-        .mockResolvedValueOnce([]) // duplicate check
-        .mockResolvedValueOnce([makeDbCohortRow({ id: 10, hn: '0001234', cid: '1520000000001' })])
-
-      deps.appTransaction
-        .mockResolvedValueOnce({ count: 3, results: [] }) // ensureSchema DDL
-        .mockResolvedValueOnce({
-          count: 2,
-          results: [
-            { affectedRows: 0, insertId: null },
-            { affectedRows: 1, insertId: 10 },
-          ],
-        })
+      gw.createDmRemissionCohort.mockResolvedValueOnce(
+        makeDbCohortRow({ id: 10, hn: '0001234', cid: '1520000000001' })
+      )
 
       const created = await service.createCohort(
         {
@@ -269,12 +236,14 @@ describe('DmRemissionService', () => {
 
       expect(created.id).toBe(10)
       expect(created.bmiBefore).toBe(27.34)
-
-      const insertCall = deps.appTransaction.mock.calls[1][0]
-      expect(insertCall[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(insertCall[1].sql).toContain('INSERT INTO dm_remission_cohorts')
-      expect(insertCall[1].params).toContain('0001234')
-      expect(insertCall[1].params).toContain('1520000000001')
+      expect(gw.createDmRemissionCohort).toHaveBeenCalledWith({
+        fields: expect.objectContaining({
+          fiscalYear: 2569,
+          hn: '0001234',
+          cid: '1520000000001',
+        }),
+        actorName: 'nurse01',
+      })
 
       expect(logAudit).toHaveBeenCalledWith(
         'CREATE',
@@ -287,53 +256,38 @@ describe('DmRemissionService', () => {
       expect(auditDetails).not.toContain('1520000000001')
     })
 
-    it('throws DmRemissionConflictError on duplicate HN/CID in the same fiscal year', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
-        .mockResolvedValueOnce([{ id: 5 }]) // duplicate check
+    it('maps Gateway 409 conflict to DmRemissionConflictError', async () => {
+      gw.createDmRemissionCohort.mockRejectedValueOnce(
+        new GatewayError('Duplicate cohort', { status: 409 })
+      )
 
       await expect(
-        service.createCohort(
-          { fiscalYear: 2569, patientName: 'นายซ้ำ', hn: '1234' },
-          actor
-        )
+        service.createCohort({ fiscalYear: 2569, patientName: 'นายซ้ำ', hn: '1234' }, actor)
       ).rejects.toBeInstanceOf(DmRemissionConflictError)
     })
 
     it('throws DmRemissionValidationError when patientName is blank', async () => {
-      deps.appQuery.mockResolvedValueOnce([{ cnt: 3 }])
-
       await expect(
         service.createCohort({ fiscalYear: 2569, patientName: '   ' }, actor)
       ).rejects.toBeInstanceOf(DmRemissionValidationError)
     })
 
-    it('updates a cohort and throws NotFound/Conflict appropriately', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
-        .mockResolvedValueOnce([]) // missing record
-
+    it('updates a cohort and maps NotFound/Conflict appropriately', async () => {
+      gw.updateDmRemissionCohort.mockRejectedValueOnce(new GatewayNotFoundError('Not found'))
       await expect(
         service.updateCohort(999, { weightAfterKg: 60 }, actor)
       ).rejects.toBeInstanceOf(DmRemissionNotFoundError)
 
-      // Existing record found, but duplicate HN in same FY
-      deps.appQuery
-        .mockResolvedValueOnce([makeDbCohortRow({ id: 1, fiscalYear: 2569 })])
-        .mockResolvedValueOnce([{ id: 2 }])
+      gw.updateDmRemissionCohort.mockRejectedValueOnce(
+        new GatewayError('Conflict', { status: 409 })
+      )
+      await expect(service.updateCohort(1, { hn: '5678' }, actor)).rejects.toBeInstanceOf(
+        DmRemissionConflictError
+      )
 
-      await expect(
-        service.updateCohort(1, { hn: '5678' }, actor)
-      ).rejects.toBeInstanceOf(DmRemissionConflictError)
-
-      // Successful update
-      deps.appQuery
-        .mockResolvedValueOnce([makeDbCohortRow({ id: 1, fiscalYear: 2569 })])
-        .mockResolvedValueOnce([]) // no duplicate
-        .mockResolvedValueOnce([
-          makeDbCohortRow({ id: 1, fiscalYear: 2569, weightAfterKg: '60.00' }),
-        ])
-
+      gw.updateDmRemissionCohort.mockResolvedValueOnce(
+        makeDbCohortRow({ id: 1, fiscalYear: 2569, weightAfterKg: '60.00' })
+      )
       const updated = await service.updateCohort(1, { weightAfterKg: 60 }, actor)
       expect(updated.weightAfterKg).toBe(60)
       expect(updated.bmiAfter).toBe(23.44)
@@ -345,17 +299,13 @@ describe('DmRemissionService', () => {
       )
     })
 
-    it('deletes a cohort or throws DmRemissionNotFoundError if missing', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
-        .mockResolvedValueOnce([])
-
+    it('deletes a cohort or maps GatewayNotFoundError', async () => {
+      gw.deleteDmRemissionCohort.mockRejectedValueOnce(new GatewayNotFoundError('Not found'))
       await expect(service.deleteCohort(404, actor)).rejects.toBeInstanceOf(
         DmRemissionNotFoundError
       )
 
-      deps.appQuery.mockResolvedValueOnce([makeDbCohortRow({ id: 7, fiscalYear: 2569 })])
-
+      gw.deleteDmRemissionCohort.mockResolvedValueOnce({ id: 7, fiscalYear: 2569 })
       const deleted = await service.deleteCohort(7, actor)
       expect(deleted).toEqual({ id: 7, fiscalYear: 2569 })
       expect(logAudit).toHaveBeenCalledWith(
@@ -369,57 +319,23 @@ describe('DmRemissionService', () => {
 
   describe('carryoverFromFiscalYear', () => {
     it('rejects target year <= source year', async () => {
-      deps.appQuery.mockResolvedValueOnce([{ cnt: 3 }])
-
       await expect(service.carryoverFromFiscalYear(2569, 2569, actor)).rejects.toBeInstanceOf(
         DmRemissionValidationError
       )
     })
 
-    it('carries over non-remission rows with after->before baselines and skips duplicates', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
-        .mockResolvedValueOnce([
-          makeDbCohortRow({
-            id: 1,
-            hn: '0001111',
-            cid: '1520000000011',
-            weightBeforeKg: '72.00',
-            weightAfterKg: '68.00',
-            waistBeforeCm: '94.00',
-            waistAfterCm: '89.00',
-            fpgBefore: '150.00',
-            fpgAfter: '115.00',
-            a1cBefore: '8.10',
-            a1cAfter: '7.10',
-            medsBefore: 'Old Med',
-            medsAfter: 'Reduced Med',
-            summaryRemission: 'ไม่ Remission',
-          }),
-          makeDbCohortRow({
-            id: 2,
-            hn: '0002222',
-            cid: '1520000000022',
-            summaryRemission: null,
-          }),
-        ])
-        .mockResolvedValueOnce([{ hn: '0002222', cid: '1520000000022' }])
+    it('carries over non-remission rows via Gateway and writes audit log', async () => {
+      gw.carryoverDmRemissionCohorts.mockResolvedValueOnce({ copiedCount: 1, skippedCount: 1 })
 
       const res = await service.carryoverFromFiscalYear(2569, 2570, actor)
 
       expect(res).toEqual({ copiedCount: 1, skippedCount: 1 })
-      const txStatements = deps.appTransaction.mock.calls[1][0]
-      expect(txStatements[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(txStatements).toHaveLength(2)
-      const insertParams = txStatements[1].params ?? []
-      expect(insertParams[0]).toBe(2570)
-      expect(insertParams[8]).toBe(68)
-      expect(insertParams[9]).toBe(89)
-      expect(insertParams[10]).toBe(115)
-      expect(insertParams[11]).toBe(7.1)
-      expect(insertParams[12]).toBe('Reduced Med')
-      expect(insertParams[13]).toBe('รอ lab A1c')
-
+      expect(gw.carryoverDmRemissionCohorts).toHaveBeenCalledWith({
+        fromFiscalYear: 2569,
+        toFiscalYear: 2570,
+        actorName: 'nurse01',
+        defaultRemissionStatus: 'รอ lab A1c',
+      })
       expect(logAudit).toHaveBeenCalledWith(
         'CREATE',
         'dm_remission_cohorts',
@@ -431,31 +347,16 @@ describe('DmRemissionService', () => {
 
   describe('options CRUD', () => {
     it('creates, updates, lists, and deletes options with conflict & not-found checks', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce([{ cnt: 3 }]) // ensureSchema
-        .mockResolvedValueOnce([]) // dup check
-        .mockResolvedValueOnce([
-          {
-            id: 12,
-            category: 'diet',
-            label: 'คาร์บต่ำ',
-            sortOrder: 1,
-            isActive: 1,
-            createdBy: 'nurse01',
-            createdAt: '2026-10-01',
-            updatedAt: '2026-10-01',
-          },
-        ])
-
-      deps.appTransaction
-        .mockResolvedValueOnce({ count: 3, results: [] })
-        .mockResolvedValueOnce({
-          count: 2,
-          results: [
-            { affectedRows: 0, insertId: null },
-            { affectedRows: 1, insertId: 12 },
-          ],
-        })
+      gw.createDmRemissionOption.mockResolvedValueOnce({
+        id: 12,
+        category: 'diet',
+        label: 'คาร์บต่ำ',
+        sortOrder: 1,
+        isActive: 1,
+        createdBy: 'nurse01',
+        createdAt: '2026-10-01',
+        updatedAt: '2026-10-01',
+      })
 
       const created = await service.createOption(
         { category: 'diet', label: 'คาร์บต่ำ', sortOrder: 1 },
@@ -463,46 +364,26 @@ describe('DmRemissionService', () => {
       )
       expect(created).toMatchObject({ id: 12, category: 'diet', label: 'คาร์บต่ำ', isActive: true })
 
-      // Duplicate on create
-      deps.appQuery.mockResolvedValueOnce([{ id: 12 }])
+      gw.createDmRemissionOption.mockRejectedValueOnce(new GatewayError('Dup', { status: 409 }))
       await expect(
         service.createOption({ category: 'diet', label: 'คาร์บต่ำ' }, actor)
       ).rejects.toBeInstanceOf(DmRemissionConflictError)
 
-      // Update missing
-      deps.appQuery.mockResolvedValueOnce([])
+      gw.updateDmRemissionOption.mockRejectedValueOnce(new GatewayNotFoundError('Missing'))
       await expect(service.updateOption(99, { label: 'ใหม่' }, actor)).rejects.toBeInstanceOf(
         DmRemissionNotFoundError
       )
 
-      // Update success
-      deps.appQuery
-        .mockResolvedValueOnce([
-          {
-            id: 12,
-            category: 'diet',
-            label: 'คาร์บต่ำ',
-            sortOrder: 1,
-            isActive: 1,
-            createdBy: 'nurse01',
-            createdAt: '2026-10-01',
-            updatedAt: '2026-10-01',
-          },
-        ])
-        .mockResolvedValueOnce([]) // no dup
-        .mockResolvedValueOnce([
-          {
-            id: 12,
-            category: 'diet',
-            label: 'Low Carb',
-            sortOrder: 2,
-            isActive: 0,
-            createdBy: 'nurse01',
-            createdAt: '2026-10-01',
-            updatedAt: '2026-10-02',
-          },
-        ])
-
+      gw.updateDmRemissionOption.mockResolvedValueOnce({
+        id: 12,
+        category: 'diet',
+        label: 'Low Carb',
+        sortOrder: 2,
+        isActive: 0,
+        createdBy: 'nurse01',
+        createdAt: '2026-10-01',
+        updatedAt: '2026-10-02',
+      })
       const updated = await service.updateOption(
         12,
         { label: 'Low Carb', sortOrder: 2, isActive: false },
@@ -510,24 +391,11 @@ describe('DmRemissionService', () => {
       )
       expect(updated).toMatchObject({ id: 12, label: 'Low Carb', sortOrder: 2, isActive: false })
 
-      // Delete success
-      deps.appQuery.mockResolvedValueOnce([
-        {
-          id: 12,
-          category: 'diet',
-          label: 'Low Carb',
-          sortOrder: 2,
-          isActive: 0,
-          createdBy: 'nurse01',
-          createdAt: '2026-10-01',
-          updatedAt: '2026-10-02',
-        },
-      ])
+      gw.deleteDmRemissionOption.mockResolvedValueOnce({ id: 12, category: 'diet' })
       const deleted = await service.deleteOption(12, actor)
       expect(deleted).toEqual({ id: 12, category: 'diet' })
 
-      // List grouped
-      deps.appQuery.mockResolvedValueOnce([
+      gw.listDmRemissionOptionsRaw.mockResolvedValueOnce([
         {
           id: 1,
           category: 'remission',

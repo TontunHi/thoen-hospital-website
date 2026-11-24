@@ -5,6 +5,7 @@ import { createClinicalV2GatewayNamespace } from './clinicalV2GatewayNamespace'
 export interface ClinicalHttpClient {
   get: <T = unknown>(path: string, options?: RequestOptions) => Promise<T>
   post: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => Promise<T>
+  patch: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => Promise<T>
   delete: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) => Promise<T>
 }
 

@@ -4,7 +4,7 @@ import {
   getFiscalYearDateRange,
   runLabTrackingPipeline,
 } from '../dmRemissionLabDomain'
-import { DmRemissionLabService } from '../dmRemissionLabService'
+import { DmRemissionLabService, type DmRemissionLabGatewayDeps } from '../dmRemissionLabService'
 import type { DmLabTrackingRecord } from '../dmRemissionLabTypes'
 
 function makeTrackingRecord(
@@ -90,16 +90,15 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
 
     expect(defaultResult.summary.funnel).toEqual({
       totalA1cTested: 100,
-      a1cUnderLimit: 4, // excludes deathFlag
-      ucEligible: 3, // excludes hn 0000003
-      e11Diagnosed: 2, // excludes hn 0000004
-      noDmDrugs: 1, // excludes hn 0000002
+      a1cUnderLimit: 4,
+      ucEligible: 3,
+      e11Diagnosed: 2,
+      noDmDrugs: 1,
       registeredInCohort: 1,
       unregisteredCandidates: 0,
     })
     expect(defaultResult.items.map((r) => r.hn)).toEqual(['0000001'])
 
-    // Switching drugScope to visit_only includes hn 0000002 (no DM drug on lab visit)
     const visitOnlyResult = runLabTrackingPipeline({
       totalA1cTested: 100,
       basePool: pool,
@@ -121,13 +120,13 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
     ])
   })
 
-  it('loads fiscal year dataset via HOSxP + appQuery, caches SWR, and invalidates on refresh', async () => {
-    const clinicalQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
-    const appQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
+  it('loads fiscal year dataset via Gateway Named API, caches SWR, and invalidates on refresh', async () => {
+    const getDmRemissionLabDatasetRaw = vi.fn<DmRemissionLabGatewayDeps['getDmRemissionLabDatasetRaw']>()
+    const getDmRemissionLabTimelineRaw = vi.fn<DmRemissionLabGatewayDeps['getDmRemissionLabTimelineRaw']>()
 
-    clinicalQuery
-      .mockResolvedValueOnce([{ total_tested: 120 }]) // total query
-      .mockResolvedValueOnce([
+    getDmRemissionLabDatasetRaw.mockResolvedValueOnce({
+      totalA1cTested: 120,
+      baseRows: [
         {
           hn: '0001234',
           cid: '1520000000001',
@@ -174,24 +173,22 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
           village_name: 'บ้านท่า',
           village_moo: '4',
         },
-      ]) // base pool
-      .mockResolvedValueOnce([
+      ],
+      e11Rows: [
         { hn: '0001234', last_e11_date: '2026-08-15', last_e11_icd10: 'E119', in_fy_e11_count: 2 },
         { hn: '0005678', last_e11_date: '2025-04-01', last_e11_icd10: 'E119', in_fy_e11_count: 0 },
-      ]) // e11
-      .mockResolvedValueOnce([{ vn: '6908150001' }]) // same vn e11
-      .mockResolvedValueOnce([
-        { hn: '0005678', vn: '6907100002', vstdate: '2026-07-10', icodes: '1000184' },
-      ]) // rx
-      .mockResolvedValueOnce([]) // rcmdb.t1dm
+      ],
+      sameVnRows: [{ vn: '6908150001' }],
+      rxRows: [{ hn: '0005678', vn: '6907100002', vstdate: '2026-07-10', icodes: '1000184' }],
+      cohortRows: [{ hn: '0001234', cid: '1520000000001', summary_remission: 'Remission' }],
+      t1dmRows: [],
+      t1dmMirrorRows: [],
+    })
 
-    appQuery
-      .mockResolvedValueOnce([
-        { hn: '0001234', cid: '1520000000001', summary_remission: 'Remission' },
-      ])
-      .mockResolvedValueOnce([]) // t1dm_registries mirror
-
-    const service = new DmRemissionLabService({ appQuery, clinicalQuery })
+    const service = new DmRemissionLabService({
+      getDmRemissionLabDatasetRaw,
+      getDmRemissionLabTimelineRaw,
+    })
 
     const first = await service.getLabTracking({ fiscalYear: 2569 })
     expect(first.fiscalYear).toBe(2569)
@@ -200,35 +197,31 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
     expect(first.items[0].inCohortRegistry).toBe(true)
     expect(first.items[0].cohortRemissionStatus).toBe('Remission')
     expect(first.items[0].prevA1c).toBe(6.7)
-    expect(clinicalQuery).toHaveBeenCalledTimes(6)
+    expect(getDmRemissionLabDatasetRaw).toHaveBeenCalledTimes(1)
 
-    // Ensure no SQL uses WITH CTE and basePoolSql computes GROUP_CONCAT once
-    for (const call of clinicalQuery.mock.calls) {
-      expect(String(call[0]).trim().toUpperCase().startsWith('SELECT')).toBe(true)
-    }
-    const basePoolSql = String(clinicalQuery.mock.calls[1][0])
-    expect(basePoolSql.match(/GROUP_CONCAT\(/gi)?.length ?? 0).toBe(1)
-
-    // Second call with different drugScope and a1cMax <= 7.0 uses SWR cache (no extra DB queries)
     const second = await service.getLabTracking({ fiscalYear: 2569, drugScope: 'all', a1cMax: 7.0 })
     expect(second.summary.totalEligible).toBe(2)
-    expect(clinicalQuery).toHaveBeenCalledTimes(6)
+    expect(getDmRemissionLabDatasetRaw).toHaveBeenCalledTimes(1)
 
-    // Refresh invalidates cache and hits DB again
-    clinicalQuery
-      .mockResolvedValueOnce([{ total_tested: 121 }])
-      .mockResolvedValueOnce([])
+    getDmRemissionLabDatasetRaw.mockResolvedValueOnce({
+      totalA1cTested: 121,
+      baseRows: [],
+      e11Rows: [],
+      sameVnRows: [],
+      rxRows: [],
+      cohortRows: [],
+      t1dmRows: [],
+      t1dmMirrorRows: [],
+    })
     await service.getLabTracking({ fiscalYear: 2569, refresh: true })
-    expect(clinicalQuery).toHaveBeenCalledTimes(8)
+    expect(getDmRemissionLabDatasetRaw).toHaveBeenCalledTimes(2)
   })
 
   it('marks patients found in rcmdb.t1dm or t1dm_registries as registered in DM registry', async () => {
-    const clinicalQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
-    const appQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
-
-    clinicalQuery
-      .mockResolvedValueOnce([{ total_tested: 2 }]) // total query
-      .mockResolvedValueOnce([
+    const getDmRemissionLabDatasetRaw = vi.fn<DmRemissionLabGatewayDeps['getDmRemissionLabDatasetRaw']>()
+    getDmRemissionLabDatasetRaw.mockResolvedValueOnce({
+      totalA1cTested: 2,
+      baseRows: [
         {
           hn: '0002001',
           cid: '1520000002001',
@@ -275,22 +268,19 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
           village_name: 'บ้านล้อมแรด',
           village_moo: '1',
         },
-      ]) // base pool
-      .mockResolvedValueOnce([
+      ],
+      e11Rows: [
         { hn: '0002001', last_e11_date: '2026-08-10', last_e11_icd10: 'E119', in_fy_e11_count: 1 },
         { hn: '0002002', last_e11_date: '2026-08-11', last_e11_icd10: 'E119', in_fy_e11_count: 1 },
-      ]) // e11
-      .mockResolvedValueOnce([{ vn: '6908100001' }, { vn: '6908110002' }]) // same vn e11
-      .mockResolvedValueOnce([]) // rx
-      .mockResolvedValueOnce([{ pid: '1520000002001', type: 'T1DM' }]) // rcmdb.t1dm
+      ],
+      sameVnRows: [{ vn: '6908100001' }, { vn: '6908110002' }],
+      rxRows: [],
+      t1dmRows: [{ pid: '1520000002001', type: 'T1DM' }],
+      cohortRows: [{ hn: '0002002', cid: '1520000002002', summary_remission: 'ไม่ Remission' }],
+      t1dmMirrorRows: [{ pid: '1520000002002', type: 'GDM' }],
+    })
 
-    appQuery
-      .mockResolvedValueOnce([
-        { hn: '0002002', cid: '1520000002002', summary_remission: 'ไม่ Remission' },
-      ]) // dm_remission_cohorts has 0002002
-      .mockResolvedValueOnce([{ pid: '1520000002002', type: 'GDM' }]) // t1dm_registries also has 0002002
-
-    const service = new DmRemissionLabService({ appQuery, clinicalQuery })
+    const service = new DmRemissionLabService({ getDmRemissionLabDatasetRaw })
     const result = await service.getLabTracking({ fiscalYear: 2569 })
 
     expect(result.summary.registeredCount).toBe(2)
@@ -327,21 +317,21 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
   })
 
   it('fetches patient lab, E11, and DM drug timeline or returns null if HN not found', async () => {
-    const clinicalQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
-    const appQuery = vi.fn<(...args: any[]) => Promise<any[]>>()
-    const service = new DmRemissionLabService({ appQuery, clinicalQuery })
+    const getDmRemissionLabTimelineRaw = vi.fn<DmRemissionLabGatewayDeps['getDmRemissionLabTimelineRaw']>()
+    const service = new DmRemissionLabService({ getDmRemissionLabTimelineRaw })
 
-    clinicalQuery
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
+    getDmRemissionLabTimelineRaw.mockResolvedValueOnce({
+      patientRows: [],
+      labRows: [],
+      diagRows: [],
+      rxRows: [],
+    })
     const missing = await service.getPatientLabTimeline('9999999')
     expect(missing).toBeNull()
-    expect(clinicalQuery).toHaveBeenCalledTimes(4)
+    expect(getDmRemissionLabTimelineRaw).toHaveBeenCalledWith('9999999')
 
-    clinicalQuery
-      .mockResolvedValueOnce([
+    getDmRemissionLabTimelineRaw.mockResolvedValueOnce({
+      patientRows: [
         {
           hn: '0001234',
           cid: '1520000000001',
@@ -349,14 +339,15 @@ describe('dmRemissionLabDomain & DmRemissionLabService', () => {
           age_years: 61,
           pttype_name: 'บัตรทอง 30บาท ในเขต',
         },
-      ])
-      .mockResolvedValueOnce([
+      ],
+      labRows: [
         { lab_order_number: 5001, order_date: '2026-08-15', vn: '6908150001', a1c_result: '6.1', fpg_result: '108' },
-      ])
-      .mockResolvedValueOnce([
+      ],
+      diagRows: [
         { vstdate: '2026-08-15', vn: '6908150001', icd10: 'E119', diagtype: '1' },
-      ])
-      .mockResolvedValueOnce([])
+      ],
+      rxRows: [],
+    })
 
     const timeline = await service.getPatientLabTimeline('1234')
     expect(timeline).not.toBeNull()

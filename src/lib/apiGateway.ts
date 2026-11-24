@@ -192,6 +192,7 @@ export class ApiGatewayClient {
   public readonly clinical = createClinicalNamespace({
     get: (path, options) => this.get(path, options),
     post: (path, body, options) => this.post(path, body, options),
+    patch: (path, body, options) => this.patch(path, body, options),
     delete: (path, body, options) => this.delete(path, body, options),
   })
 

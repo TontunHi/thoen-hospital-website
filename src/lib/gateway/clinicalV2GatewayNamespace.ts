@@ -321,5 +321,171 @@ export function createClinicalV2GatewayNamespace(client: ClinicalHttpClient) {
         rawRows: Array<Record<string, unknown>>
       }>(`/api/v1/clinical/rcm/extra/viral-hepatitis/report?${q.toString()}`, { timeoutMs: 90000 })
     },
+
+    // ── Phase 2E: DM Remission Cohorts & Options ──
+    ensureDmRemissionSchema: () =>
+      client.post<{ ensured: boolean }>('/api/v1/clinical/dm-remission/ensure-schema', {}),
+
+    lookupDmRemissionPatientByHn: (hn: string) =>
+      client.get<{
+        hn: string
+        cid: string | null
+        ptname: string | null
+        age: number | string | null
+      } | null>(`/api/v1/clinical/dm-remission/lookup-patient/${encodeURIComponent(hn)}`),
+
+    listDmRemissionOptionsRaw: () =>
+      client.get<Array<Record<string, unknown>>>('/api/v1/clinical/dm-remission/options'),
+
+    createDmRemissionOption: (body: {
+      category: string
+      label: string
+      sortOrder?: number
+      isActive?: boolean
+      actorName: string
+    }) => client.post<Record<string, unknown>>('/api/v1/clinical/dm-remission/options', body),
+
+    updateDmRemissionOption: (
+      id: number,
+      body: { label?: string; sortOrder?: number; isActive?: boolean }
+    ) => client.patch<Record<string, unknown>>(`/api/v1/clinical/dm-remission/options/${id}`, body),
+
+    deleteDmRemissionOption: (id: number) =>
+      client.delete<{ id: number; category: string }>(`/api/v1/clinical/dm-remission/options/${id}`),
+
+    getDmRemissionCohortsBundle: (fiscalYear?: number) => {
+      const qs = fiscalYear !== undefined ? `?fiscalYear=${encodeURIComponent(String(fiscalYear))}` : ''
+      return client.get<{
+        targetFiscalYear: number
+        optionRows: Array<Record<string, unknown>>
+        yearRows: Array<{ fiscalYear: number | string }>
+        pcuRows: Array<{ pcuName: string }>
+        cohortRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/dm-remission/cohorts-bundle${qs}`)
+    },
+
+    createDmRemissionCohort: (body: { fields: Record<string, unknown>; actorName: string }) =>
+      client.post<Record<string, unknown>>('/api/v1/clinical/dm-remission/cohorts', body),
+
+    updateDmRemissionCohort: (
+      id: number,
+      body: { fields: Record<string, unknown>; actorName: string }
+    ) => client.patch<Record<string, unknown>>(`/api/v1/clinical/dm-remission/cohorts/${id}`, body),
+
+    deleteDmRemissionCohort: (id: number) =>
+      client.delete<{ id: number; fiscalYear: number }>(`/api/v1/clinical/dm-remission/cohorts/${id}`),
+
+    carryoverDmRemissionCohorts: (body: {
+      fromFiscalYear: number
+      toFiscalYear: number
+      actorName: string
+      defaultRemissionStatus: string
+    }) =>
+      client.post<{ copiedCount: number; skippedCount: number }>(
+        '/api/v1/clinical/dm-remission/carryover',
+        body
+      ),
+
+    // ── Phase 2E: DM Remission Lab Tracking ──
+    getDmRemissionLabDatasetRaw: (params: {
+      startDate: string
+      endDate: string
+      fiscalYear: number
+      a1cMax: number
+    }) => {
+      const q = new URLSearchParams({
+        startDate: params.startDate,
+        endDate: params.endDate,
+        fiscalYear: String(params.fiscalYear),
+        a1cMax: String(params.a1cMax),
+      })
+      return client.get<{
+        totalA1cTested: number
+        baseRows: Array<Record<string, unknown>>
+        e11Rows: Array<Record<string, unknown>>
+        sameVnRows: Array<Record<string, unknown>>
+        rxRows: Array<Record<string, unknown>>
+        cohortRows: Array<Record<string, unknown>>
+        t1dmRows: Array<Record<string, unknown>>
+        t1dmMirrorRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/dm-remission/lab/dataset?${q.toString()}`, { timeoutMs: 90000 })
+    },
+
+    getDmRemissionLabTimelineRaw: (hn: string) =>
+      client.get<{
+        patientRows: Array<Record<string, unknown>>
+        labRows: Array<Record<string, unknown>>
+        diagRows: Array<Record<string, unknown>>
+        rxRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/dm-remission/lab/timeline/${encodeURIComponent(hn)}`, { timeoutMs: 60000 }),
+
+    // ── Phase 2E: FCT Home Visit ──
+    ensureFctHomeVisitSchema: () =>
+      client.post<{ ensured: boolean }>('/api/v1/clinical/fct-home-visit/ensure-schema', {}),
+
+    lookupFctHomeVisitPatientByHn: (hn: string) =>
+      client.get<{
+        hn: string
+        ptname: string | null
+        age: number | string | null
+        address: string | null
+      } | null>(`/api/v1/clinical/fct-home-visit/lookup-patient/${encodeURIComponent(hn)}`),
+
+    listFctHomeVisitOptionsRaw: () =>
+      client.get<Array<Record<string, unknown>>>('/api/v1/clinical/fct-home-visit/options'),
+
+    createFctHomeVisitOption: (body: {
+      category: string
+      label: string
+      sortOrder?: number
+      isActive?: boolean
+      actorName: string
+    }) => client.post<Record<string, unknown>>('/api/v1/clinical/fct-home-visit/options', body),
+
+    updateFctHomeVisitOption: (
+      id: number,
+      body: { label?: string; sortOrder?: number; isActive?: boolean }
+    ) => client.patch<Record<string, unknown>>(`/api/v1/clinical/fct-home-visit/options/${id}`, body),
+
+    deleteFctHomeVisitOption: (id: number) =>
+      client.delete<{ id: number; category: string }>(`/api/v1/clinical/fct-home-visit/options/${id}`),
+
+    getFctHomeVisitsBundle: (fiscalYear?: number) => {
+      const qs = fiscalYear !== undefined ? `?fiscalYear=${encodeURIComponent(String(fiscalYear))}` : ''
+      return client.get<{
+        targetFiscalYear: number
+        optionRows: Array<Record<string, unknown>>
+        yearRows: Array<{ fiscalYear: number | string }>
+        pcuRows: Array<{ pcuName: string }>
+        visitRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/fct-home-visit/visits-bundle${qs}`)
+    },
+
+    getFctHomeVisitByIdRaw: (id: number) =>
+      client.get<Record<string, unknown> | null>(`/api/v1/clinical/fct-home-visit/visits/${id}`),
+
+    createFctHomeVisit: (body: { fields: Record<string, unknown>; actorName: string }) =>
+      client.post<Record<string, unknown>>('/api/v1/clinical/fct-home-visit/visits', body),
+
+    updateFctHomeVisit: (
+      id: number,
+      body: { fields: Record<string, unknown>; actorName: string }
+    ) => client.patch<Record<string, unknown>>(`/api/v1/clinical/fct-home-visit/visits/${id}`, body),
+
+    deleteFctHomeVisit: (id: number) =>
+      client.delete<{ id: number; fiscalYear: number }>(`/api/v1/clinical/fct-home-visit/visits/${id}`),
+
+    batchImportFctHomeVisits: (body: { items: Array<Record<string, unknown>>; actorName: string }) =>
+      client.post<{
+        insertedCount: number
+        skippedDuplicateCount: number
+        errorCount: number
+        duplicates: Array<{
+          rowNumber: number
+          visitDate: string
+          hn: string
+          patientName: string
+        }>
+      }>('/api/v1/clinical/fct-home-visit/visits/batch-import', body, { timeoutMs: 60000 }),
   }
 }

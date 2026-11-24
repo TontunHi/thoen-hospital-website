@@ -1,4 +1,4 @@
-import { apiGateway } from '@/lib/apiGateway'
+import { apiGateway, GatewayError, GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import {
   aggregateFctDashboardStats,
@@ -17,7 +17,6 @@ import {
 } from './fctHomeVisitDomain'
 import {
   FCT_ALL_OPTION_CATEGORIES,
-  FCT_OPTION_CATEGORY_META,
   type FctBatchImportResult,
   type FctHomeVisitCreateInput,
   type FctHomeVisitListResult,
@@ -57,15 +56,19 @@ export interface FctHomeVisitActor {
   email?: string | null
 }
 
-export interface FctHomeVisitDbDeps {
-  appQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
-  appTransaction: (
-    statements: Array<{ sql: string; params?: unknown[] }>
-  ) => Promise<{
-    count: number
-    results: Array<{ affectedRows: number; insertId: number | null }>
-  }>
-  clinicalQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
+export interface FctHomeVisitGatewayDeps {
+  ensureFctHomeVisitSchema: typeof apiGateway.clinical.ensureFctHomeVisitSchema
+  lookupFctHomeVisitPatientByHn: typeof apiGateway.clinical.lookupFctHomeVisitPatientByHn
+  listFctHomeVisitOptionsRaw: typeof apiGateway.clinical.listFctHomeVisitOptionsRaw
+  createFctHomeVisitOption: typeof apiGateway.clinical.createFctHomeVisitOption
+  updateFctHomeVisitOption: typeof apiGateway.clinical.updateFctHomeVisitOption
+  deleteFctHomeVisitOption: typeof apiGateway.clinical.deleteFctHomeVisitOption
+  getFctHomeVisitsBundle: typeof apiGateway.clinical.getFctHomeVisitsBundle
+  getFctHomeVisitByIdRaw: typeof apiGateway.clinical.getFctHomeVisitByIdRaw
+  createFctHomeVisit: typeof apiGateway.clinical.createFctHomeVisit
+  updateFctHomeVisit: typeof apiGateway.clinical.updateFctHomeVisit
+  deleteFctHomeVisit: typeof apiGateway.clinical.deleteFctHomeVisit
+  batchImportFctHomeVisits: typeof apiGateway.clinical.batchImportFctHomeVisits
 }
 
 export interface FctHomeVisitListFilters {
@@ -89,156 +92,13 @@ export interface FctHomeVisitOptionUpdateInput {
   isActive?: boolean
 }
 
-interface VisitFieldMapping {
-  key: keyof FctHomeVisitCreateInput
-  column: string
-  transform: (val: unknown) => unknown
-}
-
-const VISIT_FIELD_MAPPINGS: readonly VisitFieldMapping[] = [
-  { key: 'visitDate', column: 'visit_date', transform: (v) => (v ? String(v).trim() || null : null) },
-  { key: 'pcuName', column: 'pcu_name', transform: normalizePcuValue },
-  { key: 'patientName', column: 'patient_name', transform: (v) => String(v ?? '').trim() },
-  { key: 'hn', column: 'hn', transform: (v) => normalizeHn(v as string | null | undefined) },
-  { key: 'age', column: 'age', transform: toNullableNumber },
-  { key: 'address', column: 'address', transform: normalizeOptionalText },
-  { key: 'adlScore', column: 'adl_score', transform: toNullableNumber },
-  { key: 'adlGroup', column: 'adl_group', transform: normalizeAdlGroupValue },
-  { key: 'diagnosis', column: 'diagnosis', transform: normalizeOptionalText },
-  { key: 'patientCategory', column: 'patient_category', transform: normalizeOptionalText },
-  { key: 'followUpPlan', column: 'follow_up_plan', transform: normalizeOptionalText },
-  { key: 'treatmentFacility', column: 'treatment_facility', transform: normalizeOptionalText },
-  { key: 'visitOutcome', column: 'visit_outcome', transform: normalizeOptionalText },
-  { key: 'overallRiskLevel', column: 'overall_risk_level', transform: normalizeRiskValue },
-  { key: 'riskLevel', column: 'risk_level', transform: normalizeRiskValue },
-  { key: 'dentalNote', column: 'dental_note', transform: normalizeOptionalText },
-  { key: 'pharmacyNote', column: 'pharmacy_note', transform: normalizeOptionalText },
-  { key: 'nutritionStatus', column: 'nutrition_status', transform: normalizeNutritionStatusValue },
-  { key: 'nutritionNote', column: 'nutrition_note', transform: normalizeOptionalText },
-  { key: 'ptCategory', column: 'pt_category', transform: normalizeOptionalText },
-  { key: 'ptNote', column: 'pt_note', transform: normalizeOptionalText },
-  { key: 'thaiMedCategory', column: 'thai_med_category', transform: normalizeOptionalText },
-  { key: 'thaiMedNote', column: 'thai_med_note', transform: normalizeOptionalText },
-]
-
-const VISIT_SELECT_SQL = `
-  SELECT
-    id,
-    fiscal_year AS fiscalYear,
-    DATE_FORMAT(visit_date, '%Y-%m-%d') AS visitDate,
-    pcu_name AS pcuName,
-    patient_name AS patientName,
-    hn,
-    age,
-    address,
-    adl_score AS adlScore,
-    adl_group AS adlGroup,
-    diagnosis,
-    patient_category AS patientCategory,
-    follow_up_plan AS followUpPlan,
-    treatment_facility AS treatmentFacility,
-    visit_outcome AS visitOutcome,
-    overall_risk_level AS overallRiskLevel,
-    risk_level AS riskLevel,
-    dental_note AS dentalNote,
-    pharmacy_note AS pharmacyNote,
-    nutrition_status AS nutritionStatus,
-    nutrition_note AS nutritionNote,
-    pt_category AS ptCategory,
-    pt_note AS ptNote,
-    thai_med_category AS thaiMedCategory,
-    thai_med_note AS thaiMedNote,
-    created_by AS createdBy,
-    updated_by AS updatedBy,
-    created_at AS createdAt,
-    updated_at AS updatedAt
-  FROM fct_home_visits
-`
-
-
-const OPTION_SELECT_SQL = `
-  SELECT
-    id,
-    category,
-    label,
-    sort_order AS sortOrder,
-    is_active AS isActive,
-    created_by AS createdBy,
-    created_at AS createdAt,
-    updated_at AS updatedAt
-  FROM fct_home_visit_options
-`
-
-
-const CREATE_VISITS_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS fct_home_visits (
-    id INT NOT NULL AUTO_INCREMENT,
-    fiscal_year INT NOT NULL,
-    visit_date DATE NULL,
-    pcu_name VARCHAR(150) NULL,
-    patient_name VARCHAR(255) NOT NULL,
-    hn VARCHAR(20) NULL,
-    age INT NULL,
-    address VARCHAR(500) NULL,
-    adl_score INT NULL,
-    adl_group VARCHAR(100) NULL,
-    diagnosis VARCHAR(500) NULL,
-    patient_category VARCHAR(150) NULL,
-    follow_up_plan TEXT NULL,
-    treatment_facility VARCHAR(255) NULL,
-    visit_outcome VARCHAR(100) NULL,
-    overall_risk_level VARCHAR(100) NULL,
-    risk_level VARCHAR(100) NULL,
-    dental_note TEXT NULL,
-    pharmacy_note TEXT NULL,
-    nutrition_status VARCHAR(150) NULL,
-    nutrition_note TEXT NULL,
-    pt_category VARCHAR(255) NULL,
-    pt_note TEXT NULL,
-    thai_med_category VARCHAR(255) NULL,
-    thai_med_note TEXT NULL,
-    created_by VARCHAR(100) NULL,
-    updated_by VARCHAR(100) NULL,
-    created_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (id),
-    INDEX idx_fct_home_visits_fy (fiscal_year),
-    INDEX idx_fct_home_visits_date (visit_date),
-    INDEX idx_fct_home_visits_hn (hn),
-    INDEX idx_fct_home_visits_pcu (pcu_name),
-    INDEX idx_fct_home_visits_date_hn (visit_date, hn)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
-
-const ALTER_VISITS_DATE_NULLABLE_SQL = `ALTER TABLE fct_home_visits MODIFY COLUMN visit_date DATE NULL`
-
-const CREATE_OPTIONS_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS fct_home_visit_options (
-    id INT NOT NULL AUTO_INCREMENT,
-    category VARCHAR(50) NOT NULL,
-    label VARCHAR(150) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_by VARCHAR(100) NULL,
-    created_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_fct_home_visit_opt_cat_label (category, label),
-    INDEX idx_fct_home_visit_opt_lookup (category, is_active, sort_order)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
-
 function serializeTimestamp(val: unknown): string {
-  if (val instanceof Date) {
-    return val.toISOString()
-  }
+  if (val instanceof Date) return val.toISOString()
   return String(val ?? '')
 }
 
 function serializeIsoDate(val: unknown): string | null {
-  if (val === null || val === undefined) {
-    return null
-  }
+  if (val === null || val === undefined) return null
   if (val instanceof Date && Number.isFinite(val.getTime())) {
     return val.toISOString().slice(0, 10)
   }
@@ -308,16 +168,6 @@ function mapOptionRow(row: Record<string, unknown>): FctHomeVisitOptionRecord {
   }
 }
 
-function isDuplicateEntryError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const record = err as { code?: unknown; errno?: unknown; message?: unknown }
-  if (record.code === 'ER_DUP_ENTRY' || record.errno === 1062) return true
-  if (typeof record.message === 'string' && /duplicate entry/i.test(record.message)) {
-    return true
-  }
-  return false
-}
-
 function assertValidOptionalIsoVisitDate(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null
   const trimmed = String(raw).trim()
@@ -328,17 +178,7 @@ function assertValidOptionalIsoVisitDate(raw: unknown): string | null {
   return trimmed
 }
 
-function buildCreateStatementPayload(
-  input: FctHomeVisitCreateInput,
-  actorName: string
-): {
-  sql: string
-  params: unknown[]
-  visitDate: string | null
-  fiscalYear: number
-  hn: string | null
-  patientName: string
-} {
+function buildNormalizedCreateFields(input: FctHomeVisitCreateInput): Record<string, unknown> {
   const patientName = (input.patientName ?? '').trim()
   if (!patientName) {
     throw new FctHomeVisitValidationError('กรุณาระบุชื่อ-สกุลผู้ป่วย')
@@ -350,111 +190,94 @@ function buildCreateStatementPayload(
   const adlGroup = normalizeAdlGroupValue(input.adlGroup) ?? suggestAdlGroup(adlScore)
   const hn = normalizeHn(input.hn)
 
-  const resolvedInput: FctHomeVisitCreateInput = {
-    ...input,
+  return {
+    fiscalYear,
     visitDate,
+    pcuName: normalizePcuValue(input.pcuName),
     patientName,
     hn,
+    age: toNullableNumber(input.age),
+    address: normalizeOptionalText(input.address),
     adlScore,
     adlGroup,
+    diagnosis: normalizeOptionalText(input.diagnosis),
+    patientCategory: normalizeOptionalText(input.patientCategory),
+    followUpPlan: normalizeOptionalText(input.followUpPlan),
+    treatmentFacility: normalizeOptionalText(input.treatmentFacility),
+    visitOutcome: normalizeOptionalText(input.visitOutcome),
+    overallRiskLevel: normalizeRiskValue(input.overallRiskLevel),
+    riskLevel: normalizeRiskValue(input.riskLevel),
+    dentalNote: normalizeOptionalText(input.dentalNote),
+    pharmacyNote: normalizeOptionalText(input.pharmacyNote),
+    nutritionStatus: normalizeNutritionStatusValue(input.nutritionStatus),
+    nutritionNote: normalizeOptionalText(input.nutritionNote),
+    ptCategory: normalizeOptionalText(input.ptCategory),
+    ptNote: normalizeOptionalText(input.ptNote),
+    thaiMedCategory: normalizeOptionalText(input.thaiMedCategory),
+    thaiMedNote: normalizeOptionalText(input.thaiMedNote),
   }
+}
 
-  const columns: string[] = ['fiscal_year']
-  const placeholders: string[] = ['?']
-  const params: unknown[] = [fiscalYear]
-
-  for (const mapping of VISIT_FIELD_MAPPINGS) {
-    columns.push(mapping.column)
-    placeholders.push('?')
-    params.push(mapping.transform(resolvedInput[mapping.key]))
+function rethrowMappedGatewayError(err: unknown): never {
+  if (err instanceof GatewayNotFoundError) {
+    throw new FctHomeVisitNotFoundError(err.message)
   }
-
-  columns.push('created_by', 'updated_by')
-  placeholders.push('?', '?')
-  params.push(actorName, actorName)
-
-  const sql = `
-    INSERT INTO fct_home_visits (${columns.join(', ')})
-    VALUES (${placeholders.join(', ')})
-  `
-
-  return { sql, params, visitDate, fiscalYear, hn, patientName }
+  if (err instanceof GatewayError) {
+    if (err.status === 409) throw new FctHomeVisitConflictError(err.message)
+    if (err.status === 404) throw new FctHomeVisitNotFoundError(err.message)
+    if (err.status === 400) throw new FctHomeVisitValidationError(err.message)
+  }
+  throw err
 }
 
 export class FctHomeVisitService {
-  private readonly deps: FctHomeVisitDbDeps
+  private readonly gw: FctHomeVisitGatewayDeps
   private schemaEnsured = false
   private ensurePromise: Promise<void> | null = null
 
-  constructor(deps?: Partial<FctHomeVisitDbDeps>) {
-    this.deps = {
-      appQuery: deps?.appQuery ?? ((sql, params) => apiGateway.app.query(sql, params)),
-      appTransaction:
-        deps?.appTransaction ?? ((statements) => apiGateway.app.transaction(statements)),
-      clinicalQuery:
-        deps?.clinicalQuery ?? ((sql, params) => apiGateway.clinical.query(sql, params)),
+  constructor(deps?: Partial<FctHomeVisitGatewayDeps>) {
+    this.gw = {
+      ensureFctHomeVisitSchema:
+        deps?.ensureFctHomeVisitSchema ?? (() => apiGateway.clinical.ensureFctHomeVisitSchema()),
+      lookupFctHomeVisitPatientByHn:
+        deps?.lookupFctHomeVisitPatientByHn ??
+        ((hn) => apiGateway.clinical.lookupFctHomeVisitPatientByHn(hn)),
+      listFctHomeVisitOptionsRaw:
+        deps?.listFctHomeVisitOptionsRaw ??
+        (() => apiGateway.clinical.listFctHomeVisitOptionsRaw()),
+      createFctHomeVisitOption:
+        deps?.createFctHomeVisitOption ??
+        ((body) => apiGateway.clinical.createFctHomeVisitOption(body)),
+      updateFctHomeVisitOption:
+        deps?.updateFctHomeVisitOption ??
+        ((id, body) => apiGateway.clinical.updateFctHomeVisitOption(id, body)),
+      deleteFctHomeVisitOption:
+        deps?.deleteFctHomeVisitOption ??
+        ((id) => apiGateway.clinical.deleteFctHomeVisitOption(id)),
+      getFctHomeVisitsBundle:
+        deps?.getFctHomeVisitsBundle ?? ((fy) => apiGateway.clinical.getFctHomeVisitsBundle(fy)),
+      getFctHomeVisitByIdRaw:
+        deps?.getFctHomeVisitByIdRaw ?? ((id) => apiGateway.clinical.getFctHomeVisitByIdRaw(id)),
+      createFctHomeVisit:
+        deps?.createFctHomeVisit ?? ((body) => apiGateway.clinical.createFctHomeVisit(body)),
+      updateFctHomeVisit:
+        deps?.updateFctHomeVisit ??
+        ((id, body) => apiGateway.clinical.updateFctHomeVisit(id, body)),
+      deleteFctHomeVisit:
+        deps?.deleteFctHomeVisit ?? ((id) => apiGateway.clinical.deleteFctHomeVisit(id)),
+      batchImportFctHomeVisits:
+        deps?.batchImportFctHomeVisits ??
+        ((body) => apiGateway.clinical.batchImportFctHomeVisits(body)),
     }
-  }
-
-  private async executeWrite(
-    sql: string,
-    params: unknown[] = []
-  ): Promise<{ affectedRows: number; insertId: number | null }> {
-    // Pin SET NAMES utf8mb4 per transaction so MariaDB tis620 init_connect never corrupts Thai text.
-    const tx = await this.deps.appTransaction([
-      { sql: 'SET NAMES utf8mb4' },
-      { sql, params },
-    ])
-    return tx.results?.[1] ?? { affectedRows: 0, insertId: null }
   }
 
   async ensureSchema(): Promise<void> {
-    if (this.schemaEnsured) {
-      return
-    }
-    if (this.ensurePromise) {
-      return this.ensurePromise
-    }
-
+    if (this.schemaEnsured) return
+    if (this.ensurePromise) return this.ensurePromise
     this.ensurePromise = (async () => {
-      await this.deps.appTransaction([
-        { sql: 'SET NAMES utf8mb4' },
-        { sql: CREATE_VISITS_TABLE_SQL },
-        { sql: CREATE_OPTIONS_TABLE_SQL },
-        { sql: ALTER_VISITS_DATE_NULLABLE_SQL },
-      ])
-
-      const countRows = await this.deps.appQuery<{ category: string; cnt: number | string }>(
-        `SELECT category, COUNT(*) AS cnt FROM fct_home_visit_options GROUP BY category`
-      )
-      const countByCategory = new Map<string, number>()
-      for (const row of countRows) {
-        countByCategory.set(String(row.category), Number(row.cnt ?? 0))
-      }
-
-      const seedStatements: Array<{ sql: string; params: unknown[] }> = []
-      for (const category of FCT_ALL_OPTION_CATEGORIES) {
-        if ((countByCategory.get(category) ?? 0) === 0) {
-          const seedLabels = FCT_OPTION_CATEGORY_META[category].seedLabels
-          for (let idx = 0; idx < seedLabels.length; idx++) {
-            seedStatements.push({
-              sql: `
-                INSERT IGNORE INTO fct_home_visit_options (category, label, sort_order, is_active, created_by)
-                VALUES (?, ?, ?, ?, ?)
-              `,
-              params: [category, seedLabels[idx], idx, true, 'system'],
-            })
-          }
-        }
-      }
-
-      if (seedStatements.length > 0) {
-        await this.deps.appTransaction([{ sql: 'SET NAMES utf8mb4' }, ...seedStatements])
-      }
-
+      await this.gw.ensureFctHomeVisitSchema()
       this.schemaEnsured = true
     })()
-
     try {
       await this.ensurePromise
     } finally {
@@ -464,43 +287,11 @@ export class FctHomeVisitService {
 
   async lookupPatientByHn(hn: string): Promise<FctHomeVisitPatientLookupResult | null> {
     const cleanHn = normalizeHn(hn)
-    if (!cleanHn) {
-      return null
-    }
+    if (!cleanHn) return null
 
-    const ptSql = `
-      SELECT
-        pt.hn,
-        CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
-        TIMESTAMPDIFF(YEAR, pt.birthday, CURDATE()) AS age,
-        CONCAT(
-          IFNULL(pt.addrpart, ''),
-          IF(IFNULL(pt.moopart, '') != '', CONCAT(' ม.', pt.moopart), ''),
-          IF(IFNULL(pt.road, '') != '', CONCAT(' ถ.', pt.road), ''),
-          IF(t.name IS NOT NULL, CONCAT(' ต.', t.name), ''),
-          IF(a.name IS NOT NULL, CONCAT(' อ.', a.name), ''),
-          IF(c.name IS NOT NULL, CONCAT(' จ.', c.name), '')
-        ) AS address
-      FROM patient pt
-      LEFT JOIN thaiaddress t ON t.chwpart = pt.chwpart AND t.amppart = pt.amppart AND t.tmbpart = pt.tmbpart
-      LEFT JOIN thaiaddress a ON a.chwpart = pt.chwpart AND a.amppart = pt.amppart AND a.tmbpart = '00'
-      LEFT JOIN thaiaddress c ON c.chwpart = pt.chwpart AND c.amppart = '00' AND c.tmbpart = '00'
-      WHERE pt.hn = ?
-      LIMIT 1
-    `
+    const pt = await this.gw.lookupFctHomeVisitPatientByHn(cleanHn)
+    if (!pt) return null
 
-    const rows = await this.deps.clinicalQuery<{
-      hn: string
-      ptname: string | null
-      age: number | string | null
-      address: string | null
-    }>(ptSql, [cleanHn])
-
-    if (!rows || rows.length === 0) {
-      return null
-    }
-
-    const pt = rows[0]
     return {
       hn: String(pt.hn ?? cleanHn).trim(),
       patientName: String(pt.ptname ?? '').trim(),
@@ -511,68 +302,30 @@ export class FctHomeVisitService {
 
   async listOptions(): Promise<Record<FctOptionCategory, FctHomeVisitOptionRecord[]>> {
     await this.ensureSchema()
-
-    const rows = await this.deps.appQuery<Record<string, unknown>>(
-      `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-    )
-
+    const rows = await this.gw.listFctHomeVisitOptionsRaw()
     const grouped = createEmptyOptionGroups()
-    for (const row of rows) {
+    for (const row of rows || []) {
       const mapped = mapOptionRow(row)
       if (FCT_ALL_OPTION_CATEGORIES.includes(mapped.category)) {
         grouped[mapped.category].push(mapped)
       }
     }
-
     return grouped
   }
 
   async listVisits(filters: FctHomeVisitListFilters = {}): Promise<FctHomeVisitListResult> {
     await this.ensureSchema()
+    const bundle = await this.gw.getFctHomeVisitsBundle(filters.fiscalYear)
+    const optionRows = bundle.optionRows || []
+    const yearRows = bundle.yearRows || []
+    const pcuRows = bundle.pcuRows || []
+    const visitRows = bundle.visitRows || []
 
-    let targetFiscalYear: number
-    let optionRows: Record<string, unknown>[]
-    let yearRows: Array<{ fiscalYear: number | string }>
-    let pcuRows: Array<{ pcuName: string }>
-    let visitRows: Record<string, unknown>[]
-
-    if (filters.fiscalYear !== undefined) {
-      targetFiscalYear = filters.fiscalYear
-      ;[optionRows, yearRows, pcuRows, visitRows] = await Promise.all([
-        this.deps.appQuery<Record<string, unknown>>(
-          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-        ),
-        this.deps.appQuery<{ fiscalYear: number | string }>(
-          `SELECT DISTINCT fiscal_year AS fiscalYear FROM fct_home_visits ORDER BY fiscal_year DESC`
-        ),
-        this.deps.appQuery<{ pcuName: string }>(
-          `SELECT DISTINCT pcu_name AS pcuName FROM fct_home_visits WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
-        ),
-        this.deps.appQuery<Record<string, unknown>>(
-          `${VISIT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY visit_date DESC, id DESC`,
-          [targetFiscalYear]
-        ),
-      ])
-    } else {
-      yearRows = await this.deps.appQuery<{ fiscalYear: number | string }>(
-        `SELECT DISTINCT fiscal_year AS fiscalYear FROM fct_home_visits ORDER BY fiscal_year DESC`
-      )
-      targetFiscalYear = resolveDefaultFiscalYear(
-        yearRows.map((r) => Number(r.fiscalYear))
-      )
-      ;[optionRows, pcuRows, visitRows] = await Promise.all([
-        this.deps.appQuery<Record<string, unknown>>(
-          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-        ),
-        this.deps.appQuery<{ pcuName: string }>(
-          `SELECT DISTINCT pcu_name AS pcuName FROM fct_home_visits WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
-        ),
-        this.deps.appQuery<Record<string, unknown>>(
-          `${VISIT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY visit_date DESC, id DESC`,
-          [targetFiscalYear]
-        ),
-      ])
-    }
+    const targetFiscalYear =
+      filters.fiscalYear !== undefined
+        ? filters.fiscalYear
+        : bundle.targetFiscalYear ??
+          resolveDefaultFiscalYear(yearRows.map((r) => Number(r.fiscalYear)))
 
     const options = createEmptyOptionGroups()
     for (const row of optionRows) {
@@ -588,15 +341,11 @@ export class FctHomeVisitService {
 
     const pcuSet = new Set<string>()
     for (const opt of options.pcu) {
-      if (opt.isActive && opt.label.trim()) {
-        pcuSet.add(opt.label.trim())
-      }
+      if (opt.isActive && opt.label.trim()) pcuSet.add(opt.label.trim())
     }
     for (const row of pcuRows) {
       const normalized = normalizePcuValue(row.pcuName)
-      if (normalized) {
-        pcuSet.add(normalized)
-      }
+      if (normalized) pcuSet.add(normalized)
     }
     const availablePcus = Array.from(pcuSet).sort((a, b) => a.localeCompare(b, 'th'))
 
@@ -605,9 +354,7 @@ export class FctHomeVisitService {
     const pcuFilter = filters.pcuName?.trim()
     const pcuScopedRecords =
       pcuFilter && pcuFilter !== 'ALL'
-        ? allYearRecords.filter(
-            (r) => (r.pcuName?.trim() || 'ไม่ระบุ รพ.สต.') === pcuFilter
-          )
+        ? allYearRecords.filter((r) => (r.pcuName?.trim() || 'ไม่ระบุ รพ.สต.') === pcuFilter)
         : allYearRecords
 
     const activeLabels = (cat: FctOptionCategory) =>
@@ -665,14 +412,6 @@ export class FctHomeVisitService {
     }
   }
 
-  private async getVisitById(id: number): Promise<FctHomeVisitRecord | null> {
-    const rows = await this.deps.appQuery<Record<string, unknown>>(
-      `${VISIT_SELECT_SQL} WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    return rows.length > 0 ? mapVisitRow(rows[0]) : null
-  }
-
   async createVisit(
     input: FctHomeVisitCreateInput,
     actor?: FctHomeVisitActor | null
@@ -680,18 +419,19 @@ export class FctHomeVisitService {
     await this.ensureSchema()
 
     const actorName = actor?.username?.trim() || 'system'
-    const payload = buildCreateStatementPayload(input, actorName)
-    const res = await this.executeWrite(payload.sql, payload.params)
-    const insertId = res.insertId
+    const fields = buildNormalizedCreateFields(input)
 
-    if (!insertId) {
-      throw new Error('ไม่สามารถอ่านรหัสรายการเยี่ยมบ้านที่สร้างใหม่ได้')
+    let createdRaw: Record<string, unknown>
+    try {
+      createdRaw = await this.gw.createFctHomeVisit({ fields, actorName })
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
 
-    const created = await this.getVisitById(insertId)
-    if (!created) {
+    if (!createdRaw) {
       throw new Error('ไม่พบข้อมูลรายการเยี่ยมบ้านที่เพิ่งบันทึก')
     }
+    const created = mapVisitRow(createdRaw)
 
     await logAudit(
       'CREATE',
@@ -710,38 +450,35 @@ export class FctHomeVisitService {
   ): Promise<FctHomeVisitRecord> {
     await this.ensureSchema()
 
-    const existing = await this.getVisitById(id)
-    if (!existing) {
+    const existingRaw = await this.gw.getFctHomeVisitByIdRaw(id)
+    if (!existingRaw) {
       throw new FctHomeVisitNotFoundError(`ไม่พบข้อมูลการเยี่ยมบ้าน ID: ${id}`)
     }
+    const existing = mapVisitRow(existingRaw)
 
     if (input.patientName !== undefined && !input.patientName.trim()) {
       throw new FctHomeVisitValidationError('กรุณาระบุชื่อ-สกุลผู้ป่วย')
     }
 
-    const setClauses: string[] = []
-    const params: unknown[] = []
+    const fields: Record<string, unknown> = {}
     const resolvedInput: FctHomeVisitUpdateInput = { ...input }
 
     if (resolvedInput.visitDate !== undefined) {
       const validVisitDate = assertValidOptionalIsoVisitDate(resolvedInput.visitDate)
       resolvedInput.visitDate = validVisitDate
       if (validVisitDate) {
-        setClauses.push('fiscal_year = ?')
-        params.push(getThaiFiscalYearFromDate(validVisitDate))
+        fields.fiscalYear = getThaiFiscalYearFromDate(validVisitDate)
       } else if (
         typeof resolvedInput.fiscalYear === 'number' &&
         Number.isInteger(resolvedInput.fiscalYear)
       ) {
-        setClauses.push('fiscal_year = ?')
-        params.push(resolvedInput.fiscalYear)
+        fields.fiscalYear = resolvedInput.fiscalYear
       }
     } else if (
       typeof resolvedInput.fiscalYear === 'number' &&
       Number.isInteger(resolvedInput.fiscalYear)
     ) {
-      setClauses.push('fiscal_year = ?')
-      params.push(resolvedInput.fiscalYear)
+      fields.fiscalYear = resolvedInput.fiscalYear
     }
 
     const effectiveAdlScore =
@@ -759,27 +496,58 @@ export class FctHomeVisitService {
       resolvedInput.adlGroup = suggestAdlGroup(effectiveAdlScore)
     }
 
-    for (const mapping of VISIT_FIELD_MAPPINGS) {
-      if (resolvedInput[mapping.key] !== undefined) {
-        setClauses.push(`${mapping.column} = ?`)
-        params.push(mapping.transform(resolvedInput[mapping.key]))
-      }
-    }
+    if (resolvedInput.visitDate !== undefined) fields.visitDate = resolvedInput.visitDate
+    if (resolvedInput.pcuName !== undefined) fields.pcuName = normalizePcuValue(resolvedInput.pcuName)
+    if (resolvedInput.patientName !== undefined)
+      fields.patientName = String(resolvedInput.patientName).trim()
+    if (resolvedInput.hn !== undefined) fields.hn = normalizeHn(resolvedInput.hn)
+    if (resolvedInput.age !== undefined) fields.age = toNullableNumber(resolvedInput.age)
+    if (resolvedInput.address !== undefined) fields.address = normalizeOptionalText(resolvedInput.address)
+    if (resolvedInput.adlScore !== undefined) fields.adlScore = toNullableNumber(resolvedInput.adlScore)
+    if (resolvedInput.adlGroup !== undefined)
+      fields.adlGroup = normalizeAdlGroupValue(resolvedInput.adlGroup)
+    if (resolvedInput.diagnosis !== undefined)
+      fields.diagnosis = normalizeOptionalText(resolvedInput.diagnosis)
+    if (resolvedInput.patientCategory !== undefined)
+      fields.patientCategory = normalizeOptionalText(resolvedInput.patientCategory)
+    if (resolvedInput.followUpPlan !== undefined)
+      fields.followUpPlan = normalizeOptionalText(resolvedInput.followUpPlan)
+    if (resolvedInput.treatmentFacility !== undefined)
+      fields.treatmentFacility = normalizeOptionalText(resolvedInput.treatmentFacility)
+    if (resolvedInput.visitOutcome !== undefined)
+      fields.visitOutcome = normalizeOptionalText(resolvedInput.visitOutcome)
+    if (resolvedInput.overallRiskLevel !== undefined)
+      fields.overallRiskLevel = normalizeRiskValue(resolvedInput.overallRiskLevel)
+    if (resolvedInput.riskLevel !== undefined)
+      fields.riskLevel = normalizeRiskValue(resolvedInput.riskLevel)
+    if (resolvedInput.dentalNote !== undefined)
+      fields.dentalNote = normalizeOptionalText(resolvedInput.dentalNote)
+    if (resolvedInput.pharmacyNote !== undefined)
+      fields.pharmacyNote = normalizeOptionalText(resolvedInput.pharmacyNote)
+    if (resolvedInput.nutritionStatus !== undefined)
+      fields.nutritionStatus = normalizeNutritionStatusValue(resolvedInput.nutritionStatus)
+    if (resolvedInput.nutritionNote !== undefined)
+      fields.nutritionNote = normalizeOptionalText(resolvedInput.nutritionNote)
+    if (resolvedInput.ptCategory !== undefined)
+      fields.ptCategory = normalizeOptionalText(resolvedInput.ptCategory)
+    if (resolvedInput.ptNote !== undefined) fields.ptNote = normalizeOptionalText(resolvedInput.ptNote)
+    if (resolvedInput.thaiMedCategory !== undefined)
+      fields.thaiMedCategory = normalizeOptionalText(resolvedInput.thaiMedCategory)
+    if (resolvedInput.thaiMedNote !== undefined)
+      fields.thaiMedNote = normalizeOptionalText(resolvedInput.thaiMedNote)
 
     const actorName = actor?.username?.trim() || 'system'
-    setClauses.push('updated_by = ?')
-    params.push(actorName)
-    params.push(id)
+    let updatedRaw: Record<string, unknown>
+    try {
+      updatedRaw = await this.gw.updateFctHomeVisit(id, { fields, actorName })
+    } catch (err) {
+      rethrowMappedGatewayError(err)
+    }
 
-    await this.executeWrite(
-      `UPDATE fct_home_visits SET ${setClauses.join(', ')} WHERE id = ?`,
-      params
-    )
-
-    const updated = await this.getVisitById(id)
-    if (!updated) {
+    if (!updatedRaw) {
       throw new FctHomeVisitNotFoundError(`ไม่พบข้อมูลการเยี่ยมบ้าน ID: ${id}`)
     }
+    const updated = mapVisitRow(updatedRaw)
 
     await logAudit(
       'UPDATE',
@@ -797,21 +565,21 @@ export class FctHomeVisitService {
   ): Promise<{ id: number; fiscalYear: number }> {
     await this.ensureSchema()
 
-    const existing = await this.getVisitById(id)
-    if (!existing) {
-      throw new FctHomeVisitNotFoundError(`ไม่พบข้อมูลการเยี่ยมบ้าน ID: ${id}`)
+    let deleted: { id: number; fiscalYear: number }
+    try {
+      deleted = await this.gw.deleteFctHomeVisit(id)
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
-
-    await this.executeWrite('DELETE FROM fct_home_visits WHERE id = ?', [id])
 
     await logAudit(
       'DELETE',
       'fct_home_visits',
-      `Deleted FCT home visit ID: ${id} (FY: ${existing.fiscalYear})`,
+      `Deleted FCT home visit ID: ${id} (FY: ${deleted.fiscalYear})`,
       actor
     )
 
-    return { id, fiscalYear: existing.fiscalYear }
+    return deleted
   }
 
   async batchImportVisits(
@@ -829,69 +597,22 @@ export class FctHomeVisitService {
       }
     }
 
-    const existingPairs = await this.deps.appQuery<{ visitDate: unknown; hn: string | null }>(
-      `SELECT DATE_FORMAT(visit_date, '%Y-%m-%d') AS visitDate, hn
-       FROM fct_home_visits
-       WHERE visit_date IS NOT NULL AND hn IS NOT NULL AND hn <> ''`
-    )
-
-    const seenKeys = new Set<string>()
-    for (const pair of existingPairs) {
-      const cleanHn = normalizeHn(pair.hn)
-      const cleanDate = serializeIsoDate(pair.visitDate)
-      if (cleanHn && cleanDate) {
-        seenKeys.add(`${cleanDate}|${cleanHn}`)
-      }
-    }
-
     const actorName = actor?.username?.trim() || 'system'
-    const statements: Array<{ sql: string; params: unknown[] }> = []
-    const duplicates: FctBatchImportResult['duplicates'] = []
+    const normalizedItems = rows.map((row) => buildNormalizedCreateFields(row))
 
-    for (let idx = 0; idx < rows.length; idx++) {
-      const payload = buildCreateStatementPayload(rows[idx], actorName)
-      if (payload.hn && payload.visitDate) {
-        const key = `${payload.visitDate}|${payload.hn}`
-        if (seenKeys.has(key)) {
-          duplicates.push({
-            rowNumber: idx + 1,
-            visitDate: payload.visitDate,
-            hn: payload.hn,
-            patientName: payload.patientName,
-          })
-          continue
-        }
-        seenKeys.add(key)
-      }
-
-      statements.push({ sql: payload.sql, params: payload.params })
-    }
-
-    if (statements.length > 0) {
-      await this.deps.appTransaction([{ sql: 'SET NAMES utf8mb4' }, ...statements])
-    }
+    const res = await this.gw.batchImportFctHomeVisits({
+      items: normalizedItems,
+      actorName,
+    })
 
     await logAudit(
       'CREATE',
       'fct_home_visits',
-      `Batch imported FCT home visits: inserted ${statements.length}, skipped duplicates ${duplicates.length}`,
+      `Batch imported FCT home visits: inserted ${res.insertedCount}, skipped duplicates ${res.skippedDuplicateCount}`,
       actor
     )
 
-    return {
-      insertedCount: statements.length,
-      skippedDuplicateCount: duplicates.length,
-      errorCount: 0,
-      duplicates,
-    }
-  }
-
-  private async getOptionById(id: number): Promise<FctHomeVisitOptionRecord | null> {
-    const rows = await this.deps.appQuery<Record<string, unknown>>(
-      `${OPTION_SELECT_SQL} WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    return rows.length > 0 ? mapOptionRow(rows[0]) : null
+    return res
   }
 
   async createOption(
@@ -905,41 +626,21 @@ export class FctHomeVisitService {
       throw new FctHomeVisitValidationError('กรุณาระบุชื่อตัวเลือก')
     }
 
-    const dupRows = await this.deps.appQuery<{ id: number }>(
-      `SELECT id FROM fct_home_visit_options WHERE category = ? AND label = ? LIMIT 1`,
-      [input.category, label]
-    )
-    if (dupRows.length > 0) {
-      throw new FctHomeVisitConflictError(`มีตัวเลือก "${label}" อยู่ในหมวดหมู่นี้แล้ว`)
-    }
-
     const actorName = actor?.username?.trim() || 'system'
-    const sortOrder = input.sortOrder ?? 0
-    const isActive = input.isActive ?? true
-
-    let insertId: number | null = null
+    let createdRaw: Record<string, unknown>
     try {
-      const res = await this.executeWrite(
-        `INSERT INTO fct_home_visit_options (category, label, sort_order, is_active, created_by)
-         VALUES (?, ?, ?, ?, ?)`,
-        [input.category, label, sortOrder, isActive, actorName]
-      )
-      insertId = res.insertId
+      createdRaw = await this.gw.createFctHomeVisitOption({
+        category: input.category,
+        label,
+        sortOrder: input.sortOrder ?? 0,
+        isActive: input.isActive ?? true,
+        actorName,
+      })
     } catch (err) {
-      if (isDuplicateEntryError(err)) {
-        throw new FctHomeVisitConflictError(`มีตัวเลือก "${label}" อยู่ในหมวดหมู่นี้แล้ว`)
-      }
-      throw err
+      rethrowMappedGatewayError(err)
     }
 
-    if (!insertId) {
-      throw new Error('ไม่สามารถอ่านรหัสตัวเลือกที่สร้างใหม่ได้')
-    }
-
-    const created = await this.getOptionById(insertId)
-    if (!created) {
-      throw new Error('ไม่พบข้อมูลตัวเลือกที่เพิ่งบันทึก')
-    }
+    const created = mapOptionRow(createdRaw)
 
     await logAudit(
       'CREATE',
@@ -958,64 +659,27 @@ export class FctHomeVisitService {
   ): Promise<FctHomeVisitOptionRecord> {
     await this.ensureSchema()
 
-    const existing = await this.getOptionById(id)
-    if (!existing) {
-      throw new FctHomeVisitNotFoundError(`ไม่พบตัวเลือก ID: ${id}`)
+    if (input.label !== undefined && !input.label.trim()) {
+      throw new FctHomeVisitValidationError('กรุณาระบุชื่อตัวเลือก')
     }
 
-    const setClauses: string[] = []
-    const params: unknown[] = []
-
-    if (input.label !== undefined) {
-      const label = input.label.trim()
-      if (!label) {
-        throw new FctHomeVisitValidationError('กรุณาระบุชื่อตัวเลือก')
-      }
-      const dupRows = await this.deps.appQuery<{ id: number }>(
-        `SELECT id FROM fct_home_visit_options WHERE category = ? AND label = ? AND id <> ? LIMIT 1`,
-        [existing.category, label, id]
-      )
-      if (dupRows.length > 0) {
-        throw new FctHomeVisitConflictError(`มีตัวเลือก "${label}" อยู่ในหมวดหมู่นี้แล้ว`)
-      }
-      setClauses.push('label = ?')
-      params.push(label)
+    let updatedRaw: Record<string, unknown>
+    try {
+      updatedRaw = await this.gw.updateFctHomeVisitOption(id, {
+        label: input.label !== undefined ? input.label.trim() : undefined,
+        sortOrder: input.sortOrder,
+        isActive: input.isActive,
+      })
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
 
-    if (input.sortOrder !== undefined) {
-      setClauses.push('sort_order = ?')
-      params.push(input.sortOrder)
-    }
-
-    if (input.isActive !== undefined) {
-      setClauses.push('is_active = ?')
-      params.push(input.isActive)
-    }
-
-    if (setClauses.length > 0) {
-      params.push(id)
-      try {
-        await this.executeWrite(
-          `UPDATE fct_home_visit_options SET ${setClauses.join(', ')} WHERE id = ?`,
-          params
-        )
-      } catch (err) {
-        if (isDuplicateEntryError(err)) {
-          throw new FctHomeVisitConflictError('มีตัวเลือกชื่อนี้อยู่ในหมวดหมู่นี้แล้ว')
-        }
-        throw err
-      }
-    }
-
-    const updated = await this.getOptionById(id)
-    if (!updated) {
-      throw new FctHomeVisitNotFoundError(`ไม่พบตัวเลือก ID: ${id}`)
-    }
+    const updated = mapOptionRow(updatedRaw)
 
     await logAudit(
       'UPDATE',
       'fct_home_visit_options',
-      `Updated FCT Home Visit option ID: ${id} (category: ${existing.category})`,
+      `Updated FCT Home Visit option ID: ${id} (category: ${updated.category})`,
       actor
     )
 
@@ -1028,21 +692,23 @@ export class FctHomeVisitService {
   ): Promise<{ id: number; category: FctOptionCategory }> {
     await this.ensureSchema()
 
-    const existing = await this.getOptionById(id)
-    if (!existing) {
-      throw new FctHomeVisitNotFoundError(`ไม่พบตัวเลือก ID: ${id}`)
+    let deleted: { id: number; category: string }
+    try {
+      deleted = await this.gw.deleteFctHomeVisitOption(id)
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
 
-    await this.executeWrite('DELETE FROM fct_home_visit_options WHERE id = ?', [id])
+    const category = deleted.category as FctOptionCategory
 
     await logAudit(
       'DELETE',
       'fct_home_visit_options',
-      `Deleted FCT Home Visit option ID: ${id} (category: ${existing.category})`,
+      `Deleted FCT Home Visit option ID: ${id} (category: ${category})`,
       actor
     )
 
-    return { id, category: existing.category }
+    return { id: deleted.id, category }
   }
 }
 

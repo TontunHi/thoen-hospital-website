@@ -5,36 +5,30 @@ vi.mock('@/lib/audit', () => ({
 }))
 
 import { logAudit } from '@/lib/audit'
-import { FCT_ALL_OPTION_CATEGORIES, FCT_OPTION_CATEGORY_META } from '../fctHomeVisitTypes'
+import { GatewayError, GatewayNotFoundError } from '@/lib/apiGateway'
 import {
   FctHomeVisitConflictError,
   FctHomeVisitNotFoundError,
   FctHomeVisitService,
   FctHomeVisitValidationError,
-  type FctHomeVisitDbDeps,
+  type FctHomeVisitGatewayDeps,
 } from '../fctHomeVisitService'
 
-function createMockDeps() {
+function createMockGw() {
   return {
-    // Mocked query returns heterogeneous row shapes across test cases
-    appQuery: vi.fn<(sql: string, params?: unknown[]) => Promise<any[]>>(),
-    appTransaction: vi.fn<FctHomeVisitDbDeps['appTransaction']>().mockResolvedValue({
-      count: 2,
-      results: [
-        { affectedRows: 0, insertId: null },
-        { affectedRows: 1, insertId: 1 },
-      ],
-    }),
-    // Mocked HOSxP query returns heterogeneous row shapes across test cases
-    clinicalQuery: vi.fn<(sql: string, params?: unknown[]) => Promise<any[]>>(),
+    ensureFctHomeVisitSchema: vi.fn<FctHomeVisitGatewayDeps['ensureFctHomeVisitSchema']>().mockResolvedValue({ ensured: true }),
+    lookupFctHomeVisitPatientByHn: vi.fn<FctHomeVisitGatewayDeps['lookupFctHomeVisitPatientByHn']>(),
+    listFctHomeVisitOptionsRaw: vi.fn<FctHomeVisitGatewayDeps['listFctHomeVisitOptionsRaw']>(),
+    createFctHomeVisitOption: vi.fn<FctHomeVisitGatewayDeps['createFctHomeVisitOption']>(),
+    updateFctHomeVisitOption: vi.fn<FctHomeVisitGatewayDeps['updateFctHomeVisitOption']>(),
+    deleteFctHomeVisitOption: vi.fn<FctHomeVisitGatewayDeps['deleteFctHomeVisitOption']>(),
+    getFctHomeVisitsBundle: vi.fn<FctHomeVisitGatewayDeps['getFctHomeVisitsBundle']>(),
+    getFctHomeVisitByIdRaw: vi.fn<FctHomeVisitGatewayDeps['getFctHomeVisitByIdRaw']>(),
+    createFctHomeVisit: vi.fn<FctHomeVisitGatewayDeps['createFctHomeVisit']>(),
+    updateFctHomeVisit: vi.fn<FctHomeVisitGatewayDeps['updateFctHomeVisit']>(),
+    deleteFctHomeVisit: vi.fn<FctHomeVisitGatewayDeps['deleteFctHomeVisit']>(),
+    batchImportFctHomeVisits: vi.fn<FctHomeVisitGatewayDeps['batchImportFctHomeVisits']>(),
   }
-}
-
-function makeAllSeededCounts() {
-  return FCT_ALL_OPTION_CATEGORIES.map((category) => ({
-    category,
-    cnt: FCT_OPTION_CATEGORY_META[category].seedLabels.length,
-  }))
 }
 
 function makeDbVisitRow(overrides: Record<string, unknown> = {}) {
@@ -73,75 +67,36 @@ function makeDbVisitRow(overrides: Record<string, unknown> = {}) {
 }
 
 describe('FctHomeVisitService', () => {
-  let deps: ReturnType<typeof createMockDeps>
+  let gw: ReturnType<typeof createMockGw>
   let service: FctHomeVisitService
   const actor = { username: 'nurse01', email: 'nurse01@thoen.local' }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    deps = createMockDeps()
-    service = new FctHomeVisitService(deps)
+    gw = createMockGw()
+    service = new FctHomeVisitService(gw)
   })
 
   describe('ensureSchema', () => {
-    it('creates tables without cid/unique-hn, seeds empty option categories, and caches state', async () => {
-      deps.appQuery.mockResolvedValueOnce([{ category: 'pcu', cnt: 3 }])
-
+    it('ensures schema via Gateway once and caches state', async () => {
       await service.ensureSchema()
       await service.ensureSchema()
-
-      expect(deps.appTransaction).toHaveBeenCalledTimes(2)
-      const ddlBatch = deps.appTransaction.mock.calls[0][0]
-      expect(ddlBatch[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(ddlBatch[1].sql).toContain('CREATE TABLE IF NOT EXISTS fct_home_visits')
-      expect(ddlBatch[1].sql).not.toContain('cid ')
-      expect(ddlBatch[1].sql).not.toContain('UNIQUE KEY')
-      expect(ddlBatch[2].sql).toContain('CREATE TABLE IF NOT EXISTS fct_home_visit_options')
-
-      const seedBatch = deps.appTransaction.mock.calls[1][0]
-      expect(seedBatch[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-
-      const expectedSeedCount = FCT_ALL_OPTION_CATEGORIES.filter((c) => c !== 'pcu').reduce(
-        (sum, c) => sum + FCT_OPTION_CATEGORY_META[c].seedLabels.length,
-        0
-      )
-      expect(seedBatch).toHaveLength(1 + expectedSeedCount)
-      const seededCategories = new Set(seedBatch.slice(1).map((s) => s.params?.[0]))
-      expect(seededCategories.has('pcu')).toBe(false)
-      expect(seededCategories.has('adl_group')).toBe(true)
-      expect(seededCategories.has('visit_outcome')).toBe(true)
-    })
-
-    it('skips seeding when all categories already have rows', async () => {
-      deps.appQuery.mockResolvedValueOnce(makeAllSeededCounts())
-
-      await service.ensureSchema()
-      expect(deps.appTransaction).toHaveBeenCalledTimes(1)
+      expect(gw.ensureFctHomeVisitSchema).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('lookupPatientByHn', () => {
-    it('normalizes HN and queries patient joined with thaiaddress without returning cid', async () => {
-      deps.clinicalQuery.mockResolvedValueOnce([
-        {
-          hn: '0001234',
-          ptname: 'นางสมหญิง ทดสอบ',
-          age: '72',
-          address: '12 ม.3 ต.ล้อมแรด อ.เถิน จ.ลำปาง',
-        },
-      ])
+    it('normalizes HN and returns patient address without cid', async () => {
+      gw.lookupFctHomeVisitPatientByHn.mockResolvedValueOnce({
+        hn: '0001234',
+        ptname: 'นางสมหญิง ทดสอบ',
+        age: '72',
+        address: '12 ม.3 ต.ล้อมแรด อ.เถิน จ.ลำปาง',
+      })
 
       const result = await service.lookupPatientByHn('1234')
 
-      expect(deps.clinicalQuery).toHaveBeenCalledWith(expect.stringContaining('FROM patient pt'), [
-        '0001234',
-      ])
-      const executedSql = deps.clinicalQuery.mock.calls[0][0]
-      expect(executedSql).toContain('LEFT JOIN thaiaddress t')
-      expect(executedSql).toContain('LEFT JOIN thaiaddress a')
-      expect(executedSql).toContain('LEFT JOIN thaiaddress c')
-      expect(executedSql).not.toContain('pt.cid')
-
+      expect(gw.lookupFctHomeVisitPatientByHn).toHaveBeenCalledWith('0001234')
       expect(result).toEqual({
         hn: '0001234',
         patientName: 'นางสมหญิง ทดสอบ',
@@ -153,18 +108,18 @@ describe('FctHomeVisitService', () => {
 
     it('returns null for blank HN or missing patient', async () => {
       expect(await service.lookupPatientByHn('   ')).toBeNull()
-      expect(deps.clinicalQuery).not.toHaveBeenCalled()
+      expect(gw.lookupFctHomeVisitPatientByHn).not.toHaveBeenCalled()
 
-      deps.clinicalQuery.mockResolvedValueOnce([])
+      gw.lookupFctHomeVisitPatientByHn.mockResolvedValueOnce(null)
       expect(await service.lookupPatientByHn('9999999')).toBeNull()
     })
   })
 
   describe('listVisits', () => {
-    it('loads options, years, PCUs, scopes stats to fiscalYear+pcuName, and filters items', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts()) // ensureSchema
-        .mockResolvedValueOnce([
+    it('loads bundle, scopes stats to fiscalYear+pcuName, and filters items', async () => {
+      gw.getFctHomeVisitsBundle.mockResolvedValueOnce({
+        targetFiscalYear: 2570,
+        optionRows: [
           {
             id: 1,
             category: 'pcu',
@@ -195,10 +150,10 @@ describe('FctHomeVisitService', () => {
             createdAt: '2026-10-01',
             updatedAt: '2026-10-01',
           },
-        ])
-        .mockResolvedValueOnce([{ fiscalYear: 2570 }, { fiscalYear: 2568 }])
-        .mockResolvedValueOnce([{ pcuName: 'รพ.เถิน' }])
-        .mockResolvedValueOnce([
+        ],
+        yearRows: [{ fiscalYear: 2570 }, { fiscalYear: 2568 }],
+        pcuRows: [{ pcuName: 'รพ.เถิน' }],
+        visitRows: [
           makeDbVisitRow({
             id: 1,
             pcuName: 'รพ.เถิน',
@@ -225,7 +180,8 @@ describe('FctHomeVisitService', () => {
             adlGroup: 'ติดบ้าน',
             visitOutcome: 'คงเดิม',
           }),
-        ])
+        ],
+      })
 
       const result = await service.listVisits({
         fiscalYear: 2570,
@@ -238,21 +194,19 @@ describe('FctHomeVisitService', () => {
       expect(result.fiscalYear).toBe(2570)
       expect(result.availableFiscalYears).toContain(2568)
       expect(result.availablePcus).toEqual(['แม่วะหลวง', 'รพ.เถิน'])
-      // Stats reflect both records in รพ.เถิน before adlGroup/visitOutcome/search narrowing
       expect(result.stats.totalVisits).toBe(2)
       expect(result.stats.uniquePatients).toBe(2)
-      // Items reflect adlGroup + visitOutcome + search narrowing
       expect(result.items).toHaveLength(1)
       expect(result.items[0].id).toBe(2)
     })
 
     it('matches search against patientName, hn, diagnosis, address, and followUpPlan', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts())
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ fiscalYear: 2570 }])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
+      const bundle = {
+        targetFiscalYear: 2570,
+        optionRows: [],
+        yearRows: [{ fiscalYear: 2570 }],
+        pcuRows: [],
+        visitRows: [
           makeDbVisitRow({ id: 1, address: 'หมู่ 4 บ้านแม่ปะ', followUpPlan: 'ดูแผลกดทับ' }),
           makeDbVisitRow({
             id: 2,
@@ -262,75 +216,51 @@ describe('FctHomeVisitService', () => {
             diagnosis: 'DM',
             followUpPlan: 'ตรวจน้ำตาล',
           }),
-        ])
+        ],
+      }
 
+      gw.getFctHomeVisitsBundle.mockResolvedValueOnce(bundle)
       const byAddress = await service.listVisits({ fiscalYear: 2570, search: 'แม่ปะ' })
       expect(byAddress.items.map((r) => r.id)).toEqual([1])
 
-      deps.appQuery
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ fiscalYear: 2570 }])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          makeDbVisitRow({ id: 1, address: 'หมู่ 4 บ้านแม่ปะ', followUpPlan: 'ดูแผลกดทับ' }),
-          makeDbVisitRow({
-            id: 2,
-            patientName: 'นาง ทดสอบ สอง',
-            hn: '0008888',
-            address: 'หมู่ 9',
-            diagnosis: 'DM',
-            followUpPlan: 'ตรวจน้ำตาล',
-          }),
-        ])
-
+      gw.getFctHomeVisitsBundle.mockResolvedValueOnce(bundle)
       const byFollowUp = await service.listVisits({ fiscalYear: 2570, search: 'ตรวจน้ำตาล' })
       expect(byFollowUp.items.map((r) => r.id)).toEqual([2])
     })
 
-    it('resolves omitted fiscalYear to the latest populated DB year and returns only populated years', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts()) // ensureSchema
-        .mockResolvedValueOnce([{ fiscalYear: 2569 }, { fiscalYear: 2565 }]) // yearRows
-        .mockResolvedValueOnce([]) // options
-        .mockResolvedValueOnce([{ pcuName: 'รพ.เถิน' }]) // pcuRows
-        .mockResolvedValueOnce([makeDbVisitRow({ id: 10, fiscalYear: 2569, visitDate: '2026-06-11' })])
+    it('resolves omitted fiscalYear to the latest populated DB year', async () => {
+      gw.getFctHomeVisitsBundle.mockResolvedValueOnce({
+        targetFiscalYear: 2569,
+        optionRows: [],
+        yearRows: [{ fiscalYear: 2569 }, { fiscalYear: 2565 }],
+        pcuRows: [{ pcuName: 'รพ.เถิน' }],
+        visitRows: [makeDbVisitRow({ id: 10, fiscalYear: 2569, visitDate: '2026-06-11' })],
+      })
 
       const result = await service.listVisits({})
 
       expect(result.fiscalYear).toBe(2569)
       expect(result.availableFiscalYears).toEqual([2569, 2565])
       expect(result.items).toHaveLength(1)
-      expect(deps.appQuery.mock.calls[4][1]).toEqual([2569])
+      expect(gw.getFctHomeVisitsBundle).toHaveBeenCalledWith(undefined)
     })
   })
 
   describe('createVisit / updateVisit / deleteVisit', () => {
     it('creates a visit, auto-derives fiscalYear & adlGroup, normalizes fields, and logs non-PHI audit', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts()) // ensureSchema
-        .mockResolvedValueOnce([
-          makeDbVisitRow({
-            id: 15,
-            fiscalYear: 2570,
-            visitDate: '2026-10-15',
-            pcuName: 'รพ.เถิน',
-            hn: '0001234',
-            adlScore: 8,
-            adlGroup: 'ติดบ้าน',
-            overallRiskLevel: 'Moderate',
-            nutritionStatus: 'อ้วน BMI เกิน',
-          }),
-        ])
-
-      deps.appTransaction
-        .mockResolvedValueOnce({ count: 3, results: [] }) // ensureSchema DDL
-        .mockResolvedValueOnce({
-          count: 2,
-          results: [
-            { affectedRows: 0, insertId: null },
-            { affectedRows: 1, insertId: 15 },
-          ],
+      gw.createFctHomeVisit.mockResolvedValueOnce(
+        makeDbVisitRow({
+          id: 15,
+          fiscalYear: 2570,
+          visitDate: '2026-10-15',
+          pcuName: 'รพ.เถิน',
+          hn: '0001234',
+          adlScore: 8,
+          adlGroup: 'ติดบ้าน',
+          overallRiskLevel: 'Moderate',
+          nutritionStatus: 'อ้วน BMI เกิน',
         })
+      )
 
       const created = await service.createVisit(
         {
@@ -348,16 +278,17 @@ describe('FctHomeVisitService', () => {
       expect(created.id).toBe(15)
       expect(created.fiscalYear).toBe(2570)
       expect(created.adlGroup).toBe('ติดบ้าน')
-
-      const insertCall = deps.appTransaction.mock.calls[1][0]
-      expect(insertCall[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(insertCall[1].sql).toContain('INSERT INTO fct_home_visits')
-      expect(insertCall[1].params?.[0]).toBe(2570)
-      expect(insertCall[1].params).toContain('รพ.เถิน')
-      expect(insertCall[1].params).toContain('0001234')
-      expect(insertCall[1].params).toContain('ติดบ้าน')
-      expect(insertCall[1].params).toContain('Moderate')
-      expect(insertCall[1].params).toContain('อ้วน BMI เกิน')
+      expect(gw.createFctHomeVisit).toHaveBeenCalledWith({
+        fields: expect.objectContaining({
+          fiscalYear: 2570,
+          pcuName: 'รพ.เถิน',
+          hn: '0001234',
+          adlGroup: 'ติดบ้าน',
+          overallRiskLevel: 'Moderate',
+          nutritionStatus: 'อ้วน BMI เกิน',
+        }),
+        actorName: 'nurse01',
+      })
 
       expect(logAudit).toHaveBeenCalledWith(
         'CREATE',
@@ -371,8 +302,6 @@ describe('FctHomeVisitService', () => {
     })
 
     it('throws FctHomeVisitValidationError for blank patientName or invalid visitDate', async () => {
-      deps.appQuery.mockResolvedValue(makeAllSeededCounts())
-
       await expect(
         service.createVisit({ visitDate: '2026-10-15', patientName: '   ' }, actor)
       ).rejects.toBeInstanceOf(FctHomeVisitValidationError)
@@ -383,21 +312,17 @@ describe('FctHomeVisitService', () => {
     })
 
     it('updates visit, recomputes fiscalYear when visitDate changes, and auto-suggests adlGroup when cleared', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts()) // ensureSchema
-        .mockResolvedValueOnce([]) // missing
-
+      gw.getFctHomeVisitByIdRaw.mockResolvedValueOnce(null)
       await expect(service.updateVisit(999, { adlScore: 12 }, actor)).rejects.toBeInstanceOf(
         FctHomeVisitNotFoundError
       )
 
-      deps.appQuery
-        .mockResolvedValueOnce([
-          makeDbVisitRow({ id: 1, fiscalYear: 2570, visitDate: '2026-10-15', adlScore: 8, adlGroup: 'ติดบ้าน' }),
-        ])
-        .mockResolvedValueOnce([
-          makeDbVisitRow({ id: 1, fiscalYear: 2569, visitDate: '2026-09-20', adlScore: 15, adlGroup: 'ติดสังคม' }),
-        ])
+      gw.getFctHomeVisitByIdRaw.mockResolvedValueOnce(
+        makeDbVisitRow({ id: 1, fiscalYear: 2570, visitDate: '2026-10-15', adlScore: 8, adlGroup: 'ติดบ้าน' })
+      )
+      gw.updateFctHomeVisit.mockResolvedValueOnce(
+        makeDbVisitRow({ id: 1, fiscalYear: 2569, visitDate: '2026-09-20', adlScore: 15, adlGroup: 'ติดสังคม' })
+      )
 
       const updated = await service.updateVisit(
         1,
@@ -407,12 +332,15 @@ describe('FctHomeVisitService', () => {
 
       expect(updated.fiscalYear).toBe(2569)
       expect(updated.adlGroup).toBe('ติดสังคม')
-
-      const updateBatch = deps.appTransaction.mock.calls[1][0]
-      expect(updateBatch[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(updateBatch[1].sql).toContain('fiscal_year = ?')
-      expect(updateBatch[1].params).toContain(2569)
-      expect(updateBatch[1].params).toContain('ติดสังคม')
+      expect(gw.updateFctHomeVisit).toHaveBeenCalledWith(1, {
+        fields: expect.objectContaining({
+          fiscalYear: 2569,
+          visitDate: '2026-09-20',
+          adlScore: 15,
+          adlGroup: 'ติดสังคม',
+        }),
+        actorName: 'nurse01',
+      })
 
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE',
@@ -423,16 +351,12 @@ describe('FctHomeVisitService', () => {
     })
 
     it('deletes a visit or throws FctHomeVisitNotFoundError if missing', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts())
-        .mockResolvedValueOnce([])
-
+      gw.deleteFctHomeVisit.mockRejectedValueOnce(new GatewayNotFoundError('Missing'))
       await expect(service.deleteVisit(404, actor)).rejects.toBeInstanceOf(
         FctHomeVisitNotFoundError
       )
 
-      deps.appQuery.mockResolvedValueOnce([makeDbVisitRow({ id: 7, fiscalYear: 2570 })])
-
+      gw.deleteFctHomeVisit.mockResolvedValueOnce({ id: 7, fiscalYear: 2570 })
       const deleted = await service.deleteVisit(7, actor)
       expect(deleted).toEqual({ id: 7, fiscalYear: 2570 })
       expect(logAudit).toHaveBeenCalledWith(
@@ -445,30 +369,8 @@ describe('FctHomeVisitService', () => {
   })
 
   describe('batchImportVisits', () => {
-    it('skips duplicate (visitDate, hn) from DB and intra-batch while always inserting null HN rows', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts()) // ensureSchema
-        .mockResolvedValueOnce([{ visitDate: '2026-10-15', hn: '0001234' }]) // existing DB pairs
-
-      const result = await service.batchImportVisits(
-        [
-          // Row 1: matches existing DB (2026-10-15, 0001234) -> skip
-          { visitDate: '2026-10-15', patientName: 'นายซ้ำ ฐานข้อมูล', hn: '1234' },
-          // Row 2: new (2026-10-20, 0001234) -> insert (same HN, different date allowed)
-          { visitDate: '2026-10-20', patientName: 'นายสมชาย ตัวอย่าง', hn: '1234', adlScore: 3 },
-          // Row 3: intra-batch duplicate of Row 2 -> skip
-          { visitDate: '2026-10-20', patientName: 'นายซ้ำ ในชุด', hn: '0001234' },
-          // Row 4: null HN -> always insert
-          { visitDate: '2026-10-20', patientName: 'นางไม่มี เอชเอ็นหนึ่ง', hn: null },
-          // Row 5: second null HN on same date -> always insert
-          { visitDate: '2026-10-20', patientName: 'นางไม่มี เอชเอ็นสอง', hn: '' },
-          // Row 6: null visitDate with explicit fiscalYear -> always insert
-          { visitDate: null, fiscalYear: 2569, patientName: 'นายไม่มี วันที่', hn: '76034' },
-        ],
-        actor
-      )
-
-      expect(result).toEqual({
+    it('normalizes rows, forwards to Gateway batch-import, and logs non-PHI audit', async () => {
+      gw.batchImportFctHomeVisits.mockResolvedValueOnce({
         insertedCount: 4,
         skippedDuplicateCount: 2,
         errorCount: 0,
@@ -478,13 +380,24 @@ describe('FctHomeVisitService', () => {
         ],
       })
 
-      expect(deps.appTransaction).toHaveBeenCalledTimes(2)
-      const importBatch = deps.appTransaction.mock.calls[1][0]
-      expect(importBatch[0]).toEqual({ sql: 'SET NAMES utf8mb4' })
-      expect(importBatch).toHaveLength(5) // SET NAMES + 4 INSERT statements
-      expect(importBatch[1].params).toContain('ติดเตียง') // adlScore 3 auto-suggested
-      expect(importBatch[4].params?.[0]).toBe(2569)
-      expect(importBatch[4].params).toContain(null)
+      const result = await service.batchImportVisits(
+        [
+          { visitDate: '2026-10-15', patientName: 'นายซ้ำ ฐานข้อมูล', hn: '1234' },
+          { visitDate: '2026-10-20', patientName: 'นายสมชาย ตัวอย่าง', hn: '1234', adlScore: 3 },
+          { visitDate: '2026-10-20', patientName: 'นายซ้ำ ในชุด', hn: '0001234' },
+          { visitDate: '2026-10-20', patientName: 'นางไม่มี เอชเอ็นหนึ่ง', hn: null },
+          { visitDate: '2026-10-20', patientName: 'นางไม่มี เอชเอ็นสอง', hn: '' },
+          { visitDate: null, fiscalYear: 2569, patientName: 'นายไม่มี วันที่', hn: '76034' },
+        ],
+        actor
+      )
+
+      expect(result.insertedCount).toBe(4)
+      expect(result.skippedDuplicateCount).toBe(2)
+      const sentItems = gw.batchImportFctHomeVisits.mock.calls[0][0].items
+      expect(sentItems).toHaveLength(6)
+      expect(sentItems[1]).toMatchObject({ hn: '0001234', adlGroup: 'ติดเตียง' })
+      expect(sentItems[5]).toMatchObject({ fiscalYear: 2569, visitDate: null, hn: '0076034' })
 
       expect(logAudit).toHaveBeenCalledWith(
         'CREATE',
@@ -497,31 +410,16 @@ describe('FctHomeVisitService', () => {
 
   describe('options CRUD', () => {
     it('creates, updates, lists, and deletes options with conflict & not-found checks', async () => {
-      deps.appQuery
-        .mockResolvedValueOnce(makeAllSeededCounts()) // ensureSchema
-        .mockResolvedValueOnce([]) // dup check
-        .mockResolvedValueOnce([
-          {
-            id: 21,
-            category: 'pcu',
-            label: 'รพ.สต.ทดสอบ',
-            sortOrder: 1,
-            isActive: 1,
-            createdBy: 'nurse01',
-            createdAt: '2026-10-01',
-            updatedAt: '2026-10-01',
-          },
-        ])
-
-      deps.appTransaction
-        .mockResolvedValueOnce({ count: 3, results: [] })
-        .mockResolvedValueOnce({
-          count: 2,
-          results: [
-            { affectedRows: 0, insertId: null },
-            { affectedRows: 1, insertId: 21 },
-          ],
-        })
+      gw.createFctHomeVisitOption.mockResolvedValueOnce({
+        id: 21,
+        category: 'pcu',
+        label: 'รพ.สต.ทดสอบ',
+        sortOrder: 1,
+        isActive: 1,
+        createdBy: 'nurse01',
+        createdAt: '2026-10-01',
+        updatedAt: '2026-10-01',
+      })
 
       const created = await service.createOption(
         { category: 'pcu', label: 'รพ.สต.ทดสอบ', sortOrder: 1 },
@@ -529,43 +427,26 @@ describe('FctHomeVisitService', () => {
       )
       expect(created).toMatchObject({ id: 21, category: 'pcu', label: 'รพ.สต.ทดสอบ', isActive: true })
 
-      deps.appQuery.mockResolvedValueOnce([{ id: 21 }])
+      gw.createFctHomeVisitOption.mockRejectedValueOnce(new GatewayError('Dup', { status: 409 }))
       await expect(
         service.createOption({ category: 'pcu', label: 'รพ.สต.ทดสอบ' }, actor)
       ).rejects.toBeInstanceOf(FctHomeVisitConflictError)
 
-      deps.appQuery.mockResolvedValueOnce([])
+      gw.updateFctHomeVisitOption.mockRejectedValueOnce(new GatewayNotFoundError('Missing'))
       await expect(service.updateOption(99, { label: 'ใหม่' }, actor)).rejects.toBeInstanceOf(
         FctHomeVisitNotFoundError
       )
 
-      deps.appQuery
-        .mockResolvedValueOnce([
-          {
-            id: 21,
-            category: 'pcu',
-            label: 'รพ.สต.ทดสอบ',
-            sortOrder: 1,
-            isActive: 1,
-            createdBy: 'nurse01',
-            createdAt: '2026-10-01',
-            updatedAt: '2026-10-01',
-          },
-        ])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          {
-            id: 21,
-            category: 'pcu',
-            label: 'รพ.สต.ใหม่',
-            sortOrder: 2,
-            isActive: 0,
-            createdBy: 'nurse01',
-            createdAt: '2026-10-01',
-            updatedAt: '2026-10-02',
-          },
-        ])
-
+      gw.updateFctHomeVisitOption.mockResolvedValueOnce({
+        id: 21,
+        category: 'pcu',
+        label: 'รพ.สต.ใหม่',
+        sortOrder: 2,
+        isActive: 0,
+        createdBy: 'nurse01',
+        createdAt: '2026-10-01',
+        updatedAt: '2026-10-02',
+      })
       const updated = await service.updateOption(
         21,
         { label: 'รพ.สต.ใหม่', sortOrder: 2, isActive: false },
@@ -573,22 +454,11 @@ describe('FctHomeVisitService', () => {
       )
       expect(updated).toMatchObject({ id: 21, label: 'รพ.สต.ใหม่', sortOrder: 2, isActive: false })
 
-      deps.appQuery.mockResolvedValueOnce([
-        {
-          id: 21,
-          category: 'pcu',
-          label: 'รพ.สต.ใหม่',
-          sortOrder: 2,
-          isActive: 0,
-          createdBy: 'nurse01',
-          createdAt: '2026-10-01',
-          updatedAt: '2026-10-02',
-        },
-      ])
+      gw.deleteFctHomeVisitOption.mockResolvedValueOnce({ id: 21, category: 'pcu' })
       const deleted = await service.deleteOption(21, actor)
       expect(deleted).toEqual({ id: 21, category: 'pcu' })
 
-      deps.appQuery.mockResolvedValueOnce([
+      gw.listFctHomeVisitOptionsRaw.mockResolvedValueOnce([
         {
           id: 1,
           category: 'adl_group',

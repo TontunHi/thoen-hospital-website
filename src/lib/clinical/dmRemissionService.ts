@@ -1,4 +1,4 @@
-import { apiGateway } from '@/lib/apiGateway'
+import { apiGateway, GatewayError, GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import {
   aggregateDashboardStats,
@@ -11,7 +11,6 @@ import {
 } from './dmRemissionDomain'
 import {
   DM_DEFAULT_REMISSION_STATUS,
-  DM_OPTION_CATEGORY_META,
   type DmOptionCategory,
   type DmRemissionCohortRaw,
   type DmRemissionCohortRecord,
@@ -51,15 +50,18 @@ export interface DmRemissionActor {
   email?: string | null
 }
 
-export interface DmRemissionDbDeps {
-  appQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
-  appTransaction: (
-    statements: Array<{ sql: string; params?: unknown[] }>
-  ) => Promise<{
-    count: number
-    results: Array<{ affectedRows: number; insertId: number | null }>
-  }>
-  clinicalQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
+export interface DmRemissionGatewayDeps {
+  ensureDmRemissionSchema: typeof apiGateway.clinical.ensureDmRemissionSchema
+  lookupDmRemissionPatientByHn: typeof apiGateway.clinical.lookupDmRemissionPatientByHn
+  listDmRemissionOptionsRaw: typeof apiGateway.clinical.listDmRemissionOptionsRaw
+  createDmRemissionOption: typeof apiGateway.clinical.createDmRemissionOption
+  updateDmRemissionOption: typeof apiGateway.clinical.updateDmRemissionOption
+  deleteDmRemissionOption: typeof apiGateway.clinical.deleteDmRemissionOption
+  getDmRemissionCohortsBundle: typeof apiGateway.clinical.getDmRemissionCohortsBundle
+  createDmRemissionCohort: typeof apiGateway.clinical.createDmRemissionCohort
+  updateDmRemissionCohort: typeof apiGateway.clinical.updateDmRemissionCohort
+  deleteDmRemissionCohort: typeof apiGateway.clinical.deleteDmRemissionCohort
+  carryoverDmRemissionCohorts: typeof apiGateway.clinical.carryoverDmRemissionCohorts
 }
 
 export interface DmRemissionListFilters {
@@ -82,156 +84,11 @@ export interface DmRemissionOptionUpdateInput {
   isActive?: boolean
 }
 
-interface CohortFieldMapping {
-  key: keyof DmRemissionCreateInput
-  column: string
-  transform?: (val: unknown) => unknown
-}
-
 function normalizeOptionalText(val: unknown): string | null {
   if (val === null || val === undefined) return null
   const trimmed = String(val).trim()
   return trimmed || null
 }
-
-const COHORT_FIELD_MAPPINGS: readonly CohortFieldMapping[] = [
-  { key: 'fiscalYear', column: 'fiscal_year' },
-  { key: 'pcuName', column: 'pcu_name', transform: normalizeOptionalText },
-  { key: 'patientName', column: 'patient_name', transform: (v) => String(v ?? '').trim() },
-  { key: 'cid', column: 'cid', transform: (v) => normalizeCid(v as string | null | undefined) },
-  { key: 'hn', column: 'hn', transform: (v) => normalizeHn(v as string | null | undefined) },
-  { key: 'age', column: 'age', transform: toNullableNumber },
-  { key: 'underlyingDiseases', column: 'underlying_diseases', transform: normalizeOptionalText },
-  { key: 'heightCm', column: 'height_cm', transform: toNullableNumber },
-  { key: 'weightBeforeKg', column: 'weight_before_kg', transform: toNullableNumber },
-  { key: 'weightAfterKg', column: 'weight_after_kg', transform: toNullableNumber },
-  { key: 'waistBeforeCm', column: 'waist_before_cm', transform: toNullableNumber },
-  { key: 'waistAfterCm', column: 'waist_after_cm', transform: toNullableNumber },
-  { key: 'fpgBefore', column: 'fpg_before', transform: toNullableNumber },
-  { key: 'fpgAfter', column: 'fpg_after', transform: toNullableNumber },
-  { key: 'a1cBefore', column: 'a1c_before', transform: toNullableNumber },
-  { key: 'a1cAfter', column: 'a1c_after', transform: toNullableNumber },
-  { key: 'a1cPostStop3m', column: 'a1c_post_stop_3m', transform: toNullableNumber },
-  { key: 'medsBefore', column: 'meds_before', transform: normalizeOptionalText },
-  { key: 'medsAfter', column: 'meds_after', transform: normalizeOptionalText },
-  { key: 'summaryA1c', column: 'summary_a1c', transform: normalizeOptionalText },
-  { key: 'summaryMeds', column: 'summary_meds', transform: normalizeOptionalText },
-  { key: 'summaryWeight', column: 'summary_weight', transform: normalizeOptionalText },
-  { key: 'summaryWaist', column: 'summary_waist', transform: normalizeOptionalText },
-  { key: 'summaryDiet', column: 'summary_diet', transform: normalizeOptionalText },
-  { key: 'summaryExercise', column: 'summary_exercise', transform: normalizeOptionalText },
-  { key: 'summaryIf', column: 'summary_if', transform: normalizeOptionalText },
-  { key: 'summaryRemission', column: 'summary_remission', transform: normalizeOptionalText },
-]
-
-const COHORT_SELECT_SQL = `
-  SELECT
-    id,
-    fiscal_year AS fiscalYear,
-    pcu_name AS pcuName,
-    patient_name AS patientName,
-    cid,
-    hn,
-    age,
-    underlying_diseases AS underlyingDiseases,
-    height_cm AS heightCm,
-    weight_before_kg AS weightBeforeKg,
-    weight_after_kg AS weightAfterKg,
-    waist_before_cm AS waistBeforeCm,
-    waist_after_cm AS waistAfterCm,
-    fpg_before AS fpgBefore,
-    fpg_after AS fpgAfter,
-    a1c_before AS a1cBefore,
-    a1c_after AS a1cAfter,
-    a1c_post_stop_3m AS a1cPostStop3m,
-    meds_before AS medsBefore,
-    meds_after AS medsAfter,
-    summary_a1c AS summaryA1c,
-    summary_meds AS summaryMeds,
-    summary_weight AS summaryWeight,
-    summary_waist AS summaryWaist,
-    summary_diet AS summaryDiet,
-    summary_exercise AS summaryExercise,
-    summary_if AS summaryIf,
-    summary_remission AS summaryRemission,
-    created_by AS createdBy,
-    updated_by AS updatedBy,
-    created_at AS createdAt,
-    updated_at AS updatedAt
-  FROM dm_remission_cohorts
-`
-
-const OPTION_SELECT_SQL = `
-  SELECT
-    id,
-    category,
-    label,
-    sort_order AS sortOrder,
-    is_active AS isActive,
-    created_by AS createdBy,
-    created_at AS createdAt,
-    updated_at AS updatedAt
-  FROM dm_remission_options
-`
-
-const CREATE_COHORTS_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS dm_remission_cohorts (
-    id INT NOT NULL AUTO_INCREMENT,
-    fiscal_year INT NOT NULL,
-    pcu_name VARCHAR(150) NULL,
-    patient_name VARCHAR(255) NOT NULL,
-    cid VARCHAR(20) NULL,
-    hn VARCHAR(20) NULL,
-    age INT NULL,
-    underlying_diseases VARCHAR(500) NULL,
-    height_cm DECIMAL(5, 2) NULL,
-    weight_before_kg DECIMAL(6, 2) NULL,
-    weight_after_kg DECIMAL(6, 2) NULL,
-    waist_before_cm DECIMAL(6, 2) NULL,
-    waist_after_cm DECIMAL(6, 2) NULL,
-    fpg_before DECIMAL(6, 2) NULL,
-    fpg_after DECIMAL(6, 2) NULL,
-    a1c_before DECIMAL(5, 2) NULL,
-    a1c_after DECIMAL(5, 2) NULL,
-    a1c_post_stop_3m DECIMAL(5, 2) NULL,
-    meds_before TEXT NULL,
-    meds_after TEXT NULL,
-    summary_a1c VARCHAR(50) NULL,
-    summary_meds VARCHAR(50) NULL,
-    summary_weight VARCHAR(50) NULL,
-    summary_waist VARCHAR(50) NULL,
-    summary_diet VARCHAR(100) NULL,
-    summary_exercise VARCHAR(100) NULL,
-    summary_if VARCHAR(100) NULL,
-    summary_remission VARCHAR(100) NULL,
-    created_by VARCHAR(100) NULL,
-    updated_by VARCHAR(100) NULL,
-    created_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_dm_remission_fy_hn (fiscal_year, hn),
-    UNIQUE KEY uq_dm_remission_fy_cid (fiscal_year, cid),
-    INDEX idx_dm_remission_fy (fiscal_year),
-    INDEX idx_dm_remission_pcu (pcu_name),
-    INDEX idx_dm_remission_status (summary_remission)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
-
-const CREATE_OPTIONS_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS dm_remission_options (
-    id INT NOT NULL AUTO_INCREMENT,
-    category VARCHAR(50) NOT NULL,
-    label VARCHAR(150) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_by VARCHAR(100) NULL,
-    created_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_dm_remission_opt_cat_label (category, label),
-    INDEX idx_dm_remission_opt_lookup (category, is_active, sort_order)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
 
 const ALL_OPTION_CATEGORIES: readonly DmOptionCategory[] = [
   'remission',
@@ -248,12 +105,13 @@ function serializeTimestamp(val: unknown): string {
   return String(val ?? '')
 }
 
-function mapCohortRow(row: DmRemissionCohortRaw): DmRemissionCohortRecord {
+function mapCohortRow(row: DmRemissionCohortRaw | Record<string, unknown>): DmRemissionCohortRecord {
+  const raw = row as DmRemissionCohortRaw
   return enrichCohortRecord({
-    ...row,
-    fiscalYear: Number(row.fiscalYear),
-    createdAt: serializeTimestamp(row.createdAt),
-    updatedAt: serializeTimestamp(row.updatedAt),
+    ...raw,
+    fiscalYear: Number(raw.fiscalYear),
+    createdAt: serializeTimestamp(raw.createdAt),
+    updatedAt: serializeTimestamp(raw.updatedAt),
   })
 }
 
@@ -270,80 +128,143 @@ function mapOptionRow(row: Record<string, unknown>): DmRemissionOptionRecord {
   }
 }
 
-function isDuplicateEntryError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const record = err as { code?: unknown; errno?: unknown; message?: unknown }
-  if (record.code === 'ER_DUP_ENTRY' || record.errno === 1062) return true
-  if (typeof record.message === 'string' && /duplicate entry/i.test(record.message)) {
-    return true
+function rethrowMappedGatewayError(err: unknown): never {
+  if (err instanceof GatewayNotFoundError) {
+    throw new DmRemissionNotFoundError(err.message)
   }
-  return false
+  if (err instanceof GatewayError) {
+    if (err.status === 409) {
+      throw new DmRemissionConflictError(err.message)
+    }
+    if (err.status === 404) {
+      throw new DmRemissionNotFoundError(err.message)
+    }
+    if (err.status === 400) {
+      throw new DmRemissionValidationError(err.message)
+    }
+  }
+  throw err
+}
+
+function buildNormalizedCreateFields(input: DmRemissionCreateInput): Record<string, unknown> {
+  return {
+    fiscalYear: input.fiscalYear,
+    pcuName: normalizeOptionalText(input.pcuName),
+    patientName: String(input.patientName ?? '').trim(),
+    cid: normalizeCid(input.cid),
+    hn: normalizeHn(input.hn),
+    age: toNullableNumber(input.age),
+    underlyingDiseases: normalizeOptionalText(input.underlyingDiseases),
+    heightCm: toNullableNumber(input.heightCm),
+    weightBeforeKg: toNullableNumber(input.weightBeforeKg),
+    weightAfterKg: toNullableNumber(input.weightAfterKg),
+    waistBeforeCm: toNullableNumber(input.waistBeforeCm),
+    waistAfterCm: toNullableNumber(input.waistAfterCm),
+    fpgBefore: toNullableNumber(input.fpgBefore),
+    fpgAfter: toNullableNumber(input.fpgAfter),
+    a1cBefore: toNullableNumber(input.a1cBefore),
+    a1cAfter: toNullableNumber(input.a1cAfter),
+    a1cPostStop3m: toNullableNumber(input.a1cPostStop3m),
+    medsBefore: normalizeOptionalText(input.medsBefore),
+    medsAfter: normalizeOptionalText(input.medsAfter),
+    summaryA1c: normalizeOptionalText(input.summaryA1c),
+    summaryMeds: normalizeOptionalText(input.summaryMeds),
+    summaryWeight: normalizeOptionalText(input.summaryWeight),
+    summaryWaist: normalizeOptionalText(input.summaryWaist),
+    summaryDiet: normalizeOptionalText(input.summaryDiet),
+    summaryExercise: normalizeOptionalText(input.summaryExercise),
+    summaryIf: normalizeOptionalText(input.summaryIf),
+    summaryRemission: normalizeOptionalText(input.summaryRemission),
+  }
+}
+
+function buildNormalizedUpdateFields(input: DmRemissionUpdateInput): Record<string, unknown> {
+  const fields: Record<string, unknown> = {}
+  if (input.fiscalYear !== undefined) fields.fiscalYear = input.fiscalYear
+  if (input.pcuName !== undefined) fields.pcuName = normalizeOptionalText(input.pcuName)
+  if (input.patientName !== undefined) fields.patientName = String(input.patientName).trim()
+  if (input.cid !== undefined) fields.cid = normalizeCid(input.cid)
+  if (input.hn !== undefined) fields.hn = normalizeHn(input.hn)
+  if (input.age !== undefined) fields.age = toNullableNumber(input.age)
+  if (input.underlyingDiseases !== undefined)
+    fields.underlyingDiseases = normalizeOptionalText(input.underlyingDiseases)
+  if (input.heightCm !== undefined) fields.heightCm = toNullableNumber(input.heightCm)
+  if (input.weightBeforeKg !== undefined)
+    fields.weightBeforeKg = toNullableNumber(input.weightBeforeKg)
+  if (input.weightAfterKg !== undefined)
+    fields.weightAfterKg = toNullableNumber(input.weightAfterKg)
+  if (input.waistBeforeCm !== undefined)
+    fields.waistBeforeCm = toNullableNumber(input.waistBeforeCm)
+  if (input.waistAfterCm !== undefined) fields.waistAfterCm = toNullableNumber(input.waistAfterCm)
+  if (input.fpgBefore !== undefined) fields.fpgBefore = toNullableNumber(input.fpgBefore)
+  if (input.fpgAfter !== undefined) fields.fpgAfter = toNullableNumber(input.fpgAfter)
+  if (input.a1cBefore !== undefined) fields.a1cBefore = toNullableNumber(input.a1cBefore)
+  if (input.a1cAfter !== undefined) fields.a1cAfter = toNullableNumber(input.a1cAfter)
+  if (input.a1cPostStop3m !== undefined)
+    fields.a1cPostStop3m = toNullableNumber(input.a1cPostStop3m)
+  if (input.medsBefore !== undefined) fields.medsBefore = normalizeOptionalText(input.medsBefore)
+  if (input.medsAfter !== undefined) fields.medsAfter = normalizeOptionalText(input.medsAfter)
+  if (input.summaryA1c !== undefined) fields.summaryA1c = normalizeOptionalText(input.summaryA1c)
+  if (input.summaryMeds !== undefined) fields.summaryMeds = normalizeOptionalText(input.summaryMeds)
+  if (input.summaryWeight !== undefined)
+    fields.summaryWeight = normalizeOptionalText(input.summaryWeight)
+  if (input.summaryWaist !== undefined)
+    fields.summaryWaist = normalizeOptionalText(input.summaryWaist)
+  if (input.summaryDiet !== undefined) fields.summaryDiet = normalizeOptionalText(input.summaryDiet)
+  if (input.summaryExercise !== undefined)
+    fields.summaryExercise = normalizeOptionalText(input.summaryExercise)
+  if (input.summaryIf !== undefined) fields.summaryIf = normalizeOptionalText(input.summaryIf)
+  if (input.summaryRemission !== undefined)
+    fields.summaryRemission = normalizeOptionalText(input.summaryRemission)
+  return fields
 }
 
 export class DmRemissionService {
-  private readonly deps: DmRemissionDbDeps
+  private readonly gw: DmRemissionGatewayDeps
   private schemaEnsured = false
   private ensurePromise: Promise<void> | null = null
 
-  constructor(deps?: Partial<DmRemissionDbDeps>) {
-    this.deps = {
-      appQuery: deps?.appQuery ?? ((sql, params) => apiGateway.app.query(sql, params)),
-      appTransaction:
-        deps?.appTransaction ?? ((statements) => apiGateway.app.transaction(statements)),
-      clinicalQuery:
-        deps?.clinicalQuery ?? ((sql, params) => apiGateway.clinical.query(sql, params)),
+  constructor(deps?: Partial<DmRemissionGatewayDeps>) {
+    this.gw = {
+      ensureDmRemissionSchema:
+        deps?.ensureDmRemissionSchema ?? (() => apiGateway.clinical.ensureDmRemissionSchema()),
+      lookupDmRemissionPatientByHn:
+        deps?.lookupDmRemissionPatientByHn ??
+        ((hn) => apiGateway.clinical.lookupDmRemissionPatientByHn(hn)),
+      listDmRemissionOptionsRaw:
+        deps?.listDmRemissionOptionsRaw ?? (() => apiGateway.clinical.listDmRemissionOptionsRaw()),
+      createDmRemissionOption:
+        deps?.createDmRemissionOption ??
+        ((body) => apiGateway.clinical.createDmRemissionOption(body)),
+      updateDmRemissionOption:
+        deps?.updateDmRemissionOption ??
+        ((id, body) => apiGateway.clinical.updateDmRemissionOption(id, body)),
+      deleteDmRemissionOption:
+        deps?.deleteDmRemissionOption ?? ((id) => apiGateway.clinical.deleteDmRemissionOption(id)),
+      getDmRemissionCohortsBundle:
+        deps?.getDmRemissionCohortsBundle ??
+        ((fy) => apiGateway.clinical.getDmRemissionCohortsBundle(fy)),
+      createDmRemissionCohort:
+        deps?.createDmRemissionCohort ??
+        ((body) => apiGateway.clinical.createDmRemissionCohort(body)),
+      updateDmRemissionCohort:
+        deps?.updateDmRemissionCohort ??
+        ((id, body) => apiGateway.clinical.updateDmRemissionCohort(id, body)),
+      deleteDmRemissionCohort:
+        deps?.deleteDmRemissionCohort ?? ((id) => apiGateway.clinical.deleteDmRemissionCohort(id)),
+      carryoverDmRemissionCohorts:
+        deps?.carryoverDmRemissionCohorts ??
+        ((body) => apiGateway.clinical.carryoverDmRemissionCohorts(body)),
     }
-  }
-
-  private async executeWrite(
-    sql: string,
-    params: unknown[] = []
-  ): Promise<{ affectedRows: number; insertId: number | null }> {
-    // Pin SET NAMES utf8mb4 per transaction so MariaDB tis620 init_connect never corrupts Thai text.
-    const tx = await this.deps.appTransaction([
-      { sql: 'SET NAMES utf8mb4' },
-      { sql, params },
-    ])
-    return tx.results?.[1] ?? { affectedRows: 0, insertId: null }
   }
 
   async ensureSchema(): Promise<void> {
-    if (this.schemaEnsured) {
-      return
-    }
-    if (this.ensurePromise) {
-      return this.ensurePromise
-    }
-
+    if (this.schemaEnsured) return
+    if (this.ensurePromise) return this.ensurePromise
     this.ensurePromise = (async () => {
-      await this.deps.appTransaction([
-        { sql: 'SET NAMES utf8mb4' },
-        { sql: CREATE_COHORTS_TABLE_SQL },
-        { sql: CREATE_OPTIONS_TABLE_SQL },
-      ])
-
-      const countRows = await this.deps.appQuery<{ cnt: number | string }>(
-        `SELECT COUNT(*) AS cnt FROM dm_remission_options WHERE category = 'remission'`
-      )
-      const existingCount = Number(countRows[0]?.cnt ?? 0)
-
-      if (existingCount === 0) {
-        const seedLabels = DM_OPTION_CATEGORY_META.remission.seedLabels
-        if (seedLabels.length > 0) {
-          const seedStatements = seedLabels.map((label, idx) => ({
-            sql: `
-              INSERT IGNORE INTO dm_remission_options (category, label, sort_order, is_active, created_by)
-              VALUES (?, ?, ?, ?, ?)
-            `,
-            params: ['remission', label, idx, true, 'system'],
-          }))
-          await this.deps.appTransaction([{ sql: 'SET NAMES utf8mb4' }, ...seedStatements])
-        }
-      }
-
+      await this.gw.ensureDmRemissionSchema()
       this.schemaEnsured = true
     })()
-
     try {
       await this.ensurePromise
     } finally {
@@ -353,33 +274,11 @@ export class DmRemissionService {
 
   async lookupPatientByHn(hn: string): Promise<DmRemissionPatientLookupResult | null> {
     const cleanHn = normalizeHn(hn)
-    if (!cleanHn) {
-      return null
-    }
+    if (!cleanHn) return null
 
-    const ptSql = `
-      SELECT
-        pt.hn,
-        pt.cid,
-        CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
-        TIMESTAMPDIFF(YEAR, pt.birthday, CURDATE()) AS age
-      FROM patient pt
-      WHERE pt.hn = ?
-      LIMIT 1
-    `
+    const pt = await this.gw.lookupDmRemissionPatientByHn(cleanHn)
+    if (!pt) return null
 
-    const rows = await this.deps.clinicalQuery<{
-      hn: string
-      cid: string | null
-      ptname: string | null
-      age: number | string | null
-    }>(ptSql, [cleanHn])
-
-    if (!rows || rows.length === 0) {
-      return null
-    }
-
-    const pt = rows[0]
     return {
       hn: String(pt.hn ?? cleanHn).trim(),
       cid: normalizeCid(pt.cid),
@@ -390,11 +289,7 @@ export class DmRemissionService {
 
   async listOptions(): Promise<Record<DmOptionCategory, DmRemissionOptionRecord[]>> {
     await this.ensureSchema()
-
-    const rows = await this.deps.appQuery<Record<string, unknown>>(
-      `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-    )
-
+    const rows = await this.gw.listDmRemissionOptionsRaw()
     const grouped: Record<DmOptionCategory, DmRemissionOptionRecord[]> = {
       remission: [],
       diet: [],
@@ -402,63 +297,28 @@ export class DmRemissionService {
       if_fasting: [],
       pcu: [],
     }
-
-    for (const row of rows) {
+    for (const row of rows || []) {
       const mapped = mapOptionRow(row)
       if (ALL_OPTION_CATEGORIES.includes(mapped.category)) {
         grouped[mapped.category].push(mapped)
       }
     }
-
     return grouped
   }
 
   async listCohorts(filters: DmRemissionListFilters = {}): Promise<DmRemissionListResult> {
     await this.ensureSchema()
+    const bundle = await this.gw.getDmRemissionCohortsBundle(filters.fiscalYear)
+    const optionRows = bundle.optionRows || []
+    const yearRows = bundle.yearRows || []
+    const pcuRows = bundle.pcuRows || []
+    const cohortRows = bundle.cohortRows || []
 
-    let targetFiscalYear: number
-    let optionRows: Record<string, unknown>[]
-    let yearRows: Array<{ fiscalYear: number | string }>
-    let pcuRows: Array<{ pcuName: string }>
-    let cohortRows: DmRemissionCohortRaw[]
-
-    if (filters.fiscalYear !== undefined) {
-      targetFiscalYear = filters.fiscalYear
-      ;[optionRows, yearRows, pcuRows, cohortRows] = await Promise.all([
-        this.deps.appQuery<Record<string, unknown>>(
-          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-        ),
-        this.deps.appQuery<{ fiscalYear: number | string }>(
-          `SELECT DISTINCT fiscal_year AS fiscalYear FROM dm_remission_cohorts ORDER BY fiscal_year DESC`
-        ),
-        this.deps.appQuery<{ pcuName: string }>(
-          `SELECT DISTINCT pcu_name AS pcuName FROM dm_remission_cohorts WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
-        ),
-        this.deps.appQuery<DmRemissionCohortRaw>(
-          `${COHORT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY id DESC`,
-          [targetFiscalYear]
-        ),
-      ])
-    } else {
-      yearRows = await this.deps.appQuery<{ fiscalYear: number | string }>(
-        `SELECT DISTINCT fiscal_year AS fiscalYear FROM dm_remission_cohorts ORDER BY fiscal_year DESC`
-      )
-      targetFiscalYear = resolveDefaultFiscalYear(
-        yearRows.map((r) => Number(r.fiscalYear))
-      )
-      ;[optionRows, pcuRows, cohortRows] = await Promise.all([
-        this.deps.appQuery<Record<string, unknown>>(
-          `${OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`
-        ),
-        this.deps.appQuery<{ pcuName: string }>(
-          `SELECT DISTINCT pcu_name AS pcuName FROM dm_remission_cohorts WHERE pcu_name IS NOT NULL AND pcu_name <> ''`
-        ),
-        this.deps.appQuery<DmRemissionCohortRaw>(
-          `${COHORT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY id DESC`,
-          [targetFiscalYear]
-        ),
-      ])
-    }
+    const targetFiscalYear =
+      filters.fiscalYear !== undefined
+        ? filters.fiscalYear
+        : bundle.targetFiscalYear ??
+          resolveDefaultFiscalYear(yearRows.map((r) => Number(r.fiscalYear)))
 
     const options: Record<DmOptionCategory, DmRemissionOptionRecord[]> = {
       remission: [],
@@ -480,14 +340,10 @@ export class DmRemissionService {
 
     const pcuSet = new Set<string>()
     for (const opt of options.pcu) {
-      if (opt.isActive && opt.label.trim()) {
-        pcuSet.add(opt.label.trim())
-      }
+      if (opt.isActive && opt.label.trim()) pcuSet.add(opt.label.trim())
     }
     for (const row of pcuRows) {
-      if (row.pcuName && row.pcuName.trim()) {
-        pcuSet.add(row.pcuName.trim())
-      }
+      if (row.pcuName && row.pcuName.trim()) pcuSet.add(row.pcuName.trim())
     }
     const availablePcus = Array.from(pcuSet).sort((a, b) => a.localeCompare(b, 'th'))
 
@@ -496,9 +352,7 @@ export class DmRemissionService {
     const pcuFilter = filters.pcuName?.trim()
     const pcuScopedRecords =
       pcuFilter && pcuFilter !== 'ALL'
-        ? allYearRecords.filter(
-            (r) => (r.pcuName?.trim() || 'ไม่ระบุ รพ.สต.') === pcuFilter
-          )
+        ? allYearRecords.filter((r) => (r.pcuName?.trim() || 'ไม่ระบุ รพ.สต.') === pcuFilter)
         : allYearRecords
 
     const configuredRemissionLabels = options.remission
@@ -508,7 +362,6 @@ export class DmRemissionService {
     const stats = aggregateDashboardStats(pcuScopedRecords, configuredRemissionLabels)
 
     let items = pcuScopedRecords
-
     const statusFilter = filters.remissionStatus?.trim()
     if (statusFilter && statusFilter !== 'ALL') {
       if (statusFilter === 'ยังไม่ระบุ') {
@@ -544,51 +397,6 @@ export class DmRemissionService {
     }
   }
 
-  private async getCohortById(id: number): Promise<DmRemissionCohortRecord | null> {
-    const rows = await this.deps.appQuery<DmRemissionCohortRaw>(
-      `${COHORT_SELECT_SQL} WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    return rows.length > 0 ? mapCohortRow(rows[0]) : null
-  }
-
-  private async assertNoDuplicateCohort(
-    fiscalYear: number,
-    hn: string | null,
-    cid: string | null,
-    excludeId?: number
-  ): Promise<void> {
-    const identityClauses: string[] = []
-    const params: unknown[] = [fiscalYear]
-
-    if (hn) {
-      identityClauses.push('hn = ?')
-      params.push(hn)
-    }
-    if (cid) {
-      identityClauses.push('cid = ?')
-      params.push(cid)
-    }
-
-    if (identityClauses.length === 0) {
-      return
-    }
-
-    let sql = `SELECT id FROM dm_remission_cohorts WHERE fiscal_year = ? AND (${identityClauses.join(' OR ')})`
-    if (excludeId !== undefined) {
-      sql += ' AND id <> ?'
-      params.push(excludeId)
-    }
-    sql += ' LIMIT 1'
-
-    const dupRows = await this.deps.appQuery<{ id: number }>(sql, params)
-    if (dupRows.length > 0) {
-      throw new DmRemissionConflictError(
-        `ผู้ป่วยนี้ (HN หรือเลขบัตรประชาชน) มีอยู่ในทะเบียนปีงบประมาณ ${fiscalYear} แล้ว`
-      )
-    }
-  }
-
   async createCohort(
     input: DmRemissionCreateInput,
     actor?: DmRemissionActor | null
@@ -600,54 +408,20 @@ export class DmRemissionService {
       throw new DmRemissionValidationError('กรุณาระบุชื่อ-นามสกุลผู้ป่วย')
     }
 
-    const hn = normalizeHn(input.hn)
-    const cid = normalizeCid(input.cid)
-
-    await this.assertNoDuplicateCohort(input.fiscalYear, hn, cid)
-
     const actorName = actor?.username?.trim() || 'system'
-    const columns: string[] = []
-    const placeholders: string[] = []
-    const params: unknown[] = []
+    const fields = buildNormalizedCreateFields(input)
 
-    for (const mapping of COHORT_FIELD_MAPPINGS) {
-      const rawVal = input[mapping.key]
-      const normalizedVal = mapping.transform ? mapping.transform(rawVal) : (rawVal ?? null)
-      columns.push(mapping.column)
-      placeholders.push('?')
-      params.push(normalizedVal)
-    }
-
-    columns.push('created_by', 'updated_by')
-    placeholders.push('?', '?')
-    params.push(actorName, actorName)
-
-    const insertSql = `
-      INSERT INTO dm_remission_cohorts (${columns.join(', ')})
-      VALUES (${placeholders.join(', ')})
-    `
-
-    let insertId: number | null = null
+    let createdRaw: Record<string, unknown>
     try {
-      const res = await this.executeWrite(insertSql, params)
-      insertId = res.insertId
+      createdRaw = await this.gw.createDmRemissionCohort({ fields, actorName })
     } catch (err) {
-      if (isDuplicateEntryError(err)) {
-        throw new DmRemissionConflictError(
-          `ผู้ป่วยนี้ (HN หรือเลขบัตรประชาชน) มีอยู่ในทะเบียนปีงบประมาณ ${input.fiscalYear} แล้ว`
-        )
-      }
-      throw err
+      rethrowMappedGatewayError(err)
     }
 
-    if (!insertId) {
-      throw new Error('ไม่สามารถอ่านรหัสรายการที่สร้างใหม่ได้')
-    }
-
-    const created = await this.getCohortById(insertId)
-    if (!created) {
+    if (!createdRaw) {
       throw new Error('ไม่พบข้อมูลรายการที่เพิ่งบันทึก')
     }
+    const created = mapCohortRow(createdRaw)
 
     await logAudit(
       'CREATE',
@@ -666,60 +440,29 @@ export class DmRemissionService {
   ): Promise<DmRemissionCohortRecord> {
     await this.ensureSchema()
 
-    const existing = await this.getCohortById(id)
-    if (!existing) {
-      throw new DmRemissionNotFoundError(`ไม่พบข้อมูล DM Remission ID: ${id}`)
-    }
-
     if (input.patientName !== undefined && !input.patientName.trim()) {
       throw new DmRemissionValidationError('กรุณาระบุชื่อ-นามสกุลผู้ป่วย')
     }
 
-    const targetFiscalYear = input.fiscalYear ?? existing.fiscalYear
-    const nextHn = input.hn !== undefined ? normalizeHn(input.hn) : existing.hn
-    const nextCid = input.cid !== undefined ? normalizeCid(input.cid) : existing.cid
-
-    await this.assertNoDuplicateCohort(targetFiscalYear, nextHn, nextCid, id)
-
-    const setClauses: string[] = []
-    const params: unknown[] = []
-
-    for (const mapping of COHORT_FIELD_MAPPINGS) {
-      if (input[mapping.key] !== undefined) {
-        const rawVal = input[mapping.key]
-        const normalizedVal = mapping.transform ? mapping.transform(rawVal) : rawVal
-        setClauses.push(`${mapping.column} = ?`)
-        params.push(normalizedVal)
-      }
-    }
-
     const actorName = actor?.username?.trim() || 'system'
-    setClauses.push('updated_by = ?')
-    params.push(actorName)
-    params.push(id)
+    const fields = buildNormalizedUpdateFields(input)
 
-    const updateSql = `UPDATE dm_remission_cohorts SET ${setClauses.join(', ')} WHERE id = ?`
-
+    let updatedRaw: Record<string, unknown>
     try {
-      await this.executeWrite(updateSql, params)
+      updatedRaw = await this.gw.updateDmRemissionCohort(id, { fields, actorName })
     } catch (err) {
-      if (isDuplicateEntryError(err)) {
-        throw new DmRemissionConflictError(
-          `ผู้ป่วยนี้ (HN หรือเลขบัตรประชาชน) มีอยู่ในทะเบียนปีงบประมาณ ${targetFiscalYear} แล้ว`
-        )
-      }
-      throw err
+      rethrowMappedGatewayError(err)
     }
 
-    const updated = await this.getCohortById(id)
-    if (!updated) {
+    if (!updatedRaw) {
       throw new DmRemissionNotFoundError(`ไม่พบข้อมูล DM Remission ID: ${id}`)
     }
+    const updated = mapCohortRow(updatedRaw)
 
     await logAudit(
       'UPDATE',
       'dm_remission_cohorts',
-      `Updated DM Remission cohort ID: ${id} (FY: ${targetFiscalYear})`,
+      `Updated DM Remission cohort ID: ${id} (FY: ${updated.fiscalYear})`,
       actor
     )
 
@@ -732,21 +475,21 @@ export class DmRemissionService {
   ): Promise<{ id: number; fiscalYear: number }> {
     await this.ensureSchema()
 
-    const existing = await this.getCohortById(id)
-    if (!existing) {
-      throw new DmRemissionNotFoundError(`ไม่พบข้อมูล DM Remission ID: ${id}`)
+    let deleted: { id: number; fiscalYear: number }
+    try {
+      deleted = await this.gw.deleteDmRemissionCohort(id)
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
-
-    await this.executeWrite('DELETE FROM dm_remission_cohorts WHERE id = ?', [id])
 
     await logAudit(
       'DELETE',
       'dm_remission_cohorts',
-      `Deleted DM Remission cohort ID: ${id} (FY: ${existing.fiscalYear})`,
+      `Deleted DM Remission cohort ID: ${id} (FY: ${deleted.fiscalYear})`,
       actor
     )
 
-    return { id, fiscalYear: existing.fiscalYear }
+    return deleted
   }
 
   async carryoverFromFiscalYear(
@@ -757,104 +500,30 @@ export class DmRemissionService {
     await this.ensureSchema()
 
     if (toFiscalYear <= fromFiscalYear) {
-      throw new DmRemissionValidationError(
-        'ปีงบประมาณปลายทางต้องมากกว่าปีงบประมาณต้นทาง'
-      )
-    }
-
-    const [sourceRows, targetIdentityRows] = await Promise.all([
-      this.deps.appQuery<DmRemissionCohortRaw>(
-        `${COHORT_SELECT_SQL}
-         WHERE fiscal_year = ?
-           AND (summary_remission IS NULL OR summary_remission <> 'Remission')
-         ORDER BY id ASC`,
-        [fromFiscalYear]
-      ),
-      this.deps.appQuery<{ hn: string | null; cid: string | null }>(
-        `SELECT hn, cid FROM dm_remission_cohorts WHERE fiscal_year = ?`,
-        [toFiscalYear]
-      ),
-    ])
-
-    const existingHns = new Set<string>()
-    const existingCids = new Set<string>()
-    for (const row of targetIdentityRows) {
-      const hn = normalizeHn(row.hn)
-      const cid = normalizeCid(row.cid)
-      if (hn) existingHns.add(hn)
-      if (cid) existingCids.add(cid)
+      throw new DmRemissionValidationError('ปีงบประมาณปลายทางต้องมากกว่าปีงบประมาณต้นทาง')
     }
 
     const actorName = actor?.username?.trim() || 'system'
-    const statements: Array<{ sql: string; params?: unknown[] }> = []
-    let copiedCount = 0
-    let skippedCount = 0
-
-    const insertSql = `
-      INSERT INTO dm_remission_cohorts (
-        fiscal_year, pcu_name, patient_name, cid, hn, age, underlying_diseases,
-        height_cm, weight_before_kg, waist_before_cm, fpg_before, a1c_before,
-        meds_before, summary_remission, created_by, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
-
-    for (const raw of sourceRows) {
-      const r = mapCohortRow(raw)
-      const hn = normalizeHn(r.hn)
-      const cid = normalizeCid(r.cid)
-
-      if ((hn && existingHns.has(hn)) || (cid && existingCids.has(cid))) {
-        skippedCount += 1
-        continue
-      }
-
-      if (hn) existingHns.add(hn)
-      if (cid) existingCids.add(cid)
-
-      statements.push({
-        sql: insertSql,
-        params: [
-          toFiscalYear,
-          r.pcuName ?? null,
-          r.patientName,
-          cid,
-          hn,
-          r.age,
-          r.underlyingDiseases ?? null,
-          r.heightCm,
-          r.weightAfterKg ?? r.weightBeforeKg,
-          r.waistAfterCm ?? r.waistBeforeCm,
-          r.fpgAfter ?? r.fpgBefore,
-          r.a1cAfter ?? r.a1cBefore,
-          r.medsAfter ?? r.medsBefore ?? null,
-          DM_DEFAULT_REMISSION_STATUS,
-          actorName,
-          actorName,
-        ],
+    let res: { copiedCount: number; skippedCount: number }
+    try {
+      res = await this.gw.carryoverDmRemissionCohorts({
+        fromFiscalYear,
+        toFiscalYear,
+        actorName,
+        defaultRemissionStatus: DM_DEFAULT_REMISSION_STATUS,
       })
-      copiedCount += 1
-    }
-
-    if (statements.length > 0) {
-      await this.deps.appTransaction([{ sql: 'SET NAMES utf8mb4' }, ...statements])
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
 
     await logAudit(
       'CREATE',
       'dm_remission_cohorts',
-      `Carryover DM Remission cohorts from FY ${fromFiscalYear} to FY ${toFiscalYear}: copied ${copiedCount}, skipped ${skippedCount}`,
+      `Carryover DM Remission cohorts from FY ${fromFiscalYear} to FY ${toFiscalYear}: copied ${res.copiedCount}, skipped ${res.skippedCount}`,
       actor
     )
 
-    return { copiedCount, skippedCount }
-  }
-
-  private async getOptionById(id: number): Promise<DmRemissionOptionRecord | null> {
-    const rows = await this.deps.appQuery<Record<string, unknown>>(
-      `${OPTION_SELECT_SQL} WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    return rows.length > 0 ? mapOptionRow(rows[0]) : null
+    return res
   }
 
   async createOption(
@@ -868,41 +537,21 @@ export class DmRemissionService {
       throw new DmRemissionValidationError('กรุณาระบุชื่อตัวเลือก')
     }
 
-    const dupRows = await this.deps.appQuery<{ id: number }>(
-      `SELECT id FROM dm_remission_options WHERE category = ? AND label = ? LIMIT 1`,
-      [input.category, label]
-    )
-    if (dupRows.length > 0) {
-      throw new DmRemissionConflictError(`มีตัวเลือก "${label}" อยู่ในหมวดหมู่นี้แล้ว`)
-    }
-
     const actorName = actor?.username?.trim() || 'system'
-    const sortOrder = input.sortOrder ?? 0
-    const isActive = input.isActive ?? true
-
-    let insertId: number | null = null
+    let createdRaw: Record<string, unknown>
     try {
-      const res = await this.executeWrite(
-        `INSERT INTO dm_remission_options (category, label, sort_order, is_active, created_by)
-         VALUES (?, ?, ?, ?, ?)`,
-        [input.category, label, sortOrder, isActive, actorName]
-      )
-      insertId = res.insertId
+      createdRaw = await this.gw.createDmRemissionOption({
+        category: input.category,
+        label,
+        sortOrder: input.sortOrder ?? 0,
+        isActive: input.isActive ?? true,
+        actorName,
+      })
     } catch (err) {
-      if (isDuplicateEntryError(err)) {
-        throw new DmRemissionConflictError(`มีตัวเลือก "${label}" อยู่ในหมวดหมู่นี้แล้ว`)
-      }
-      throw err
+      rethrowMappedGatewayError(err)
     }
 
-    if (!insertId) {
-      throw new Error('ไม่สามารถอ่านรหัสตัวเลือกที่สร้างใหม่ได้')
-    }
-
-    const created = await this.getOptionById(insertId)
-    if (!created) {
-      throw new Error('ไม่พบข้อมูลตัวเลือกที่เพิ่งบันทึก')
-    }
+    const created = mapOptionRow(createdRaw)
 
     await logAudit(
       'CREATE',
@@ -921,64 +570,27 @@ export class DmRemissionService {
   ): Promise<DmRemissionOptionRecord> {
     await this.ensureSchema()
 
-    const existing = await this.getOptionById(id)
-    if (!existing) {
-      throw new DmRemissionNotFoundError(`ไม่พบตัวเลือก ID: ${id}`)
+    if (input.label !== undefined && !input.label.trim()) {
+      throw new DmRemissionValidationError('กรุณาระบุชื่อตัวเลือก')
     }
 
-    const setClauses: string[] = []
-    const params: unknown[] = []
-
-    if (input.label !== undefined) {
-      const label = input.label.trim()
-      if (!label) {
-        throw new DmRemissionValidationError('กรุณาระบุชื่อตัวเลือก')
-      }
-      const dupRows = await this.deps.appQuery<{ id: number }>(
-        `SELECT id FROM dm_remission_options WHERE category = ? AND label = ? AND id <> ? LIMIT 1`,
-        [existing.category, label, id]
-      )
-      if (dupRows.length > 0) {
-        throw new DmRemissionConflictError(`มีตัวเลือก "${label}" อยู่ในหมวดหมู่นี้แล้ว`)
-      }
-      setClauses.push('label = ?')
-      params.push(label)
+    let updatedRaw: Record<string, unknown>
+    try {
+      updatedRaw = await this.gw.updateDmRemissionOption(id, {
+        label: input.label !== undefined ? input.label.trim() : undefined,
+        sortOrder: input.sortOrder,
+        isActive: input.isActive,
+      })
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
 
-    if (input.sortOrder !== undefined) {
-      setClauses.push('sort_order = ?')
-      params.push(input.sortOrder)
-    }
-
-    if (input.isActive !== undefined) {
-      setClauses.push('is_active = ?')
-      params.push(input.isActive)
-    }
-
-    if (setClauses.length > 0) {
-      params.push(id)
-      try {
-        await this.executeWrite(
-          `UPDATE dm_remission_options SET ${setClauses.join(', ')} WHERE id = ?`,
-          params
-        )
-      } catch (err) {
-        if (isDuplicateEntryError(err)) {
-          throw new DmRemissionConflictError('มีตัวเลือกชื่อนี้อยู่ในหมวดหมู่นี้แล้ว')
-        }
-        throw err
-      }
-    }
-
-    const updated = await this.getOptionById(id)
-    if (!updated) {
-      throw new DmRemissionNotFoundError(`ไม่พบตัวเลือก ID: ${id}`)
-    }
+    const updated = mapOptionRow(updatedRaw)
 
     await logAudit(
       'UPDATE',
       'dm_remission_options',
-      `Updated DM Remission option ID: ${id} (category: ${existing.category})`,
+      `Updated DM Remission option ID: ${id} (category: ${updated.category})`,
       actor
     )
 
@@ -991,21 +603,23 @@ export class DmRemissionService {
   ): Promise<{ id: number; category: DmOptionCategory }> {
     await this.ensureSchema()
 
-    const existing = await this.getOptionById(id)
-    if (!existing) {
-      throw new DmRemissionNotFoundError(`ไม่พบตัวเลือก ID: ${id}`)
+    let deleted: { id: number; category: string }
+    try {
+      deleted = await this.gw.deleteDmRemissionOption(id)
+    } catch (err) {
+      rethrowMappedGatewayError(err)
     }
 
-    await this.executeWrite('DELETE FROM dm_remission_options WHERE id = ?', [id])
+    const category = deleted.category as DmOptionCategory
 
     await logAudit(
       'DELETE',
       'dm_remission_options',
-      `Deleted DM Remission option ID: ${id} (category: ${existing.category})`,
+      `Deleted DM Remission option ID: ${id} (category: ${category})`,
       actor
     )
 
-    return { id, category: existing.category }
+    return { id: deleted.id, category }
   }
 }
 
