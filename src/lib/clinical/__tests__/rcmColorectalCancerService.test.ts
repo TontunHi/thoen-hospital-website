@@ -324,7 +324,6 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
         data: { rawRows: mockDbRows },
       } as any)
       vi.spyOn(apiGateway.clinical, 'enrichSeamlessVisits').mockResolvedValue({
-        success: true,
         vnRows: [],
         anRows: [],
       })

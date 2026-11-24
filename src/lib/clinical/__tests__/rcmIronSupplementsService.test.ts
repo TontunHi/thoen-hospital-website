@@ -5,6 +5,7 @@ import {
   IRON_SUPPLEMENT_DIDS,
   type IronSupplementsReportParams,
 } from '../rcmIronSupplementsService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmIronSupplementsService', () => {
   beforeEach(() => {
@@ -42,31 +43,31 @@ describe('RcmIronSupplementsService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped true when ADP 14001 exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '1540012',
-          name: 'Ferrous Fumarate 200 mg',
-          strength: '200 mg',
-          nhso_adp_code: '14001',
-        },
-      ])
+    it('returns isMapped true when ADP 14001 exists via API Gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '14001',
+        adpItems: [
+          {
+            icode: '1540012',
+            name: 'Ferrous Fumarate 200 mg',
+            strength: '200 mg',
+            nhso_adp_code: '14001',
+          },
+        ],
+      })
 
-      const result = await RcmIronSupplementsService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmIronSupplementsService.checkAdpMapping(mockGateway, true)
       expect(result.adpCode).toBe('14001')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('1540012')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('FROM s_drugitems'),
-        ['14001'],
-        expect.any(Object)
-      )
+      expect(mockGateway.getAdpMapping).toHaveBeenCalledWith('14001', { refresh: true })
     })
 
-    it('returns isMapped false when database query throws or returns empty', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB connection failed'))
-      const result = await RcmIronSupplementsService.checkAdpMapping(mockExecutor, true)
+    it('returns isMapped false when gateway throws or returns empty', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway failed'))
+      const result = await RcmIronSupplementsService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -144,18 +145,17 @@ describe('RcmIronSupplementsService', () => {
     ]
 
     it('processes rows correctly and aggregates summary KPIs', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('WHERE TRIM(nhso_adp_code) = ?')) {
-          return Promise.resolve([
-            {
-              icode: '1540012',
-              name: 'Ferrous Fumarate 200 mg',
-              strength: '200 mg',
-              nhso_adp_code: '14001',
-            },
-          ])
-        }
-        return Promise.resolve(mockRawRows)
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '14001',
+        adpItems: [
+          {
+            icode: '1540012',
+            name: 'Ferrous Fumarate 200 mg',
+            strength: '200 mg',
+            nhso_adp_code: '14001',
+          },
+        ],
+        rawRows: mockRawRows,
       })
 
       const params: IronSupplementsReportParams = {
@@ -164,7 +164,7 @@ describe('RcmIronSupplementsService', () => {
         refresh: true,
       }
 
-      const res = await RcmIronSupplementsService.getIronSupplementsReport(params, mockExecutor)
+      const res = await RcmIronSupplementsService.getIronSupplementsReport(params, mockGateway)
 
       expect(res.adpCode).toBe('14001')
       expect(res.categoryTitle).toContain('บริการยาเม็ดเสริมธาตุเหล็ก')
@@ -187,55 +187,46 @@ describe('RcmIronSupplementsService', () => {
     })
 
     it('filters by cardFilter COMPENSATED and UNCOMPENSATED', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('WHERE TRIM(nhso_adp_code) = ?')) return Promise.resolve([])
-        return Promise.resolve(mockRawRows)
-      })
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockRawRows })
 
       const resComp = await RcmIronSupplementsService.getIronSupplementsReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', cardFilter: 'COMPENSATED', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(resComp.items.length).toBe(1)
       expect(resComp.items[0].isCompensated).toBe(true)
 
       const resUncomp = await RcmIronSupplementsService.getIronSupplementsReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', cardFilter: 'UNCOMPENSATED', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(resUncomp.items.length).toBe(1)
       expect(resUncomp.items[0].isCompensated).toBe(false)
     })
 
     it('filters by WITH_ADP and WITH_DRUG', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('WHERE TRIM(nhso_adp_code) = ?')) return Promise.resolve([])
-        return Promise.resolve(mockRawRows)
-      })
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockRawRows })
 
       const resAdp = await RcmIronSupplementsService.getIronSupplementsReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', cardFilter: 'WITH_ADP', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(resAdp.items.length).toBe(1)
       expect(resAdp.items[0].hasAdp).toBe(true)
 
       const resDrug = await RcmIronSupplementsService.getIronSupplementsReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', cardFilter: 'WITH_DRUG', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(resDrug.items.length).toBe(2)
     })
 
     it('filters by global search keyword', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('WHERE TRIM(nhso_adp_code) = ?')) return Promise.resolve([])
-        return Promise.resolve(mockRawRows)
-      })
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockRawRows })
 
       const res = await RcmIronSupplementsService.getIronSupplementsReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', search: 'สมศรี', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(res.items.length).toBe(1)
       expect(res.items[0].ptname).toBe('นาง สมศรี มีสุข')

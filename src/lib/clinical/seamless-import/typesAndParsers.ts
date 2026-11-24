@@ -1,10 +1,7 @@
 import ExcelJS from 'exceljs'
 import { CellError, readXls } from 'xls-reader'
-import { apiGateway, GatewayNotFoundError, GatewayUnavailableError } from '@/lib/apiGateway'
+import { apiGateway } from '@/lib/apiGateway'
 import { logger } from '@/lib/logger'
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { getCachedData, invalidateCacheKey, invalidateCachePattern } from '@/lib/cache'
-import type { QueryExecutor } from '../rcmDashboardService'
 
 export const DEFAULT_SEAMLESS_HOSPCODE = '11152'
 
@@ -503,7 +500,10 @@ export async function resolveSheetHospCode(
   sheet: ExcelJS.Worksheet,
   maxSearchRow: number,
   autoEnrichHosp: boolean,
-  exec: QueryExecutor = queryClinicalDb
+  hospCodeResolver: (hospName: string) => Promise<string> = async (hospName) => {
+    const res = await apiGateway.clinical.resolveSeamlessHospCode(hospName)
+    return res?.hospcode || ''
+  }
 ): Promise<string> {
   let hospNameCandidate = ''
 
@@ -546,20 +546,9 @@ export async function resolveSheetHospCode(
 
   if (hospNameCandidate && autoEnrichHosp) {
     try {
-      const cleanedName = hospNameCandidate.replace(/^โรงพยาบาล/, '').trim()
-      const hospRows = await exec(
-        `
-        SELECT hospcode
-        FROM hospcode
-        WHERE name = ?
-           OR name = ?
-           OR CONCAT(IFNULL(hosptype, ''), name) LIKE ?
-        LIMIT 1
-        `,
-        [hospNameCandidate, cleanedName || hospNameCandidate, `%${cleanedName || hospNameCandidate}%`]
-      )
-      if (hospRows.length > 0 && hospRows[0].hospcode) {
-        return String(hospRows[0].hospcode).trim()
+      const code = await hospCodeResolver(hospNameCandidate)
+      if (code) {
+        return String(code).trim()
       }
     } catch (err) {
       logger.warn({ err }, 'SeekHCode hospcode lookup failed in Seamless import')

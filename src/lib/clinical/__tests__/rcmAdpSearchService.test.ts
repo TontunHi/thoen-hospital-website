@@ -5,7 +5,29 @@ import {
   parseAdpCodes,
   isUniversalCoverageScheme,
   type AdpSearchReportParams,
+  type AdpSearchGatewayAdapter,
 } from '../rcmAdpSearchService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
+
+function createMockAdpSearchGateway(options?: {
+  adpItems?: Array<{ icode: string; name: string; strength?: string | null; nhso_adp_code: string }>
+  rawRows?: Array<Record<string, any>>
+  availableCodes?: Array<{ code: string; title: string; mappedCount: number }>
+  availableCodesError?: Error
+}): AdpSearchGatewayAdapter {
+  const adpItems = options?.adpItems ?? []
+  return {
+    ...createMockRcmFundGateway({ adpItems, rawRows: options?.rawRows }),
+    checkMultiAdpMapping: vi.fn().mockResolvedValue({
+      isMapped: adpItems.length > 0,
+      mappedCount: adpItems.length,
+      items: adpItems,
+    }),
+    getAvailableAdpCodes: options?.availableCodesError
+      ? vi.fn().mockRejectedValue(options.availableCodesError)
+      : vi.fn().mockResolvedValue({ success: true, data: options?.availableCodes ?? [] }),
+  }
+}
 
 describe('RcmAdpSearchService', () => {
   beforeEach(() => {
@@ -52,29 +74,28 @@ describe('RcmAdpSearchService', () => {
 
   describe('checkAdpMapping', () => {
     it('returns isMapped true when ADP codes exist in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '1540012',
-          name: 'Ferrous Fumarate 200 mg',
-          strength: '200 mg',
-          nhso_adp_code: '14001',
-        },
-      ])
+      const mockGateway = createMockAdpSearchGateway({
+        adpItems: [
+          {
+            icode: '1540012',
+            name: 'Ferrous Fumarate 200 mg',
+            strength: '200 mg',
+            nhso_adp_code: '14001',
+          },
+        ],
+      })
 
-      const result = await RcmAdpSearchService.checkAdpMapping(['14001'], mockExecutor, true)
+      const result = await RcmAdpSearchService.checkAdpMapping(['14001'], mockGateway, true)
       expect(result.adpCodes).toEqual(['14001'])
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('1540012')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('FROM s_drugitems'),
-        ['14001']
-      )
+      expect(mockGateway.checkMultiAdpMapping).toHaveBeenCalledWith(['14001'])
     })
 
     it('returns isMapped false when no items match', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
-      const result = await RcmAdpSearchService.checkAdpMapping(['99999'], mockExecutor, true)
+      const mockGateway = createMockAdpSearchGateway({ adpItems: [] })
+      const result = await RcmAdpSearchService.checkAdpMapping(['99999'], mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
     })
@@ -82,75 +103,72 @@ describe('RcmAdpSearchService', () => {
 
   describe('getAdpSearchReport - OPD', () => {
     it('executes OPD query and calculates summary metrics correctly', async () => {
-      const mockExecutor = vi.fn()
-
-      // First call: checkAdpMapping
-      mockExecutor.mockResolvedValueOnce([
-        {
-          icode: '1540012',
-          name: 'Ferrous Fumarate 200 mg',
-          strength: '200 mg',
-          nhso_adp_code: '14001',
-        },
-      ])
-
-      // Second call: OPD query rows
-      mockExecutor.mockResolvedValueOnce([
-        {
-          vn: '680101001',
-          hn: '0011223',
-          an: null,
-          cid: '1529900123456',
-          ptname: 'นาย สมชาย ใจดี',
-          sex_code: '1',
-          birthday: '1985-05-10',
-          age: 40,
-          vstdate: '2025-01-01',
-          vsttime: '08:30:00',
-          pttype: '10',
-          hipdata_code: 'UCS',
-          pttypename: 'บัตรทอง',
-          department: 'เวชปฏิบัติทั่วไป',
-          clinic: 'OPD',
-          symptom: 'มาตรวจตามนัด',
-          diag: 'E11.9(1)',
-          listname: '1540012:Ferrous, 1000001:Paracetamol',
-          icode: '1540012',
-          nhso_adp_code: '14001',
-          item_name: 'Ferrous Fumarate 200 mg',
-          income: 350.0,
-          nee: 0,
-          authencode: 'AUTH123456',
-          compensated: 300.0,
-        },
-        {
-          vn: '680101002',
-          hn: '0011224',
-          an: null,
-          cid: '1529900654321',
-          ptname: 'นาง สมศรี มีสุข',
-          sex_code: '2',
-          birthday: '1990-08-15',
-          age: 35,
-          vstdate: '2025-01-02',
-          vsttime: '09:15:00',
-          pttype: '30',
-          hipdata_code: 'SSS',
-          pttypename: 'ประกันสังคม',
-          department: 'ทันตกรรม',
-          clinic: 'Dental',
-          symptom: 'ปวดฟัน',
-          diag: 'K02.1(1)',
-          listname: '1540012:Ferrous',
-          icode: '1540012',
-          nhso_adp_code: '14001',
-          item_name: 'Ferrous Fumarate 200 mg',
-          income: 500.0,
-          nee: 200.0,
-          authencode: null,
-          compensated: 0,
-        },
-      ])
+      const mockGateway = createMockAdpSearchGateway({
+        adpItems: [
+          {
+            icode: '1540012',
+            name: 'Ferrous Fumarate 200 mg',
+            strength: '200 mg',
+            nhso_adp_code: '14001',
+          },
+        ],
+        rawRows: [
+          {
+            vn: '680101001',
+            hn: '0011223',
+            an: null,
+            cid: '1529900123456',
+            ptname: 'นาย สมชาย ใจดี',
+            sex_code: '1',
+            birthday: '1985-05-10',
+            age: 40,
+            vstdate: '2025-01-01',
+            vsttime: '08:30:00',
+            pttype: '10',
+            hipdata_code: 'UCS',
+            pttypename: 'บัตรทอง',
+            department: 'เวชปฏิบัติทั่วไป',
+            clinic: 'OPD',
+            symptom: 'มาตรวจตามนัด',
+            diag: 'E11.9(1)',
+            listname: '1540012:Ferrous, 1000001:Paracetamol',
+            icode: '1540012',
+            nhso_adp_code: '14001',
+            item_name: 'Ferrous Fumarate 200 mg',
+            income: 350.0,
+            nee: 0,
+            authencode: 'AUTH123456',
+            compensated: 300.0,
+          },
+          {
+            vn: '680101002',
+            hn: '0011224',
+            an: null,
+            cid: '1529900654321',
+            ptname: 'นาง สมศรี มีสุข',
+            sex_code: '2',
+            birthday: '1990-08-15',
+            age: 35,
+            vstdate: '2025-01-02',
+            vsttime: '09:15:00',
+            pttype: '30',
+            hipdata_code: 'SSS',
+            pttypename: 'ประกันสังคม',
+            department: 'ทันตกรรม',
+            clinic: 'Dental',
+            symptom: 'ปวดฟัน',
+            diag: 'K02.1(1)',
+            listname: '1540012:Ferrous',
+            icode: '1540012',
+            nhso_adp_code: '14001',
+            item_name: 'Ferrous Fumarate 200 mg',
+            income: 500.0,
+            nee: 200.0,
+            authencode: null,
+            compensated: 0,
+          },
+        ],
+      })
 
       const params: AdpSearchReportParams = {
         patientType: 'OPD',
@@ -158,7 +176,7 @@ describe('RcmAdpSearchService', () => {
         refresh: true,
       }
 
-      const result = await RcmAdpSearchService.getAdpSearchReport(params, mockExecutor)
+      const result = await RcmAdpSearchService.getAdpSearchReport(params, mockGateway)
 
       expect(result.patientType).toBe('OPD')
       expect(result.totalCount).toBe(2)
@@ -182,34 +200,33 @@ describe('RcmAdpSearchService', () => {
     })
 
     it('filters items correctly with cardFilter=COMPENSATED', async () => {
-      const mockExecutor = vi.fn()
-      mockExecutor.mockResolvedValueOnce([
-        { icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' },
-      ])
-      mockExecutor.mockResolvedValueOnce([
-        {
-          vn: '680101001',
-          hn: '0011223',
-          cid: '1529900123456',
-          ptname: 'นาย สมชาย',
-          vstdate: '2025-01-01',
-          pttype: '10',
-          compensated: 300,
-        },
-        {
-          vn: '680101002',
-          hn: '0011224',
-          cid: '1529900654321',
-          ptname: 'นาง สมศรี',
-          vstdate: '2025-01-02',
-          pttype: '30',
-          compensated: 0,
-        },
-      ])
+      const mockGateway = createMockAdpSearchGateway({
+        adpItems: [{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }],
+        rawRows: [
+          {
+            vn: '680101001',
+            hn: '0011223',
+            cid: '1529900123456',
+            ptname: 'นาย สมชาย',
+            vstdate: '2025-01-01',
+            pttype: '10',
+            compensated: 300,
+          },
+          {
+            vn: '680101002',
+            hn: '0011224',
+            cid: '1529900654321',
+            ptname: 'นาง สมศรี',
+            vstdate: '2025-01-02',
+            pttype: '30',
+            compensated: 0,
+          },
+        ],
+      })
 
       const result = await RcmAdpSearchService.getAdpSearchReport(
         { patientType: 'OPD', adpCode: '14001', cardFilter: 'COMPENSATED', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.totalCount).toBe(1)
@@ -218,34 +235,33 @@ describe('RcmAdpSearchService', () => {
     })
 
     it('filters items correctly with search term', async () => {
-      const mockExecutor = vi.fn()
-      mockExecutor.mockResolvedValueOnce([
-        { icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' },
-      ])
-      mockExecutor.mockResolvedValueOnce([
-        {
-          vn: '680101001',
-          hn: '0011223',
-          cid: '1529900123456',
-          ptname: 'นาย สมชาย ใจดี',
-          vstdate: '2025-01-01',
-          pttype: '10',
-          pttypename: 'บัตรทอง',
-        },
-        {
-          vn: '680101002',
-          hn: '0011224',
-          cid: '1529900654321',
-          ptname: 'นาง สมศรี มีสุข',
-          vstdate: '2025-01-02',
-          pttype: '30',
-          pttypename: 'ประกันสังคม',
-        },
-      ])
+      const mockGateway = createMockAdpSearchGateway({
+        adpItems: [{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }],
+        rawRows: [
+          {
+            vn: '680101001',
+            hn: '0011223',
+            cid: '1529900123456',
+            ptname: 'นาย สมชาย ใจดี',
+            vstdate: '2025-01-01',
+            pttype: '10',
+            pttypename: 'บัตรทอง',
+          },
+          {
+            vn: '680101002',
+            hn: '0011224',
+            cid: '1529900654321',
+            ptname: 'นาง สมศรี มีสุข',
+            vstdate: '2025-01-02',
+            pttype: '30',
+            pttypename: 'ประกันสังคม',
+          },
+        ],
+      })
 
       const result = await RcmAdpSearchService.getAdpSearchReport(
         { patientType: 'OPD', adpCode: '14001', search: 'สมศรี', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.totalCount).toBe(1)
@@ -255,41 +271,40 @@ describe('RcmAdpSearchService', () => {
 
   describe('getAdpSearchReport - IPD', () => {
     it('executes IPD query and maps fields properly', async () => {
-      const mockExecutor = vi.fn()
-      mockExecutor.mockResolvedValueOnce([
-        { icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' },
-      ])
-      mockExecutor.mockResolvedValueOnce([
-        {
-          an: '6800001',
-          hn: '0011223',
-          cid: '1529900123456',
-          ptname: 'นาย สมชาย ใจดี',
-          sex_code: '1',
-          birthday: '1985-05-10',
-          age: 40,
-          admdate: '2025-01-01',
-          dchdate: '2025-01-05',
-          pttype: '10',
-          hipdata_code: 'UCS',
-          pttypename: 'บัตรทอง',
-          department: 'ตึกผู้ป่วยในชาย',
-          pdx: 'A09.0',
-          pdxname: 'Gastroenteritis',
-          sdx: 'E86(2)',
-          proc_ops: '96.07',
-          icode: '1540012',
-          nhso_adp_code: '14001',
-          item_name: 'Ferrous Fumarate 200 mg',
-          income: 4500.0,
-          nee: 0,
-          compensated: 4200.0,
-        },
-      ])
+      const mockGateway = createMockAdpSearchGateway({
+        adpItems: [{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }],
+        rawRows: [
+          {
+            an: '6800001',
+            hn: '0011223',
+            cid: '1529900123456',
+            ptname: 'นาย สมชาย ใจดี',
+            sex_code: '1',
+            birthday: '1985-05-10',
+            age: 40,
+            admdate: '2025-01-01',
+            dchdate: '2025-01-05',
+            pttype: '10',
+            hipdata_code: 'UCS',
+            pttypename: 'บัตรทอง',
+            department: 'ตึกผู้ป่วยในชาย',
+            pdx: 'A09.0',
+            pdxname: 'Gastroenteritis',
+            sdx: 'E86(2)',
+            proc_ops: '96.07',
+            icode: '1540012',
+            nhso_adp_code: '14001',
+            item_name: 'Ferrous Fumarate 200 mg',
+            income: 4500.0,
+            nee: 0,
+            compensated: 4200.0,
+          },
+        ],
+      })
 
       const result = await RcmAdpSearchService.getAdpSearchReport(
         { patientType: 'IPD', adpCode: '14001', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.patientType).toBe('IPD')
@@ -342,10 +357,10 @@ describe('RcmAdpSearchService', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }])
-        .mockResolvedValueOnce(mixedIpdRows)
+      const mockGateway = createMockAdpSearchGateway({
+        adpItems: [{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }],
+        rawRows: mixedIpdRows,
+      })
 
       const res = await RcmAdpSearchService.getAdpSearchReport(
         {
@@ -356,7 +371,7 @@ describe('RcmAdpSearchService', () => {
           pttypes: '01,02',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(res.items).toHaveLength(1)
@@ -403,10 +418,10 @@ describe('RcmAdpSearchService', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }])
-        .mockResolvedValueOnce(mixedIpdRows)
+      const mockGateway = createMockAdpSearchGateway({
+        adpItems: [{ icode: '1540012', name: 'Ferrous', strength: '', nhso_adp_code: '14001' }],
+        rawRows: mixedIpdRows,
+      })
 
       const res = await RcmAdpSearchService.getAdpSearchReport(
         {
@@ -417,7 +432,7 @@ describe('RcmAdpSearchService', () => {
           ucOnly: true,
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(res.items).toHaveLength(1)
@@ -428,20 +443,22 @@ describe('RcmAdpSearchService', () => {
 
   describe('getAvailableAdpCodes', () => {
     it('returns merged preset options and database options', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          code: '14001',
-          title: 'Ferrous Fumarate 200 mg',
-          mappedCount: 2,
-        },
-        {
-          code: '99988',
-          title: 'Custom Hospital Special Drug',
-          mappedCount: 1,
-        },
-      ])
+      const mockGateway = createMockAdpSearchGateway({
+        availableCodes: [
+          {
+            code: '14001',
+            title: 'Ferrous Fumarate 200 mg',
+            mappedCount: 2,
+          },
+          {
+            code: '99988',
+            title: 'Custom Hospital Special Drug',
+            mappedCount: 1,
+          },
+        ],
+      })
 
-      const options = await RcmAdpSearchService.getAvailableAdpCodes(mockExecutor, true)
+      const options = await RcmAdpSearchService.getAvailableAdpCodes(mockGateway, true)
       expect(options.length).toBeGreaterThan(0)
       const found14001 = options.find((o) => o.code === '14001')
       expect(found14001).toBeDefined()
@@ -454,8 +471,10 @@ describe('RcmAdpSearchService', () => {
     })
 
     it('falls back to default presets if query fails', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB Timeout'))
-      const options = await RcmAdpSearchService.getAvailableAdpCodes(mockExecutor, true)
+      const mockGateway = createMockAdpSearchGateway({
+        availableCodesError: new Error('DB Timeout'),
+      })
+      const options = await RcmAdpSearchService.getAvailableAdpCodes(mockGateway, true)
       expect(options.length).toBeGreaterThan(0)
       expect(options.some((o) => o.code === '14001')).toBe(true)
     })

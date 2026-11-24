@@ -1,12 +1,16 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
@@ -229,13 +233,31 @@ export function isUniversalCoverageScheme(maininscl?: string | null, pttypename?
 
 // ── Service Implementation ───────────────────────────────────────────
 
+export interface AdpSearchGatewayAdapter extends RcmFundGatewayAdapter {
+  checkMultiAdpMapping?: (adpCodes: string[]) => Promise<{
+    isMapped: boolean
+    mappedCount: number
+    items: Array<Record<string, any>>
+  }>
+  getAvailableAdpCodes?: () => Promise<{
+    success?: boolean
+    data: Array<{ code: string; title: string; mappedCount: number }>
+  }>
+}
+
+const defaultAdpSearchGateway: AdpSearchGatewayAdapter = {
+  ...defaultRcmFundGateway,
+  checkMultiAdpMapping: (adpCodes) => apiGateway.clinical.checkMultiAdpMapping(adpCodes),
+  getAvailableAdpCodes: () => apiGateway.clinical.getAvailableAdpCodes(),
+}
+
 export class RcmAdpSearchService {
   /**
-   * Pre-check mapping of specified NHSO ADP Code(s) in `s_drugitems` table.
+   * Pre-check mapping of specified NHSO ADP Code(s) in `s_drugitems` table via API Gateway.
    */
   static async checkAdpMapping(
     adpCodes: string[],
-    queryExecutor: QueryExecutor = queryClinicalDb,
+    gateway: AdpSearchGatewayAdapter = defaultAdpSearchGateway,
     refresh = false
   ): Promise<AdpMappingCheck> {
     const cleanCodes = adpCodes.map((c) => c.trim()).filter(Boolean)
@@ -248,7 +270,7 @@ export class RcmAdpSearchService {
       }
     }
 
-    const cacheKey = `rcm:adp_search:mapping:${cleanCodes.sort().join('_')}`
+    const cacheKey = `rcm:adp_search:mapping:${[...cleanCodes].sort().join('_')}`
     if (refresh) {
       invalidateCacheKey(cacheKey)
     }
@@ -256,51 +278,31 @@ export class RcmAdpSearchService {
     return getCachedData(
       cacheKey,
       async () => {
-        if (queryExecutor === queryClinicalDb && cleanCodes.length === 1) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping(cleanCodes[0])
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                adpCodes: cleanCodes,
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to query
+        try {
+          const gwRes = gateway.checkMultiAdpMapping
+            ? await gateway.checkMultiAdpMapping(cleanCodes)
+            : cleanCodes.length === 1
+            ? await gateway.getAdpMapping(cleanCodes[0])
+            : await defaultAdpSearchGateway.checkMultiAdpMapping!(cleanCodes)
+          const items: AdpMappingItem[] = (gwRes?.items || []).map((r: any) => ({
+            icode: String(r.icode || '').trim(),
+            name: String(r.name || '').trim(),
+            strength: r.strength ? String(r.strength).trim() : null,
+            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
+          }))
+          return {
+            adpCodes: cleanCodes,
+            isMapped: items.length > 0,
+            mappedCount: items.length,
+            items,
           }
-        }
-
-        const placeholders = cleanCodes.map(() => '?').join(', ')
-        const sql = `
-          SELECT 
-            icode, 
-            name, 
-            strength, 
-            TRIM(nhso_adp_code) AS nhso_adp_code
-          FROM s_drugitems
-          WHERE TRIM(nhso_adp_code) IN (${placeholders})
-          ORDER BY nhso_adp_code ASC, icode ASC;
-        `
-        const rows = await queryExecutor(sql, cleanCodes)
-        const items: AdpMappingItem[] = (rows || []).map((r: any) => ({
-          icode: String(r.icode || '').trim(),
-          name: String(r.name || '').trim(),
-          strength: r.strength ? String(r.strength).trim() : null,
-          nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-        }))
-
-        return {
-          adpCodes: cleanCodes,
-          isMapped: items.length > 0,
-          mappedCount: items.length,
-          items,
+        } catch {
+          return {
+            adpCodes: cleanCodes,
+            isMapped: false,
+            mappedCount: 0,
+            items: [],
+          }
         }
       },
       600 // Cache for 10 minutes
@@ -308,10 +310,10 @@ export class RcmAdpSearchService {
   }
 
   /**
-   * Get available ADP code options, merging known presets with mapped codes in s_drugitems.
+   * Get available ADP code options, merging known presets with mapped codes in s_drugitems via API Gateway.
    */
   static async getAvailableAdpCodes(
-    queryExecutor: QueryExecutor = queryClinicalDb,
+    gateway: AdpSearchGatewayAdapter = defaultAdpSearchGateway,
     refresh = false
   ): Promise<AdpOption[]> {
     const cacheKey = 'rcm:adp_search:available_options'
@@ -323,19 +325,11 @@ export class RcmAdpSearchService {
       cacheKey,
       async () => {
         try {
-          const sql = `
-            SELECT 
-              TRIM(nhso_adp_code) AS code,
-              MIN(TRIM(name)) AS title,
-              COUNT(*) AS mappedCount
-            FROM s_drugitems
-            WHERE nhso_adp_code IS NOT NULL AND TRIM(nhso_adp_code) <> ''
-            GROUP BY TRIM(nhso_adp_code)
-            ORDER BY code ASC;
-          `
-          const rows = await queryExecutor(sql, [])
+          const fn = gateway.getAvailableAdpCodes ?? defaultAdpSearchGateway.getAvailableAdpCodes!
+          const gwRes = await fn()
+          const rows = Array.isArray(gwRes?.data) ? gwRes.data : []
           const dbOptionsMap = new Map<string, { title: string; count: number }>()
-          for (const r of rows || []) {
+          for (const r of rows) {
             const code = String(r.code || '').trim()
             if (code) {
               dbOptionsMap.set(code, {
@@ -386,11 +380,11 @@ export class RcmAdpSearchService {
   }
 
   /**
-   * Main report query for OPD & IPD search by ADP Code.
+   * Main report query for OPD & IPD search by ADP Code via API Gateway.
    */
   static async getAdpSearchReport(
     params: AdpSearchReportParams = {},
-    queryExecutor: QueryExecutor = queryClinicalDb
+    gateway: AdpSearchGatewayAdapter = defaultAdpSearchGateway
   ): Promise<AdpSearchReportResult> {
     const patientType: PatientType = params.patientType === 'IPD' ? 'IPD' : 'OPD'
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
@@ -405,18 +399,18 @@ export class RcmAdpSearchService {
     const refresh = Boolean(params.refresh)
 
     // Check ADP mapping
-    const adpMapping = await this.checkAdpMapping(adpCodes, queryExecutor, refresh)
+    const adpMapping = await this.checkAdpMapping(adpCodes, gateway, refresh)
 
     // Fetch items based on patientType
     const rawItems =
       patientType === 'IPD'
-        ? await this.fetchIpdRecords(ds1, ds2, adpCodes, queryExecutor, refresh)
-        : await this.fetchOpdRecords(ds1, ds2, adpCodes, queryExecutor, refresh)
+        ? await this.fetchIpdRecords(ds1, ds2, adpCodes, gateway, refresh)
+        : await this.fetchOpdRecords(ds1, ds2, adpCodes, gateway, refresh)
 
     const allItems = await enrichItemsWithSeamlessCache(
       `rcm:adp_search:${patientType}:${ds1}:${ds2}:${adpCodes.slice().sort().join('_')}`,
       rawItems,
-      queryExecutor,
+      resolveSeamlessFetcher(gateway, defaultAdpSearchGateway),
       refresh
     )
 
@@ -525,19 +519,18 @@ export class RcmAdpSearchService {
   }
 
   /**
-   * OPD Query implementation using Driving Subquery pattern
-   * Migrated from Visual FoxPro _opd script with 90s timeout.
+   * OPD Query via API Gateway Named Endpoint.
    */
   private static async fetchOpdRecords(
     ds1: string,
     ds2: string,
     adpCodes: string[],
-    queryExecutor: QueryExecutor,
+    gateway: AdpSearchGatewayAdapter,
     refresh = false
   ): Promise<AdpSearchItem[]> {
     if (adpCodes.length === 0) return []
 
-    const cacheKey = `rcm:adp_search:opd:${ds1}:${ds2}:${adpCodes.sort().join('_')}`
+    const cacheKey = `rcm:adp_search:opd:${ds1}:${ds2}:${[...adpCodes].sort().join('_')}`
     if (refresh) {
       invalidateCacheKey(cacheKey)
     }
@@ -545,160 +538,13 @@ export class RcmAdpSearchService {
     return getCachedData(
       cacheKey,
       async () => {
-        const adpPlaceholders = adpCodes.map(() => '?').join(', ')
-
-        // 1. Driving subquery: find opitemrece rows for target ADP codes in vstdate range
-        // 2. Join ovst, vn_stat, patient, pttype, authencode, repdata, repeclaim, seamless, ktb
-        const sql = `
-          SELECT 
-            o.vn,
-            o.hn,
-            o.an,
-            pt.cid,
-            CONCAT(TRIM(pt.pname), TRIM(pt.fname), ' ', TRIM(pt.lname)) AS ptname,
-            IFNULL(pt.sex, '') AS sex_code,
-            pt.birthday,
-            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-            DATE_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            o.pttype,
-            ptt.hipdata_code,
-            ptt.name AS pttypename,
-            ptt.pttype_eclaim_id,
-            e.name AS pttype_eclaim_name,
-            e.gf_ipd AS gfmis,
-            e.ar_ipd AS accountcode,
-            ca.name AS accountname,
-            CONCAT(v.hospmain, '#', IFNULL(h.name, '')) AS hospmain,
-            CONCAT(v.hospsub, '#', IFNULL(h2.name, '')) AS hospsub,
-            vs.auth_code,
-            dep.department AS department,
-            spc.name AS clinic,
-            CAST(s.cc AS CHAR(255)) AS symptom,
-            ovstist_lookup.name AS ovstist,
-            ovstost_lookup.name AS ovstost,
-            
-            target_rec.icode,
-            target_rec.nhso_adp_code,
-            target_rec.name AS item_name,
-            
-            (
-              SELECT GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', CONCAT(dx.icd10, '(', dx.diagtype, ')'), NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ')
-              FROM ovstdiag dx
-              WHERE dx.vn = o.vn
-            ) AS diag,
-
-            (
-              SELECT GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ')
-              FROM ovstdiag dx
-              WHERE dx.vn = o.vn
-            ) AS operation,
-            
-            (
-              SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
-              FROM opitemrece a
-              JOIN nondrugitems b ON b.icode = a.icode
-              WHERE a.vn = o.vn
-            ) AS listname,
-            
-            IFNULL(v.income, 0) AS income,
-            (IFNULL(v.income, 0) - IFNULL(v.rcpt_money, 0)) AS nee,
-            
-            GROUP_CONCAT(DISTINCT k.terminalid ORDER BY k.approvalcode DESC SEPARATOR ', ') AS terminalid,
-            GROUP_CONCAT(DISTINCT CONCAT(k.approvalcode, '#', ROUND(IFNULL(k.amount, 0), 2)) ORDER BY k.approvalcode DESC SEPARATOR ', ') AS approvalcode,
-            
-            MAX(se.rep) AS seamless,
-            MAX(se.compensated) AS compensatedseamless,
-            MAX(au.AuthenCode) AS authencode,
-            MAX(au.AuthenMethod) AS authen_method,
-            MAX(au.AuthenContact) AS authen_contact,
-            COALESCE(NULLIF(MAX(rep_c.rep), ''), NULLIF(MAX(rep_d.rep), ''), NULLIF(MAX(nn.Rep), ''), NULLIF(MAX(m.rep), '')) AS rep,
-            MAX(rep_c.rep) AS invoiceclaim,
-            MAX(rep_d.fund) AS fund,
-            MAX(rep_d.subfund) AS subfund,
-            MAX(rep_d.projectcode) AS projectcode,
-            MAX(rep_d.remark) AS remark,
-            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), NULLIF(MAX(nn.Income), 0), NULLIF(MAX(m.compensated), 0), NULLIF(MAX(se.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
-
-          FROM (
-            SELECT 
-              oo.vn,
-              oo.icode,
-              target_items.nhso_adp_code,
-              CONCAT_WS(' ', target_items.name, NULLIF(target_items.strength, '')) AS name
-            FROM (
-              SELECT icode, name, strength, TRIM(nhso_adp_code) AS nhso_adp_code
-              FROM s_drugitems
-              WHERE TRIM(nhso_adp_code) IN (${adpPlaceholders})
-            ) target_items
-            JOIN opitemrece oo ON oo.icode = target_items.icode
-            WHERE IFNULL(oo.vn, '') <> ''
-              AND oo.vstdate BETWEEN ? AND ?
-            GROUP BY oo.vn, oo.icode
-          ) target_rec
-          JOIN ovst o ON o.vn = target_rec.vn
-          LEFT JOIN patient pt ON pt.hn = o.hn
-          LEFT JOIN vn_stat v ON v.vn = o.vn
-          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-          LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
-          LEFT JOIN codeaccount ca ON ca.code = e.ar_opd
-          LEFT JOIN hospcode h ON h.hospcode = v.hospmain
-          LEFT JOIN hospcode h2 ON h2.hospcode = v.hospsub
-          LEFT JOIN visit_pttype vs ON vs.vn = o.vn
-          LEFT JOIN opdscreen s ON s.vn = o.vn
-          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-          LEFT JOIN spclty spc ON spc.spclty = o.spclty
-          LEFT JOIN ovstist ovstist_lookup ON ovstist_lookup.ovstist = o.ovstist
-          LEFT JOIN ovstost ovstost_lookup ON ovstost_lookup.ovstost = o.ovstost
-          LEFT JOIN rcmdb.authencode au ON au.vn = o.vn
-          LEFT JOIN (
-            SELECT
-              vn,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(fund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS fund,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(subfund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS subfund,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(projectcode, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS projectcode,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark
-            FROM rcmdb.repdata
-            WHERE IFNULL(vn, '') <> ''
-            GROUP BY vn
-          ) rep_d ON rep_d.vn = o.vn
-          LEFT JOIN (
-            SELECT
-              vn,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repeclaim
-            WHERE IFNULL(vn, '') <> ''
-            GROUP BY vn
-          ) rep_c ON rep_c.vn = o.vn
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-          LEFT JOIN (
-            SELECT
-              m.opdseq AS vn,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-              SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated
-            FROM eclaimdb.m_registerdata m
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq, '') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-          LEFT JOIN (
-            SELECT
-              vn,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.seamless
-            WHERE IFNULL(vn, '') <> ''
-            GROUP BY vn
-          ) se ON se.vn = o.vn
-          LEFT JOIN rcmdb.ktb k ON k.vn = v.vn
-          GROUP BY o.vn, target_rec.icode
-          ORDER BY o.vstdate DESC, o.vn DESC;
-        `
-
-        const queryParams = [...adpCodes, ds1, ds2]
-        const rows = await queryExecutor(sql, queryParams, { timeoutMs: 90000 })
+        const gwRes = await gateway.getRcmFundData('adp-search', {
+          ds1,
+          ds2,
+          patientType: 'OPD',
+          adpCode: adpCodes.join(','),
+        })
+        const rows = extractFundRawRows(gwRes)
 
         return (rows || []).map((r: any, idx: number) => {
           const compensated = parseFloat(r.compensated || 0)
@@ -780,19 +626,18 @@ export class RcmAdpSearchService {
   }
 
   /**
-   * IPD Query implementation using Driving Subquery pattern
-   * Migrated from Visual FoxPro _ipd script with 90s timeout.
+   * IPD Query via API Gateway Named Endpoint.
    */
   private static async fetchIpdRecords(
     ds1: string,
     ds2: string,
     adpCodes: string[],
-    queryExecutor: QueryExecutor,
+    gateway: AdpSearchGatewayAdapter,
     refresh = false
   ): Promise<AdpSearchItem[]> {
     if (adpCodes.length === 0) return []
 
-    const cacheKey = `rcm:adp_search:ipd:${ds1}:${ds2}:${adpCodes.sort().join('_')}`
+    const cacheKey = `rcm:adp_search:ipd:${ds1}:${ds2}:${[...adpCodes].sort().join('_')}`
     if (refresh) {
       invalidateCacheKey(cacheKey)
     }
@@ -800,129 +645,13 @@ export class RcmAdpSearchService {
     return getCachedData(
       cacheKey,
       async () => {
-        const adpPlaceholders = adpCodes.map(() => '?').join(', ')
-
-        const sql = `
-          SELECT 
-            i.an,
-            i.hn,
-            pt.cid,
-            CONCAT(TRIM(pt.pname), TRIM(pt.fname), ' ', TRIM(pt.lname)) AS ptname,
-            IFNULL(pt.sex, '') AS sex_code,
-            pt.birthday,
-            IFNULL(a.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, i.regdate)) AS age,
-            DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
-            DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
-            i.pttype,
-            ptt.hipdata_code,
-            ptt.name AS pttypename,
-            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-            e.name AS pttype_eclaim_name,
-            e.gf_ipd AS gfmis,
-            e.ar_ipd AS accountcode,
-            ca.name AS accountname,
-            w.name AS department,
-            
-            a.pdx,
-            icd.name AS pdxname,
-            
-            (
-              SELECT GROUP_CONCAT(DISTINCT CONCAT(idx.icd10, '(', idx.diagtype, ')') ORDER BY idx.diagtype SEPARATOR ', ')
-              FROM iptdiag idx
-              WHERE idx.an = i.an AND idx.diagtype <> 1
-            ) AS sdx,
-            
-            (
-              SELECT GROUP_CONCAT(DISTINCT io.icd9 SEPARATOR ', ')
-              FROM iptoprt io
-              WHERE io.an = i.an
-            ) AS proc_ops,
-            
-            target_rec.icode,
-            target_rec.nhso_adp_code,
-            target_rec.name AS item_name,
-            
-            (
-              SELECT GROUP_CONCAT(DISTINCT CONCAT(aa.icode, ':', b.name) SEPARATOR ', ')
-              FROM opitemrece aa
-              JOIN nondrugitems b ON b.icode = aa.icode
-              WHERE aa.an = i.an
-            ) AS listname,
-            
-            IFNULL(a.income, 0) AS income,
-            (IFNULL(a.income, 0) - IFNULL(a.rcpt_money, 0)) AS nee,
-            
-            COALESCE(NULLIF(MAX(rep_c.rep), ''), NULLIF(MAX(rep_d.rep), ''), NULLIF(MAX(nn.Rep), ''), NULLIF(MAX(m.rep), '')) AS rep,
-            MAX(rep_c.rep) AS invoiceclaim,
-            MAX(rep_d.fund) AS fund,
-            MAX(rep_d.subfund) AS subfund,
-            MAX(rep_d.projectcode) AS projectcode,
-            MAX(rep_d.remark) AS remark,
-            COALESCE(NULLIF(MAX(rep_c.compensated), 0), NULLIF(MAX(rep_d.compensated), 0), NULLIF(MAX(nn.Income), 0), NULLIF(MAX(m.compensated), 0), MAX(rep_c.compensated), MAX(rep_d.compensated), 0) AS compensated
-
-          FROM (
-            SELECT 
-              oo.an,
-              oo.icode,
-              target_items.nhso_adp_code,
-              CONCAT_WS(' ', target_items.name, NULLIF(target_items.strength, '')) AS name
-            FROM (
-              SELECT icode, name, strength, TRIM(nhso_adp_code) AS nhso_adp_code
-              FROM s_drugitems
-              WHERE TRIM(nhso_adp_code) IN (${adpPlaceholders})
-            ) target_items
-            JOIN opitemrece oo ON oo.icode = target_items.icode
-            JOIN ipt i_filter ON i_filter.an = oo.an
-            WHERE IFNULL(oo.an, '') <> ''
-              AND i_filter.dchdate BETWEEN ? AND ?
-            GROUP BY oo.an, oo.icode
-          ) target_rec
-          JOIN ipt i ON i.an = target_rec.an
-          LEFT JOIN patient pt ON pt.hn = i.hn
-          LEFT JOIN an_stat a ON a.an = i.an
-          LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
-          LEFT JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
-          LEFT JOIN codeaccount ca ON ca.code = e.ar_ipd
-          LEFT JOIN ward w ON w.ward = i.ward
-          LEFT JOIN icd101 icd ON icd.code = a.pdx
-          LEFT JOIN (
-            SELECT
-              an,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(fund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS fund,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(subfund, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS subfund,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(projectcode, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS projectcode,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark
-            FROM rcmdb.repdata
-            WHERE IFNULL(an, '') <> ''
-            GROUP BY an
-          ) rep_d ON rep_d.an = i.an
-          LEFT JOIN (
-            SELECT
-              an,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repeclaim
-            WHERE IFNULL(an, '') <> ''
-            GROUP BY an
-          ) rep_c ON rep_c.an = i.an
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
-          LEFT JOIN (
-            SELECT
-              m.an,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-              SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated
-            FROM eclaimdb.m_registerdata m
-            WHERE m.person_type = '2' AND IFNULL(m.an, '') <> ''
-            GROUP BY m.an
-          ) m ON m.an = i.an
-          GROUP BY i.an, target_rec.icode
-          ORDER BY i.dchdate DESC, i.an DESC;
-        `
-
-        const queryParams = [...adpCodes, ds1, ds2]
-        const rows = await queryExecutor(sql, queryParams, { timeoutMs: 90000 })
+        const gwRes = await gateway.getRcmFundData('adp-search', {
+          ds1,
+          ds2,
+          patientType: 'IPD',
+          adpCode: adpCodes.join(','),
+        })
+        const rows = extractFundRawRows(gwRes)
 
         return (rows || []).map((r: any, idx: number) => {
           const compensated = parseFloat(r.compensated || 0)

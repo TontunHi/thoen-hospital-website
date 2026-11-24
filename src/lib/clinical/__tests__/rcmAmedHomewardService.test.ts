@@ -3,6 +3,7 @@ import {
   RcmAmedHomewardService,
   type HomewardReportParams,
 } from '../rcmAmedHomewardService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 import { invalidateCacheKey } from '@/lib/cache'
 
 describe('RcmAmedHomewardService', () => {
@@ -194,12 +195,7 @@ describe('RcmAmedHomewardService', () => {
     },
   ]
 
-  const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-    if (sql.includes("SHOW TABLES IN rcmdb LIKE 'amed'")) {
-      return Promise.resolve([{ Tables_in_rcmdb_like_amed: 'amed' }])
-    }
-    return Promise.resolve(mockRows)
-  })
+  const mockExecutor = createMockRcmFundGateway({ rawRows: mockRows })
 
   it('calculates Tier 1 KPI summary metrics correctly', async () => {
     const res = await RcmAmedHomewardService.getHomewardReport(

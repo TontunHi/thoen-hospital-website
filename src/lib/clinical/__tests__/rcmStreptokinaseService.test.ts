@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   RcmStreptokinaseService,
   type StreptokinaseReportParams,
+  type StreptokinaseGatewayAdapter,
 } from '../rcmStreptokinaseService'
 import { invalidateCacheKey } from '@/lib/cache'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmStreptokinaseService', () => {
   beforeEach(() => {
@@ -13,25 +15,28 @@ describe('RcmStreptokinaseService', () => {
 
   describe('checkAdpMapping', () => {
     it('returns isMapped = true when STEMI ADP codes are mapped', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '1560001',
-          name: 'Streptokinase inj 1.5 MU',
-          strength: '1.5 MU',
-          nhso_adp_code: 'STEMI01',
-        },
-      ])
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'STEMI',
+        adpItems: [
+          {
+            icode: '1560001',
+            name: 'Streptokinase inj 1.5 MU',
+            strength: '1.5 MU',
+            nhso_adp_code: 'STEMI01',
+          },
+        ],
+      })
 
-      const result = await RcmStreptokinaseService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmStreptokinaseService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].name).toBe('Streptokinase inj 1.5 MU')
     })
 
     it('returns isMapped = false when no matching items found', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({ adpCode: 'STEMI', adpItems: [] })
 
-      const result = await RcmStreptokinaseService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmStreptokinaseService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
     })
@@ -39,19 +44,17 @@ describe('RcmStreptokinaseService', () => {
 
   describe('getStreptokinaseReport - OPD', () => {
     it('calculates audit rules, compensation and summary correctly for OPD', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT icode, name, strength, nhso_adp_code FROM s_drugitems')) {
-          return [
-            {
-              icode: '1560001',
-              name: 'Streptokinase inj 1.5 MU',
-              strength: '1.5 MU',
-              nhso_adp_code: 'STEMI01',
-            },
-          ]
-        }
-        // OPD Mock Rows
-        return [
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'STEMI',
+        adpItems: [
+          {
+            icode: '1560001',
+            name: 'Streptokinase inj 1.5 MU',
+            strength: '1.5 MU',
+            nhso_adp_code: 'STEMI01',
+          },
+        ],
+        rawRows: [
           {
             vn: '690101111111',
             hn: '0012345',
@@ -106,7 +109,7 @@ describe('RcmStreptokinaseService', () => {
             rep: '',
             status: '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim',
           },
-        ]
+        ],
       })
 
       const params: StreptokinaseReportParams = {
@@ -116,7 +119,7 @@ describe('RcmStreptokinaseService', () => {
         refresh: true,
       }
 
-      const report = await RcmStreptokinaseService.getStreptokinaseReport(params, mockExecutor)
+      const report = await RcmStreptokinaseService.getStreptokinaseReport(params, mockGateway)
 
       expect(report.patientType).toBe('OPD')
       expect(report.totalCount).toBe(2)
@@ -145,11 +148,10 @@ describe('RcmStreptokinaseService', () => {
     })
 
     it('filters by cardFilter correctly', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT icode, name, strength, nhso_adp_code FROM s_drugitems')) {
-          return []
-        }
-        return [
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'STEMI',
+        adpItems: [],
+        rawRows: [
           {
             vn: '690101111111',
             hn: '0012345',
@@ -188,13 +190,13 @@ describe('RcmStreptokinaseService', () => {
             rep: '',
             status: '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim',
           },
-        ]
+        ],
       })
 
       // AUDIT_ERROR card
       const errRes = await RcmStreptokinaseService.getStreptokinaseReport(
         { patientType: 'OPD', ds1: '2026-10-01', ds2: '2027-09-30', cardFilter: 'AUDIT_ERROR', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(errRes.totalCount).toBe(1)
       expect(errRes.items[0].hn).toBe('0023456')
@@ -202,7 +204,7 @@ describe('RcmStreptokinaseService', () => {
       // AUDIT_PASS card
       const passRes = await RcmStreptokinaseService.getStreptokinaseReport(
         { patientType: 'OPD', ds1: '2026-10-01', ds2: '2027-09-30', cardFilter: 'AUDIT_PASS', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(passRes.totalCount).toBe(1)
       expect(passRes.items[0].hn).toBe('0012345')
@@ -211,11 +213,10 @@ describe('RcmStreptokinaseService', () => {
 
   describe('getStreptokinaseReport - IPD', () => {
     it('executes IPD data retrieval and parses admission details', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT icode, name, strength, nhso_adp_code FROM s_drugitems')) {
-          return []
-        }
-        return [
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'STEMI',
+        adpItems: [],
+        rawRows: [
           {
             an: '690001234',
             hn: '0034567',
@@ -242,12 +243,12 @@ describe('RcmStreptokinaseService', () => {
             rep: 'IPDREP01',
             status: 'Rep :: ได้รับ Rep แล้ว',
           },
-        ]
+        ],
       })
 
       const report = await RcmStreptokinaseService.getStreptokinaseReport(
         { patientType: 'IPD', ds1: '2026-10-01', ds2: '2027-09-30', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(report.patientType).toBe('IPD')
@@ -263,10 +264,12 @@ describe('RcmStreptokinaseService', () => {
 
   describe('getAnClinicalDetails', () => {
     it('fetches and structures IPD clinical admission details for detail modal', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM ipt i')) {
-          return [
-            {
+      const mockGateway: StreptokinaseGatewayAdapter = {
+        ...createMockRcmFundGateway(),
+        getAnClinicalDetails: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            header: {
               an: '690001234',
               hn: '0034567',
               cid: '1529900033333',
@@ -278,49 +281,42 @@ describe('RcmStreptokinaseService', () => {
               pttypename: 'บัตรทอง',
               ward: 'ตึกผู้ป่วยในชาย',
             },
-          ]
-        }
-        if (sql.includes('FROM iptdiag d')) {
-          return [
-            {
-              icd10: 'I211',
-              icd_name: 'Acute transmural myocardial infarction of inferior wall',
-              diagtype: '1',
-              diagtype_name: 'PRINCIPLE DX (การวินิจฉัยโรคหลัก)',
-              doctor_name: 'นพ. วินัย ชำนาญการ',
-            },
-          ]
-        }
-        if (sql.includes('FROM iptoprt op')) {
-          return [
-            {
-              icd9: '9910',
-              icd9_name: 'Injection or infusion of thrombolytic agent',
-              opdate: '2026-11-01',
-              doctor_name: 'นพ. วินัย ชำนาญการ',
-            },
-          ]
-        }
-        if (sql.includes('FROM opitemrece o')) {
-          return [
-            {
-              icode: '1560001',
-              item_name: 'Streptokinase inj 1.5 MU',
-              strength: '1.5 MU',
-              units: 'vial',
-              qty: 1,
-              unitprice: 12500,
-              sum_price: 12500,
-              paidst_name: 'เบิกได้',
-              income_name: 'ค่ายา',
-              is_drug: 1,
-            },
-          ]
-        }
-        return []
-      })
+            diagnoses: [
+              {
+                icd10: 'I211',
+                icdName: 'Acute transmural myocardial infarction of inferior wall',
+                diagtype: '1',
+                diagtypeName: 'PRINCIPLE DX (การวินิจฉัยโรคหลัก)',
+                doctorName: 'นพ. วินัย ชำนาญการ',
+              },
+            ],
+            procedures: [
+              {
+                icd9: '9910',
+                icd9Name: 'Injection or infusion of thrombolytic agent',
+                opdate: '2026-11-01',
+                doctorName: 'นพ. วินัย ชำนาญการ',
+              },
+            ],
+            orders: [
+              {
+                icode: '1560001',
+                itemName: 'Streptokinase inj 1.5 MU',
+                strength: '1.5 MU',
+                units: 'vial',
+                qty: 1,
+                unitprice: 12500,
+                sumPrice: 12500,
+                paidstName: 'เบิกได้',
+                incomeName: 'ค่ายา',
+                isDrug: true,
+              },
+            ],
+          },
+        }),
+      }
 
-      const details = await RcmStreptokinaseService.getAnClinicalDetails('690001234', mockExecutor)
+      const details = await RcmStreptokinaseService.getAnClinicalDetails('690001234', mockGateway)
       expect(details).not.toBeNull()
       expect(details?.header.an).toBe('690001234')
       expect(details?.header.ptname).toBe('นาย วิชัย ยอดเยี่ยม')

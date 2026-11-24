@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { RcmAncService } from '../rcmAncService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 import * as cacheModule from '@/lib/cache'
 
 describe('RcmAncService (ANC 2.4 - 30011)', () => {
@@ -9,17 +10,20 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
     vi.spyOn(cacheModule, 'invalidateCacheKey').mockReturnValue()
   })
 
-  it('check30011AdpMapping returns true when ADP 30011 is mapped in s_drugitems', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([
-      {
-        icode: '3002538',
-        name: 'ค่าฝากครรภ์ ครั้งที่ 1-8',
-        strength: '',
-        nhso_adp_code: '30011',
-      },
-    ])
+  it('check30011AdpMapping returns true when ADP 30011 is mapped via API Gateway', async () => {
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: '30011',
+      adpItems: [
+        {
+          icode: '3002538',
+          name: 'ค่าฝากครรภ์ ครั้งที่ 1-8',
+          strength: '',
+          nhso_adp_code: '30011',
+        },
+      ],
+    })
 
-    const result = await RcmAncService.check30011AdpMapping(mockExecutor)
+    const result = await RcmAncService.check30011AdpMapping(mockGateway)
     expect(result.isMapped).toBe(true)
     expect(result.mappedCount).toBe(1)
     expect(result.items[0].icode).toBe('3002538')
@@ -27,9 +31,9 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
   })
 
   it('check30011AdpMapping returns false when no items have ADP 30011', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([])
+    const mockGateway = createMockRcmFundGateway({ adpCode: '30011', adpItems: [] })
 
-    const result = await RcmAncService.check30011AdpMapping(mockExecutor)
+    const result = await RcmAncService.check30011AdpMapping(mockGateway)
     expect(result.isMapped).toBe(false)
     expect(result.mappedCount).toBe(0)
     expect(result.items).toEqual([])
@@ -107,20 +111,15 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
       },
     ]
 
-    const mockExecutor = vi
-      .fn()
-      .mockImplementation((sql: string) => {
-        if (sql.includes('SELECT icode, name')) {
-          return Promise.resolve([
-            { icode: '3002538', name: 'ค่าฝากครรภ์', strength: '', nhso_adp_code: '30011' },
-          ])
-        }
-        return Promise.resolve(mockRows)
-      })
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: '30011',
+      adpItems: [{ icode: '3002538', name: 'ค่าฝากครรภ์', strength: '', nhso_adp_code: '30011' }],
+      rawRows: mockRows,
+    })
 
     const result = await RcmAncService.getService30011Report(
       { ds1: '2026-10-01', ds2: '2026-10-31' },
-      mockExecutor
+      mockGateway
     )
 
     expect(result.summary.totalVisits).toBe(2)
@@ -172,17 +171,16 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
       },
     ]
 
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('SELECT icode, name')) {
-        return Promise.resolve([{ icode: '3002538', name: 'ฝากครรภ์', nhso_adp_code: '30011' }])
-      }
-      return Promise.resolve(mockRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: '30011',
+      adpItems: [{ icode: '3002538', name: 'ฝากครรภ์', nhso_adp_code: '30011' }],
+      rawRows: mockRows,
     })
 
     // Filter COMPENSATED
     const compResult = await RcmAncService.getService30011Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', compensationFilter: 'COMPENSATED' },
-      mockExecutor
+      mockGateway
     )
     expect(compResult.items.length).toBe(1)
     expect(compResult.items[0].hn).toBe('0010001')
@@ -190,7 +188,7 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
     // Filter UNCOMPENSATED
     const uncompResult = await RcmAncService.getService30011Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', compensationFilter: 'UNCOMPENSATED' },
-      mockExecutor
+      mockGateway
     )
     expect(uncompResult.items.length).toBe(1)
     expect(uncompResult.items[0].hn).toBe('0010002')
@@ -198,7 +196,7 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
     // Filter HAS_AUTHEN
     const authenResult = await RcmAncService.getService30011Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', compensationFilter: 'HAS_AUTHEN' },
-      mockExecutor
+      mockGateway
     )
     expect(authenResult.items.length).toBe(1)
     expect(authenResult.items[0].authencode).toBe('AUTH001')
@@ -206,7 +204,7 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
     // Search by HN
     const searchResult = await RcmAncService.getService30011Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', search: '0010002', searchField: 'HN' },
-      mockExecutor
+      mockGateway
     )
     expect(searchResult.items.length).toBe(1)
     expect(searchResult.items[0].ptname).toBe('นางสมศรี ใจดี')
@@ -303,11 +301,11 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockResolvedValue(mockRows)
+      const mockGateway = createMockRcmFundGateway({ rawRows: mockRows })
 
       const result = await RcmAncService.getAncService23Report(
         { ds1: '2026-05-01', ds2: '2026-05-31' },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.summary.totalVisits).toBe(2)
@@ -325,7 +323,7 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
       // Test cardFilter UC_ONLY
       const ucOnlyResult = await RcmAncService.getAncService23Report(
         { ds1: '2026-05-01', ds2: '2026-05-31', cardFilter: 'UC_ONLY' },
-        mockExecutor
+        mockGateway
       )
       expect(ucOnlyResult.items.length).toBe(1)
       expect(ucOnlyResult.items[0].hn).toBe('0010001')
@@ -333,7 +331,7 @@ describe('RcmAncService (ANC 2.4 - 30011)', () => {
       // Test cardFilter COMPENSATED
       const compResult = await RcmAncService.getAncService23Report(
         { ds1: '2026-05-01', ds2: '2026-05-31', cardFilter: 'COMPENSATED' },
-        mockExecutor
+        mockGateway
       )
       expect(compResult.items.length).toBe(1)
       expect(compResult.items[0].hn).toBe('0010001')

@@ -134,19 +134,7 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/gateway/clinicalGatewayNamespace.ts',
       'src/lib/gateway/salaryGatewayNamespace.ts',
       // Phase 1A: Salary Dual-Path (completed -> 0)
-      // Phase 1B: RCM Specific Funds Dual-Path (12 remaining)
-      'src/lib/clinical/family-planning/service91Report.ts',
-      'src/lib/clinical/family-planning/service93Report.ts',
-      'src/lib/clinical/rcmAdpSearchService.ts',
-      'src/lib/clinical/rcmAmedHomewardService.ts',
-      'src/lib/clinical/rcmAncService.ts',
-      'src/lib/clinical/rcmImcService.ts',
-      'src/lib/clinical/rcmInstrumentFundService.ts',
-      'src/lib/clinical/rcmIronSupplementsService.ts',
-      'src/lib/clinical/rcmRehabilitationService.ts',
-      'src/lib/clinical/rcmSeamlessImportService.ts',
-      'src/lib/clinical/rcmStreptokinaseService.ts',
-      'src/lib/clinical/rcmT1dmImportService.ts',
+      // Phase 1B: RCM Specific Funds Dual-Path (completed -> 0)
       // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (8 remaining)
       'src/lib/clinical/clinicalRecordsService.ts',
       'src/lib/clinical/ipdWardService.ts',
@@ -185,7 +173,6 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/clinical/rcmThalassemiaFundService.ts',
       'src/lib/clinical/rcmThalassemiaService.ts',
       'src/lib/clinical/rcmViralHepatitisService.ts',
-      'src/lib/clinical/seamless-import/typesAndParsers.ts',
       // Phase 3: Auth, Permissions, Audit & Integrations (6)
       'src/lib/auditLogService.ts',
       'src/lib/auth/MemberAuthService.ts',

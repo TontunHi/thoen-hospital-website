@@ -1,9 +1,7 @@
 import { apiGateway } from '@/lib/apiGateway'
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { logger } from '@/lib/logger'
 import { cleanCellString, loadWorkbookFromBuffer, normalizeDate } from './rcmSeamlessImportService'
-import type { QueryExecutor } from './rcmDashboardService'
 
 export const DEFAULT_MY_HOSPCODE = '11152'
 
@@ -175,112 +173,42 @@ export function normalizePid(raw: unknown): string {
   return str
 }
 
+export interface T1dmImportGatewayAdapter {
+  getT1dmRawRegistries: typeof apiGateway.clinical.getT1dmRawRegistries
+  enrichT1dmImport: typeof apiGateway.clinical.enrichT1dmImport
+  persistT1dmMirror: typeof apiGateway.clinical.persistT1dmMirror
+  deleteT1dmMirror: typeof apiGateway.clinical.deleteT1dmMirror
+}
+
+const defaultT1dmGateway: T1dmImportGatewayAdapter = {
+  getT1dmRawRegistries: () => apiGateway.clinical.getT1dmRawRegistries(),
+  enrichT1dmImport: (payload) => apiGateway.clinical.enrichT1dmImport(payload),
+  persistT1dmMirror: (rows) => apiGateway.clinical.persistT1dmMirror(rows),
+  deleteT1dmMirror: (payload) => apiGateway.clinical.deleteT1dmMirror(payload),
+}
+
 export class RcmT1dmImportService {
   static invalidateRegistryCache() {
     invalidateCacheKey(CACHE_KEY_T1DM_REGISTRY)
   }
 
   /**
-   * Ensure Website fallback mirror table exists when rcmdb.t1dm is read-only or unavailable
-   */
-  private static mirrorTableEnsured = false
-  private static async ensureWebsiteMirrorTable(): Promise<void> {
-    if (this.mirrorTableEnsured) return
-    try {
-      await apiGateway.app.execute(`
-        INSERT INTO member_system_settings (config_key, config_value)
-        VALUES ('t1dm_registry_initialized', '1')
-        ON DUPLICATE KEY UPDATE config_value = '1'
-      `)
-    } catch {
-      // ignore
-    }
-    this.mirrorTableEnsured = true
-  }
-
-  /**
-   * Fetch all raw rows from rcmdb.t1dm (with HOSxP hospcode & patient HN join),
-   * and merge with any rows stored in t1dm_registries mirror table if used.
+   * Fetch all raw rows from rcmdb.t1dm and t1dm_registries mirror table via API Gateway.
    */
   static async fetchAllRawRegistries(
     myHospCode: string = DEFAULT_MY_HOSPCODE,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<T1dmImportGatewayAdapter> = defaultT1dmGateway
   ): Promise<T1dmRegistryItem[]> {
-    const buildSql = (hospCol: 'HospMain' | 'HCode', includeFileName: boolean) => `
-      SELECT 
-        t.ID AS id,
-        IFNULL(t.Year, '') AS year,
-        IFNULL(t.PID, '') AS pid,
-        IFNULL(t.PtName, '') AS ptname,
-        DATE_FORMAT(t.Register_Date, '%Y-%m-%d') AS regdate,
-        DATE_FORMAT(t.Visit_Date, '%Y-%m-%d') AS visitdate,
-        IFNULL(t.Type, '') AS type,
-        IFNULL(t.Maininscl, '') AS maininscl,
-        LPAD(TRIM(IFNULL(t.${hospCol}, '')), 5, '0') AS hospmain_code,
-        IFNULL(h.name, '') AS hospmain_name,
-        CONCAT_WS(':', LPAD(TRIM(IFNULL(t.${hospCol}, '')), 5, '0'), NULLIF(TRIM(h.name), '')) AS hospmain,
-        ${includeFileName ? "IFNULL(t.FileName, '')" : "''"} AS filename,
-        IFNULL(pt.hn, '') AS hn
-      FROM rcmdb.t1dm t
-      LEFT JOIN hospcode h ON h.hospcode = LPAD(TRIM(t.${hospCol}), 5, '0')
-      LEFT JOIN patient pt ON pt.cid = t.PID
-      ORDER BY t.Register_Date DESC, t.ID ASC
-    `
-
+    const gw: T1dmImportGatewayAdapter = { ...defaultT1dmGateway, ...gateway }
     let clinicalRows: any[] = []
-    try {
-      clinicalRows = await executor(buildSql('HospMain', true), [])
-    } catch (err: any) {
-      const msg = String(err?.message || '')
-      if (/HospMain/i.test(msg)) {
-        try {
-          clinicalRows = await executor(buildSql('HCode', true), [])
-        } catch (err2: any) {
-          if (/FileName/i.test(String(err2?.message || ''))) {
-            try {
-              clinicalRows = await executor(buildSql('HCode', false), [])
-            } catch {
-              clinicalRows = []
-            }
-          } else {
-            clinicalRows = []
-          }
-        }
-      } else if (/FileName/i.test(msg)) {
-        try {
-          clinicalRows = await executor(buildSql('HospMain', false), [])
-        } catch {
-          clinicalRows = []
-        }
-      } else {
-        clinicalRows = []
-      }
-    }
-
-    // Also check Website DB mirror table `t1dm_registries` if any rows were imported via appPool fallback
     let mirrorRows: any[] = []
-    if (executor === queryClinicalDb) {
-      try {
-        mirrorRows = await apiGateway.app.query<any>(`
-          SELECT 
-            id,
-            year,
-            pid,
-            hn,
-            ptname,
-            DATE_FORMAT(register_date, '%Y-%m-%d') AS regdate,
-            DATE_FORMAT(visit_date, '%Y-%m-%d') AS visitdate,
-            type,
-            maininscl,
-            hospmain_code,
-            hospmain_name,
-            filename
-          FROM t1dm_registries
-          ORDER BY register_date DESC, id ASC
-        `)
-      } catch {
-        mirrorRows = []
-      }
+    try {
+      const res = await gw.getT1dmRawRegistries()
+      clinicalRows = Array.isArray(res?.data?.clinicalRows) ? res.data.clinicalRows : []
+      mirrorRows = Array.isArray(res?.data?.mirrorRows) ? res.data.mirrorRows : []
+    } catch {
+      clinicalRows = []
+      mirrorRows = []
     }
 
     // Merge by ID (mirrorRows override or supplement clinicalRows)
@@ -352,7 +280,7 @@ export class RcmT1dmImportService {
    */
   static async getRegistryList(
     params: T1dmRegistryListParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<T1dmImportGatewayAdapter> = defaultT1dmGateway
   ): Promise<T1dmRegistryListResult> {
     const myHospCode = (params.myHospCode || DEFAULT_MY_HOSPCODE).trim()
     const search = (params.search || '').trim().toLowerCase()
@@ -371,7 +299,7 @@ export class RcmT1dmImportService {
 
     const allItems = await getCachedData(
       CACHE_KEY_T1DM_REGISTRY,
-      () => this.fetchAllRawRegistries(myHospCode, executor),
+      () => this.fetchAllRawRegistries(myHospCode, gateway),
       120_000 // 2 minutes cache
     )
 
@@ -548,14 +476,14 @@ export class RcmT1dmImportService {
       isDryRun?: boolean
       filterMyHospOnly?: boolean
       myHospCode?: string
-      executor?: QueryExecutor
+      gateway?: Partial<T1dmImportGatewayAdapter>
     } = {}
   ): Promise<T1dmImportParseResult> {
     const startTime = Date.now()
     const isDryRun = options.isDryRun !== false
     const filterMyHospOnly = options.filterMyHospOnly !== false // FoxPro default: setHospCode=.T., lHospCode=.T.
     const myHospCode = (options.myHospCode || DEFAULT_MY_HOSPCODE).trim()
-    const executor = options.executor || queryClinicalDb
+    const gw: T1dmImportGatewayAdapter = { ...defaultT1dmGateway, ...(options.gateway || {}) }
 
     const workbook = await loadWorkbookFromBuffer(buffer, fileName)
 
@@ -732,7 +660,7 @@ export class RcmT1dmImportService {
       )
     }
 
-    // Batch resolve HN from HOSxP patient table and Hospital Names from hospcode table
+    // Batch resolve HN, Hospital Names, and existing file count via API Gateway
     const cidsToResolve = Array.from(
       new Set(allParsedRows.map((r) => r.pid).filter((pid) => pid && pid.length === 13))
     )
@@ -742,48 +670,30 @@ export class RcmT1dmImportService {
 
     const patientHnMap = new Map<string, { hn: string; ptname: string }>()
     const hospNameMap = new Map<string, string>()
+    let existingFileRowCount = 0
 
-    if (cidsToResolve.length > 0) {
-      const CHUNK_SIZE = 500
-      for (let i = 0; i < cidsToResolve.length; i += CHUNK_SIZE) {
-        const chunk = cidsToResolve.slice(i, i + CHUNK_SIZE)
-        const placeholders = chunk.map(() => '?').join(',')
-        try {
-          const ptRows = await executor(
-            `SELECT cid, hn, TRIM(CONCAT(IFNULL(pname,''), IFNULL(fname,''), ' ', IFNULL(lname,''))) AS ptname
-             FROM patient
-             WHERE cid IN (${placeholders})`,
-            chunk
-          )
-          for (const pt of ptRows || []) {
-            if (pt.cid) {
-              patientHnMap.set(String(pt.cid).trim(), {
-                hn: String(pt.hn || '').trim(),
-                ptname: String(pt.ptname || '').trim(),
-              })
-            }
-          }
-        } catch {
-          // non-blocking
+    try {
+      const enrichRes = await gw.enrichT1dmImport({
+        cids: cidsToResolve,
+        hospCodes: hospCodesToResolve,
+        fileName,
+      })
+      for (const pt of enrichRes?.data?.patients || []) {
+        if (pt.cid) {
+          patientHnMap.set(String(pt.cid).trim(), {
+            hn: String(pt.hn || '').trim(),
+            ptname: String(pt.ptname || '').trim(),
+          })
         }
       }
-    }
-
-    if (hospCodesToResolve.length > 0) {
-      const placeholders = hospCodesToResolve.map(() => '?').join(',')
-      try {
-        const hRows = await executor(
-          `SELECT hospcode, name FROM hospcode WHERE hospcode IN (${placeholders})`,
-          hospCodesToResolve
-        )
-        for (const h of hRows || []) {
-          if (h.hospcode && h.name) {
-            hospNameMap.set(String(h.hospcode).trim().padStart(5, '0'), String(h.name).trim())
-          }
+      for (const h of enrichRes?.data?.hospNames || []) {
+        if (h.hospcode && h.name) {
+          hospNameMap.set(String(h.hospcode).trim().padStart(5, '0'), String(h.name).trim())
         }
-      } catch {
-        // non-blocking
       }
+      existingFileRowCount = Number(enrichRes?.data?.existingFileRowCount || 0)
+    } catch {
+      // non-blocking
     }
 
     for (const row of allParsedRows) {
@@ -801,23 +711,11 @@ export class RcmT1dmImportService {
       }
     }
 
-    // Check if this fileName was already imported before
-    let existingFileRowCount = 0
-    try {
-      const existingCheck = await executor(
-        'SELECT COUNT(*) AS cnt FROM rcmdb.t1dm WHERE FileName = ?',
-        [fileName]
-      )
-      existingFileRowCount = Number(existingCheck?.[0]?.cnt || 0)
-    } catch {
-      existingFileRowCount = 0
-    }
-
     const rowsToSave = allParsedRows.filter((r) => !r.isSkippedByHospFilter && r.id)
     let importedCount = 0
 
     if (!isDryRun && rowsToSave.length > 0) {
-      importedCount = await this.persistRegistries(rowsToSave)
+      importedCount = await this.persistRegistries(rowsToSave, gw)
       this.invalidateRegistryCache()
       // Also invalidate T1DM recipients report cache so fund 2 page updates immediately
       invalidateCacheKey('rcm-t1dm-gdm-pdm-recipients')
@@ -851,97 +749,63 @@ export class RcmT1dmImportService {
 
   /**
    * Persist parsed T1DM rows to Gateway Named API (`/api/v1/clinical/rcm/t1dm/import`)
-   * with automatic fallback to Website DB (`t1dm_registries`) so data is always saved reliably.
+   * with automatic fallback to Website mirror Named API (`/api/v1/clinical/rcm/t1dm-v2/persist-mirror`).
    */
-  static async persistRegistries(rows: ParsedT1dmExcelRow[]): Promise<number> {
+  static async persistRegistries(
+    rows: ParsedT1dmExcelRow[],
+    gateway: Partial<T1dmImportGatewayAdapter> = defaultT1dmGateway
+  ): Promise<number> {
     if (rows.length === 0) return 0
+    const gw: T1dmImportGatewayAdapter = { ...defaultT1dmGateway, ...gateway }
+    const mappedRows = rows.map((r) => ({
+      id: r.id,
+      year: r.year,
+      pid: r.pid,
+      hn: r.hn,
+      ptname: r.ptname,
+      maininscl: r.maininscl,
+      hospmainCode: r.hospmainCode,
+      hospmainName: r.hospmainName,
+      type: r.type,
+      regdate: r.regdate,
+      visitdate: r.visitdate,
+      fileName: r.fileName,
+    }))
 
     // 1. Try Gateway Named API for rcmdb.t1dm
     try {
-      const res = await apiGateway.clinical.importT1dmRegistries(
-        rows.map((r) => ({
-          id: r.id,
-          year: r.year,
-          pid: r.pid,
-          hn: r.hn,
-          ptname: r.ptname,
-          maininscl: r.maininscl,
-          hospmainCode: r.hospmainCode,
-          hospmainName: r.hospmainName,
-          type: r.type,
-          regdate: r.regdate,
-          visitdate: r.visitdate,
-          fileName: r.fileName,
-        }))
-      )
+      const res = await apiGateway.clinical.importT1dmRegistries(mappedRows)
       if (res && res.success) {
         return res.insertedCount || rows.length
       }
     } catch (gwErr) {
-      logger.warn({ gwErr }, 'Named clinical T1DM import endpoint not yet active, using app mirror persistence')
+      logger.warn({ gwErr }, 'Named clinical T1DM import endpoint failed, using mirror endpoint')
     }
 
-    // 2. Fallback: Persist into Website DB `t1dm_registries` via parameterized transaction batches
-    const statements: Array<{ sql: string; params: unknown[] }> = []
-    for (const r of rows) {
-      statements.push({
-        sql: `
-          INSERT INTO t1dm_registries (
-            id, year, pid, hn, ptname, maininscl, hospmain_code, hospmain_name, type, register_date, visit_date, filename, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-          ON DUPLICATE KEY UPDATE
-            year = VALUES(year),
-            pid = VALUES(pid),
-            hn = VALUES(hn),
-            ptname = VALUES(ptname),
-            maininscl = VALUES(maininscl),
-            hospmain_code = VALUES(hospmain_code),
-            hospmain_name = VALUES(hospmain_name),
-            type = VALUES(type),
-            register_date = VALUES(register_date),
-            visit_date = VALUES(visit_date),
-            filename = VALUES(filename),
-            updated_at = NOW()
-        `,
-        params: [
-          r.id,
-          r.year,
-          r.pid,
-          r.hn,
-          r.ptname,
-          r.maininscl,
-          r.hospmainCode || null,
-          r.hospmainName || null,
-          r.type,
-          r.regdate,
-          r.visitdate,
-          r.fileName,
-        ],
-      })
-    }
-
+    // 2. Fallback: Persist into Website DB `t1dm_registries` via Gateway Named API
     const BATCH_SIZE = 100
     let savedCount = 0
-    for (let i = 0; i < statements.length; i += BATCH_SIZE) {
-      const chunk = statements.slice(i, i + BATCH_SIZE)
-      await apiGateway.app.transaction(chunk)
-      savedCount += chunk.length
+    for (let i = 0; i < mappedRows.length; i += BATCH_SIZE) {
+      const chunk = mappedRows.slice(i, i + BATCH_SIZE)
+      const res = await gw.persistT1dmMirror(chunk)
+      savedCount += Number(res?.savedCount ?? chunk.length)
     }
 
     return savedCount
   }
 
   /**
-   * Delete records from rcmdb.t1dm (and mirror table):
-   * - mode = 'other_hospitals': FoxPro `delete from rcmdb.t1dm where hospmain <> ?myhospcode`
-   * - mode = 'by_file': FoxPro `delete from rcmdb.t1dm where filename = ?_file`
-   * - mode = 'all': FoxPro `delete from rcmdb.t1dm`
+   * Delete records from rcmdb.t1dm (and mirror table) via API Gateway Named Endpoints.
    */
-  static async deleteRegistries(payload: {
-    mode: 'other_hospitals' | 'by_file' | 'all'
-    fileName?: string
-    myHospCode?: string
-  }): Promise<{ deletedCount: number }> {
+  static async deleteRegistries(
+    payload: {
+      mode: 'other_hospitals' | 'by_file' | 'all'
+      fileName?: string
+      myHospCode?: string
+    },
+    gateway: Partial<T1dmImportGatewayAdapter> = defaultT1dmGateway
+  ): Promise<{ deletedCount: number }> {
+    const gw: T1dmImportGatewayAdapter = { ...defaultT1dmGateway, ...gateway }
     const myHospCode = (payload.myHospCode || DEFAULT_MY_HOSPCODE).trim()
     let deletedCount = 0
 
@@ -956,27 +820,17 @@ export class RcmT1dmImportService {
         deletedCount += Number(res.deletedCount || 0)
       }
     } catch (gwErr) {
-      logger.warn({ gwErr }, 'Named clinical T1DM delete endpoint not yet active, checking mirror table')
+      logger.warn({ gwErr }, 'Named clinical T1DM delete endpoint failed, checking mirror endpoint')
     }
 
-    // 2. Also execute on Website DB mirror table if present
+    // 2. Also execute on Website DB mirror table via Gateway Named API
     try {
-      if (payload.mode === 'other_hospitals') {
-        const res = await apiGateway.app.execute(
-          'DELETE FROM t1dm_registries WHERE hospmain_code IS NOT NULL AND hospmain_code <> ? AND hospmain_code <> ""',
-          [myHospCode]
-        )
-        deletedCount += Number(res?.affectedRows || 0)
-      } else if (payload.mode === 'by_file' && payload.fileName) {
-        const res = await apiGateway.app.execute(
-          'DELETE FROM t1dm_registries WHERE filename = ?',
-          [payload.fileName]
-        )
-        deletedCount += Number(res?.affectedRows || 0)
-      } else if (payload.mode === 'all') {
-        const res = await apiGateway.app.execute('DELETE FROM t1dm_registries WHERE 1=1', [])
-        deletedCount += Number(res?.affectedRows || 0)
-      }
+      const res = await gw.deleteT1dmMirror({
+        mode: payload.mode,
+        fileName: payload.fileName,
+        myHospCode,
+      })
+      deletedCount += Number(res?.deletedCount || 0)
     } catch {
       // ignore if mirror table not used
     }

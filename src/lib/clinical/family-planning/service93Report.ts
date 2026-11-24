@@ -1,7 +1,11 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
+import { resolveFiscalDateRange } from '../rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from '../rcmFundGatewayHelper'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
 import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
@@ -58,7 +62,7 @@ import { checkFamilyPlanningAdpMapping } from './service91Report'
    */
 export async function getFamilyPlanning93Report(
     params: FamilyPlanningReportParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<FamilyPlanningReportResult> {
     const reportType: FamilyPlanningReportType = params.reportType || '9.3.1'
     const patientType: FamilyPlanningPatientType = params.patientType === 'IPD' ? 'IPD' : 'OPD'
@@ -84,43 +88,14 @@ export async function getFamilyPlanning93Report(
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        let rows: Record<string, unknown>[] = []
-        let mappingRes: FamilyPlanningAdpMappingCheck = {
-          isMapped: false,
-          mappedCount: 0,
-          adpCode,
-          items: [],
+        const [mRes, gwRes] = await Promise.all([
+          checkFamilyPlanningAdpMapping(adpCode, gateway),
+          gateway.getRcmFundData('family-planning-93', { ds1, ds2, adpCode, patientType, expectedDx }),
+        ])
+        return {
+          rawRows: extractFundRawRows<Record<string, unknown>>(gwRes),
+          adpMapping: mRes,
         }
-
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              checkFamilyPlanningAdpMapping(adpCode, executor),
-              apiGateway.clinical.getRcmFundData('family-planning', { ds1, ds2, adpCode, patientType, expectedDx }),
-            ])
-            mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [mRes, dbRows] = await Promise.all([
-            checkFamilyPlanningAdpMapping(adpCode, executor),
-            patientType === 'IPD'
-              ? queryIpdRows(ds1, ds2, adpCode, executor, expectedDx)
-              : queryOpdRows(ds1, ds2, adpCode, executor, expectedDx),
-          ])
-          rows = (dbRows || []) as Record<string, unknown>[]
-          mappingRes = mRes
-        }
-
-        return { rawRows: rows, adpMapping: mappingRes }
       },
       300000 // Cache TTL 5 minutes
     )
@@ -262,7 +237,12 @@ export async function getFamilyPlanning93Report(
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      resolveSeamlessFetcher(gateway),
+      Boolean(params.refresh)
+    )
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
@@ -421,402 +401,6 @@ export async function getFamilyPlanning93Report(
       totalPages,
       items: pagedItems,
       repBreakdown,
-    }
-  }
-
-  /**
-   * Execute OPD SQL Query for Family Planning (9.3.1 / 9.3.2).
-   */
-export async function queryOpdRows(
-    ds1: string,
-    ds2: string,
-    adpCode: string,
-    executor: QueryExecutor,
-    expectedDx: string = 'Z308'
-  ): Promise<any[]> {
-    try {
-      const adpMatchExpr =
-        adpCode === 'FP002_1'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
-          : adpCode === 'FP002_2'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
-          : `TRIM(d.nhso_adp_code) = ?`
-
-      const sql = `
-        SELECT 
-          o.vn,
-          IFNULL(pt.cid, '') AS cid,
-          o.hn,
-          CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-          IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
-          IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
-          DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-          TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-          CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          ptt.pttype_eclaim_id,
-          COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS claimcode,
-          dep.department AS department,
-          spc.name AS clinic,
-          s.cc AS cc,
-          IFNULL(v.income, 0) AS income,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ') AS dx,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(${adpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
-          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
-          COALESCE(e.income, 0) AS money_eclaim,
-          COALESCE(r.income, 0) AS money_rep,
-          COALESCE(n.income, 0) AS money_invoice,
-          COALESCE(n.rep, r.rep, NULLIF(nn.Rep, ''), IF(m.status = '4', m.rep, NULL), '') AS rep,
-          CASE
-            WHEN n.vn IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
-            WHEN r.vn IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
-            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
-            WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
-            ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
-          END AS status
-        FROM (
-          SELECT DISTINCT vn FROM (
-            SELECT vn FROM ovstdiag WHERE vstdate BETWEEN ? AND ? AND icd10 REGEXP ?
-            UNION
-            SELECT oo.vn 
-            FROM opitemrece oo
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE oo.vstdate BETWEEN ? AND ?
-              AND IFNULL(oo.vn, '') <> ''
-              AND ${adpMatchExpr}
-          ) u
-        ) t
-        JOIN ovst o ON o.vn = t.vn
-        LEFT JOIN patient pt ON pt.hn = o.hn
-        LEFT JOIN vn_stat v ON v.vn = o.vn
-        LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-        LEFT JOIN opdscreen s ON s.vn = o.vn
-        LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-        LEFT JOIN spclty spc ON spc.spclty = o.spclty
-        LEFT JOIN ovstdiag dx ON dx.vn = o.vn
-        LEFT JOIN opitemrece oo ON oo.vn = o.vn
-        LEFT JOIN s_drugitems d ON d.icode = oo.icode
-        LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-        LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-        LEFT JOIN (
-          SELECT e.opdseq AS vn,
-                 SUM(COALESCE(cc.totpay1, 0)) AS income
-          FROM eclaimdb.m_registerdata e
-          JOIN eclaimdb.m_serviceother cc ON cc.eclaim_no = e.eclaim_no
-          WHERE e.person_type = '1'
-            AND e.dateadm BETWEEN ? AND ?
-            AND (cc.code LIKE ? OR cc.code LIKE 'FP003%' OR cc.code LIKE 'FP002%')
-          GROUP BY e.opdseq
-        ) e ON e.vn = o.vn
-        LEFT JOIN (
-          SELECT vn,
-                 SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
-                 GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-          FROM rcmdb.repdata
-          WHERE department = 'OP'
-            AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
-          GROUP BY vn
-        ) r ON r.vn = o.vn
-        LEFT JOIN (
-          SELECT vn,
-                 SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
-                 GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-          FROM rcmdb.repeclaim
-          WHERE department = 'OP'
-            AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
-          GROUP BY vn
-        ) n ON n.vn = o.vn
-        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-        LEFT JOIN (
-          SELECT m.opdseq AS vn,
-                 MAX(m.eclaim_no) AS eclaim_no,
-                 SUBSTRING_INDEX(GROUP_CONCAT(IF(m.status = '4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                 SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status
-          FROM eclaimdb.m_registerdata m
-          WHERE m.person_type = '1'
-            AND m.opdseq IS NOT NULL
-            AND m.dateadm BETWEEN ? AND ?
-          GROUP BY m.opdseq
-        ) m ON m.vn = o.vn
-        LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-        GROUP BY o.vn
-        ORDER BY o.vstdate DESC, o.vsttime DESC;
-      `
-
-      const codePattern = `${adpCode}%`
-      return await executor(
-        sql,
-        [adpCode, ds1, ds2, expectedDx, ds1, ds2, adpCode, ds1, ds2, codePattern, ds1, ds2],
-        { timeoutMs: 90000 }
-      )
-    } catch (primaryErr) {
-      const adpMatchExpr =
-        adpCode === 'FP002_1'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
-          : adpCode === 'FP002_2'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
-          : `TRIM(d.nhso_adp_code) = ?`
-
-      // Graceful fallback without eclaimdb/rcmdb joins if cross-db schemas differ
-      const fallbackSql = `
-        SELECT 
-          o.vn,
-          IFNULL(pt.cid, '') AS cid,
-          o.hn,
-          CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-          IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
-          IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
-          DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-          TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-          CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          NULL AS claimcode,
-          dep.department AS department,
-          spc.name AS clinic,
-          s.cc AS cc,
-          IFNULL(v.income, 0) AS income,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ovst_diag_id SEPARATOR ', ') AS dx,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(${adpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
-          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
-          0 AS money_eclaim,
-          0 AS money_rep,
-          0 AS money_invoice,
-          '' AS rep,
-          '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim' AS status
-        FROM (
-          SELECT DISTINCT vn FROM (
-            SELECT vn FROM ovstdiag WHERE vstdate BETWEEN ? AND ? AND icd10 REGEXP ?
-            UNION
-            SELECT oo.vn 
-            FROM opitemrece oo
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE oo.vstdate BETWEEN ? AND ?
-              AND IFNULL(oo.vn, '') <> ''
-              AND ${adpMatchExpr}
-          ) u
-        ) t
-        JOIN ovst o ON o.vn = t.vn
-        LEFT JOIN patient pt ON pt.hn = o.hn
-        LEFT JOIN vn_stat v ON v.vn = o.vn
-        LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-        LEFT JOIN opdscreen s ON s.vn = o.vn
-        LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-        LEFT JOIN spclty spc ON spc.spclty = o.spclty
-        LEFT JOIN ovstdiag dx ON dx.vn = o.vn
-        LEFT JOIN opitemrece oo ON oo.vn = o.vn
-        LEFT JOIN s_drugitems d ON d.icode = oo.icode
-        GROUP BY o.vn
-        ORDER BY o.vstdate DESC, o.vsttime DESC;
-      `
-      return await executor(fallbackSql, [adpCode, ds1, ds2, expectedDx, ds1, ds2, adpCode], { timeoutMs: 60000 })
-    }
-  }
-
-  /**
-   * Execute IPD SQL Query for Family Planning (9.3.1 / 9.3.2).
-   */
-export async function queryIpdRows(
-    ds1: string,
-    ds2: string,
-    adpCode: string,
-    executor: QueryExecutor,
-    expectedDx: string = 'Z308'
-  ): Promise<any[]> {
-    try {
-      const ipdAdpMatchExpr =
-        adpCode === 'FP002_1'
-          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
-          : adpCode === 'FP002_2'
-          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691')`
-          : `(TRIM(d.nhso_adp_code) = ? OR (? IN ('FP003_1', 'FP003_2', 'FP003_3', 'FP003_4') AND TRIM(d.nhso_adp_code) IN ('20003','71681','71682','FP003_1','FP003_2','FP003_3','FP003_4')))`
-
-      const ipdSubqueryAdpExpr =
-        adpCode === 'FP002_1'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
-          : adpCode === 'FP002_2'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
-          : `TRIM(d.nhso_adp_code) = ?`
-
-      const sql = `
-        SELECT 
-          i.an AS vn,
-          i.an,
-          IFNULL(pt.cid, '') AS cid,
-          i.hn,
-          CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-          IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
-          IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, i.regdate), 0) AS age,
-          DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
-          DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
-          DATE_FORMAT(i.regdate, '%Y-%m-%d') AS vstdate,
-          TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
-          CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
-          ptt.pttype_eclaim_id,
-          COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS claimcode,
-          w.name AS department,
-          spc.name AS clinic,
-          '' AS cc,
-          IFNULL(a.income, 0) AS income,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ipt_diag_id SEPARATOR ', ') AS dx,
-          GROUP_CONCAT(DISTINCT IF(op.icd9 REGEXP '^[0-9]', op.icd9, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(${ipdAdpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
-          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
-          COALESCE(e.income, 0) AS money_eclaim,
-          COALESCE(r.income, 0) AS money_rep,
-          COALESCE(n.income, 0) AS money_invoice,
-          COALESCE(n.rep, r.rep, NULLIF(nn.Rep, ''), IF(m.status = '4', m.rep, NULL), '') AS rep,
-          CASE
-            WHEN n.an IS NOT NULL THEN 'NHSO :: ได้รับ Invoice'
-            WHEN r.an IS NOT NULL THEN 'Rep :: ได้รับ Rep แล้ว'
-            WHEN nn.Seq IS NOT NULL AND IFNULL(nn.Rep, '') <> '' THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
-            WHEN m.status IS NOT NULL THEN COALESCE(ecs.name, CONCAT('E-Claim (', m.status, ')'))
-            ELSE '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
-          END AS status
-        FROM (
-          SELECT DISTINCT an FROM (
-            SELECT i.an FROM ipt i JOIN iptdiag dx ON dx.an = i.an WHERE i.dchdate BETWEEN ? AND ? AND dx.icd10 REGEXP ?
-            UNION
-            SELECT oo.an 
-            FROM opitemrece oo
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE oo.vstdate BETWEEN ? AND ?
-              AND IFNULL(oo.an, '') <> ''
-              AND ${ipdSubqueryAdpExpr}
-          ) u
-        ) t
-        JOIN ipt i ON i.an = t.an
-        LEFT JOIN patient pt ON pt.hn = i.hn
-        LEFT JOIN an_stat a ON a.an = i.an
-        LEFT JOIN ward w ON w.ward = i.ward
-        LEFT JOIN spclty spc ON spc.spclty = i.spclty
-        LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
-        LEFT JOIN iptdiag dx ON dx.an = i.an
-        LEFT JOIN iptoprt op ON op.an = i.an
-        LEFT JOIN opitemrece oo ON oo.an = i.an
-        LEFT JOIN s_drugitems d ON d.icode = oo.icode
-        LEFT JOIN rcmdb.authencode cc ON cc.vn = i.an
-        LEFT JOIN visit_pttype vt ON vt.vn = i.an
-        LEFT JOIN (
-          SELECT e.an,
-                 SUM(COALESCE(cc.totpay1, 0)) AS income
-          FROM eclaimdb.m_registerdata e
-          JOIN eclaimdb.m_serviceother cc ON cc.eclaim_no = e.eclaim_no
-          WHERE e.person_type = '2'
-            AND e.datedsc BETWEEN ? AND ?
-            AND (cc.code LIKE ? OR cc.code LIKE 'FP003%' OR cc.code LIKE 'FP002%' OR cc.code LIKE 'FP001%')
-          GROUP BY e.an
-        ) e ON e.an = i.an
-        LEFT JOIN (
-          SELECT an,
-                 SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
-                 GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-          FROM rcmdb.repdata
-          WHERE department = 'IP'
-            AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
-          GROUP BY an
-        ) r ON r.an = i.an
-        LEFT JOIN (
-          SELECT an,
-                 SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
-                 GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-          FROM rcmdb.repeclaim
-          WHERE department = 'IP'
-            AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
-          GROUP BY an
-        ) n ON n.an = i.an
-        LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
-        LEFT JOIN (
-          SELECT m.an,
-                 MAX(m.eclaim_no) AS eclaim_no,
-                 SUBSTRING_INDEX(GROUP_CONCAT(IF(m.status = '4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                 SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status
-          FROM eclaimdb.m_registerdata m
-          WHERE m.person_type = '2'
-            AND m.an IS NOT NULL
-            AND m.datedsc BETWEEN ? AND ?
-          GROUP BY m.an
-        ) m ON m.an = i.an
-        LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-        GROUP BY i.an
-        ORDER BY i.dchdate DESC, i.regdate DESC;
-      `
-
-      const codePattern = `${adpCode}%`
-      return await executor(
-        sql,
-        [adpCode, adpCode, ds1, ds2, expectedDx, ds1, ds2, adpCode, ds1, ds2, codePattern, ds1, ds2],
-        { timeoutMs: 90000 }
-      )
-    } catch (primaryErr) {
-      const ipdAdpMatchExpr =
-        adpCode === 'FP002_1'
-          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_1' AND TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
-          : adpCode === 'FP002_2'
-          ? `(TRIM(d.nhso_adp_code) = ? OR ? = 'FP002_2' AND TRIM(d.nhso_adp_code) = '71691')`
-          : `(TRIM(d.nhso_adp_code) = ? OR (? IN ('FP003_1', 'FP003_2', 'FP003_3', 'FP003_4') AND TRIM(d.nhso_adp_code) IN ('20003','71681','71682','FP003_1','FP003_2','FP003_3','FP003_4')))`
-
-      const ipdSubqueryAdpExpr =
-        adpCode === 'FP002_1'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) IN ('FP002', '20004'))`
-          : adpCode === 'FP002_2'
-          ? `(TRIM(d.nhso_adp_code) = ? OR TRIM(d.nhso_adp_code) = '71691')`
-          : `TRIM(d.nhso_adp_code) = ?`
-
-      // Fallback without cross-db joins
-      const fallbackSql = `
-        SELECT 
-          i.an AS vn,
-          i.an,
-          IFNULL(pt.cid, '') AS cid,
-          i.hn,
-          CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-          IF(pt.sex = '1', 'ชาย', IF(pt.sex = '2', 'หญิง', IFNULL(pt.sex, ''))) AS sex,
-          IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, i.regdate), 0) AS age,
-          DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
-          DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
-          DATE_FORMAT(i.regdate, '%Y-%m-%d') AS vstdate,
-          TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
-          CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
-          NULL AS claimcode,
-          w.name AS department,
-          spc.name AS clinic,
-          '' AS cc,
-          IFNULL(a.income, 0) AS income,
-          GROUP_CONCAT(DISTINCT IF(dx.icd10 NOT REGEXP '^[0-9]', dx.icd10, NULL) ORDER BY dx.diagtype, dx.ipt_diag_id SEPARATOR ', ') AS dx,
-          GROUP_CONCAT(DISTINCT IF(op.icd9 REGEXP '^[0-9]', op.icd9, NULL) SEPARATOR ', ') AS op,
-          GROUP_CONCAT(DISTINCT IF(${ipdAdpMatchExpr}, CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS drug,
-          GROUP_CONCAT(DISTINCT TRIM(d.nhso_adp_code) SEPARATOR ',') AS all_adp_codes,
-          0 AS money_eclaim,
-          0 AS money_rep,
-          0 AS money_invoice,
-          '' AS rep,
-          '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim' AS status
-        FROM (
-          SELECT DISTINCT an FROM (
-            SELECT i.an FROM ipt i JOIN iptdiag dx ON dx.an = i.an WHERE i.dchdate BETWEEN ? AND ? AND dx.icd10 REGEXP ?
-            UNION
-            SELECT oo.an 
-            FROM opitemrece oo
-            JOIN s_drugitems d ON d.icode = oo.icode
-            WHERE oo.vstdate BETWEEN ? AND ?
-              AND IFNULL(oo.an, '') <> ''
-              AND ${ipdSubqueryAdpExpr}
-          ) u
-        ) t
-        JOIN ipt i ON i.an = t.an
-        LEFT JOIN patient pt ON pt.hn = i.hn
-        LEFT JOIN an_stat a ON a.an = i.an
-        LEFT JOIN ward w ON w.ward = i.ward
-        LEFT JOIN spclty spc ON spc.spclty = i.spclty
-        LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
-        LEFT JOIN iptdiag dx ON dx.an = i.an
-        LEFT JOIN iptoprt op ON op.an = i.an
-        LEFT JOIN opitemrece oo ON oo.an = i.an
-        LEFT JOIN s_drugitems d ON d.icode = oo.icode
-        GROUP BY i.an
-        ORDER BY i.dchdate DESC, i.regdate DESC;
-      `
-      return await executor(fallbackSql, [adpCode, adpCode, ds1, ds2, expectedDx, ds1, ds2, adpCode], { timeoutMs: 60000 })
     }
   }
 

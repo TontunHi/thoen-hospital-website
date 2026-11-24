@@ -17,11 +17,6 @@ import {
   SEAMLESS_FUND_MAP,
 } from '../rcmSeamlessImportService'
 
-// Mock queryClinicalDb
-vi.mock('@/lib/clinicalDb', () => ({
-  queryClinicalDb: vi.fn(),
-}))
-
 vi.mock('@/lib/apiGateway', async () => {
   const actual = await vi.importActual<typeof import('@/lib/apiGateway')>('@/lib/apiGateway')
   return {
@@ -31,6 +26,34 @@ vi.mock('@/lib/apiGateway', async () => {
         importSeamlessRecords: vi.fn(),
         deleteSeamlessRecords: vi.fn(),
         syncSeamlessPayment: vi.fn(),
+        lookupSeamlessBudget: vi.fn().mockResolvedValue({ success: true, data: null }),
+        resolveSeamlessHospCode: vi.fn().mockResolvedValue({ success: true, data: null }),
+        enrichSeamlessImport: vi.fn().mockResolvedValue({
+          success: true,
+          data: { patientsByCid: {}, patientsByHn: {}, visits: [], admissions: [] },
+        }),
+        preflightSeamlessCheck: vi.fn().mockResolvedValue({
+          success: true,
+          data: { existingFileRowCount: 0, existingIds: [] },
+        }),
+        getSeamlessStats: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            totalRows: 0,
+            totalReps: 0,
+            totalFiles: 0,
+            latestAdmDate: null,
+            totalCompensated: 0,
+            topFunds: [],
+            recentFiles: [],
+          },
+        }),
+        getSeamlessLedger: vi.fn().mockResolvedValue({
+          success: true,
+          data: { items: [], totalCount: 0, totalPages: 1, page: 1, pageSize: 50, availableFunds: [] },
+        }),
+        getSeamlessFiles: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        getSeamlessDenyCodes: vi.fn().mockResolvedValue({ success: true, data: [] }),
       },
     },
   }
@@ -44,7 +67,6 @@ vi.mock('@/lib/logger', () => ({
   },
 }))
 
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway, GatewayNotFoundError, GatewayUnavailableError } from '@/lib/apiGateway'
 
 describe('RcmSeamlessImportService Utilities', () => {
@@ -232,24 +254,41 @@ describe('RcmSeamlessImportService.parseWorkbook', () => {
 
     const buffer = Buffer.from(await wb.xlsx.writeBuffer())
 
-    // Mock HOSxP batch patient resolution
-    vi.mocked(queryClinicalDb).mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM rcmdb.nhso_budget')) {
-        return [{ paydate: '2026-10-15', accountcode: 'ACC_01' }] as any
-      }
-      if (sql.includes('FROM patient')) {
-        return [
-          { cid: '3520800100034', hn: '0018735', ptname: 'วงเวียน ตุ่นบุตร' },
-          { cid: '3520800188276', hn: '0067578', ptname: 'พรรณี กิมเฮง' },
-        ] as any
-      }
-      if (sql.includes('FROM ovst')) {
-        return [
-          { vn: '690831090120', hn: '0018735', vstdate: '2026-08-31' },
-          { vn: '690831080144', hn: '0067578', vstdate: '2026-08-31' },
-        ] as any
-      }
-      return [] as any
+    // Mock Gateway V2 batch patient resolution & budget lookup
+    vi.mocked(apiGateway.clinical.lookupSeamlessBudget).mockResolvedValueOnce({
+      success: true,
+      data: { paydate: '2026-10-15', accountcode: 'ACC_01' },
+    })
+    vi.mocked(apiGateway.clinical.enrichSeamlessImport)
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          napRows: [],
+          cidRows: [
+            { cid: '3520800100034', hn: '0018735', ptname: 'วงเวียน ตุ่นบุตร' },
+            { cid: '3520800188276', hn: '0067578', ptname: 'พรรณี กิมเฮง' },
+          ],
+          hnRows: [],
+          ovstRows: [],
+          iptRows: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          napRows: [],
+          cidRows: [],
+          hnRows: [],
+          ovstRows: [
+            { vn: '690831090120', hn: '0018735', vstdate: '2026-08-31' },
+            { vn: '690831080144', hn: '0067578', vstdate: '2026-08-31' },
+          ],
+          iptRows: [],
+        },
+      })
+    vi.mocked(apiGateway.clinical.preflightSeamlessCheck).mockResolvedValueOnce({
+      success: true,
+      data: { existingFileRowCount: 0, existingIds: [] },
     })
 
     const result = await RcmSeamlessImportService.parseWorkbook(buffer, 'test-seamless.xlsx', {
@@ -305,14 +344,9 @@ describe('RcmSeamlessImportService.parseWorkbook', () => {
 
     const buffer = Buffer.from(await wb.xlsx.writeBuffer())
 
-    vi.mocked(queryClinicalDb).mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT COUNT(*) AS cnt FROM rcmdb.seamless WHERE FileName')) {
-        return [{ cnt: 1 }] as any
-      }
-      if (sql.includes('SELECT ID FROM rcmdb.seamless WHERE ID IN')) {
-        return [{ ID: 'ID_DUP_1' }] as any
-      }
-      return [] as any
+    vi.mocked(apiGateway.clinical.preflightSeamlessCheck).mockResolvedValueOnce({
+      success: true,
+      data: { existingFileRowCount: 1, existingIds: ['ID_DUP_1'] },
     })
 
     vi.mocked(apiGateway.clinical.importSeamlessRecords).mockResolvedValue({
@@ -358,7 +392,10 @@ describe('RcmSeamlessImportService.parseWorkbook', () => {
 
     const buffer = Buffer.from(await wb.xlsx.writeBuffer())
 
-    vi.mocked(queryClinicalDb).mockResolvedValue([{ ID: 'ID_DUP_1' }] as any)
+    vi.mocked(apiGateway.clinical.preflightSeamlessCheck).mockResolvedValueOnce({
+      success: true,
+      data: { existingFileRowCount: 0, existingIds: ['ID_DUP_1'] },
+    })
     vi.mocked(apiGateway.clinical.importSeamlessRecords).mockResolvedValue({
       success: true,
       totalSubmitted: 1,
@@ -392,7 +429,10 @@ describe('RcmSeamlessImportService.parseWorkbook', () => {
     indSheet.addRow([1, 'DDSA69093000090', 'ID_1', '3520800188276', 'WEL', '2026-08-31', 270, 200])
     const buffer = Buffer.from(await wb.xlsx.writeBuffer())
 
-    vi.mocked(queryClinicalDb).mockResolvedValue([] as any)
+    vi.mocked(apiGateway.clinical.preflightSeamlessCheck).mockResolvedValueOnce({
+      success: true,
+      data: { existingFileRowCount: 0, existingIds: [] },
+    })
     vi.mocked(apiGateway.clinical.importSeamlessRecords).mockRejectedValue(
       new GatewayNotFoundError('Not found')
     )
@@ -430,7 +470,10 @@ describe('RcmSeamlessImportService.parseWorkbook', () => {
     indSheet.addRow([3, 'DDSA69093000090', 'ID_OTHER_1', '3520800199999', 'WEL', '2026-08-31', 500, 400, '06195'])
 
     const buffer = Buffer.from(await wb.xlsx.writeBuffer())
-    vi.mocked(queryClinicalDb).mockResolvedValue([] as any)
+    vi.mocked(apiGateway.clinical.preflightSeamlessCheck).mockResolvedValueOnce({
+      success: true,
+      data: { existingFileRowCount: 0, existingIds: [] },
+    })
 
     const filteredResult = await RcmSeamlessImportService.parseWorkbook(buffer, 'hcode-filter.xlsx', {
       isDryRun: true,
@@ -471,7 +514,10 @@ describe('RcmSeamlessImportService.parseWorkbook', () => {
       '1,DKTP69021600048,690205799991,,,9999900000011,สมมติ ทดสอบระบบ,WEL,11152,04/02/2569,04/02/2569,1,ค่าบริการเก็บตัวอย่าง,1,50,0,50,0,,50,0,0,0,ชดเชย,,,06203',
     ].join('\n')
 
-    vi.mocked(queryClinicalDb).mockResolvedValue([] as any)
+    vi.mocked(apiGateway.clinical.preflightSeamlessCheck).mockResolvedValueOnce({
+      success: true,
+      data: { existingFileRowCount: 0, existingIds: [] },
+    })
 
     const result = await RcmSeamlessImportService.parseWorkbook(
       Buffer.from(csvLines, 'utf8'),
@@ -521,25 +567,18 @@ describe('RcmSeamlessImportService.getSeamlessDatabaseStats', () => {
   })
 
   it('fetches database stats from rcmdb.seamless', async () => {
-    vi.mocked(queryClinicalDb).mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT \n            COUNT(*) as totalRows')) {
-        return [
-          {
-            totalRows: 86087,
-            totalReps: 155,
-            totalFiles: 155,
-            latestAdmDate: '2026-08-31',
-            totalCompensated: 18867767.07,
-          },
-        ] as any
-      }
-      if (sql.includes('GROUP BY Fund')) {
-        return [
+    vi.mocked(apiGateway.clinical.getSeamlessStats).mockResolvedValueOnce({
+      success: true,
+      data: {
+        totalRows: 86087,
+        totalReps: 155,
+        totalFiles: 155,
+        latestAdmDate: '2026-08-31',
+        totalCompensated: 18867767.07,
+        topFunds: [
           { fund: 'ระบบสารสนเทศการให้บริการฟื้นฟูสมรรถภาพ', rowCount: 17913, totalCompensated: 1214535.53 },
-        ] as any
-      }
-      if (sql.includes('GROUP BY FileName')) {
-        return [
+        ],
+        recentFiles: [
           {
             fileName: '11152_DDSA6941090041.XLSX',
             rowCount: 200,
@@ -547,9 +586,8 @@ describe('RcmSeamlessImportService.getSeamlessDatabaseStats', () => {
             maxDate: '2026-08-31',
             totalCompensated: 50000,
           },
-        ] as any
-      }
-      return [] as any
+        ],
+      },
     })
 
     const stats = await RcmSeamlessImportService.getSeamlessDatabaseStats()
@@ -619,25 +657,32 @@ describe('Seamless ExcelJS unwrapping, helpers, and FoxPro parity', () => {
 
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer())
 
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('hospname')) {
-        return [{ hospcode: '11152', name: 'โรงพยาบาลเถิน' }] as any
-      }
-      if (sql.includes('FROM patient') && sql.includes('IN (')) {
-        return [{ hn: '0001234', cid: '9999999999999', ptname: 'นาย ทดสอบ' }] as any
-      }
-      if (sql.includes('FROM ovst')) {
-        return [{ vn: '690115080001', hn: '0001234', vstdate: '2026-01-15' }] as any
-      }
-      return [] as any
-    })
-
     const result = await RcmSeamlessImportService.parseWorkbook(buffer, '11152_DDSA6901.xlsx', {
       isDryRun: true,
       autoEnrichHosp: true,
       filterMyHospOnly: false,
       updatePayment: false,
-      executor: mockExecutor,
+      gateway: {
+        resolveSeamlessHospCode: vi.fn().mockResolvedValue({
+          success: true,
+          data: { hospcode: '11152', name: 'โรงพยาบาลเถิน' },
+        }),
+        enrichSeamlessImport: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            cidRows: [],
+            hnRows: [
+              { hn: '0001234', cid: '9999999999999', ptname: 'นาย ทดสอบ' },
+            ],
+            ovstRows: [{ vn: '690115080001', hn: '0001234', vstdate: '2026-01-15' }],
+            iptRows: [],
+          },
+        }),
+        preflightSeamlessCheck: vi.fn().mockResolvedValue({
+          success: true,
+          data: { existingFileRowCount: 0, existingIds: [] },
+        }),
+      },
     })
 
     expect(result.previewRows).toHaveLength(1)
@@ -657,19 +702,17 @@ describe('Seamless ExcelJS unwrapping, helpers, and FoxPro parity', () => {
     summarySheet.getCell('G12').value = '20/02/2569'
 
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer())
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM rcmdb.nhso_budget')) {
-        return [{ paydate: '2026-02-20', accountcode: 'AC-999' }] as any
-      }
-      return [] as any
-    })
-
     const result = await RcmSeamlessImportService.parseWorkbook(buffer, '11152_DDSA6902.xlsx', {
       isDryRun: true,
       autoEnrichHosp: false,
       filterMyHospOnly: false,
       updatePayment: true,
-      executor: mockExecutor,
+      gateway: {
+        lookupSeamlessBudget: vi.fn().mockResolvedValue({
+          success: true,
+          data: { paydate: '2026-02-20', accountcode: 'AC-999' },
+        }),
+      },
     })
 
     expect(result.previewRows).toHaveLength(0)
@@ -733,18 +776,20 @@ describe('Seamless ExcelJS unwrapping, helpers, and FoxPro parity', () => {
     denySheet.addRow(['D001', 'ไม่ผ่านการตรวจสอบโดย Auditor'])
 
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer())
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM rcmdb.nhso_budget')) {
-        return [{ paydate: '2026-11-05', accountcode: 'ACC-DKTP' }] as any
-      }
-      return [] as any
-    })
-
     const result = await RcmSeamlessImportService.parseWorkbook(buffer, '11152_DKTP69103100065.xlsx.xls', {
       isDryRun: true,
       autoEnrichHosp: false,
       updatePayment: true,
-      executor: mockExecutor,
+      gateway: {
+        lookupSeamlessBudget: vi.fn().mockResolvedValue({
+          success: true,
+          data: { paydate: '2026-11-05', accountcode: 'ACC-DKTP' },
+        }),
+        preflightSeamlessCheck: vi.fn().mockResolvedValue({
+          success: true,
+          data: { existingFileRowCount: 0, existingIds: [] },
+        }),
+      },
     })
 
     expect(result.errorRows).toBe(0)
@@ -766,16 +811,16 @@ describe('RcmSeamlessImportService ledger, files, deny codes, delete & sync', ()
     clearMemoryCache()
   })
 
-  it('fetches paginated ledger with filters and respects SQL parameters', async () => {
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('SELECT COUNT(*) AS cnt')) {
-        return [{ cnt: 1 }] as any
-      }
-      if (sql.includes('SELECT DISTINCT Fund')) {
-        return [{ fund: 'ระบบเบิกจ่ายตรง (DDSA)' }] as any
-      }
-      if (sql.includes('FROM rcmdb.seamless')) {
-        return [
+  it('fetches paginated ledger with filters via Gateway V2', async () => {
+    const getSeamlessLedger = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        totalCount: 1,
+        totalPages: 1,
+        page: 1,
+        pageSize: 50,
+        availableFunds: ['ระบบเบิกจ่ายตรง (DDSA)'],
+        itemRows: [
           {
             id: 'TX-1',
             yymm: '6901',
@@ -815,9 +860,8 @@ describe('RcmSeamlessImportService ledger, files, deny codes, delete & sync', ()
             equipName: null,
             fileName: '11152_DDSA.xlsx',
           },
-        ] as any
-      }
-      return [] as any
+        ],
+      },
     })
 
     const ledger = await RcmSeamlessImportService.getSeamlessLedger(
@@ -828,7 +872,7 @@ describe('RcmSeamlessImportService ledger, files, deny codes, delete & sync', ()
         page: 1,
         pageSize: 50,
       },
-      mockExecutor
+      { getSeamlessLedger }
     )
 
     expect(ledger.totalCount).toBe(1)
@@ -838,9 +882,10 @@ describe('RcmSeamlessImportService ledger, files, deny codes, delete & sync', ()
   })
 
   it('lists imported files and deny codes', async () => {
-    const mockExecutor = vi.fn(async (sql: string) => {
-      if (sql.includes('GROUP BY FileName')) {
-        return [
+    const mockGateway = {
+      getSeamlessFiles: vi.fn().mockResolvedValue({
+        success: true,
+        data: [
           {
             fileName: '11152_DDSA.xlsx',
             rowCount: 10,
@@ -852,22 +897,22 @@ describe('RcmSeamlessImportService ledger, files, deny codes, delete & sync', ()
             otherHospCount: 2,
             missingPayDateCount: 1,
           },
-        ] as any
-      }
-      if (sql.includes('FROM rcmdb.seamless_error')) {
-        return [
+        ],
+      }),
+      getSeamlessDenyCodes: vi.fn().mockResolvedValue({
+        success: true,
+        data: [
           { Code: 'E01', Name: 'ข้อมูลไม่ครบ' },
           { Code: 'E02', Name: 'เกินกำหนดส่ง' },
-        ] as any
-      }
-      return [] as any
-    })
+        ],
+      }),
+    }
 
-    const files = await RcmSeamlessImportService.getSeamlessImportedFiles(mockExecutor)
+    const files = await RcmSeamlessImportService.getSeamlessImportedFiles(mockGateway)
     expect(files).toHaveLength(1)
     expect(files[0].otherHospCount).toBe(2)
 
-    const denyCodes = await RcmSeamlessImportService.getSeamlessDenyCodes('E01', mockExecutor)
+    const denyCodes = await RcmSeamlessImportService.getSeamlessDenyCodes('E01', mockGateway)
     expect(denyCodes).toEqual([{ code: 'E01', name: 'ข้อมูลไม่ครบ' }])
   })
 

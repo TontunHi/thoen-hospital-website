@@ -12,8 +12,6 @@ import {
 } from './family-planning/service91Report'
 import {
   getFamilyPlanning93Report,
-  queryOpdRows,
-  queryIpdRows,
 } from './family-planning/service93Report'
 import {
   checkIudAdpMapping,
@@ -37,8 +35,6 @@ export class RcmFamilyPlanningService {
   static getFamilyPlanningReport = getFamilyPlanningReport
   static getFamilyPlanning91Report = getFamilyPlanning91Report
   static getFamilyPlanning93Report = getFamilyPlanning93Report
-  static queryOpdRows = queryOpdRows
-  static queryIpdRows = queryIpdRows
   static checkIudAdpMapping = checkIudAdpMapping
   static getIudReport = getIudReport
   static queryIudOpdRows = queryIudOpdRows

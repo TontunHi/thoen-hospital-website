@@ -5,6 +5,7 @@ import {
   type RehabReportParams,
 } from '../rcmRehabilitationService'
 import { invalidateCacheKey } from '@/lib/cache'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmRehabilitationService', () => {
   beforeEach(() => {
@@ -150,12 +151,15 @@ describe('RcmRehabilitationService', () => {
   ]
 
   it('checks target ADP codes mapping in s_drugitems or nondrugitems', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([
-      { icode: '30001', name: 'กายภาพบำบัดฟื้นฟู', strength: null, nhso_adp_code: 'H9449.1' },
-      { icode: '30002', name: 'ฟื้นฟูสมรรถภาพ', strength: null, nhso_adp_code: 'H0489' },
-    ])
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'REHAB',
+      adpItems: [
+        { icode: '30001', name: 'กายภาพบำบัดฟื้นฟู', strength: null, nhso_adp_code: 'H9449.1' },
+        { icode: '30002', name: 'ฟื้นฟูสมรรถภาพ', strength: null, nhso_adp_code: 'H0489' },
+      ],
+    })
 
-    const res = await RcmRehabilitationService.checkRehabAdpMapping(mockExecutor as any, true)
+    const res = await RcmRehabilitationService.checkRehabAdpMapping(mockGateway, true)
     expect(res.isMapped).toBe(true)
     expect(res.mappedCount).toBe(2)
     expect(res.totalTargetCodes).toBe(REHAB_ADP_CODES.length)
@@ -163,25 +167,21 @@ describe('RcmRehabilitationService', () => {
   })
 
   it('handles empty ADP mapping gracefully', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([])
+    const mockGateway = createMockRcmFundGateway({ adpCode: 'REHAB', adpItems: [] })
 
-    const res = await RcmRehabilitationService.checkRehabAdpMapping(mockExecutor as any, true)
+    const res = await RcmRehabilitationService.checkRehabAdpMapping(mockGateway, true)
     expect(res.isMapped).toBe(false)
     expect(res.mappedCount).toBe(0)
     expect(res.items).toEqual([])
   })
 
   it('loads report, reconciles 4 match statuses, and computes KPIs correctly', async () => {
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('TRIM(nhso_adp_code) IN')) {
-        return Promise.resolve([
-          { icode: '30001', name: 'กายภาพบำบัดฟื้นฟู', strength: null, nhso_adp_code: 'H9449.1' },
-        ])
-      }
-      if (sql.includes('IFNULL(rs.vn, \'\') = \'\'')) {
-        return Promise.resolve(mockNoVnRows)
-      }
-      return Promise.resolve(mockMainRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'REHAB',
+      adpItems: [
+        { icode: '30001', name: 'กายภาพบำบัดฟื้นฟู', strength: null, nhso_adp_code: 'H9449.1' },
+      ],
+      rawRows: [...mockMainRows, ...mockNoVnRows],
     })
 
     const params: RehabReportParams = {
@@ -190,7 +190,7 @@ describe('RcmRehabilitationService', () => {
       refresh: true,
     }
 
-    const res = await RcmRehabilitationService.getDisabilityServicesReport(params, mockExecutor as any)
+    const res = await RcmRehabilitationService.getDisabilityServicesReport(params, mockGateway)
 
     expect(res.totalCount).toBe(4)
     expect(res.items.length).toBe(4)
@@ -224,10 +224,10 @@ describe('RcmRehabilitationService', () => {
   })
 
   it('filters data by cardFilter MATCHED, NOT_IN_WEB, NO_REHAB_CODE, NO_VN', async () => {
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('TRIM(nhso_adp_code) IN')) return Promise.resolve([])
-      if (sql.includes('IFNULL(rs.vn, \'\') = \'\'')) return Promise.resolve(mockNoVnRows)
-      return Promise.resolve(mockMainRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'REHAB',
+      adpItems: [],
+      rawRows: [...mockMainRows, ...mockNoVnRows],
     })
 
     const baseParams: RehabReportParams = {
@@ -238,7 +238,7 @@ describe('RcmRehabilitationService', () => {
     // Filter MATCHED
     const resMatched = await RcmRehabilitationService.getDisabilityServicesReport(
       { ...baseParams, cardFilter: 'MATCHED' },
-      mockExecutor as any
+      mockGateway
     )
     expect(resMatched.totalCount).toBe(1)
     expect(resMatched.items[0].match_status).toBe('MATCHED')
@@ -246,7 +246,7 @@ describe('RcmRehabilitationService', () => {
     // Filter NOT_IN_WEB
     const resNotInWeb = await RcmRehabilitationService.getDisabilityServicesReport(
       { ...baseParams, cardFilter: 'NOT_IN_WEB' },
-      mockExecutor as any
+      mockGateway
     )
     expect(resNotInWeb.totalCount).toBe(1)
     expect(resNotInWeb.items[0].match_status).toBe('NOT_IN_WEB')
@@ -254,46 +254,44 @@ describe('RcmRehabilitationService', () => {
     // Filter NO_VN
     const resNoVn = await RcmRehabilitationService.getDisabilityServicesReport(
       { ...baseParams, cardFilter: 'NO_VN' },
-      mockExecutor as any
+      mockGateway
     )
     expect(resNoVn.totalCount).toBe(1)
     expect(resNoVn.items[0].match_status).toBe('NO_VN')
   })
 
   it('filters data using search across patient name, HN, CID, and rehab_name', async () => {
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('TRIM(nhso_adp_code) IN')) return Promise.resolve([])
-      if (sql.includes('IFNULL(rs.vn, \'\') = \'\'')) return Promise.resolve(mockNoVnRows)
-      return Promise.resolve(mockMainRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'REHAB',
+      adpItems: [],
+      rawRows: [...mockMainRows, ...mockNoVnRows],
     })
 
     const res = await RcmRehabilitationService.getDisabilityServicesReport(
       { startDate: '2026-10-01', endDate: '2027-09-30', search: 'สมร' },
-      mockExecutor as any
+      mockGateway
     )
     expect(res.totalCount).toBe(1)
     expect(res.items[0].ptname).toContain('สมร')
 
     const resByAdp = await RcmRehabilitationService.getDisabilityServicesReport(
       { startDate: '2026-10-01', endDate: '2027-09-30', search: 'H9449.1' },
-      mockExecutor as any
+      mockGateway
     )
     expect(resByAdp.totalCount).toBe(1)
     expect(resByAdp.items[0].rehab_code).toBe('H9449.1')
   })
 
-  it('falls back gracefully when rcmdb.rehab_service does not exist', async () => {
-    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('TRIM(nhso_adp_code) IN')) return Promise.resolve([])
-      if (sql.includes('rcmdb.rehab_service')) {
-        throw new Error("Table 'rcmdb.rehab_service' doesn't exist")
-      }
-      return Promise.resolve([mockMainRows[1]]) // Return HOSxP only row
+  it('falls back gracefully when Gateway returns HOSxP-only rows (rehab_service absent)', async () => {
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'REHAB',
+      adpItems: [],
+      rawRows: [mockMainRows[1]],
     })
 
     const res = await RcmRehabilitationService.getDisabilityServicesReport(
       { startDate: '2026-10-01', endDate: '2027-09-30', refresh: true },
-      mockExecutor as any
+      mockGateway
     )
 
     expect(res.totalCount).toBe(1)

@@ -1,12 +1,15 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
@@ -158,23 +161,11 @@ export interface HomewardReportResult {
 
 export class RcmAmedHomewardService {
   /**
-   * Helper to check if rcmdb.amed table exists in the connected database.
-   */
-  static async checkAmedTableExists(executor: QueryExecutor = queryClinicalDb): Promise<boolean> {
-    try {
-      const res = await executor("SHOW TABLES IN rcmdb LIKE 'amed'")
-      return Array.isArray(res) && res.length > 0
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Fetch and calculate HOMEWARD report with full Two-Tier Query and In-Memory Filtering.
+   * Fetch and calculate HOMEWARD report via API Gateway Named Endpoint with In-Memory Filtering.
    */
   static async getHomewardReport(
     params: HomewardReportParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<HomewardReportResult> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: HomewardCardFilter = params.cardFilter || 'ALL'
@@ -193,153 +184,8 @@ export class RcmAmedHomewardService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('amed-homeward', { ds1, ds2 })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return gwRes.data.rawRows
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        const hasAmedTable = await this.checkAmedTableExists(executor)
-
-        const amedJoin = hasAmedTable
-          ? 'LEFT OUTER JOIN rcmdb.amed aa ON aa.cid = pt.cid'
-          : ''
-        const amedSelect = hasAmedTable
-          ? 'MAX(aa.cid) AS onweb_cid, MAX(aa.an) AS anonweb,'
-          : 'NULL AS onweb_cid, NULL AS anonweb,'
-
-        const sql = `
-          SELECT 
-            COALESCE(NULLIF(re.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, '')) AS rep,
-            r.remark AS rep_remark,
-            re.rep AS invoice,
-            COALESCE(re.compensated, r.compensated, nn.Income, m.compensated, 0) AS compensated,
-            ${amedSelect}
-            i.an,
-            i.hn,
-            IFNULL(pt.cid, '') AS cid,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-            IFNULL(pt.sex, '') AS sex_code,
-            DATE_FORMAT(pt.birthday, '%Y-%m-%d') AS birthday,
-            IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, i.regdate), 0) AS age,
-            CONCAT_WS(':', pt.nationality, IFNULL(nat.name, pt.nationality)) AS nation,
-            DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
-            DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
-            IFNULL(a.admdate, 0) AS los,
-            DATE_FORMAT(idx.modify_datetime, '%Y-%m-%d %H:%i') AS editdate,
-            IFNULL(TIMESTAMPDIFF(DAY, i.dchdate, idx.modify_datetime), 0) AS day_diff,
-            IFNULL(w.name, i.ward) AS ward,
-            IFNULL(adm.bedno, '') AS bedno,
-            IFNULL(spc.name, i.spclty) AS clinic,
-            IFNULL(i.prediag, '') AS prediag,
-            IFNULL(a.pdx, '') AS pdx,
-            IFNULL(icd.name, a.pdx) AS pdxname,
-            (
-              SELECT GROUP_CONCAT(DISTINCT dx2.icd10 ORDER BY dx2.diagtype SEPARATOR ', ')
-              FROM iptdiag dx2
-              WHERE dx2.an = i.an AND dx2.diagtype <> 1
-            ) AS sdx,
-            (
-              SELECT GROUP_CONCAT(DISTINCT op.icd9 SEPARATOR ', ')
-              FROM iptoprt op
-              WHERE op.an = i.an
-            ) AS proc_code,
-            IFNULL(i.adjrw, 0) AS adjrw,
-            IFNULL(d1.name, i.admdoctor) AS admdoctor,
-            IFNULL(d2.name, i.dch_doctor) AS dchdoctor,
-            IFNULL(cc.auth_code, '') AS authencode,
-            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-            IFNULL(e.name, '') AS pttype_eclaim_name,
-            IFNULL(i.pttype, '') AS pttype,
-            IFNULL(ptt.name, i.pttype) AS pttypename,
-            IFNULL(ptt.pttype, '') AS copttype,
-            IFNULL(e.gf_ipd, '') AS gfmis,
-            IFNULL(e.ar_ipd, '') AS accountcode,
-            IFNULL(v.pttypeno, '') AS pttypeno,
-            CONCAT_WS(':', v.hospmain, IFNULL(hm.name, v.hospmain)) AS hospmain,
-            CONCAT_WS(':', v.hospsub, IFNULL(hs.name, v.hospsub)) AS hospsub,
-            IFNULL(ds.name, i.dchstts) AS dchstts,
-            IFNULL(dt.name, i.dchtype) AS dchtype,
-            IFNULL(iss.ipt_summary_status_name, i.ipt_summary_status_id) AS summary_status,
-            IFNULL(a.income, 0) AS income,
-            IFNULL(a.uc_money, 0) AS uc_money,
-            IFNULL(a.discount_money, 0) AS discount_money,
-            IFNULL(a.paid_money, 0) AS paid_money,
-            IFNULL(a.rcpt_money, 0) AS rcpt_money,
-            IFNULL(a.rcpno_list, '') AS rcpno,
-            (IFNULL(a.income, 0) - IFNULL(a.discount_money, 0) - IFNULL(a.rcpt_money, 0)) AS debit,
-            (SELECT MAX(max_debt_amount) FROM ipt_pttype WHERE an = i.an) AS max_debt_amount,
-            SUM(IFNULL(p.follow, 0)) AS follow_money,
-            GROUP_CONCAT(DISTINCT CONCAT(p.bill, '#', IFNULL(p.follow, 0)) SEPARATOR ', ') AS bill,
-            GROUP_CONCAT(DISTINCT DATE_FORMAT(p.lastdate, '%Y-%m-%d') SEPARATOR ', ') AS billdate,
-            IFNULL(opu.name, i.staff) AS staff,
-            IFNULL(pt.informaddr, '') AS address,
-            IFNULL(pt.mobile_phone_number, '') AS mobile,
-            CONCAT_WS(' / ', NULLIF(TRIM(pt.informtel), ''), NULLIF(TRIM(pt.hometel), '')) AS tel
-          FROM ipt i
-          LEFT OUTER JOIN an_stat a ON a.an = i.an
-          LEFT OUTER JOIN patient pt ON i.hn = pt.hn
-          LEFT OUTER JOIN rcmdb.debit_ipd_paid p ON p.an = i.an
-          LEFT OUTER JOIN pttype ptt ON ptt.pttype = i.pttype
-          LEFT OUTER JOIN pttype_eclaim e ON e.code = ptt.pttype_eclaim_id
-          LEFT OUTER JOIN vn_stat v ON v.vn = i.vn
-          LEFT OUTER JOIN iptdiag idx ON i.an = idx.an AND idx.diagtype = 1
-          LEFT OUTER JOIN visit_pttype cc ON cc.vn = i.vn
-          ${amedJoin}
-          LEFT OUTER JOIN (
-            SELECT
-              an,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(remark, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS remark,
-              SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repdata
-            WHERE IFNULL(an, '') <> ''
-            GROUP BY an
-          ) r ON r.an = i.an
-          LEFT OUTER JOIN (
-            SELECT
-              an,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-              SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repeclaim
-            WHERE IFNULL(an, '') <> ''
-            GROUP BY an
-          ) re ON re.an = i.an
-          LEFT OUTER JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
-          LEFT OUTER JOIN (
-            SELECT
-              m.an,
-              SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-              SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated
-            FROM eclaimdb.m_registerdata m
-            WHERE m.person_type = '2' AND IFNULL(m.an, '') <> ''
-            GROUP BY m.an
-          ) m ON m.an = i.an
-          LEFT OUTER JOIN nationality nat ON nat.nationality = pt.nationality
-          LEFT OUTER JOIN ward w ON w.ward = i.ward
-          LEFT OUTER JOIN iptadm adm ON adm.an = i.an
-          LEFT OUTER JOIN spclty spc ON spc.spclty = i.spclty
-          LEFT OUTER JOIN icd101 icd ON icd.code = a.pdx
-          LEFT OUTER JOIN doctor d1 ON d1.code = i.admdoctor
-          LEFT OUTER JOIN doctor d2 ON d2.code = i.dch_doctor
-          LEFT OUTER JOIN hospcode hm ON hm.hospcode = v.hospmain
-          LEFT OUTER JOIN hospcode hs ON hs.hospcode = v.hospsub
-          LEFT OUTER JOIN dchstts ds ON ds.dchstts = i.dchstts
-          LEFT OUTER JOIN dchtype dt ON dt.dchtype = i.dchtype
-          LEFT OUTER JOIN ipt_summary_status iss ON iss.ipt_summary_status_id = i.ipt_summary_status_id
-          LEFT OUTER JOIN opduser opu ON opu.loginname = i.staff
-          WHERE i.dchdate BETWEEN ? AND ?
-            AND ptt.pttype_eclaim_id BETWEEN '01' AND '09'
-          GROUP BY i.an
-          ORDER BY i.dchdate DESC, i.an DESC
-        `
-
-        return (await executor(sql, [ds1, ds2], { timeoutMs: 90000 })) as any[]
+        const gwRes = await gateway.getRcmFundData('amed-homeward', { ds1, ds2 })
+        return extractFundRawRows(gwRes)
       },
       300000 // Cache TTL 5 minutes
     )
@@ -429,7 +275,7 @@ export class RcmAmedHomewardService {
     const enrichedAllItems = await enrichItemsWithSeamlessCache(
       cacheKey,
       allItems,
-      executor,
+      resolveSeamlessFetcher(gateway),
       Boolean(params.refresh)
     )
     let summaryCohort = enrichedAllItems

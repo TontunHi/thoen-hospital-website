@@ -1,8 +1,13 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { resolveFiscalDateRange, type FiscalDateRangeParams } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
 import {
   buildRepBreakdownSummary,
@@ -137,71 +142,25 @@ export interface AncService30011Result {
 
 export class RcmAncService {
   /**
-   * Checks whether NHSO ADP code 30011 is mapped in HOSxP `s_drugitems` table.
-   * Mirrors FoxPro check:
-   * select count(*) from s_drugitems where nhso_adp_code in ('30011')
+   * Checks whether NHSO ADP code 30011 is mapped in HOSxP `s_drugitems` table via API Gateway.
    */
   static async check30011AdpMapping(
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<AncAdpMappingCheck> {
-    if (executor === queryClinicalDb) {
-      try {
-        const gwRes = await apiGateway.clinical.getAdpMapping('30011')
-        if (gwRes && typeof gwRes.isMapped === 'boolean') {
-          return {
-            isMapped: gwRes.isMapped,
-            mappedCount: gwRes.mappedCount,
-            items: (gwRes.items || []).map((r: any) => ({
-              icode: String(r.icode || '').trim(),
-              name: String(r.name || '').trim(),
-              strength: r.strength ? String(r.strength).trim() : null,
-              nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-            })),
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    try {
-      const rows = await executor(
-        `
-        SELECT icode, name, strength, nhso_adp_code
-        FROM s_drugitems
-        WHERE TRIM(nhso_adp_code) IN ('30011')
-        ORDER BY icode ASC
-        `
-      )
-
-      const items: AncAdpMappingItem[] = (rows || []).map((r: any) => ({
-        icode: String(r.icode || '').trim(),
-        name: String(r.name || '').trim(),
-        strength: r.strength ? String(r.strength).trim() : null,
-        nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-      }))
-
-      return {
-        isMapped: items.length > 0,
-        mappedCount: items.length,
-        items,
-      }
-    } catch {
-      return {
-        isMapped: false,
-        mappedCount: 0,
-        items: [],
-      }
+    const res = await fetchAdpMappingViaGateway('30011', gateway)
+    return {
+      isMapped: res.isMapped,
+      mappedCount: res.mappedCount,
+      items: res.items,
     }
   }
 
   /**
-   * Retrieves ANC Service 30011 report based on HOSxP visits, ADP code 30011 dispensing,
-   * non-drug items (listname1), and reimbursement status (NHSO / Rep / NewEclaim / EClaim).
+   * Retrieves ANC Service 30011 report via API Gateway Named Endpoint.
    */
   static async getService30011Report(
     params: AncService30011Params = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<AncService30011Result> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const compensationFilter: AncCompensationFilter = params.compensationFilter || 'ALL'
@@ -221,114 +180,14 @@ export class RcmAncService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmAncService.check30011AdpMapping(executor),
-              apiGateway.clinical.getRcmFundData('anc', { ds1, ds2, adpCode: '30011' }),
-            ])
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return { rawRows: gwRes.data.rawRows as Record<string, unknown>[], adpMapping: mRes }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        const [mappingRes, rows] = await Promise.all([
-          RcmAncService.check30011AdpMapping(executor),
-          executor(
-            `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) AS age,
-              IFNULL(nat.name, pt.nationality) AS nation,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              ptt.name AS pttypename,
-              ptt.pttype_eclaim_id AS pttype_eclaim_id,
-              dep.department,
-              spc.name AS clinic,
-              v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-              v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-              dd.name AS listname,
-              (SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
-               FROM opitemrece a
-               JOIN nondrugitems b ON b.icode = a.icode
-               WHERE a.vn = o.vn) AS listname1,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
-              COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-              COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-              re.fund,
-              re.subfund
-            FROM ovst o
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            JOIN (
-              SELECT 
-                oo.vn, 
-                GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              WHERE IFNULL(oo.vn, '') <> ''
-                AND oo.vstdate BETWEEN ? AND ?
-                AND TRIM(d.nhso_adp_code) IN ('30011')
-              GROUP BY oo.vn
-            ) dd ON dd.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'Rep :: มี Rep แล้ว' AS statusname
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                     GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              GROUP BY vn
-            ) re ON re.vn = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-              FROM eclaimdb.m_registerdata m
-              LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-              GROUP BY m.opdseq
-            ) m ON m.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ?
-            GROUP BY o.vn
-            ORDER BY o.hn ASC, o.vn ASC
-            `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
-          ),
+        const [mRes, gwRes] = await Promise.all([
+          RcmAncService.check30011AdpMapping(gateway),
+          gateway.getRcmFundData('anc-30011', { ds1, ds2, adpCode: '30011' }),
         ])
-
-        return { rawRows: rows as Record<string, unknown>[], adpMapping: mappingRes }
+        return {
+          rawRows: extractFundRawRows<Record<string, unknown>>(gwRes),
+          adpMapping: mRes,
+        }
       },
       600
     )
@@ -379,7 +238,7 @@ export class RcmAncService {
     const enrichedAllItems = await enrichItemsWithSeamlessCache(
       cacheKey,
       allItems,
-      executor,
+      resolveSeamlessFetcher(gateway),
       Boolean(params.refresh)
     )
 
@@ -570,7 +429,7 @@ export class RcmAncService {
    */
   static async getAncService23Report(
     params: AncService23Params = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<AncService23Result> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: AncService23CardFilter = params.cardFilter || 'ALL'
@@ -593,257 +452,8 @@ export class RcmAncService {
     const allRows: AncService23Item[] = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('anc', { ds1, ds2, serviceType: '2.3' })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
-              return gwRes.data.rawRows as unknown as AncService23Item[]
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        const sql = `
-          SELECT 
-            o.vn,
-            o.hn,
-            IFNULL(pt.cid, '') AS cid,
-            anc_info.person_id,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-            IFNULL(pt.sex, '2') AS sex,
-            TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) AS age,
-            IFNULL(nat.name, pt.nationality) AS nation,
-            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            dep.department AS room,
-            ptt_pt.name AS pttypename_patient,
-            ptt_o.name AS pttypename_visit,
-            IFNULL(ptt_o.pttype_eclaim_id, '') AS pttype_eclaim_id,
-            IF(ptt_o.pttype_eclaim_id BETWEEN '01' AND '09', 'Y', ' ') AS uc,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt_auth.auth_code), ''), NULLIF(TRIM(vt_auth.claim_code), '')) AS authencode,
-            
-            -- Group composition flags
-            (
-              IF(dent.vn IS NOT NULL, 1, 0) +
-              IF(anc_info.person_anc_id IS NOT NULL, 10, 0) +
-              IF(oper.vn IS NOT NULL, 100, 0) +
-              IF(srv.vn IS NOT NULL, 1000, 0)
-            ) AS group_id_num,
-            
-            anc_info.preg_no,
-            DATE_FORMAT(anc_info.lmp, '%Y-%m-%d') AS lmp,
-            DATE_FORMAT(DATE_ADD(anc_info.lmp, INTERVAL 168 DAY), '%Y-%m-%d') AS lastdate,
-            dt.pregnancy,
-            TIMESTAMPDIFF(WEEK, anc_info.lmp, o.vstdate) AS ga,
-            DATE_FORMAT(anc_info.labor_date, '%Y-%m-%d') AS labor_date,
-            DATE_FORMAT(anc_info.discharge_date, '%Y-%m-%d') AS dchdate,
-            
-            srv.servicename,
-            oper.oper,
-            
-            -- Dental operations
-            GROUP_CONCAT(DISTINCT IF(tm.icd10tm_operation_code IN ('2330011','2330013'), 'Y', NULL)) AS checkup,
-            GROUP_CONCAT(DISTINCT IF(tm.icd10tm_operation_code IN ('2387010','2277310','2277320','2287310','2287320'), 'Y', NULL)) AS scalling,
-            GROUP_CONCAT(DISTINCT IF(tm.icd10tm_operation_code IN ('2330011','2330013','2387010','2277310','2277320','2287310','2287320'), DATE_FORMAT(o.vstdate, '%Y-%m-%d'), NULL)) AS service_date,
-            
-            -- Procedure code list
-            CONCAT_WS(',',
-              GROUP_CONCAT(DISTINCT IF(tm.icd10tm_operation_code IN ('2330011','2330013','2387010','2277310','2277320','2287310','2287320'), tm.icd10tm_operation_code, NULL)),
-              oper.oper
-            ) AS itemname,
-            
-            o.doctor,
-            pt.type_area AS typearea,
-            CONCAT_WS(' ', pt.addrpart, pt.moopart, pt.road) AS address,
-            CONCAT_WS(' ', NULLIF(pt.informtel, ''), NULLIF(pt.hometel, '')) AS tel,
-            
-            -- E-Claim & Reimbursement
-            m.eclaim_no,
-            m.service,
-            COALESCE(nhso.statusname, m.statusname, rep.statusname, '- :: ยังไม่ได้ส่ง') AS status_eclaim,
-            COALESCE(nhso.compensated, rep.compensated, m.compensated, 0) AS compensated,
-            COALESCE(nhso.rep, rep.rep, m.rep) AS rep,
-            rr.fund,
-            rr.subfund
-
-          FROM (
-            -- Union of target visits
-            SELECT o.vn
-            FROM ovst o
-            JOIN dental_care dc ON dc.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ? AND dc.dental_care_type_id = 1
-            
-            UNION
-            
-            SELECT dx.vn
-            FROM ovstdiag dx
-            LEFT JOIN vn_stat v ON v.vn = dx.vn
-            JOIN person p ON p.patient_hn = dx.hn
-            JOIN person_anc anc ON anc.person_id = p.person_id
-            WHERE dx.vstdate BETWEEN ? AND ?
-              AND dx.icd10 REGEXP '887[6-9]'
-              AND (v.sex = '2' OR v.sex IS NULL)
-              
-            UNION
-            
-            SELECT oo.vn
-            FROM opitemrece oo
-            JOIN nondrugitems d ON d.icode = oo.icode
-            LEFT JOIN vn_stat v ON v.vn = oo.vn
-            WHERE oo.vstdate BETWEEN ? AND ?
-              AND IFNULL(oo.vn, '') <> ''
-              AND (
-                d.billcode IN ('30010', '52612')
-                OR d.icode IN ('3002551', '3002605', '3000516', '3002083')
-                OR d.name LIKE '%ทารก%'
-                OR d.name LIKE '%สูติ%'
-                OR d.billcode LIKE '%887%'
-              )
-              AND (v.sex = '2' OR v.sex IS NULL)
-              
-            UNION
-            
-            SELECT s.vn
-            FROM person_anc_service s
-            JOIN person_anc anc ON anc.person_anc_id = s.person_anc_id
-            JOIN ovst o ON o.vn = s.vn
-            WHERE s.anc_service_date BETWEEN ? AND ?
-              AND s.anc_service_type_id = 1
-              
-            UNION
-            
-            SELECT o.vn
-            FROM person_anc anc
-            JOIN person p ON p.person_id = anc.person_id
-            JOIN ovst o ON o.hn = p.patient_hn
-            WHERE o.vstdate BETWEEN ? AND ?
-              AND anc.lmp IS NOT NULL
-              AND TIMESTAMPDIFF(WEEK, anc.lmp, o.vstdate) BETWEEN 0 AND 24
-          ) vt
-          JOIN ovst o ON o.vn = vt.vn
-          LEFT JOIN patient pt ON pt.hn = o.hn
-          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-          LEFT JOIN pttype ptt_pt ON ptt_pt.pttype = pt.pttype
-          LEFT JOIN pttype ptt_o ON ptt_o.pttype = o.pttype
-          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-          
-          -- Dental visit check
-          LEFT JOIN (
-            SELECT dc.vn
-            FROM dental_care dc
-            WHERE dc.dental_care_type_id = 1
-            GROUP BY dc.vn
-          ) dent ON dent.vn = o.vn
-
-          -- Ultrasound diagnosis
-          LEFT JOIN (
-            SELECT dx.vn, GROUP_CONCAT(DISTINCT dx.icd10 SEPARATOR ',') AS oper
-            FROM ovstdiag dx
-            WHERE dx.vstdate BETWEEN ? AND ? AND dx.icd10 REGEXP '887[6-9]'
-            GROUP BY dx.vn
-          ) oper ON oper.vn = o.vn
-
-          -- Ultrasound service item
-          LEFT JOIN (
-            SELECT oo.vn, GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS servicename
-            FROM opitemrece oo
-            JOIN nondrugitems d ON d.icode = oo.icode
-            WHERE oo.vstdate BETWEEN ? AND ?
-              AND (
-                d.billcode IN ('30010', '52612')
-                OR d.icode IN ('3002551', '3002605', '3000516', '3002083')
-                OR d.name LIKE '%ทารก%'
-                OR d.name LIKE '%สูติ%'
-                OR d.billcode LIKE '%887%'
-              )
-            GROUP BY oo.vn
-          ) srv ON srv.vn = o.vn
-
-          -- Person ANC metadata (matched via service or latest pregnancy)
-          LEFT JOIN (
-            SELECT 
-              o2.vn,
-              anc.person_id,
-              anc.person_anc_id,
-              anc.lmp,
-              anc.preg_no,
-              anc.labor_date,
-              anc.discharge_date
-            FROM ovst o2
-            JOIN person p ON p.patient_hn = o2.hn
-            JOIN person_anc anc ON anc.person_id = p.person_id
-            WHERE o2.vstdate BETWEEN ? AND ?
-              AND (anc.labor_date IS NULL OR o2.vstdate <= anc.labor_date)
-            GROUP BY o2.vn
-          ) anc_info ON anc_info.vn = o.vn
-
-          -- Dental procedures
-          LEFT JOIN dtmain dt ON dt.vn = o.vn
-          LEFT JOIN dttm tm ON tm.code = dt.tmcode
-
-          -- Reimbursement & E-Claim
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: ได้รับ Invoice แล้ว' AS statusname
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) nhso ON nhso.vn = o.vn
-
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'Rep :: ส่ง Rep แล้ว' AS statusname
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) rep ON rep.vn = o.vn
-
-          LEFT JOIN (
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.eclaim_no ORDER BY m.eclaim_no DESC), ',', 1) AS eclaim_no,
-                   SUBSTRING_INDEX(GROUP_CONCAT(IF(m.status = '4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname,
-                   MAX(IF(pp.itemname REGEXP '30008|30009|30010' OR m.code_id = '30008' OR m.code_id = '30009', 'Y', NULL)) AS service
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN eclaimdb.m_ppcom pp ON pp.eclaim_no = m.eclaim_no
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq, '') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-
-          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-          LEFT JOIN visit_pttype vt_auth ON vt_auth.vn = o.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ', ') AS fund, GROUP_CONCAT(DISTINCT subfund SEPARATOR ', ') AS subfund
-            FROM rcmdb.repdata
-            WHERE IFNULL(vn, '') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-            GROUP BY vn
-          ) rr ON rr.vn = o.vn
-
-          GROUP BY o.vn
-          ORDER BY o.vstdate DESC, o.vsttime DESC
-        `
-
-        // 5 unions (10 params) + oper (2) + srv (2) + anc_info (2) + nhso (2) + rep (2) + rr (2) = 22 params
-        const queryParams = [
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-          ds1, ds2,
-        ]
-
-        const rows = (await executor(sql, queryParams, { timeoutMs: 45000 })) as Record<string, unknown>[]
+        const gwRes = await gateway.getRcmFundData('anc-23', { ds1, ds2, serviceType: '2.3' })
+        const rows = extractFundRawRows<Record<string, unknown>>(gwRes)
 
         return rows.map((r) => {
           const groupIdNum = Number(r.group_id_num || 0)
@@ -957,7 +567,7 @@ export class RcmAncService {
     const enrichedAllRows = await enrichItemsWithSeamlessCache(
       cacheKey,
       allRows,
-      executor,
+      resolveSeamlessFetcher(gateway),
       Boolean(params.refresh)
     )
     const pttypes = (params.pttypes || '').trim()

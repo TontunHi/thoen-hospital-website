@@ -4,6 +4,7 @@ import {
   parseInstrumentItemList,
 } from '../rcmInstrumentFundService'
 import { clearMemoryCache } from '@/lib/cache'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmInstrumentFundService', () => {
   beforeEach(() => {
@@ -39,21 +40,27 @@ describe('RcmInstrumentFundService', () => {
 
   describe('checkAdpMapping', () => {
     it('returns mapped = true when nondrugitems has nhso_adp_type_id = 2 items', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        { icode: '3000001', name: 'ข้อเข่าเทียม', nhso_adp_code: '7004', nhso_adp_type_id: 2 },
-        { icode: '3000002', name: 'แถบตรวจน้ำตาล', nhso_adp_code: '8612', nhso_adp_type_id: 2 },
-      ])
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'INSTRUMENT_TYPE_2',
+        adpItems: [
+          { icode: '3000001', name: 'ข้อเข่าเทียม', nhso_adp_code: '7004' },
+          { icode: '3000002', name: 'แถบตรวจน้ำตาล', nhso_adp_code: '8612' },
+        ],
+      })
 
-      const result = await RcmInstrumentFundService.checkAdpMapping(mockExecutor)
+      const result = await RcmInstrumentFundService.checkAdpMapping(mockGateway)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(2)
       expect(result.items[0].nhso_adp_code).toBe('7004')
     })
 
     it('returns mapped = false when no items exist', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'INSTRUMENT_TYPE_2',
+        adpItems: [],
+      })
 
-      const result = await RcmInstrumentFundService.checkAdpMapping(mockExecutor)
+      const result = await RcmInstrumentFundService.checkAdpMapping(mockGateway)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
     })
@@ -148,12 +155,10 @@ describe('RcmInstrumentFundService', () => {
     ]
 
     it('aggregates OPD instrument data and summary correctly', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockOpdRows) // Main report query
-        .mockResolvedValueOnce([
-          { icode: '3000001', name: 'ข้อเข่า', nhso_adp_code: '7004' },
-        ]) // ADP mapping check
+      const mockGateway = createMockRcmFundGateway({
+        adpItems: [{ icode: '3000001', name: 'ข้อเข่า', nhso_adp_code: '7004' }],
+        rawRows: mockOpdRows,
+      })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -163,7 +168,7 @@ describe('RcmInstrumentFundService', () => {
           page: 1,
           pageSize: 50,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(3)
@@ -189,10 +194,7 @@ describe('RcmInstrumentFundService', () => {
     })
 
     it('filters by cardFilter = OA', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockOpdRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockOpdRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -201,7 +203,7 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'OPD',
           cardFilter: 'OA',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -210,10 +212,7 @@ describe('RcmInstrumentFundService', () => {
     })
 
     it('filters by cardFilter = DM', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockOpdRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockOpdRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -222,7 +221,7 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'OPD',
           cardFilter: 'DM',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -231,10 +230,7 @@ describe('RcmInstrumentFundService', () => {
     })
 
     it('filters by cardFilter = DISCREPANCY', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockOpdRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockOpdRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -243,7 +239,7 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'OPD',
           cardFilter: 'DISCREPANCY',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -252,10 +248,7 @@ describe('RcmInstrumentFundService', () => {
     })
 
     it('filters by Unified Global Search (CID, HN, Name, ADP Code)', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockOpdRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockOpdRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -264,7 +257,7 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'OPD',
           search: 'แถบตรวจน้ำตาล',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -272,10 +265,7 @@ describe('RcmInstrumentFundService', () => {
     })
 
     it('filters by specific instrument and returns availableInstruments', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockOpdRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockOpdRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -284,7 +274,7 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'OPD',
           instrumentFilter: '7004',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -339,10 +329,7 @@ describe('RcmInstrumentFundService', () => {
     ]
 
     it('processes IPD items with admission dates and ward', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockIpdRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mockIpdRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -350,7 +337,7 @@ describe('RcmInstrumentFundService', () => {
           ds2: '2027-09-30',
           patientType: 'IPD',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -379,10 +366,7 @@ describe('RcmInstrumentFundService', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mixedRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mixedRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -391,7 +375,7 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'IPD',
           pttypes: '01,02',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -418,10 +402,7 @@ describe('RcmInstrumentFundService', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mixedRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mixedRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -430,7 +411,7 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'IPD',
           ucOnly: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.items).toHaveLength(1)
@@ -438,7 +419,7 @@ describe('RcmInstrumentFundService', () => {
       expect(result.summary.totalCases).toBe(1)
     })
 
-    it('queries all 4 primary REP tables and filters by reps while keeping repBreakdown', async () => {
+    it('delegates to Gateway V2 instrument endpoint and filters by reps while keeping repBreakdown', async () => {
       const mixedRows = [
         {
           ...mockIpdRows[0],
@@ -456,10 +437,7 @@ describe('RcmInstrumentFundService', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mixedRows)
-        .mockResolvedValueOnce([])
+      const mockGateway = createMockRcmFundGateway({ adpItems: [], rawRows: mixedRows })
 
       const result = await RcmInstrumentFundService.getReportData(
         {
@@ -468,14 +446,14 @@ describe('RcmInstrumentFundService', () => {
           patientType: 'IPD',
           reps: 'OP_12345',
         },
-        mockExecutor
+        mockGateway
       )
 
-      const executedSql = String(mockExecutor.mock.calls[0]?.[0] ?? '')
-      expect(executedSql).toContain('rcmdb.repeclaim')
-      expect(executedSql).toContain('rcmdb.repdata')
-      expect(executedSql).toContain('rcmdb.neweclaim')
-      expect(executedSql).toContain('eclaimdb.m_registerdata')
+      expect(mockGateway.getRcmFundData).toHaveBeenCalledWith('instrument', {
+        ds1: '2026-10-01',
+        ds2: '2027-09-30',
+        patientType: 'IPD',
+      })
 
       expect(result.items).toHaveLength(1)
       expect(result.items[0].an).toBe('690001')

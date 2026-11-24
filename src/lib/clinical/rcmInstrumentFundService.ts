@@ -1,12 +1,16 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
@@ -233,10 +237,10 @@ function cleanRcpno(rcpno: string | null | undefined): string | null {
 
 export class RcmInstrumentFundService {
   /**
-   * ตรวจสอบว่าในระบบ HOSxP มีการ Map ADP Code ประเภทอวัยวะเทียมและอุปกรณ์ (nhso_adp_type_id = 2) หรือไม่
+   * ตรวจสอบว่าในระบบ HOSxP มีการ Map ADP Code ประเภทอวัยวะเทียมและอุปกรณ์ (nhso_adp_type_id = 2) หรือไม่ via API Gateway
    */
   static async checkAdpMapping(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway,
     refresh = false
   ): Promise<InstrumentAdpMappingCheck> {
     const cacheKey = 'rcm:instrument:adp-mapping-check'
@@ -248,20 +252,13 @@ export class RcmInstrumentFundService {
       cacheKey,
       async () => {
         try {
-          const sql = `
-            SELECT icode, name, nhso_adp_code, nhso_adp_type_id
-            FROM nondrugitems
-            WHERE nhso_adp_type_id = 2
-            ORDER BY nhso_adp_code ASC
-          `
-          const rows = (await executor(sql, [], { timeoutMs: 15000 })) as any[]
-          const items: InstrumentAdpMappingItem[] = (rows || []).map((r) => ({
+          const res = await fetchAdpMappingViaGateway('INSTRUMENT_TYPE_2', gateway, { refresh })
+          const items: InstrumentAdpMappingItem[] = res.items.map((r: any) => ({
             icode: String(r.icode || ''),
             name: String(r.name || ''),
             nhso_adp_code: String(r.nhso_adp_code || ''),
             nhso_adp_type_id: Number(r.nhso_adp_type_id || 2),
           }))
-
           return {
             isMapped: items.length > 0,
             mappedCount: items.length,
@@ -280,11 +277,11 @@ export class RcmInstrumentFundService {
   }
 
   /**
-   * ดึงข้อมูลรายงานรายชื่อผู้รับบริการ อวัยวะเทียมและอุปกรณ์ (ทั้ง OPD และ IPD)
+   * ดึงข้อมูลรายงานรายชื่อผู้รับบริการ อวัยวะเทียมและอุปกรณ์ (ทั้ง OPD และ IPD) via API Gateway
    */
   static async getReportData(
     params: InstrumentReportParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<InstrumentReportResponse> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const patientType: InstrumentPatientType = params.patientType === 'IPD' ? 'IPD' : 'OPD'
@@ -303,231 +300,17 @@ export class RcmInstrumentFundService {
       invalidateCacheKey(cacheKey)
     }
 
-    // ขนานการดึง Check ADP Mapping พร้อม Query หลัก
+    // ขนานการดึง Check ADP Mapping พร้อม Query หลัก via API Gateway
     const [rawRows, adpMapping] = await Promise.all([
       getCachedData(
         cacheKey,
         async () => {
-          if (executor === queryClinicalDb) {
-            try {
-              const gwRes = await apiGateway.clinical.getRcmFundData('instrument', { ds1, ds2, patientType })
-              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
-                return gwRes.data.rawRows
-              }
-            } catch {
-              // Fallback to executor query
-            }
-          }
-
-          if (patientType === 'OPD') {
-            const opdSql = `
-              SELECT
-                o.vn,
-                pt.cid,
-                o.hn,
-                CONCAT(pt.pname, pt.fname, ' ', pt.lname) AS ptname,
-                pt.sex AS sex_code,
-                DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-                DATE_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-                ptt.hipdata_code AS inscl,
-                ptt.name AS pttypename,
-                IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-                dep.department AS room,
-                COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-                v.income AS money_hosxp,
-                v.discount_money,
-                v.rcpt_money,
-                (v.income - v.discount_money - v.rcpt_money) AS debit,
-                v.rcpno_list AS rcpno,
-                inst.instrument,
-                inst.list,
-                inst.oa,
-                inst.dm,
-                inst.item_count,
-                COALESCE(e.eclaim_money, 0) AS money_eclaim,
-                COALESCE(r.income, 0) AS money_rep,
-                COALESCE(n.income, 0) AS money_invoice,
-                COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(e.rep, '')) AS rep,
-                e.status AS eclaim_status,
-                COALESCE(e.statusname, nn.StatusName) AS eclaim_statusname
-              FROM ovst o
-              JOIN (
-                SELECT
-                  oo.vn,
-                  SUM(oo.sum_price) AS instrument,
-                  COUNT(DISTINCT oo.icode) AS item_count,
-                  GROUP_CONCAT(DISTINCT CONCAT(d.nhso_adp_code, ':', d.name, '#', ROUND(oo.sum_price, 2)) SEPARATOR ', ') AS list,
-                  MAX(IF(d.nhso_adp_code REGEXP '^700[4-5]', 'Y', NULL)) AS oa,
-                  MAX(IF(d.nhso_adp_code REGEXP '^8612|^8813|^8814', 'Y', NULL)) AS dm
-                FROM (
-                  SELECT icode, nhso_adp_code, name
-                  FROM nondrugitems
-                  WHERE nhso_adp_type_id = 2
-                ) d
-                JOIN opitemrece oo ON oo.icode = d.icode
-                WHERE oo.vstdate BETWEEN ? AND ?
-                  AND IFNULL(oo.vn, '') <> ''
-                GROUP BY oo.vn
-              ) inst ON inst.vn = o.vn
-              LEFT JOIN patient pt ON pt.hn = o.hn
-              LEFT JOIN vn_stat v ON v.vn = o.vn
-              LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-              LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-              LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-              LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-              LEFT JOIN (
-                SELECT
-                  e.opdseq AS vn,
-                  SUBSTRING_INDEX(GROUP_CONCAT(e.status ORDER BY e.eclaim_no DESC), ',', 1) AS status,
-                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(e.rep, '') ORDER BY e.eclaim_no DESC), ',', 1) AS rep,
-                  SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, e.status) ORDER BY e.eclaim_no DESC), ',', 1) AS statusname,
-                  SUM(cc.totpay1) AS eclaim_money
-                FROM eclaimdb.m_registerdata e
-                JOIN eclaimdb.m_instrument cc ON cc.eclaim_no = e.eclaim_no
-                LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = e.status
-                WHERE e.person_type = '1'
-                  AND IFNULL(e.opdseq, '') <> ''
-                GROUP BY e.opdseq
-              ) e ON e.vn = o.vn
-              LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-              LEFT JOIN (
-                SELECT
-                  vn,
-                  MAX(inst + catinst) AS income,
-                  GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-                FROM rcmdb.repdata
-                WHERE department = 'OP'
-                  AND (inst > 0 OR catinst > 0)
-                GROUP BY vn
-              ) r ON r.vn = o.vn
-              LEFT JOIN (
-                SELECT
-                  vn,
-                  MAX(inst + catinst) AS income,
-                  GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-                FROM rcmdb.repeclaim
-                WHERE department = 'OP'
-                  AND (inst > 0 OR catinst > 0)
-                GROUP BY vn
-              ) n ON n.vn = o.vn
-              WHERE o.vstdate BETWEEN ? AND ?
-                AND IFNULL(o.an, '') = ''
-              GROUP BY o.vn
-              ORDER BY o.vstdate DESC, o.vsttime DESC;
-            `
-            const rows = (await executor(
-              opdSql,
-              [ds1, ds2, ds1, ds2],
-              { timeoutMs: 90000 }
-            )) as any[]
-            return rows || []
-          } else {
-            const ipdSql = `
-              SELECT
-                i.an,
-                i.hn,
-                pt.cid,
-                CONCAT(pt.pname, pt.fname, ' ', pt.lname) AS ptname,
-                pt.sex AS sex_code,
-                DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
-                DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
-                w.name AS ward,
-                ptt.hipdata_code AS inscl,
-                ptt.name AS pttypename,
-                IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-                COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-                a.income AS money_hosxp,
-                a.discount_money,
-                a.rcpt_money,
-                (a.income - a.discount_money - a.rcpt_money) AS debit,
-                a.rcpno_list AS rcpno,
-                inst.instrument,
-                inst.list,
-                inst.oa,
-                inst.dm,
-                inst.item_count,
-                COALESCE(e.eclaim_money, 0) AS money_eclaim,
-                COALESCE(r.income, 0) AS money_rep,
-                COALESCE(n.income, 0) AS money_invoice,
-                COALESCE(NULLIF(n.rep, ''), NULLIF(r.rep, ''), NULLIF(nn.Rep, ''), NULLIF(e.rep, '')) AS rep,
-                e.status AS eclaim_status,
-                COALESCE(e.statusname, nn.StatusName) AS eclaim_statusname
-              FROM ipt i
-              JOIN (
-                SELECT
-                  oo.an,
-                  SUM(oo.sum_price) AS instrument,
-                  COUNT(DISTINCT oo.icode) AS item_count,
-                  GROUP_CONCAT(DISTINCT CONCAT(d.nhso_adp_code, ':', d.name, '#', ROUND(oo.sum_price, 2)) SEPARATOR ', ') AS list,
-                  MAX(IF(d.nhso_adp_code REGEXP '^700[4-5]', 'Y', NULL)) AS oa,
-                  MAX(IF(d.nhso_adp_code REGEXP '^8612|^8813|^8814', 'Y', NULL)) AS dm
-                FROM (
-                  SELECT icode, nhso_adp_code, name
-                  FROM nondrugitems
-                  WHERE nhso_adp_type_id = 2
-                ) d
-                JOIN opitemrece oo ON oo.icode = d.icode
-                JOIN ipt i2 ON i2.an = oo.an
-                WHERE i2.dchdate BETWEEN ? AND ?
-                  AND IFNULL(oo.an, '') <> ''
-                GROUP BY oo.an
-              ) inst ON inst.an = i.an
-              LEFT JOIN patient pt ON pt.hn = i.hn
-              LEFT JOIN an_stat a ON a.an = i.an
-              LEFT JOIN ward w ON w.ward = i.ward
-              LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
-              LEFT JOIN rcmdb.authencode cc ON cc.vn = i.an
-              LEFT JOIN visit_pttype vt ON vt.vn = i.vn
-              LEFT JOIN (
-                SELECT
-                  e.an,
-                  SUBSTRING_INDEX(GROUP_CONCAT(e.status ORDER BY e.eclaim_no DESC), ',', 1) AS status,
-                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(e.rep, '') ORDER BY e.eclaim_no DESC), ',', 1) AS rep,
-                  SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, e.status) ORDER BY e.eclaim_no DESC), ',', 1) AS statusname,
-                  SUM(cc.totpay1) AS eclaim_money
-                FROM eclaimdb.m_registerdata e
-                JOIN eclaimdb.m_instrument cc ON cc.eclaim_no = e.eclaim_no
-                LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = e.status
-                WHERE e.person_type = '2'
-                  AND IFNULL(e.an, '') <> ''
-                GROUP BY e.an
-              ) e ON e.an = i.an
-              LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = i.an
-              LEFT JOIN (
-                SELECT
-                  an,
-                  MAX(inst + catinst) AS income,
-                  GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-                FROM rcmdb.repdata
-                WHERE department = 'IP'
-                  AND (inst > 0 OR catinst > 0)
-                GROUP BY an
-              ) r ON r.an = i.an
-              LEFT JOIN (
-                SELECT
-                  an,
-                  MAX(inst + catinst) AS income,
-                  GROUP_CONCAT(DISTINCT rep SEPARATOR ', ') AS rep
-                FROM rcmdb.repeclaim
-                WHERE department = 'IP'
-                  AND (inst > 0 OR catinst > 0)
-                GROUP BY an
-              ) n ON n.an = i.an
-              WHERE i.dchdate BETWEEN ? AND ?
-              GROUP BY i.an
-              ORDER BY i.dchdate DESC, i.regdate DESC;
-            `
-            const rows = (await executor(
-              ipdSql,
-              [ds1, ds2, ds1, ds2],
-              { timeoutMs: 90000 }
-            )) as any[]
-            return rows || []
-          }
+          const gwRes = await gateway.getRcmFundData('instrument', { ds1, ds2, patientType })
+          return extractFundRawRows(gwRes)
         },
         600000 // Cache 10 minutes
       ),
-      this.checkAdpMapping(executor, refresh),
+      this.checkAdpMapping(gateway, refresh),
     ])
 
     // แปลง Raw Rows เข้าสู่ Typed Domain Objects
@@ -607,7 +390,12 @@ export class RcmInstrumentFundService {
     })
 
     // กรองระดับ Cohort ด้วยสิทธิ์การรักษา (pttypes มาก่อน, รองรับ ucOnly fallback)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      resolveSeamlessFetcher(gateway),
+      Boolean(params.refresh)
+    )
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>

@@ -15,11 +15,13 @@ vi.mock('@/lib/apiGateway', () => ({
     clinical: {
       importT1dmRegistries: vi.fn(),
       deleteT1dmRegistries: vi.fn(),
-    },
-    app: {
-      query: vi.fn().mockResolvedValue([]),
-      execute: vi.fn().mockResolvedValue({ affectedRows: 0 }),
-      transaction: vi.fn().mockResolvedValue({ count: 0 }),
+      getT1dmRawRegistries: vi.fn().mockResolvedValue({ success: true, data: { clinicalRows: [], mirrorRows: [] } }),
+      enrichT1dmImport: vi.fn().mockResolvedValue({
+        success: true,
+        data: { patientsByCid: {}, hospNameByCode: {}, existingFileRowCount: 0 },
+      }),
+      persistT1dmMirror: vi.fn().mockResolvedValue({ success: true, data: { upsertedCount: 0 } }),
+      deleteT1dmMirror: vi.fn().mockResolvedValue({ success: true, data: { deletedCount: 0 } }),
     },
   },
 }))
@@ -116,24 +118,23 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
 
   it('parses Excel workbook and filters other hospitals when filterMyHospOnly is true (FoxPro default)', async () => {
     const buffer = await createTestT1dmWorkbook()
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM patient')) {
-        return [
-          { cid: '1529900011111', hn: '0011111', ptname: 'นาง กานดา ใจดี' },
-          { cid: '1529900033333', hn: '0033333', ptname: 'นางสาว อารีย์ สมบูรณ์' },
-        ]
-      }
-      if (sql.includes('FROM hospcode')) {
-        return [
-          { hospcode: '11152', name: 'รพ.เถิน' },
-          { hospcode: '10700', name: 'รพ.ลำปาง' },
-        ]
-      }
-      if (sql.includes('COUNT(*) AS cnt FROM rcmdb.t1dm')) {
-        return [{ cnt: 0 }]
-      }
-      return []
-    })
+    const mockGateway = {
+      enrichT1dmImport: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          patients: [
+            { cid: '1529900011111', hn: '0011111', ptname: 'นาง กานดา ใจดี' },
+            { cid: '1529900033333', hn: '0033333', ptname: 'นางสาว อารีย์ สมบูรณ์' },
+          ],
+          hospNames: [
+            { hospcode: '11152', name: 'รพ.เถิน' },
+            { hospcode: '10700', name: 'รพ.ลำปาง' },
+          ],
+          existingFileRowCount: 0,
+        },
+      }),
+      persistT1dmMirror: vi.fn().mockResolvedValue({ success: true, data: { upsertedCount: 2 } }),
+    }
 
     vi.mocked(apiGateway.clinical.importT1dmRegistries).mockResolvedValue({
       success: true,
@@ -145,7 +146,7 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
       isDryRun: false,
       filterMyHospOnly: true,
       myHospCode: '11152',
-      executor: mockExecutor,
+      gateway: mockGateway,
     })
 
     expect(result.fileName).toBe('T1DM_OCT2026.xlsx')
@@ -161,12 +162,13 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
 
   it('imports all rows when filterMyHospOnly is false (FoxPro lhospcode=.F.)', async () => {
     const buffer = await createTestT1dmWorkbook()
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('COUNT(*) AS cnt FROM rcmdb.t1dm')) {
-        return [{ cnt: 0 }]
-      }
-      return []
-    })
+    const mockGateway = {
+      enrichT1dmImport: vi.fn().mockResolvedValue({
+        success: true,
+        data: { patientsByCid: {}, hospNameByCode: {}, existingFileRowCount: 0 },
+      }),
+      persistT1dmMirror: vi.fn().mockResolvedValue({ success: true, data: { upsertedCount: 3 } }),
+    }
 
     vi.mocked(apiGateway.clinical.importT1dmRegistries).mockResolvedValue({
       success: true,
@@ -178,7 +180,7 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
       isDryRun: false,
       filterMyHospOnly: false,
       myHospCode: '11152',
-      executor: mockExecutor,
+      gateway: mockGateway,
     })
 
     expect(result.importedCount).toBe(3)
@@ -189,16 +191,16 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
 
   it('detects duplicate files if already imported', async () => {
     const buffer = await createTestT1dmWorkbook()
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('COUNT(*) AS cnt FROM rcmdb.t1dm')) {
-        return [{ cnt: 15 }] // Previously imported 15 rows
-      }
-      return []
-    })
+    const mockGateway = {
+      enrichT1dmImport: vi.fn().mockResolvedValue({
+        success: true,
+        data: { patientsByCid: {}, hospNameByCode: {}, existingFileRowCount: 15 },
+      }),
+    }
 
     const result = await RcmT1dmImportService.parseAndImportWorkbook(buffer, 'PREVIOUS_FILE.xlsx', {
       isDryRun: true,
-      executor: mockExecutor,
+      gateway: mockGateway,
     })
 
     expect(result.isAlreadyImported).toBe(true)
@@ -207,11 +209,8 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
 
   it('defaults isDryRun to true when options.isDryRun is omitted', async () => {
     const buffer = await createTestT1dmWorkbook()
-    const mockExecutor = vi.fn().mockResolvedValue([])
 
-    const result = await RcmT1dmImportService.parseAndImportWorkbook(buffer, 'DEFAULT_DRYRUN.xlsx', {
-      executor: mockExecutor,
-    })
+    const result = await RcmT1dmImportService.parseAndImportWorkbook(buffer, 'DEFAULT_DRYRUN.xlsx', {})
 
     expect(result.isDryRun).toBe(true)
     expect(apiGateway.clinical.importT1dmRegistries).not.toHaveBeenCalled()
@@ -225,12 +224,11 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
         <tr><td>1</td><td>2570</td><td>1529900011111</td><td>นาง กานดา ใจดี</td><td>UCS</td><td>11152:รพ.เถิน</td><td>GDM</td><td>2026-10-15</td><td>2026-10-20</td></tr>
       </table>
     </body></html>`
-    const mockExecutor = vi.fn().mockResolvedValue([])
 
     const result = await RcmT1dmImportService.parseAndImportWorkbook(
       Buffer.from(htmlXls, 'utf8'),
       'T1DM_EXPORT.xls',
-      { isDryRun: true, executor: mockExecutor }
+      { isDryRun: true }
     )
 
     expect(result.importedCount).toBe(1)
@@ -248,12 +246,11 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
           </Table>
         </Worksheet>
       </Workbook>`
-    const mockExecutor = vi.fn().mockResolvedValue([])
 
     const result = await RcmT1dmImportService.parseAndImportWorkbook(
       Buffer.from(xmlXls, 'utf8'),
       'T1DM_XML.xls',
-      { isDryRun: true, executor: mockExecutor }
+      { isDryRun: true }
     )
 
     expect(result.importedCount).toBe(1)
@@ -266,12 +263,11 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
       'RUN,ปีงบประมาณ,PID,ชื่อ-นามสกุล,สิทธิ,หน่วยบริการลงทะเบียน,ชนิดการลงทะเบียน,วันที่ลงทะเบียน,วันที่เข้ารับบริการ',
       '1,2570,1529900011111,นาง กานดา ใจดี,UCS,11152:รพ.เถิน,PDM,2026-10-15,2026-10-20',
     ].join('\n')
-    const mockExecutor = vi.fn().mockResolvedValue([])
 
     const csvResult = await RcmT1dmImportService.parseAndImportWorkbook(
       Buffer.from(csv, 'utf8'),
       'T1DM.csv',
-      { isDryRun: true, executor: mockExecutor }
+      { isDryRun: true }
     )
     expect(csvResult.importedCount).toBe(1)
     expect(csvResult.previewRows[0].type).toBe('PDM')
@@ -280,7 +276,6 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
     await expect(
       RcmT1dmImportService.parseAndImportWorkbook(ole2Buffer, 'legacy_t1dm.xls', {
         isDryRun: true,
-        executor: mockExecutor,
       })
     ).rejects.toThrow('Save As เป็น .xlsx หรือ .csv')
   })
@@ -380,11 +375,9 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
     writeDirEntry(1, 'Workbook', 2, 2, wbSize)
 
     const realBiff8Xls = Buffer.concat([hdr, fat, dir, wbStream])
-    const mockExecutor = vi.fn().mockResolvedValue([])
 
     const result = await RcmT1dmImportService.parseAndImportWorkbook(realBiff8Xls, 'NHSO_T1DM.xls', {
       isDryRun: true,
-      executor: mockExecutor,
     })
 
     expect(result.importedCount).toBe(1)
@@ -402,12 +395,11 @@ describe('RcmT1dmImportService Workbook Parsing & Filtering', () => {
       '2027-16683,2026,1529900011111,นาง สมมติ ทดสอบ,UCS,เขต 1 เชียงใหม่,ลำปาง,11152-รพ.เถิน,GDM,28/08/2026,28/08/2026,Y,,',
       '2026-97222,2026,1529900022222,นาย ตัวอย่าง ทดสอบ,WEL,เขต 1 เชียงใหม่,ลำปาง,11152-รพ.เถิน,T2DM,01/04/2026,07/10/2025,Y,,',
     ].join('\n')
-    const mockExecutor = vi.fn().mockResolvedValue([])
 
     const result = await RcmT1dmImportService.parseAndImportWorkbook(
       Buffer.from(csv14Cols, 'utf8'),
       't1dm_report_14col.csv',
-      { isDryRun: true, executor: mockExecutor }
+      { isDryRun: true }
     )
 
     expect(result.importedCount).toBe(2)
@@ -478,15 +470,20 @@ describe('RcmT1dmImportService Registry Queries & Deletion', () => {
     },
   ]
 
-  it('aggregates registry list and summary metrics accurately', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockDbRows)
+  const createRegistryGateway = () => ({
+    getT1dmRawRegistries: vi.fn().mockResolvedValue({
+      success: true,
+      data: { clinicalRows: mockDbRows, mirrorRows: [] },
+    }),
+  })
 
+  it('aggregates registry list and summary metrics accurately', async () => {
     const result = await RcmT1dmImportService.getRegistryList(
       {
         page: 1,
         pageSize: 50,
       },
-      mockExecutor
+      createRegistryGateway()
     )
 
     expect(result.totalCount).toBe(3)
@@ -501,13 +498,11 @@ describe('RcmT1dmImportService Registry Queries & Deletion', () => {
   })
 
   it('filters by hospFilter = MINE', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockDbRows)
-
     const result = await RcmT1dmImportService.getRegistryList(
       {
         hospFilter: 'MINE',
       },
-      mockExecutor
+      createRegistryGateway()
     )
 
     expect(result.totalCount).toBe(2)
@@ -515,13 +510,11 @@ describe('RcmT1dmImportService Registry Queries & Deletion', () => {
   })
 
   it('filters by hospFilter = OTHER (FoxPro pink highlighted rows)', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockDbRows)
-
     const result = await RcmT1dmImportService.getRegistryList(
       {
         hospFilter: 'OTHER',
       },
-      mockExecutor
+      createRegistryGateway()
     )
 
     expect(result.totalCount).toBe(1)
@@ -530,13 +523,11 @@ describe('RcmT1dmImportService Registry Queries & Deletion', () => {
   })
 
   it('filters by search term', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockDbRows)
-
     const result = await RcmT1dmImportService.getRegistryList(
       {
         search: 'สุมาลี',
       },
-      mockExecutor
+      createRegistryGateway()
     )
 
     expect(result.totalCount).toBe(1)

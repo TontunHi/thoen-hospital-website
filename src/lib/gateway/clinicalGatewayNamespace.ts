@@ -1,4 +1,5 @@
 import type { RequestOptions } from './gatewayTypes'
+import { createRcmV2Namespace } from './rcmV2GatewayNamespace'
 
 export interface ClinicalHttpClient {
   get: <T = unknown>(path: string, options?: RequestOptions) => Promise<T>
@@ -411,6 +412,7 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       if (params?.patientType) q.set('patientType', params.patientType as string)
       if (params?.serviceType) q.set('serviceType', params.serviceType as string)
       if (params?.expectedDx) q.set('expectedDx', params.expectedDx as string)
+      if (params?.format) q.set('format', params.format as string)
       const qs = q.toString() ? `?${q.toString()}` : ''
       const DEDICATED_V2_FUNDS = new Set([
         'cancer',
@@ -420,11 +422,24 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
         'hepatitis-c',
         'postpartum',
         'drug-post',
+        'iron-supplements',
+        'anc-30011',
+        'anc-23',
+        'amed-homeward',
+        'rehabilitation',
+        'imc',
+        'instrument',
+        'streptokinase',
+        'adp-search',
+        'family-planning-91',
+        'family-planning-93',
       ])
       const basePath = DEDICATED_V2_FUNDS.has(fundKey)
         ? '/api/v1/clinical/rcm/funds-v2'
         : '/api/v1/clinical/rcm/funds'
-      const res = await client.get<any>(`${basePath}/${encodeURIComponent(fundKey)}${qs}`)
+      const res = await client.get<any>(`${basePath}/${encodeURIComponent(fundKey)}${qs}`, {
+        timeoutMs: 90000,
+      })
 
       const rawRows: T[] = Array.isArray(res?.rawRows)
         ? res.rawRows
@@ -455,15 +470,18 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       if (options?.refresh) q.set('refresh', 'true')
       const qs = q.toString() ? `?${q.toString()}` : ''
       const trimmed = adpCode.trim()
-      const useBatch2V2 =
-        Boolean(options?.includeDrugItems) ||
-        trimmed === '37999771001' ||
-        trimmed === '3799977101'
-      const path = useBatch2V2
-        ? `/api/v1/clinical/rcm/funds-v2/adp-mapping/${encodeURIComponent(trimmed)}${qs}`
-        : options?.includeNonDrug || options?.refresh
-        ? `/api/v1/clinical/rcm/funds/adp-mapping-v2/${encodeURIComponent(trimmed)}${qs}`
-        : `/api/v1/clinical/rcm/funds/adp-mapping/${encodeURIComponent(trimmed)}`
+      const path =
+        trimmed === 'REHAB'
+          ? `/api/v1/clinical/rcm/funds-v2/rehab-adp-mapping${qs}`
+          : trimmed === 'STEMI'
+          ? `/api/v1/clinical/rcm/funds-v2/stemi-adp-mapping${qs}`
+          : trimmed === 'INSTRUMENT_TYPE_2'
+          ? `/api/v1/clinical/rcm/funds-v2/instrument-adp-mapping${qs}`
+          : Boolean(options?.includeDrugItems) || trimmed === '37999771001' || trimmed === '3799977101'
+          ? `/api/v1/clinical/rcm/funds-v2/adp-mapping/${encodeURIComponent(trimmed)}${qs}`
+          : options?.includeNonDrug || options?.refresh
+          ? `/api/v1/clinical/rcm/funds/adp-mapping-v2/${encodeURIComponent(trimmed)}${qs}`
+          : `/api/v1/clinical/rcm/funds/adp-mapping/${encodeURIComponent(trimmed)}`
       return client.get<{
         success: boolean
         adpCode: string
@@ -738,6 +756,8 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
         { timeoutMs: 30000, ...options }
       )
     },
+
+    ...createRcmV2Namespace(client),
   }
   return ns
 }

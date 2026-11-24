@@ -1,10 +1,6 @@
-import ExcelJS from 'exceljs'
-import { CellError, readXls } from 'xls-reader'
 import { apiGateway, GatewayNotFoundError, GatewayUnavailableError } from '@/lib/apiGateway'
 import { logger } from '@/lib/logger'
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData, invalidateCacheKey, invalidateCachePattern } from '@/lib/cache'
-import type { QueryExecutor } from './rcmDashboardService'
 import {
   DEFAULT_SEAMLESS_HOSPCODE,
   SEAMLESS_FUND_MAP,
@@ -51,6 +47,28 @@ import {
 
 export * from './seamless-import/typesAndParsers'
 
+export interface SeamlessImportGatewayAdapter {
+  lookupSeamlessBudget: typeof apiGateway.clinical.lookupSeamlessBudget
+  resolveSeamlessHospCode: typeof apiGateway.clinical.resolveSeamlessHospCode
+  enrichSeamlessImport: typeof apiGateway.clinical.enrichSeamlessImport
+  preflightSeamlessCheck: typeof apiGateway.clinical.preflightSeamlessCheck
+  getSeamlessStats: typeof apiGateway.clinical.getSeamlessStats
+  getSeamlessLedger: typeof apiGateway.clinical.getSeamlessLedger
+  getSeamlessFiles: typeof apiGateway.clinical.getSeamlessFiles
+  getSeamlessDenyCodes: typeof apiGateway.clinical.getSeamlessDenyCodes
+}
+
+const defaultSeamlessGateway: SeamlessImportGatewayAdapter = {
+  lookupSeamlessBudget: (payNo) => apiGateway.clinical.lookupSeamlessBudget(payNo),
+  resolveSeamlessHospCode: (hospName) => apiGateway.clinical.resolveSeamlessHospCode(hospName),
+  enrichSeamlessImport: (payload) => apiGateway.clinical.enrichSeamlessImport(payload),
+  preflightSeamlessCheck: (payload) => apiGateway.clinical.preflightSeamlessCheck(payload),
+  getSeamlessStats: (myHospCode) => apiGateway.clinical.getSeamlessStats(myHospCode),
+  getSeamlessLedger: (params) => apiGateway.clinical.getSeamlessLedger(params),
+  getSeamlessFiles: (myHospCode) => apiGateway.clinical.getSeamlessFiles(myHospCode),
+  getSeamlessDenyCodes: () => apiGateway.clinical.getSeamlessDenyCodes(),
+}
+
 /**
  * Service for parsing, enriching, and importing Seamless RCM Excel/CSV files
  */
@@ -80,7 +98,7 @@ export class RcmSeamlessImportService {
       filterMyHospOnly?: boolean
       myHospCode?: string
       duplicateMode?: SeamlessDuplicateMode
-      executor?: QueryExecutor
+      gateway?: Partial<SeamlessImportGatewayAdapter>
     } = {}
   ): Promise<SeamlessParseResult> {
     const startTime = Date.now()
@@ -91,7 +109,7 @@ export class RcmSeamlessImportService {
     const myHospCode = (options.myHospCode || DEFAULT_SEAMLESS_HOSPCODE).trim().padStart(5, '0')
     const duplicateMode: SeamlessDuplicateMode =
       options.duplicateMode === 'skip' ? 'skip' : 'update'
-    const exec = options.executor ?? queryClinicalDb
+    const gw: SeamlessImportGatewayAdapter = { ...defaultSeamlessGateway, ...(options.gateway || {}) }
 
     const workbook = await loadWorkbookFromBuffer(buffer, fileName)
 
@@ -152,20 +170,10 @@ export class RcmSeamlessImportService {
           try {
             const cleanPayNo = payNo.replace(/[^a-zA-Z0-9_-]/g, '')
             if (cleanPayNo) {
-              const budgetRows = await exec<{ paydate: string; accountcode: string }>(
-                `
-                SELECT 
-                  DATE_FORMAT(MAX(paydate), '%Y-%m-%d') as paydate,
-                  MAX(accountcode) as accountcode
-                FROM rcmdb.nhso_budget 
-                WHERE payno REGEXP ?
-                LIMIT 1
-                `,
-                [cleanPayNo]
-              )
-              if (budgetRows.length > 0 && budgetRows[0].paydate) {
-                summaryInfo.payDate = budgetRows[0].paydate
-                summaryInfo.codeAccount = budgetRows[0].accountcode || null
+              const budgetRes = await gw.lookupSeamlessBudget(cleanPayNo)
+              if (budgetRes?.data?.paydate) {
+                summaryInfo.payDate = budgetRes.data.paydate
+                summaryInfo.codeAccount = budgetRes.data.accountcode || null
               }
             }
           } catch (err) {
@@ -280,7 +288,7 @@ export class RcmSeamlessImportService {
         sheet,
         Math.min(sheet.rowCount, Math.max(1, headerRowIndex - 1)),
         autoEnrichHosp,
-        exec
+        async (hospName) => (await gw.resolveSeamlessHospCode(hospName))?.hospcode || ''
       )
 
       // Cache column indices outside row loop for fast O(1) lookup
@@ -453,12 +461,9 @@ export class RcmSeamlessImportService {
       )
     }
 
-    // 4. Batch HOSxP Enrichment (parallelized chunks for speed): DNAP, CID -> HN/Ptname, HN -> Ptname, VN/AN
+    // 4. Batch HOSxP Enrichment via API Gateway: DNAP, CID -> HN/Ptname, HN -> Ptname, VN/AN
     if (autoEnrichHosp && parsedRows.length > 0) {
-      const CHUNK_SIZE = 500
-      const CONCURRENCY = 4
-
-      // 4a. FoxPro DNAP parity: resolve nap_number -> CID from clinicmember
+      // 4a. FoxPro DNAP parity: resolve nap_number -> CID
       const napNumbers = Array.from(
         new Set(
           parsedRows
@@ -472,41 +477,25 @@ export class RcmSeamlessImportService {
         )
       )
       if (napNumbers.length > 0) {
-        const napCidMap = new Map<string, string>()
-        const napChunks: string[][] = []
-        for (let i = 0; i < napNumbers.length; i += CHUNK_SIZE) {
-          napChunks.push(napNumbers.slice(i, i + CHUNK_SIZE))
-        }
-        await runWithConcurrency(napChunks, CONCURRENCY, async (chunk) => {
-          const placeholders = chunk.map(() => '?').join(',')
-          try {
-            const napRows = await exec<{ nap_number: string; cid: string }>(
-              `
-              SELECT c.nap_number, pt.cid
-              FROM clinicmember c
-              JOIN patient pt ON pt.hn = c.hn
-              WHERE c.nap_number IN (${placeholders})
-                AND pt.cid IS NOT NULL AND pt.cid <> ''
-              `,
-              chunk
-            )
-            for (const nr of napRows) {
-              if (nr.nap_number && nr.cid) {
-                napCidMap.set(String(nr.nap_number).trim(), String(nr.cid).trim())
-              }
+        try {
+          const napRes = await gw.enrichSeamlessImport({ napNumbers })
+          const napCidMap = new Map<string, string>()
+          for (const nr of napRes?.data?.napRows || []) {
+            if (nr.nap_number && nr.cid) {
+              napCidMap.set(String(nr.nap_number).trim(), String(nr.cid).trim())
             }
-          } catch (err) {
-            logger.warn({ err }, 'Batch DNAP nap_number resolution error in Seamless import')
           }
-        })
-        for (const row of parsedRows) {
-          if (row.rep.toUpperCase().startsWith('DNAP') && row.pid && napCidMap.has(row.pid)) {
-            row.pid = napCidMap.get(row.pid)!
+          for (const row of parsedRows) {
+            if (row.rep.toUpperCase().startsWith('DNAP') && row.pid && napCidMap.has(row.pid)) {
+              row.pid = napCidMap.get(row.pid)!
+            }
           }
+        } catch (err) {
+          logger.warn({ err }, 'Batch DNAP nap_number resolution error in Seamless import')
         }
       }
 
-      // 4b. Resolve HN & Ptname from CID in parallel batches
+      // 4b & 4c. Resolve HN & Ptname from CID and Ptname/CID from HN
       const cidsToResolve = Array.from(
         new Set(
           parsedRows
@@ -514,48 +503,6 @@ export class RcmSeamlessImportService {
             .map((r) => r.pid as string)
         )
       )
-
-      if (cidsToResolve.length > 0) {
-        const patientMap = new Map<string, { hn: string; ptname: string }>()
-        const cidChunks: string[][] = []
-        for (let i = 0; i < cidsToResolve.length; i += CHUNK_SIZE) {
-          cidChunks.push(cidsToResolve.slice(i, i + CHUNK_SIZE))
-        }
-
-        await runWithConcurrency(cidChunks, CONCURRENCY, async (chunk) => {
-          const placeholders = chunk.map(() => '?').join(',')
-          try {
-            const rows = await exec<{ cid: string; hn: string; ptname: string }>(
-              `
-              SELECT 
-                cid, 
-                hn, 
-                TRIM(CONCAT(COALESCE(pname, ''), COALESCE(fname, ''), ' ', COALESCE(lname, ''))) as ptname
-              FROM patient
-              WHERE cid IN (${placeholders})
-              `,
-              chunk
-            )
-            for (const r of rows) {
-              if (r.cid) {
-                patientMap.set(r.cid, { hn: r.hn, ptname: r.ptname })
-              }
-            }
-          } catch (err) {
-            logger.warn({ err }, 'Batch patient resolution error in Seamless import')
-          }
-        })
-
-        for (const row of parsedRows) {
-          if (row.pid && patientMap.has(row.pid)) {
-            const pt = patientMap.get(row.pid)!
-            if (!row.hn) row.hn = normalizeHn(pt.hn)
-            if (!row.ptname) row.ptname = pt.ptname
-          }
-        }
-      }
-
-      // 4c. Fallback: resolve Ptname/CID from HN when Excel already had HN without Ptname/CID
       const hnsMissingInfo = Array.from(
         new Set(
           parsedRows
@@ -563,139 +510,82 @@ export class RcmSeamlessImportService {
             .map((r) => r.hn as string)
         )
       )
-      if (hnsMissingInfo.length > 0) {
-        const hnPatientMap = new Map<string, { cid: string; ptname: string }>()
-        const hnInfoChunks: string[][] = []
-        for (let i = 0; i < hnsMissingInfo.length; i += CHUNK_SIZE) {
-          hnInfoChunks.push(hnsMissingInfo.slice(i, i + CHUNK_SIZE))
-        }
-        await runWithConcurrency(hnInfoChunks, CONCURRENCY, async (chunk) => {
-          const placeholders = chunk.map(() => '?').join(',')
-          try {
-            const rows = await exec<{ hn: string; cid: string; ptname: string }>(
-              `
-              SELECT 
-                hn,
-                cid,
-                TRIM(CONCAT(COALESCE(pname, ''), COALESCE(fname, ''), ' ', COALESCE(lname, ''))) as ptname
-              FROM patient
-              WHERE hn IN (${placeholders})
-              `,
-              chunk
-            )
-            for (const r of rows) {
-              if (r.hn) {
-                hnPatientMap.set(normalizeHn(r.hn) || r.hn, { cid: r.cid, ptname: r.ptname })
-              }
+
+      if (cidsToResolve.length > 0 || hnsMissingInfo.length > 0) {
+        try {
+          const ptRes = await gw.enrichSeamlessImport({
+            cids: cidsToResolve,
+            hnsMissing: hnsMissingInfo,
+          })
+          const patientMap = new Map<string, { hn: string; ptname: string }>()
+          for (const r of ptRes?.data?.cidRows || []) {
+            if (r.cid) patientMap.set(r.cid, { hn: r.hn, ptname: r.ptname })
+          }
+          const hnPatientMap = new Map<string, { cid: string; ptname: string }>()
+          for (const r of ptRes?.data?.hnRows || []) {
+            if (r.hn) {
+              hnPatientMap.set(normalizeHn(r.hn) || r.hn, { cid: r.cid, ptname: r.ptname })
             }
-          } catch (err) {
-            logger.warn({ err }, 'Batch HN patient resolution error in Seamless import')
           }
-        })
-        for (const row of parsedRows) {
-          if (row.hn && hnPatientMap.has(row.hn)) {
-            const pt = hnPatientMap.get(row.hn)!
-            if (!row.pid && pt.cid) row.pid = pt.cid
-            if (!row.ptname && pt.ptname) row.ptname = pt.ptname
+
+          for (const row of parsedRows) {
+            if (row.pid && patientMap.has(row.pid)) {
+              const pt = patientMap.get(row.pid)!
+              if (!row.hn) row.hn = normalizeHn(pt.hn)
+              if (!row.ptname) row.ptname = pt.ptname
+            }
+            if (row.hn && hnPatientMap.has(row.hn)) {
+              const pt = hnPatientMap.get(row.hn)!
+              if (!row.pid && pt.cid) row.pid = pt.cid
+              if (!row.ptname && pt.ptname) row.ptname = pt.ptname
+            }
           }
+        } catch (err) {
+          logger.warn({ err }, 'Batch patient resolution error in Seamless import')
         }
       }
 
-      // 4d. Resolve VN (ovst) and AN (ipt) for ALL rows that have HN and AdmDate (independent of CID count)
+      // 4d. Resolve VN (ovst) and AN (ipt) for ALL rows that have HN and AdmDate
       const hnDatePairs = parsedRows
         .filter((r) => r.hn && r.admDate && (!r.vn || !r.an))
         .map((r) => ({ hn: r.hn as string, date: r.admDate as string }))
 
       if (hnDatePairs.length > 0) {
-        const vnMap = new Map<string, string>()
         const uniqueHns = Array.from(new Set(hnDatePairs.map((p) => p.hn)))
         const minDate = hnDatePairs.reduce((min, p) => (p.date < min ? p.date : min), hnDatePairs[0].date)
         const maxDate = hnDatePairs.reduce((max, p) => (p.date > max ? p.date : max), hnDatePairs[0].date)
 
-        const hnChunks: string[][] = []
-        for (let i = 0; i < uniqueHns.length; i += CHUNK_SIZE) {
-          hnChunks.push(uniqueHns.slice(i, i + CHUNK_SIZE))
-        }
-
-        await runWithConcurrency(hnChunks, CONCURRENCY, async (hnChunk) => {
-          const placeholders = hnChunk.map(() => '?').join(',')
-          try {
-            const ovstRows = await exec<{ vn: string; hn: string; vstdate: string }>(
-              `
-              SELECT vn, hn, DATE_FORMAT(vstdate, '%Y-%m-%d') as vstdate
-              FROM ovst
-              WHERE hn IN (${placeholders})
-                AND vstdate BETWEEN ? AND ?
-              `,
-              [...hnChunk, minDate, maxDate]
-            )
-            for (const o of ovstRows) {
-              const normHn = normalizeHn(o.hn) || o.hn
-              vnMap.set(`${normHn}_${o.vstdate}`, o.vn)
-            }
-          } catch (err) {
-            logger.warn({ err }, 'Batch visit (VN) resolution error in Seamless import')
-          }
-        })
-
-        for (const row of parsedRows) {
-          if (row.hn && row.admDate && !row.vn) {
-            const key = `${row.hn}_${row.admDate}`
-            if (vnMap.has(key)) {
-              row.vn = vnMap.get(key)!
-            }
-          }
-        }
-
-        // Fallback IPD (AN) resolution for rows that did not match an OPD visit
-        const unmatchedIpdRows = parsedRows.filter((r) => r.hn && r.admDate && !r.vn && !r.an)
-        if (unmatchedIpdRows.length > 0) {
-          const anMap = new Map<string, string>()
-          const ipdHns = Array.from(new Set(unmatchedIpdRows.map((r) => r.hn as string)))
-          const ipdMinDate = unmatchedIpdRows.reduce(
-            (min, r) => ((r.admDate as string) < min ? (r.admDate as string) : min),
-            unmatchedIpdRows[0].admDate as string
-          )
-          const ipdMaxDate = unmatchedIpdRows.reduce(
-            (max, r) => ((r.admDate as string) > max ? (r.admDate as string) : max),
-            unmatchedIpdRows[0].admDate as string
-          )
-
-          const ipdChunks: string[][] = []
-          for (let i = 0; i < ipdHns.length; i += CHUNK_SIZE) {
-            ipdChunks.push(ipdHns.slice(i, i + CHUNK_SIZE))
-          }
-
-          await runWithConcurrency(ipdChunks, CONCURRENCY, async (hnChunk) => {
-            const placeholders = hnChunk.map(() => '?').join(',')
-            try {
-              const iptRows = await exec<{ an: string; hn: string; regdate: string }>(
-                `
-                SELECT an, hn, DATE_FORMAT(regdate, '%Y-%m-%d') as regdate
-                FROM ipt
-                WHERE hn IN (${placeholders})
-                  AND regdate BETWEEN ? AND ?
-                `,
-                [...hnChunk, ipdMinDate, ipdMaxDate]
-              )
-              for (const ip of iptRows) {
-                if (ip.an && ip.hn && ip.regdate) {
-                  const normHn = normalizeHn(ip.hn) || ip.hn
-                  anMap.set(`${normHn}_${ip.regdate}`, normalizeAn(ip.an) || ip.an)
-                }
-              }
-            } catch (err) {
-              logger.warn({ err }, 'Batch IPD (AN) resolution error in Seamless import')
-            }
+        try {
+          const visitRes = await gw.enrichSeamlessImport({
+            ovstLookup: { hns: uniqueHns, minDate, maxDate },
+            iptLookup: { hns: uniqueHns, minDate, maxDate },
           })
-
-          for (const row of unmatchedIpdRows) {
-            const key = `${row.hn}_${row.admDate}`
-            if (anMap.has(key)) {
-              row.an = anMap.get(key)!
-              row.department = 'IP'
+          const vnMap = new Map<string, string>()
+          for (const o of visitRes?.data?.ovstRows || []) {
+            const normHn = normalizeHn(o.hn) || o.hn
+            vnMap.set(`${normHn}_${o.vstdate}`, o.vn)
+          }
+          const anMap = new Map<string, string>()
+          for (const ip of visitRes?.data?.iptRows || []) {
+            if (ip.an && ip.hn && ip.regdate) {
+              const normHn = normalizeHn(ip.hn) || ip.hn
+              anMap.set(`${normHn}_${ip.regdate}`, normalizeAn(ip.an) || ip.an)
             }
           }
+
+          for (const row of parsedRows) {
+            if (row.hn && row.admDate && !row.vn) {
+              const key = `${row.hn}_${row.admDate}`
+              if (vnMap.has(key)) {
+                row.vn = vnMap.get(key)!
+              } else if (!row.an && anMap.has(key)) {
+                row.an = anMap.get(key)!
+                row.department = 'IP'
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn({ err }, 'Batch visit (VN/AN) resolution error in Seamless import')
         }
       }
     }
@@ -708,45 +598,22 @@ export class RcmSeamlessImportService {
     const uniqueRows = Array.from(uniqueRowMap.values())
     const duplicateInFileCount = parsedRows.length - uniqueRows.length
 
-    // 6. Parallel pre-flight duplicate detection (FileName count + existing IDs)
+    // 6. Pre-flight duplicate detection via API Gateway (FileName count + existing IDs)
     let existingFileRowCount = 0
     const existingIdSet = new Set<string>()
     if (uniqueRows.length > 0) {
-      const CHECK_CHUNK = 500
-      const allIds = uniqueRows.map((r) => r.id)
-      const idChunks: string[][] = []
-      for (let i = 0; i < allIds.length; i += CHECK_CHUNK) {
-        idChunks.push(allIds.slice(i, i + CHECK_CHUNK))
+      try {
+        const preflight = await gw.preflightSeamlessCheck({
+          fileName,
+          ids: uniqueRows.map((r) => r.id),
+        })
+        existingFileRowCount = Number(preflight?.data?.existingFileRowCount || 0)
+        for (const id of preflight?.data?.existingIds || []) {
+          if (id) existingIdSet.add(String(id).trim())
+        }
+      } catch {
+        // Non-blocking pre-flight check
       }
-
-      await Promise.all([
-        (async () => {
-          try {
-            const fileCheckRows = await exec<{ cnt: number }>(
-              'SELECT COUNT(*) AS cnt FROM rcmdb.seamless WHERE FileName = ?',
-              [fileName]
-            )
-            existingFileRowCount = Number(fileCheckRows?.[0]?.cnt || 0)
-          } catch {
-            existingFileRowCount = 0
-          }
-        })(),
-        runWithConcurrency(idChunks, 4, async (idChunk) => {
-          const placeholders = idChunk.map(() => '?').join(',')
-          try {
-            const existingRows = await exec<{ ID?: string; id?: string }>(
-              `SELECT ID FROM rcmdb.seamless WHERE ID IN (${placeholders})`,
-              idChunk
-            )
-            for (const er of existingRows || []) {
-              const existingId = er.ID ?? er.id
-              if (existingId) existingIdSet.add(String(existingId).trim())
-            }
-          } catch {
-            // Non-blocking pre-flight check
-          }
-        }),
-      ])
     }
 
     const existingInDbCount = existingIdSet.size
@@ -1018,113 +885,64 @@ export class RcmSeamlessImportService {
   }
 
   /**
-   * Fetch current stats from database (rcmdb.seamless) with 60s In-Memory Cache
+   * Fetch current stats from database (rcmdb.seamless) via API Gateway with 60s In-Memory Cache
    */
   static async getSeamlessDatabaseStats(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: Partial<SeamlessImportGatewayAdapter> = defaultSeamlessGateway,
     refresh = false
   ): Promise<SeamlessDatabaseStats> {
     const cacheKey = 'rcm-seamless-stats'
     if (refresh) {
       invalidateCacheKey(cacheKey)
     }
+    const gw: SeamlessImportGatewayAdapter = { ...defaultSeamlessGateway, ...gateway }
 
     return getCachedData(
       cacheKey,
       async () => {
         try {
-          const [summaryRows, topFunds, recentFiles, extraHealthRows, denyCountRows] = await Promise.all([
-            executor(`
-          SELECT 
-            COUNT(*) as totalRows,
-            COUNT(DISTINCT Rep) as totalReps,
-            COUNT(DISTINCT FileName) as totalFiles,
-            DATE_FORMAT(MAX(AdmDate), '%Y-%m-%d') as latestAdmDate,
-            COALESCE(SUM(Compensated), 0) as totalCompensated
-          FROM rcmdb.seamless
-        `),
-            executor(`
-          SELECT 
-            Fund as fund,
-            COUNT(*) as rowCount,
-            COALESCE(SUM(Compensated), 0) as totalCompensated
-          FROM rcmdb.seamless
-          GROUP BY Fund
-          ORDER BY rowCount DESC
-          LIMIT 10
-        `),
-            executor(`
-          SELECT 
-            FileName as fileName,
-            COUNT(*) as rowCount,
-            DATE_FORMAT(MIN(AdmDate), '%Y-%m-%d') as minDate,
-            DATE_FORMAT(MAX(AdmDate), '%Y-%m-%d') as maxDate,
-            COALESCE(SUM(Compensated), 0) as totalCompensated
-          FROM rcmdb.seamless
-          WHERE FileName IS NOT NULL AND FileName <> ''
-          GROUP BY FileName
-          ORDER BY MAX(AdmDate) DESC
-          LIMIT 10
-        `),
-            executor(`
-          SELECT
-            SUM(CASE WHEN LPAD(TRIM(IFNULL(HCode, '')), 5, '0') <> '${DEFAULT_SEAMLESS_HOSPCODE}' THEN 1 ELSE 0 END) AS otherHospCount,
-            SUM(CASE WHEN PayDate IS NULL THEN 1 ELSE 0 END) AS missingPayDateCount
-          FROM rcmdb.seamless
-        `).catch(() => [] as { otherHospCount: number; missingPayDateCount: number }[]),
-            executor(`
-          SELECT COUNT(*) AS denyCodeCount FROM rcmdb.seamless_error
-        `).catch(() => [] as { denyCodeCount: number }[]),
-          ])
-
-          const summary = summaryRows[0] || {
-            totalRows: 0,
-            totalReps: 0,
-            totalFiles: 0,
-            latestAdmDate: null,
-            totalCompensated: 0,
-          }
-          const extra = extraHealthRows[0]
-          const deny = denyCountRows[0]
-
-          return {
-            totalRows: Number(summary.totalRows || 0),
-            totalReps: Number(summary.totalReps || 0),
-            totalFiles: Number(summary.totalFiles || 0),
-            latestAdmDate: summary.latestAdmDate || null,
-            totalCompensated: Number(summary.totalCompensated || 0),
-            otherHospCount: Number(extra?.otherHospCount || 0),
-            missingPayDateCount: Number(extra?.missingPayDateCount || 0),
-            denyCodeCount: Number(deny?.denyCodeCount || 0),
-            myHospCode: DEFAULT_SEAMLESS_HOSPCODE,
-            topFunds: topFunds.map((f) => ({
-              fund: f.fund || 'ไม่ระบุกองทุน',
-              rowCount: Number(f.rowCount || 0),
-              totalCompensated: Number(f.totalCompensated || 0),
-            })),
-            recentFiles: recentFiles.map((rf) => ({
-              fileName: rf.fileName,
-              rowCount: Number(rf.rowCount || 0),
-              minDate: rf.minDate,
-              maxDate: rf.maxDate,
-              totalCompensated: Number(rf.totalCompensated || 0),
-            })),
+          const res = await gw.getSeamlessStats(DEFAULT_SEAMLESS_HOSPCODE)
+          const d = res?.data
+          if (d) {
+            return {
+              totalRows: Number(d.totalRows || 0),
+              totalReps: Number(d.totalReps || 0),
+              totalFiles: Number(d.totalFiles || 0),
+              latestAdmDate: d.latestAdmDate || null,
+              totalCompensated: Number(d.totalCompensated || 0),
+              otherHospCount: Number(d.otherHospCount || 0),
+              missingPayDateCount: Number(d.missingPayDateCount || 0),
+              denyCodeCount: Number(d.denyCodeCount || 0),
+              myHospCode: d.myHospCode || DEFAULT_SEAMLESS_HOSPCODE,
+              topFunds: (d.topFunds || []).map((f: any) => ({
+                fund: f.fund || 'ไม่ระบุกองทุน',
+                rowCount: Number(f.rowCount || 0),
+                totalCompensated: Number(f.totalCompensated || 0),
+              })),
+              recentFiles: (d.recentFiles || []).map((rf: any) => ({
+                fileName: rf.fileName,
+                rowCount: Number(rf.rowCount || 0),
+                minDate: rf.minDate,
+                maxDate: rf.maxDate,
+                totalCompensated: Number(rf.totalCompensated || 0),
+              })),
+            }
           }
         } catch (err) {
           logger.error({ err }, 'Failed to fetch seamless database statistics')
-          return {
-            totalRows: 0,
-            totalReps: 0,
-            totalFiles: 0,
-            latestAdmDate: null,
-            totalCompensated: 0,
-            otherHospCount: 0,
-            missingPayDateCount: 0,
-            denyCodeCount: 0,
-            myHospCode: DEFAULT_SEAMLESS_HOSPCODE,
-            topFunds: [],
-            recentFiles: [],
-          }
+        }
+        return {
+          totalRows: 0,
+          totalReps: 0,
+          totalFiles: 0,
+          latestAdmDate: null,
+          totalCompensated: 0,
+          otherHospCount: 0,
+          missingPayDateCount: 0,
+          denyCodeCount: 0,
+          myHospCode: DEFAULT_SEAMLESS_HOSPCODE,
+          topFunds: [],
+          recentFiles: [],
         }
       },
       60_000
@@ -1132,11 +950,11 @@ export class RcmSeamlessImportService {
   }
 
   /**
-   * Server-paginated ledger of `rcmdb.seamless` records (50 rows/page, 5-Pillar compliant)
+   * Server-paginated ledger of `rcmdb.seamless` records via API Gateway (50 rows/page, 5-Pillar compliant)
    */
   static async getSeamlessLedger(
     params: SeamlessLedgerQueryParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<SeamlessImportGatewayAdapter> = defaultSeamlessGateway
   ): Promise<SeamlessLedgerResult> {
     const myHospCode = (params.myHospCode || DEFAULT_SEAMLESS_HOSPCODE).trim().padStart(5, '0')
     const page = Math.max(1, Number(params.page || 1))
@@ -1168,124 +986,30 @@ export class RcmSeamlessImportService {
     if (params.refresh) {
       invalidateCacheKey(cacheKey)
     }
+    const gw: SeamlessImportGatewayAdapter = { ...defaultSeamlessGateway, ...gateway }
 
     return getCachedData(
       cacheKey,
       async () => {
-        const whereClauses: string[] = ['1=1']
-        const queryParams: unknown[] = []
+        const res = await gw.getSeamlessLedger({
+          search,
+          fundFilter,
+          hospFilter,
+          payStatus,
+          fileName,
+          sortBy,
+          sortOrder,
+          page,
+          pageSize,
+          exportAll: Boolean(params.exportAll),
+          myHospCode,
+        })
+        const d = res?.data
+        const itemRows = d?.itemRows || []
+        const totalCount = Number(d?.totalCount || 0)
+        const totalPages = Number(d?.totalPages || Math.max(1, Math.ceil(totalCount / pageSize)))
 
-        if (search) {
-          const like = `%${search}%`
-          whereClauses.push(
-            `(ID LIKE ? OR Rep LIKE ? OR HN LIKE ? OR VN LIKE ? OR AN LIKE ? OR PID LIKE ? OR Ptname LIKE ? OR PayNo LIKE ? OR FileName LIKE ? OR Fund LIKE ?)`
-          )
-          queryParams.push(like, like, like, like, like, like, like, like, like, like)
-        }
-
-        if (fundFilter && fundFilter !== 'ALL') {
-          whereClauses.push('Fund = ?')
-          queryParams.push(fundFilter)
-        }
-
-        if (hospFilter === 'MINE') {
-          whereClauses.push(`LPAD(TRIM(IFNULL(HCode, '')), 5, '0') = ?`)
-          queryParams.push(myHospCode)
-        } else if (hospFilter === 'OTHER') {
-          whereClauses.push(`LPAD(TRIM(IFNULL(HCode, '')), 5, '0') <> ?`)
-          queryParams.push(myHospCode)
-        }
-
-        if (payStatus === 'PAID') {
-          whereClauses.push('PayDate IS NOT NULL')
-        } else if (payStatus === 'UNPAID') {
-          whereClauses.push('PayDate IS NULL')
-        }
-
-        if (fileName) {
-          whereClauses.push('FileName = ?')
-          queryParams.push(fileName)
-        }
-
-        const whereSql = whereClauses.join(' AND ')
-
-        const sortColumnMap: Record<SeamlessLedgerSortField, string> = {
-          admDate: 'AdmDate',
-          id: 'ID',
-          rep: 'Rep',
-          fund: 'Fund',
-          hn: 'HN',
-          ptname: 'Ptname',
-          collected: 'Collected',
-          compensated: 'Compensated',
-          payDate: 'PayDate',
-          fileName: 'FileName',
-        }
-        const sortCol = sortColumnMap[sortBy] || 'AdmDate'
-        const dir = sortOrder === 'asc' ? 'ASC' : 'DESC'
-        const offset = (page - 1) * pageSize
-
-        const [countRows, itemRows, fundRows] = await Promise.all([
-          executor(
-            `SELECT COUNT(*) AS cnt FROM rcmdb.seamless WHERE ${whereSql}`,
-            queryParams
-          ),
-          executor(
-            `
-            SELECT
-              ID AS id,
-              YYMM AS yymm,
-              YearBudget AS yearBudget,
-              Fund AS fund,
-              Period AS period,
-              Rep AS rep,
-              VN AS vn,
-              HN AS hn,
-              AN AS an,
-              PID AS pid,
-              Ptname AS ptname,
-              DATE_FORMAT(AdmDate, '%Y-%m-%d') AS admDate,
-              DATE_FORMAT(SendDate, '%Y-%m-%d') AS sendDate,
-              DATE_FORMAT(RegDate, '%Y-%m-%d') AS regDate,
-              MainInscl AS mainInscl,
-              Department AS department,
-              HCode AS hcode,
-              HSub AS hsub,
-              HSend AS hsend,
-              Type AS type,
-              SerialNo AS serialNo,
-              PayNo AS payNo,
-              DATE_FORMAT(PayDate, '%Y-%m-%d') AS payDate,
-              YYMM_Pay AS yymmPay,
-              YearBudget_Pay AS yearBudgetPay,
-              CodeAccount AS codeAccount,
-              COALESCE(Collected, 0) AS collected,
-              COALESCE(Compensated, 0) AS compensated,
-              COALESCE(NoCompensated, 0) AS noCompensated,
-              COALESCE(PayMore, 0) AS payMore,
-              COALESCE(Recall, 0) AS recall,
-              Status AS status,
-              Note AS note,
-              STMID AS stmid,
-              EquipCode AS equipCode,
-              EquipName AS equipName,
-              FileName AS fileName
-            FROM rcmdb.seamless
-            WHERE ${whereSql}
-            ORDER BY ${sortCol} ${dir}, ID DESC
-            LIMIT ? OFFSET ?
-            `,
-            [...queryParams, pageSize, offset]
-          ),
-          executor(
-            `SELECT DISTINCT Fund AS fund FROM rcmdb.seamless WHERE IFNULL(Fund, '') <> '' ORDER BY Fund ASC`
-          ).catch(() => [] as { fund: string }[]),
-        ])
-
-        const totalCount = Number(countRows?.[0]?.cnt || 0)
-        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
-
-        const items: SeamlessLedgerItem[] = (itemRows || []).map((r: Record<string, unknown>) => {
+        const items: SeamlessLedgerItem[] = itemRows.map((r: Record<string, unknown>) => {
           const hcodeRaw = r.hcode ? String(r.hcode).trim() : null
           const normalizedHcode = hcodeRaw ? hcodeRaw.padStart(5, '0') : null
           return {
@@ -1336,7 +1060,7 @@ export class RcmSeamlessImportService {
           totalPages,
           page,
           pageSize,
-          availableFunds: (fundRows || []).map((f) => String(f.fund)).filter(Boolean),
+          availableFunds: (d?.availableFunds || []).map((f) => String(f)).filter(Boolean),
           myHospCode,
         }
       },
@@ -1345,37 +1069,24 @@ export class RcmSeamlessImportService {
   }
 
   /**
-   * List all imported Seamless files grouped by FileName
+   * List all imported Seamless files grouped by FileName via API Gateway
    */
   static async getSeamlessImportedFiles(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: Partial<SeamlessImportGatewayAdapter> = defaultSeamlessGateway,
     refresh = false
   ): Promise<SeamlessImportedFileDetail[]> {
     const cacheKey = 'rcm-seamless-files'
     if (refresh) {
       invalidateCacheKey(cacheKey)
     }
+    const gw: SeamlessImportGatewayAdapter = { ...defaultSeamlessGateway, ...gateway }
 
     return getCachedData(
       cacheKey,
       async () => {
-        const rows = await executor(`
-          SELECT
-            FileName AS fileName,
-            COUNT(*) AS rowCount,
-            COUNT(DISTINCT Rep) AS repCount,
-            DATE_FORMAT(MIN(AdmDate), '%Y-%m-%d') AS minDate,
-            DATE_FORMAT(MAX(AdmDate), '%Y-%m-%d') AS maxDate,
-            COALESCE(SUM(Collected), 0) AS totalCollected,
-            COALESCE(SUM(Compensated), 0) AS totalCompensated,
-            SUM(CASE WHEN LPAD(TRIM(IFNULL(HCode, '')), 5, '0') <> '${DEFAULT_SEAMLESS_HOSPCODE}' THEN 1 ELSE 0 END) AS otherHospCount,
-            SUM(CASE WHEN PayDate IS NULL THEN 1 ELSE 0 END) AS missingPayDateCount
-          FROM rcmdb.seamless
-          WHERE FileName IS NOT NULL AND FileName <> ''
-          GROUP BY FileName
-          ORDER BY MAX(AdmDate) DESC, FileName ASC
-        `)
-        return (rows || []).map((r: Record<string, unknown>) => ({
+        const res = await gw.getSeamlessFiles(DEFAULT_SEAMLESS_HOSPCODE)
+        const rows = res?.data || []
+        return rows.map((r: Record<string, unknown>) => ({
           fileName: String(r.fileName || ''),
           rowCount: Number(r.rowCount || 0),
           repCount: Number(r.repCount || 0),
@@ -1392,31 +1103,30 @@ export class RcmSeamlessImportService {
   }
 
   /**
-   * List DENY CODE dictionary from `rcmdb.seamless_error`
+   * List DENY CODE dictionary from `rcmdb.seamless_error` via API Gateway
    */
   static async getSeamlessDenyCodes(
     search = '',
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: Partial<SeamlessImportGatewayAdapter> = defaultSeamlessGateway,
     refresh = false
   ): Promise<SeamlessDenyCode[]> {
     const cacheKey = 'rcm-seamless-deny-codes'
     if (refresh) {
       invalidateCacheKey(cacheKey)
     }
+    const gw: SeamlessImportGatewayAdapter = { ...defaultSeamlessGateway, ...gateway }
 
     const allCodes = await getCachedData(
       cacheKey,
       async () => {
         try {
-          const rows = await executor(`
-            SELECT Code, Name
-            FROM rcmdb.seamless_error
-            ORDER BY Code ASC
-          `)
-          return (rows || []).map((r: { Code?: string; code?: string; Name?: string; name?: string }) => ({
-            code: String(r.Code ?? r.code ?? '').trim(),
-            name: String(r.Name ?? r.name ?? '').trim(),
-          })).filter((r: SeamlessDenyCode) => r.code)
+          const res = await gw.getSeamlessDenyCodes()
+          return (res?.data || [])
+            .map((r: { Code?: string; code?: string; Name?: string; name?: string }) => ({
+              code: String(r.Code ?? r.code ?? '').trim(),
+              name: String(r.Name ?? r.name ?? '').trim(),
+            }))
+            .filter((r: SeamlessDenyCode) => r.code)
         } catch (err) {
           logger.warn({ err }, 'Failed to query rcmdb.seamless_error')
           return [] as SeamlessDenyCode[]

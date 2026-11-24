@@ -7,6 +7,7 @@ import {
   getReportTitle,
   evaluateFamilyPlanningDiscrepancy,
 } from '../rcmFamilyPlanningService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmFamilyPlanningService Domain Service', () => {
   beforeEach(() => {
@@ -43,31 +44,30 @@ describe('RcmFamilyPlanningService Domain Service', () => {
   })
 
   it('checks ADP mapping in s_drugitems correctly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([
-      {
-        icode: '1500001',
-        name: 'Implanon NXT',
-        strength: '68 mg',
-        nhso_adp_code: 'FP002_1',
-      },
-    ])
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'FP002_1',
+      adpItems: [
+        {
+          icode: '1500001',
+          name: 'Implanon NXT',
+          strength: '68 mg',
+          nhso_adp_code: 'FP002_1',
+        },
+      ],
+    })
 
-    const res = await RcmFamilyPlanningService.checkFamilyPlanningAdpMapping('FP002_1', mockExecutor)
+    const res = await RcmFamilyPlanningService.checkFamilyPlanningAdpMapping('FP002_1', mockGateway)
 
     expect(res.isMapped).toBe(true)
     expect(res.mappedCount).toBe(1)
     expect(res.items[0].name).toBe('Implanon NXT')
-    expect(mockExecutor).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE TRIM(nhso_adp_code) = ?'),
-      ['FP002_1'],
-      expect.anything()
-    )
+    expect(mockGateway.getAdpMapping).toHaveBeenCalledWith('FP002_1', undefined)
   })
 
   it('handles unmapped ADP code gracefully', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([])
+    const mockGateway = createMockRcmFundGateway({ adpCode: 'FP002_9', adpItems: [] })
 
-    const res = await RcmFamilyPlanningService.checkFamilyPlanningAdpMapping('FP002_9', mockExecutor)
+    const res = await RcmFamilyPlanningService.checkFamilyPlanningAdpMapping('FP002_9', mockGateway)
 
     expect(res.isMapped).toBe(false)
     expect(res.mappedCount).toBe(0)
@@ -126,14 +126,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
       },
     ]
 
-    const mockExecutor = vi
-      .fn()
-      // First call for mapping check
-      .mockResolvedValueOnce([
-        { icode: '1500001', name: 'Implanon NXT', strength: '68 mg', nhso_adp_code: 'FP002_1' },
-      ])
-      // Second call for queryOpdRows
-      .mockResolvedValueOnce(mockRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'FP002_1',
+      adpItems: [{ icode: '1500001', name: 'Implanon NXT', strength: '68 mg', nhso_adp_code: 'FP002_1' }],
+      rawRows: mockRows,
+    })
 
     const res = await RcmFamilyPlanningService.getFamilyPlanningReport(
       {
@@ -143,7 +140,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         endDate: '2026-11-05',
         refresh: true,
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(res.reportType).toBe('9.3.1')
@@ -225,10 +222,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
       },
     ]
 
-    const mockExecutor = vi
-      .fn()
-      .mockResolvedValueOnce([{ icode: '1500099', name: 'Microgynon 30 ED', nhso_adp_code: 'FP003_1' }])
-      .mockResolvedValueOnce(mockRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'FP003_1',
+      adpItems: [{ icode: '1500099', name: 'Microgynon 30 ED', nhso_adp_code: 'FP003_1' }],
+      rawRows: mockRows,
+    })
 
     const result = await RcmFamilyPlanningService.getFamilyPlanningReport(
       {
@@ -238,7 +236,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         endDate: '2026-11-30',
         refresh: true,
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(result.reportType).toBe('9.4')
@@ -314,10 +312,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
       },
     ]
 
-    const mockExecutor = vi
-      .fn()
-      .mockResolvedValueOnce([{ icode: '1500005', name: 'Exluton', nhso_adp_code: 'FP003_2' }])
-      .mockResolvedValueOnce(mockRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'FP003_2',
+      adpItems: [{ icode: '1500005', name: 'Exluton', nhso_adp_code: 'FP003_2' }],
+      rawRows: mockRows,
+    })
 
     const result = await RcmFamilyPlanningService.getFamilyPlanningReport(
       {
@@ -327,7 +326,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         endDate: '2026-11-30',
         refresh: true,
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(result.reportType).toBe('9.5')
@@ -401,10 +400,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
       },
     ]
 
-    const mockExecutor = vi
-      .fn()
-      .mockResolvedValueOnce([{ icode: '1500088', name: 'Postinor', nhso_adp_code: 'FP003_3' }])
-      .mockResolvedValueOnce(mockRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'FP003_3',
+      adpItems: [{ icode: '1500088', name: 'Postinor', nhso_adp_code: 'FP003_3' }],
+      rawRows: mockRows,
+    })
 
     const result = await RcmFamilyPlanningService.getFamilyPlanningReport(
       {
@@ -414,7 +414,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         endDate: '2026-11-30',
         refresh: true,
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(result.reportType).toBe('9.6')
@@ -472,10 +472,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
       },
     ]
 
-    const mockExecutor = vi
-      .fn()
-      .mockResolvedValueOnce([{ icode: '1', name: 'Implant', nhso_adp_code: 'FP002_1' }])
-      .mockResolvedValueOnce(mockRows)
+    const mockGateway = createMockRcmFundGateway({
+      adpCode: 'FP002_1',
+      adpItems: [{ icode: '1', name: 'Implant', nhso_adp_code: 'FP002_1' }],
+      rawRows: mockRows,
+    })
 
     const resErrorDx = await RcmFamilyPlanningService.getFamilyPlanningReport(
       {
@@ -486,7 +487,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         endDate: '2026-11-05',
         refresh: true,
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(resErrorDx.items).toHaveLength(1)
@@ -741,12 +742,15 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([
-          { icode: '1', name: 'DMPA', strength: '150 mg', nhso_adp_code: 'FP003_1' },
-        ])
-        .mockResolvedValueOnce(mockRawRows)
+      const mockGateway = {
+        ...createMockRcmFundGateway({ rawRows: mockRawRows }),
+        getFamilyPlanning91AdpMapping: vi.fn().mockResolvedValue({
+          isMapped: true,
+          mappedCount: 1,
+          format: 'NEW_ECLAIM',
+          items: [{ icode: '1', name: 'DMPA', strength: '150 mg', nhso_adp_code: 'FP003_1' }],
+        }),
+      }
 
       const result = await RcmFamilyPlanningService.getFamilyPlanning91Report(
         {
@@ -756,7 +760,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
           status: '-::ยังไม่ได้ส่ง',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.format).toBe('NEW_ECLAIM')
@@ -825,10 +829,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
       ]
 
       // Test 9.3.1.1 (Implant Insertion)
-      const mockExecutor1 = vi
-        .fn()
-        .mockResolvedValueOnce([{ icode: '1', name: 'Implanon', nhso_adp_code: 'FP002_1' }])
-        .mockResolvedValueOnce(mockRawRows)
+      const mockGateway1 = createMockRcmFundGateway({
+        adpCode: 'FP002_1',
+        adpItems: [{ icode: '1', name: 'Implanon', nhso_adp_code: 'FP002_1' }],
+        rawRows: mockRawRows,
+      })
 
       const resultInsertion = await RcmFamilyPlanningService.getFamilyPlanningReport(
         {
@@ -837,7 +842,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
           endDate: '2026-11-05',
           refresh: true,
         },
-        mockExecutor1
+        mockGateway1
       )
 
       // Should exclude Case 2 (removal only) -> 3 cases remain (Case 4, Case 3, Case 1 descending by vstdate)
@@ -849,10 +854,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
 
       // Test 9.3.1.2 (Implant Removal)
       clearMemoryCache()
-      const mockExecutor2 = vi
-        .fn()
-        .mockResolvedValueOnce([{ icode: '2', name: 'ค่าถอด', nhso_adp_code: 'FP002_2' }])
-        .mockResolvedValueOnce(mockRawRows)
+      const mockGateway2 = createMockRcmFundGateway({
+        adpCode: 'FP002_2',
+        adpItems: [{ icode: '2', name: 'ค่าถอด', nhso_adp_code: 'FP002_2' }],
+        rawRows: mockRawRows,
+      })
 
       const resultRemoval = await RcmFamilyPlanningService.getFamilyPlanningReport(
         {
@@ -861,7 +867,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
           endDate: '2026-11-05',
           refresh: true,
         },
-        mockExecutor2
+        mockGateway2
       )
 
       // Should exclude Case 1 (insertion only) -> 3 cases remain (Case 4, Case 3, Case 2 descending by vstdate)
@@ -897,10 +903,11 @@ describe('RcmFamilyPlanningService Domain Service', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([{ icode: '1', name: 'Implanon', nhso_adp_code: 'FP002_1' }])
-        .mockResolvedValueOnce(mockRawRows)
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'FP002_1',
+        adpItems: [{ icode: '1', name: 'Implanon', nhso_adp_code: 'FP002_1' }],
+        rawRows: mockRawRows,
+      })
 
       const res = await RcmFamilyPlanningService.getFamilyPlanningReport(
         {
@@ -910,7 +917,7 @@ describe('RcmFamilyPlanningService Domain Service', () => {
           pttypes: '01,02',
           refresh: true,
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(res.items).toHaveLength(1)

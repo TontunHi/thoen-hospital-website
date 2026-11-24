@@ -1,11 +1,15 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import { isUniversalCoverageScheme } from './rcmOralCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
@@ -193,12 +197,10 @@ export interface RehabReportResult {
 
 export class RcmRehabilitationService {
   /**
-   * ตรวจสอบว่าในตาราง s_drugitems หรือ nondrugitems มีการ Map รหัส ADP ฟื้นฟูสมรรถภาพ (16 รหัส) ไว้หรือไม่
-   * ตรงกับคำสั่ง FoxPro:
-   * select count(*) from s_drugitems where nhso_adp_code in ('H9449.1','H0489', ...)
+   * ตรวจสอบว่าในตาราง s_drugitems หรือ nondrugitems มีการ Map รหัส ADP ฟื้นฟูสมรรถภาพ (16 รหัส) ไว้หรือไม่ via API Gateway
    */
   static async checkRehabAdpMapping(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway,
     refresh?: boolean
   ): Promise<RehabAdpMappingCheck> {
     const cacheKey = 'rcm-rehab-adp-mapping-check-16'
@@ -209,71 +211,12 @@ export class RcmRehabilitationService {
     return getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('REHAB')
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                totalTargetCodes: REHAB_ADP_CODES.length,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || ''),
-                  name: String(r.name || ''),
-                  strength: r.strength ? String(r.strength) : null,
-                  nhso_adp_code: String(r.nhso_adp_code || ''),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        try {
-          const placeholders = REHAB_ADP_CODES.map(() => '?').join(',')
-          const sql = `
-            SELECT 
-              TRIM(icode) AS icode,
-              TRIM(name) AS name,
-              TRIM(strength) AS strength,
-              TRIM(nhso_adp_code) AS nhso_adp_code
-            FROM s_drugitems
-            WHERE TRIM(nhso_adp_code) IN (${placeholders})
-            UNION
-            SELECT 
-              TRIM(icode) AS icode,
-              TRIM(name) AS name,
-              '' AS strength,
-              TRIM(nhso_adp_code) AS nhso_adp_code
-            FROM nondrugitems
-            WHERE TRIM(nhso_adp_code) IN (${placeholders})
-            ORDER BY nhso_adp_code ASC;
-          `
-          const rows = (await executor(sql, [...REHAB_ADP_CODES, ...REHAB_ADP_CODES], {
-            timeoutMs: 30000,
-          })) as any[]
-
-          const items: RehabAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || ''),
-            name: String(r.name || ''),
-            strength: r.strength ? String(r.strength) : null,
-            nhso_adp_code: String(r.nhso_adp_code || ''),
-          }))
-
-          return {
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            totalTargetCodes: REHAB_ADP_CODES.length,
-            items,
-          }
-        } catch {
-          return {
-            isMapped: false,
-            mappedCount: 0,
-            totalTargetCodes: REHAB_ADP_CODES.length,
-            items: [],
-          }
+        const res = await fetchAdpMappingViaGateway('REHAB', gateway, { refresh })
+        return {
+          isMapped: res.isMapped,
+          mappedCount: res.mappedCount,
+          totalTargetCodes: REHAB_ADP_CODES.length,
+          items: res.items,
         }
       },
       300000 // Cache TTL 5 minutes
@@ -281,12 +224,12 @@ export class RcmRehabilitationService {
   }
 
   /**
-   * สร้างรายงานรายชื่อการให้บริการฟื้นฟูสมรรถภาพจากเว็บ Disability (11.47.3)
+   * สร้างรายงานรายชื่อการให้บริการฟื้นฟูสมรรถภาพจากเว็บ Disability (11.47.3) via API Gateway
    * กองทุนการให้บริการฟื้นฟูสมรรถภาพและเบิกอุปกรณ์
    */
   static async getDisabilityServicesReport(
     params: RehabReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<RehabReportResult> {
     const categoryTitle = 'กองทุนการให้บริการฟื้นฟูสมรรถภาพและเบิกอุปกรณ์'
     const subtopicTitle = 'รายการการให้บริการฟื้นฟูสมรรถภาพ'
@@ -310,296 +253,14 @@ export class RcmRehabilitationService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmRehabilitationService.checkRehabAdpMapping(executor, Boolean(params.refresh)),
-              apiGateway.clinical.getRcmFundData('rehabilitation', { ds1, ds2 }),
-            ])
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return {
-                rawRows: gwRes.data.rawRows,
-                adpMapping: mRes,
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        const placeholders = REHAB_ADP_CODES.map(() => '?').join(',')
-
-        // 1. Parallel Discovery: Check ADP mapping + Candidate VNs from HOSxP and Web Disability
-        const opCandidateSql = `
-          SELECT DISTINCT oo.vn
-          FROM (
-            SELECT icode FROM nondrugitems WHERE nhso_adp_code IN (${placeholders})
-            UNION ALL
-            SELECT icode FROM s_drugitems WHERE nhso_adp_code IN (${placeholders})
-          ) target_items
-          JOIN opitemrece oo ON oo.icode = target_items.icode
-          WHERE oo.vstdate BETWEEN ? AND ? AND IFNULL(oo.vn, '') <> ''
-        `
-
-        const rsCandidateSql = `
-          SELECT DISTINCT s.vn
-          FROM rcmdb.rehab_service s
-          WHERE s.vstdate BETWEEN ? AND ? AND IFNULL(s.vn, '') <> ''
-        `
-
-        const sqlNoVn = `
-          SELECT 
-            rs.vn,
-            rs.an,
-            IFNULL(rs.cid, '') AS cid,
-            rs.hn,
-            rs.ptname,
-            DATE_FORMAT(rs.vstdate, '%Y-%m-%d') AS vstdate,
-            '00:00:00' AS vsttime,
-            NULL AS authencode,
-            'UC' AS maininscl,
-            'สิทธิ์จากเว็บ Disability' AS pttypename,
-            '01' AS pttype_eclaim_id,
-            NULL AS department,
-            NULL AS clinic,
-            0 AS income,
-            NULL AS listname,
-            rs.diag,
-            rs.oper,
-            NULL AS doctorname,
-            'Web' AS filetype,
-            rs.rehab_name,
-            rs.rehab_code,
-            NULL AS rep_seamless,
-            NULL AS payno,
-            0 AS compensated_seamless,
-            NULL AS nocompensated,
-            NULL AS status,
-            NULL AS rep,
-            0 AS compensated,
-            rs.targetgroup,
-            rs.deformed_type,
-            rs.adl,
-            DATE_FORMAT(rs.startservice, '%Y-%m-%d') AS startservice,
-            DATE_FORMAT(rs.endservice, '%Y-%m-%d') AS endservice,
-            rs.unitprice,
-            rs.realprice,
-            rs.staff,
-            rs.serialno,
-            rs.status AS web_status,
-            rs.filename
-          FROM rcmdb.rehab_service rs
-          WHERE rs.vstdate BETWEEN ? AND ?
-            AND IFNULL(rs.vn, '') = ''
-          ORDER BY rs.vstdate DESC;
-        `
-
-        const safeExecute = async (sql: string, params: any[] = [], opts?: any) => {
-          try {
-            return (await executor(sql, params, opts)) || []
-          } catch {
-            return []
-          }
-        }
-
-        const [mappingRes, opRes, rsRes, noVnRes] = await Promise.all([
-          this.checkRehabAdpMapping(executor, params.refresh),
-          safeExecute(
-            opCandidateSql,
-            [...REHAB_ADP_CODES, ...REHAB_ADP_CODES, ds1, ds2],
-            { timeoutMs: 30000 }
-          ),
-          safeExecute(rsCandidateSql, [ds1, ds2], { timeoutMs: 30000 }),
-          safeExecute(sqlNoVn, [ds1, ds2], { timeoutMs: 30000 }),
+        const [mRes, gwRes] = await Promise.all([
+          RcmRehabilitationService.checkRehabAdpMapping(gateway, Boolean(params.refresh)),
+          gateway.getRcmFundData('rehabilitation', { ds1, ds2 }),
         ])
-
-        const opCandidateRows = (opRes as any[]) || []
-        const rsCandidateRows = (rsRes as any[]) || []
-        const noVnRows = (noVnRes as any[]) || []
-
-        const candidateVns = Array.from(
-          new Set([
-            ...opCandidateRows.map((r: any) => String(r.vn || '').trim()),
-            ...rsCandidateRows.map((r: any) => String(r.vn || '').trim()),
-          ])
-        ).filter(Boolean)
-
-        let mainRows: any[] = []
-
-        // 2. Fetch full visit details and claim reconciliation ONLY for candidate VNs (< 50ms)
-        if (candidateVns.length > 0) {
-          const vnPlaceholders = candidateVns.map(() => '?').join(',')
-
-          const fetchVisitDetails = async (includeRehabService: boolean) => {
-            const sql = `
-              SELECT 
-                o.vn,
-                o.an,
-                IFNULL(pt.cid, '') AS cid,
-                o.hn,
-                CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-                DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-                TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-                COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-                IFNULL(ptt.hipdata_code, '') AS maininscl,
-                CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-                ptt.pttype_eclaim_id,
-                IFNULL(dep.department, o.main_dep) AS department,
-                IFNULL(spc.name, o.spclty) AS clinic,
-                v.income,
-                (
-                  SELECT GROUP_CONCAT(CONCAT_WS('#', oo.icode, IFNULL(d.nhso_adp_code, ''), IFNULL(d.name, ''), oo.sum_price) SEPARATOR '||')
-                  FROM opitemrece oo
-                  LEFT JOIN nondrugitems d ON d.icode = oo.icode
-                  WHERE oo.vn = o.vn AND (d.nhso_adp_code IN (${placeholders}) OR oo.income = '09' OR d.nhso_adp_code LIKE 'H%')
-                ) AS listname,
-                v.pdx AS diag,
-                v.op0 AS oper,
-                IFNULL(doc.name, o.doctor) AS doctorname,
-                ${includeRehabService ? "IF(rs.vn IS NOT NULL, 'Web & HOSxP', 'HOSxP')" : "'HOSxP'"} AS filetype,
-                ${includeRehabService ? "IFNULL(rs.rehab_name, 'ไม่พบใน Web')" : "'ไม่พบใน Web'"} AS rehab_name,
-                (
-                  SELECT GROUP_CONCAT(DISTINCT d.nhso_adp_code SEPARATOR ', ')
-                  FROM opitemrece oo
-                  JOIN nondrugitems d ON d.icode = oo.icode
-                  WHERE oo.vn = o.vn AND d.nhso_adp_code IN (${placeholders})
-                ) AS rehab_code,
-                sm.rep AS rep_seamless,
-                sm.payno,
-                sm.type AS seamless_type,
-                sm.compensated AS compensated_seamless,
-                sm.noCompensated,
-                ${includeRehabService ? 'rs.targetgroup,' : 'NULL AS targetgroup,'}
-                ${includeRehabService ? 'rs.deformed_type,' : 'NULL AS deformed_type,'}
-                ${includeRehabService ? 'rs.adl,' : 'NULL AS adl,'}
-                ${includeRehabService ? "DATE_FORMAT(rs.startservice, '%Y-%m-%d') AS startservice," : 'NULL AS startservice,'}
-                ${includeRehabService ? "DATE_FORMAT(rs.endservice, '%Y-%m-%d') AS endservice," : 'NULL AS endservice,'}
-                ${includeRehabService ? 'rs.unitprice,' : 'NULL AS unitprice,'}
-                ${includeRehabService ? 'rs.realprice,' : 'NULL AS realprice,'}
-                ${includeRehabService ? 'rs.staff,' : 'NULL AS staff,'}
-                ${includeRehabService ? 'rs.serialno,' : 'NULL AS serialno,'}
-                ${includeRehabService ? 'rs.status AS web_status,' : 'NULL AS web_status,'}
-                ${includeRehabService ? 'rs.filename' : 'NULL AS filename'}
-              FROM ovst o
-              LEFT JOIN patient pt ON pt.hn = o.hn
-              LEFT JOIN vn_stat v ON v.vn = o.vn
-              LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-              LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-              LEFT JOIN spclty spc ON spc.spclty = o.spclty
-              LEFT JOIN doctor doc ON doc.code = o.doctor
-              LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-              LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-              ${includeRehabService ? 'LEFT JOIN rcmdb.rehab_service rs ON rs.vn = o.vn' : ''}
-              LEFT JOIN (
-                SELECT
-                  vn,
-                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS rep,
-                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(payno, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS payno,
-                  SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(type, '') ORDER BY (Compensated > 0) DESC, AdmDate DESC, id DESC), ',', 1) AS type,
-                  SUM(IFNULL(compensated, 0)) AS compensated,
-                  SUM(IFNULL(noCompensated, 0)) AS noCompensated
-                FROM rcmdb.seamless
-                WHERE IFNULL(vn, '') <> ''
-                GROUP BY vn
-              ) sm ON sm.vn = o.vn
-              WHERE o.vn IN (${vnPlaceholders})
-              ORDER BY o.vstdate DESC, o.vsttime DESC;
-            `
-            return executor(sql, [...REHAB_ADP_CODES, ...REHAB_ADP_CODES, ...candidateVns], {
-              timeoutMs: 30000,
-            })
-          }
-
-          const visitDetailsPromise = (async () => {
-            try {
-              return await fetchVisitDetails(true)
-            } catch (err: any) {
-              if (err?.message && /rcmdb\.rehab_service/i.test(err.message)) {
-                return await fetchVisitDetails(false)
-              }
-              throw err
-            }
-          })()
-
-          const sqlNhso = `
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: มี Invoice แล้ว' AS statusname
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND vn IN (${vnPlaceholders})
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          `
-
-          const sqlRep = `
-            SELECT vn,
-                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
-                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND vn IN (${vnPlaceholders})
-            GROUP BY vn
-          `
-
-          const sqlNewEclaim = `
-            SELECT Seq AS vn, Rep AS rep, Income AS compensated, StatusName AS statusname
-            FROM rcmdb.neweclaim
-            WHERE Seq IN (${vnPlaceholders})
-          `
-
-          const sqlEclaim = `
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND m.opdseq IN (${vnPlaceholders})
-            GROUP BY m.opdseq
-          `
-
-          const [visitRes, nhsoRes, repRes, newEclaimRes, eclaimRes] = await Promise.all([
-            visitDetailsPromise,
-            safeExecute(sqlNhso, candidateVns, { timeoutMs: 15000 }),
-            safeExecute(sqlRep, candidateVns, { timeoutMs: 15000 }),
-            safeExecute(sqlNewEclaim, candidateVns, { timeoutMs: 15000 }),
-            safeExecute(sqlEclaim, candidateVns, { timeoutMs: 15000 }),
-          ])
-
-          const visitRows = (visitRes as any[]) || []
-          const nhsoRows = (nhsoRes as any[]) || []
-          const repRows = (repRes as any[]) || []
-          const newEclaimRows = (newEclaimRes as any[]) || []
-          const eclaimRows = (eclaimRes as any[]) || []
-
-          const nhsoMap = new Map(nhsoRows.map((r: any) => [String(r.vn), r]))
-          const repMap = new Map(repRows.map((r: any) => [String(r.vn), r]))
-          const newEclaimMap = new Map(newEclaimRows.map((r: any) => [String(r.vn), r]))
-          const eclaimMap = new Map(eclaimRows.map((r: any) => [String(r.vn), r]))
-
-          mainRows = visitRows.map((v: any) => {
-            const vnStr = String(v.vn)
-            const nhso = nhsoMap.get(vnStr)
-            const rep = repMap.get(vnStr)
-            const nn = newEclaimMap.get(vnStr)
-            const m = eclaimMap.get(vnStr)
-
-            const status = nhso?.statusname || rep?.statusname || nn?.statusname || m?.statusname || v.status || null
-            const repNo = nhso?.rep || rep?.rep || nn?.rep || m?.rep || v.rep || null
-            const comp = Number(
-              nhso?.compensated ?? rep?.compensated ?? nn?.compensated ?? m?.compensated ?? v.compensated ?? 0
-            )
-
-            return {
-              ...v,
-              status,
-              rep: repNo,
-              compensated: comp,
-            }
-          })
+        return {
+          rawRows: extractFundRawRows(gwRes),
+          adpMapping: mRes,
         }
-
-        const combined = [...mainRows, ...noVnRows]
-        return { rawRows: combined, adpMapping: mappingRes }
       },
       300000 // Cache TTL 5 minutes
     )
@@ -689,7 +350,12 @@ export class RcmRehabilitationService {
     })
 
     // ── 5. Calculate KPI Summary Cards ────────────────────────────────────────
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      resolveSeamlessFetcher(gateway),
+      Boolean(params.refresh)
+    )
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>

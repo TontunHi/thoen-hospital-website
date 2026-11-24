@@ -1,7 +1,13 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type QueryExecutor } from '../rcmDashboardService'
+import { resolveFiscalDateRange } from '../rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from '../rcmFundGatewayHelper'
 import { matchesPttypeFilter, isUcEclaimCode } from '../pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from '../rcmSeamlessEnricher'
 import { buildRepBreakdownSummary, matchesRepFilter, parseRepFilterParam } from '../rcmRepTagHelper'
@@ -53,38 +59,41 @@ import {
 
 import { getFamilyPlanning93Report } from './service93Report'
 
+export interface FamilyPlanningGatewayAdapter extends RcmFundGatewayAdapter {
+  getFamilyPlanning91AdpMapping?: (format: 'NEW_ECLAIM' | 'KRUNGTHAI') => Promise<{
+    isMapped: boolean
+    mappedCount: number
+    format?: string
+    items: Array<Record<string, any>>
+  }>
+}
+
+const defaultFpGateway: FamilyPlanningGatewayAdapter = {
+  ...defaultRcmFundGateway,
+  getFamilyPlanning91AdpMapping: (format) => apiGateway.clinical.getFamilyPlanning91AdpMapping(format),
+}
+
   /**
-   * Check whether relevant ADP codes are mapped in HOSxP `s_drugitems` table (for 9.1).
+   * Check whether relevant ADP codes are mapped in HOSxP `s_drugitems` table (for 9.1) via API Gateway.
    */
 export async function checkAdpMapping(
     format: 'NEW_ECLAIM' | 'KRUNGTHAI' = 'NEW_ECLAIM',
-    executor: QueryExecutor = queryClinicalDb
+    gateway: FamilyPlanningGatewayAdapter = defaultFpGateway
   ): Promise<any> {
-    const codes =
-      format === 'KRUNGTHAI'
-        ? KRUNGTHAI_ADP_CODES
-        : NEW_ECLAIM_ADP_CODES
-
     const cacheKey = `rcm-fp-adp-mapping-${format}`
     return getCachedData(
       cacheKey,
       async () => {
         try {
-          const placeholders = codes.map(() => '?').join(', ')
-          const sql = `
-            SELECT icode, name, strength, nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) IN (${placeholders})
-            ORDER BY nhso_adp_code ASC, icode ASC;
-          `
-          const rows = (await executor(sql, codes, { timeoutMs: 15000 })) as any[]
-          const items = (rows || []).map((r) => ({
+          const gwRes = gateway.getFamilyPlanning91AdpMapping
+            ? await gateway.getFamilyPlanning91AdpMapping(format)
+            : await gateway.getAdpMapping(format)
+          const items = (gwRes?.items || []).map((r: any) => ({
             icode: String(r.icode || '').trim(),
             name: String(r.name || '').trim(),
             strength: r.strength ? String(r.strength).trim() : null,
             nhso_adp_code: String(r.nhso_adp_code || '').trim(),
           }))
-
           return {
             isMapped: items.length > 0,
             mappedCount: items.length,
@@ -105,71 +114,16 @@ export async function checkAdpMapping(
   }
 
   /**
-   * Check if the specific ADP code ('FP002_1' or 'FP002_2') is mapped in s_drugitems (for 9.3).
+   * Check if the specific ADP code ('FP002_1' or 'FP002_2') is mapped in s_drugitems (for 9.3) via API Gateway.
    */
 export async function checkFamilyPlanningAdpMapping(
     adpCode: string,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultFpGateway
   ): Promise<FamilyPlanningAdpMappingCheck> {
     const cacheKey = `rcm-fp-adp-mapping-${adpCode}`
     return getCachedData(
       cacheKey,
-      async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                adpCode,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback
-          }
-        }
-
-        try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) = ?
-            ORDER BY icode ASC;
-          `
-          const rows = (await executor(sql, [adpCode], { timeoutMs: 15000 })) as any[]
-          const items: FamilyPlanningAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-          }))
-
-          return {
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            adpCode,
-            items,
-          }
-        } catch {
-          return {
-            isMapped: false,
-            mappedCount: 0,
-            adpCode,
-            items: [],
-          }
-        }
-      },
+      () => fetchAdpMappingViaGateway(adpCode, gateway),
       600000 // Cache TTL 10 minutes
     )
   }
@@ -180,7 +134,7 @@ export async function checkFamilyPlanningAdpMapping(
    */
 export async function getFamilyPlanningReport(
     params: any = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: FamilyPlanningGatewayAdapter = defaultFpGateway
   ): Promise<any> {
     if (
       params.reportType === '9.3.1' ||
@@ -196,25 +150,20 @@ export async function getFamilyPlanningReport(
       params.reportType === '9.7' ||
       params.reportType === '9.3.7'
     ) {
-      return getFamilyPlanning93Report(params, executor)
+      return getFamilyPlanning93Report(params, gateway)
     }
-    return getFamilyPlanning91Report(params, executor)
+    return getFamilyPlanning91Report(params, gateway)
   }
 
   /**
-   * 9.1 Family Planning report implementation.
+   * 9.1 Family Planning report implementation via API Gateway.
    */
 export async function getFamilyPlanning91Report(
     params: any = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: FamilyPlanningGatewayAdapter = defaultFpGateway
   ): Promise<any> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const format = params.format || 'NEW_ECLAIM'
-    const adpCodes =
-      format === 'KRUNGTHAI'
-        ? KRUNGTHAI_ADP_CODES
-        : NEW_ECLAIM_ADP_CODES
-    const adpPlaceholders = adpCodes.map(() => '?').join(', ')
 
     const serviceOnly = Boolean(params.serviceOnly)
     const statusParam = (params.status || 'ALL').trim()
@@ -234,167 +183,12 @@ export async function getFamilyPlanning91Report(
     }
 
     const [adpMapping, rawRows] = await Promise.all([
-      checkAdpMapping(format, executor),
+      checkAdpMapping(format, gateway),
       getCachedData(
         cacheKey,
         async () => {
-          const sql = `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              CASE pt.sex WHEN '1' THEN 'ชาย' WHEN '2' THEN 'หญิง' ELSE IFNULL(pt.sex, '-') END AS sex,
-              TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) AS age,
-              IFNULL(nat.name, pt.nationality) AS nation,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              s.cc,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              ptt.name AS pttypename,
-              ptt.pttype_eclaim_id,
-              v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-              v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-              IFNULL(dx.icd10, '') AS icd10,
-              dx.op,
-              IFNULL(v.income, 0) AS income,
-              doc.name AS doctorname,
-              IFNULL(fp.name, '') AS listname,
-              d.drugname,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-::ยังไม่ได้ส่ง') AS status,
-              COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-              COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-              rep.TransactionType,
-              nhso.resource,
-              COALESCE(rep.fund, nhso.fund) AS fund,
-              COALESCE(rep.subfund, nhso.subfund) AS subfund,
-              rep.remark,
-              rep.projectcode
-            FROM (
-              SELECT DISTINCT vn FROM (
-                SELECT vn 
-                FROM ovstdiag 
-                WHERE vstdate BETWEEN ? AND ? 
-                  AND icd10 REGEXP 'Z30' 
-                  AND icd10 <> 'Z302'
-                UNION
-                SELECT oo.vn
-                FROM s_drugitems d
-                JOIN opitemrece oo ON oo.icode = d.icode
-                WHERE TRIM(d.nhso_adp_code) IN (${adpPlaceholders})
-                  AND oo.vstdate BETWEEN ? AND ? 
-                  AND IFNULL(oo.vn, '') <> ''
-                UNION
-                SELECT oo.vn
-                FROM opitemrece oo
-                JOIN s_drugitems d ON d.icode = oo.icode
-                LEFT JOIN income inc ON inc.income = oo.income
-                WHERE oo.vstdate BETWEEN ? AND ?
-                  AND IFNULL(oo.vn, '') <> ''
-                  AND (d.name REGEXP 'norplant|คุมกำเนิด' OR d.drugcategory REGEXP 'FP|CONTRACEPTIVE|CONTRACEPTION')
-                  AND d.name NOT REGEXP 'condom|ถุงยางอนามัย'
-                  AND inc.group2 IN (3, 4, 5)
-                  AND oo.qty > 0
-              ) u
-            ) t
-            JOIN ovst o ON o.vn = t.vn
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN opdscreen s ON s.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN doctor doc ON doc.code = o.doctor
-            LEFT JOIN (
-              SELECT 
-                oo.vn,
-                GROUP_CONCAT(DISTINCT CONCAT_WS(':', d.nhso_adp_code, CONCAT(d.name, ' ', IFNULL(d.strength, ''))) SEPARATOR ', ') AS name
-              FROM s_drugitems d
-              JOIN opitemrece oo ON oo.icode = d.icode
-              WHERE TRIM(d.nhso_adp_code) IN (${adpPlaceholders})
-                AND oo.vstdate BETWEEN ? AND ?
-              GROUP BY oo.vn
-            ) fp ON fp.vn = o.vn
-            LEFT JOIN (
-              SELECT 
-                oo.vn,
-                GROUP_CONCAT(DISTINCT CONCAT(d.name, '#', oo.qty) SEPARATOR ', ') AS drugname
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              LEFT JOIN income inc ON inc.income = oo.income
-              WHERE oo.vstdate BETWEEN ? AND ?
-                AND IFNULL(oo.vn, '') <> ''
-                AND (d.name REGEXP 'norplant|คุมกำเนิด' OR d.drugcategory REGEXP 'FP|CONTRACEPTIVE|CONTRACEPTION')
-                AND d.name NOT REGEXP 'condom|ถุงยางอนามัย'
-                AND inc.group2 IN (3, 4, 5)
-                AND oo.qty > 0
-              GROUP BY oo.vn
-            ) d ON d.vn = o.vn
-            LEFT JOIN (
-              SELECT vn,
-                     GROUP_CONCAT(DISTINCT IF(icd10 REGEXP '^[0-9]', NULL, icd10) SEPARATOR ', ') AS icd10,
-                     GROUP_CONCAT(DISTINCT IF(icd10 REGEXP '^697|^992', icd10, NULL) SEPARATOR ', ') AS op
-              FROM ovstdiag
-              WHERE vstdate BETWEEN ? AND ?
-                AND (
-                  (icd10 REGEXP 'Z30' AND icd10 <> 'Z302')
-                  OR icd10 REGEXP '^697|^992'
-                )
-              GROUP BY vn
-            ) dx ON dx.vn = o.vn
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     MAX(resource) AS resource, MAX(fund) AS fund, MAX(subfund) AS subfund,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= DATE_SUB(?, INTERVAL 1 DAY) AND admdate < DATE_ADD(?, INTERVAL 2 DAY)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     MAX(TransactionType) AS TransactionType, MAX(fund) AS fund, MAX(subfund) AS subfund,
-                     MAX(remark) AS remark, MAX(projectcode) AS projectcode,
-                     'Rep :: มี Rep แล้ว' AS statusname
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn, '') <> '' AND admdate >= DATE_SUB(?, INTERVAL 1 DAY) AND admdate < DATE_ADD(?, INTERVAL 2 DAY)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-              FROM eclaimdb.m_registerdata m
-              LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1'
-              GROUP BY m.opdseq
-            ) m ON m.vn = o.vn
-            GROUP BY o.vn
-            ORDER BY o.vstdate DESC, o.vsttime DESC
-          `
-          const queryParams = [
-            ds1,
-            ds2,
-            ...adpCodes,
-            ds1,
-            ds2,
-            ds1,
-            ds2,
-            ...adpCodes,
-            ds1,
-            ds2,
-            ds1,
-            ds2,
-            ds1,
-            ds2,
-            ds1,
-            ds2,
-            ds1,
-            ds2,
-          ]
-          return (await executor(sql, queryParams, { timeoutMs: 45000 })) as any[]
+          const gwRes = await gateway.getRcmFundData('family-planning-91', { ds1, ds2, format })
+          return extractFundRawRows(gwRes)
         },
         300000
       ),
@@ -467,7 +261,12 @@ export async function getFamilyPlanning91Report(
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(
+      cacheKey,
+      allItems,
+      resolveSeamlessFetcher(gateway, defaultFpGateway),
+      Boolean(params.refresh)
+    )
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i: any) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))
