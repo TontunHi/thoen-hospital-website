@@ -115,7 +115,7 @@
 โปรเจกต์นี้ผสานแนวปฏิบัติจาก **pstack** และ **Clean Architecture**:
 
 - **Boundary Discipline:** วาง Validation (Zod) และ Auth Checks อย่างรัดกุมที่ System Boundaries (API Routes, Form Actions) ขณะที่ Domain Logic ภายในเป็น Pure Functions ที่เชื่อถือ Typings
-- **Thin Route Adapters:** API Routes (`src/app/api/**`) ต้องมีความยาวสั้น (~20–40 บรรทัด) ทำหน้าที่เป็น HTTP Adapter เท่านั้น ไม่ฝัง Business Logic หรือการประมวลผลข้อมูลลงใน Route
+- **Thin Route Adapters & File Size Guardrails:** API Routes (`src/app/api/**`) ทำหน้าที่เป็น HTTP Adapter เท่านั้น (`<= 200` บรรทัด, ไม่มี Raw SQL หรือ Raw `fs`) และไม่มีไฟล์ `.ts`/`.tsx` ใดใน `src/` เกิน `2,000` บรรทัด รวมถึงบังคับใช้ `await import('exceljs')` แบบ Dynamic ใน Client Components (ตรวจสอบอัตโนมัติใน `src/lib/__tests__/architectureGuardrails.test.ts`)
 - **Model the Domain:** ตัดลด Boolean flags ซับซ้อนด้วย State Machine หรือ Discriminated Unions เพื่อให้สถานะที่ไม่ถูกต้องทางกฎหมาย (Invalid State) ไม่สามารถคอมไพล์ผ่านได้
 - **Dependency Injection:** Domain Services ทุกตัวรับพารามิเตอร์ `QueryExecutor` เพื่อให้สามารถรัน Unit Tests บน Vitest ได้ 100% โดยไม่ต้องเชื่อมต่อฐานข้อมูลจริง
 - **Fix Root Causes & Prove It Works:** สืบหาและแก้ไขข้อผิดพลาดที่ต้นตอของข้อมูล พร้อมพิสูจน์ด้วยชุดทดสอบ Vitest และหลักฐาน Runtime เสมอ
@@ -208,7 +208,7 @@ cmd.exe /c "npm run start"
 |---|---|
 | `cmd.exe /c "npm run dev"` | เริ่มต้น Dev Server (Next.js 16 Turbopack บน `0.0.0.0:3000`) |
 | `cmd.exe /c "npm run build"` | คอมไพล์โปรเจกต์สำหรับ Production |
-| `cmd.exe /c "npm run test"` | รันชุดทดสอบ Vitest ทั้งหมด (274 test suites, 1,868 tests) |
+| `cmd.exe /c "npm run test"` | รันชุดทดสอบ Vitest ทั้งหมด (320 test suites, 2,207 tests, แยก `node`/`jsdom` + `vmThreads`) |
 | `cmd.exe /c "npm run test:watch"` | รัน Vitest ในโหมด Watch สำหรับพัฒนา |
 | `cmd.exe /c "npm run lint"` | ตรวจสอบคุณภาพโค้ดด้วย ESLint |
 | `cmd.exe /c "npx tsc --noEmit"` | ตรวจสอบ Type Safety ด้วย TypeScript Compiler |
