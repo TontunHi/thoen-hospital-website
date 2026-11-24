@@ -121,4 +121,147 @@ describe('Hospital Architecture & Build Guardrails', () => {
 
     expect(violations).toEqual([])
   })
+
+  it('enforces Strict Zero-SQL Project Ratchet across src/lib (no new raw SQL or /api/v1/*/query usages)', () => {
+    // Legacy allowlist of files pending migration to Gateway Named Endpoints (shrink-only ratchet).
+    // Remove each entry as its phase completes until this set reaches 0 and rawSql.js is retired.
+    const LEGACY_SQL_ALLOWLIST = new Set<string>([
+      // Wrappers & Gateway raw methods (Phase 5)
+      'src/lib/clinicalDb.ts',
+      'src/lib/memberDb.ts',
+      'src/lib/salaryDb.ts',
+      'src/lib/gateway/appGatewayNamespace.ts',
+      'src/lib/gateway/clinicalGatewayNamespace.ts',
+      'src/lib/gateway/salaryGatewayNamespace.ts',
+      // Phase 1A: Salary Dual-Path (3)
+      'src/lib/salary/salaryBatchService.ts',
+      'src/lib/salary/salaryLedgerService.ts',
+      'src/lib/salary/salaryPortalService.ts',
+      // Phase 1B: RCM Specific Funds Dual-Path (26)
+      'src/lib/clinical/family-planning/service91Report.ts',
+      'src/lib/clinical/family-planning/service93Report.ts',
+      'src/lib/clinical/rcmAdpSearchService.ts',
+      'src/lib/clinical/rcmAmedHomewardService.ts',
+      'src/lib/clinical/rcmAncService.ts',
+      'src/lib/clinical/rcmAnemiaScreeningService.ts',
+      'src/lib/clinical/rcmCancerFundService.ts',
+      'src/lib/clinical/rcmClopidogrelService.ts',
+      'src/lib/clinical/rcmColorectalCancerService.ts',
+      'src/lib/clinical/rcmDentalImplantService.ts',
+      'src/lib/clinical/rcmFluorideVarnishService.ts',
+      'src/lib/clinical/rcmHealthScreeningService.ts',
+      'src/lib/clinical/rcmHepatitisCService.ts',
+      'src/lib/clinical/rcmImcService.ts',
+      'src/lib/clinical/rcmInstrumentFundService.ts',
+      'src/lib/clinical/rcmIronSupplementsService.ts',
+      'src/lib/clinical/rcmOpdDebtRegistryService.ts',
+      'src/lib/clinical/rcmOralCancerService.ts',
+      'src/lib/clinical/rcmPostpartumService.ts',
+      'src/lib/clinical/rcmPregnancyTestService.ts',
+      'src/lib/clinical/rcmRehabilitationService.ts',
+      'src/lib/clinical/rcmSeamlessImportService.ts',
+      'src/lib/clinical/rcmStreptokinaseService.ts',
+      'src/lib/clinical/rcmT1dmImportService.ts',
+      'src/lib/clinical/rcmTelemedDrugService.ts',
+      'src/lib/clinical/rcmWalkinFundService.ts',
+      // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (9)
+      'src/lib/clinical/clinicalRecordsService.ts',
+      'src/lib/clinical/ipdWardService.ts',
+      'src/lib/clinical/ltcRegistryService.ts',
+      'src/lib/clinical/mokService.ts',
+      'src/lib/clinical/outpatientDrugService.ts',
+      'src/lib/clinical/palliative-registry/typesAndLookup.ts',
+      'src/lib/clinical/palliativeRegistryService.ts',
+      'src/lib/clinical/rcm-dashboard/invoiceReports.ts',
+      'src/lib/erDb.ts',
+      // Phase 1D: App Core Dual-Path (8)
+      'src/lib/auth/memberProfileService.ts',
+      'src/lib/inbox/taskDefinitionsAndRepairAction.ts',
+      'src/lib/inbox/taskInboxApiService.ts',
+      'src/lib/kpi/kpiService.ts',
+      'src/lib/media/onlineMediaService.ts',
+      'src/lib/memberAuth.ts',
+      'src/lib/screening/screeningService.ts',
+      'src/lib/taskInboxService.ts',
+      // Phase 2: Clinical & RCM Pure-SQL (22)
+      'src/lib/clinical/cervical-cancer/screenedRecipientsReport.ts',
+      'src/lib/clinical/cervical-cancer/service1B004Reports.ts',
+      'src/lib/clinical/cervical-cancer/service1B004_0NAnd1B005Reports.ts',
+      'src/lib/clinical/cervical-cancer/targetPopulationReport.ts',
+      'src/lib/clinical/cervical-cancer/typesAndHelpers.ts',
+      'src/lib/clinical/dmRemissionLabService.ts',
+      'src/lib/clinical/dmRemissionService.ts',
+      'src/lib/clinical/family-planning/iudReport.ts',
+      'src/lib/clinical/family-planning/service932Report.ts',
+      'src/lib/clinical/family-planning/typesAndHelpers.ts',
+      'src/lib/clinical/fctHomeVisitService.ts',
+      'src/lib/clinical/rcm-dashboard/ipdReports.ts',
+      'src/lib/clinical/rcm-dashboard/opdReports.ts',
+      'src/lib/clinical/rcm-dashboard/palliativeAndVnReports.ts',
+      'src/lib/clinical/rcmRepFundsService.ts',
+      'src/lib/clinical/rcmSeamlessEnricher.ts',
+      'src/lib/clinical/rcmT1dmGdmPdmService.ts',
+      'src/lib/clinical/rcmThaiTraditionalMedicineService.ts',
+      'src/lib/clinical/rcmThalassemiaFundService.ts',
+      'src/lib/clinical/rcmThalassemiaService.ts',
+      'src/lib/clinical/rcmViralHepatitisService.ts',
+      'src/lib/clinical/seamless-import/typesAndParsers.ts',
+      // Phase 3: Auth, Permissions, Audit & Integrations (6)
+      'src/lib/auditLogService.ts',
+      'src/lib/auth/MemberAuthService.ts',
+      'src/lib/auth/memberSignatureService.ts',
+      'src/lib/permissions/taskPermissionService.ts',
+      'src/lib/registration/registrationService.default.ts',
+      'src/lib/telegram/telegramCore.ts',
+      // Phase 4: Hospital Operations App DB (14)
+      'src/lib/assets/assetService.ts',
+      'src/lib/cms/EthicsDocumentService.ts',
+      'src/lib/departments/departmentService.ts',
+      'src/lib/equipment/equipmentBorrowOverdueNotifier.ts',
+      'src/lib/equipment/equipmentBorrowService.ts',
+      'src/lib/events/eventLeaderboardService.ts',
+      'src/lib/events/hospitalEventService.ts',
+      'src/lib/inbox/taskAuditLogger.ts',
+      'src/lib/inbox/taskManagerEditService.ts',
+      'src/lib/inbox/taskNotificationHelper.ts',
+      'src/lib/internalPhones/internalPhoneService.ts',
+      'src/lib/kpi/kpiAuditService.ts',
+      'src/lib/kpi/kpiExportService.ts',
+      'src/lib/projects/projectTrackerService.ts',
+    ])
+
+    const libRoot = path.join(srcRoot, 'lib')
+    const libFiles = walkFiles(
+      libRoot,
+      (f) => /\.(ts|tsx)$/.test(f) && !f.includes('__tests__') && !f.includes('.test.')
+    )
+    const violations: string[] = []
+    const matchedAllowlist = new Set<string>()
+
+    for (const file of libFiles) {
+      const rel = path.relative(process.cwd(), file).split(path.sep).join('/')
+      const content = fs.readFileSync(file, 'utf8')
+      const strippedComments = content.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+      const hasRawCall =
+        /\b(queryClinicalDb|queryMemberDb|querySalaryDb|querySalaryEditDb)\b|apiGateway\.(clinical|app|salary)\.(query|execute|transaction)|['"]\/api\/v1\/(clinical|app|salary)\/(query|execute|transaction)['"]/.test(
+          strippedComments
+        )
+      const hasSql =
+        /\bSELECT\b[\s\S]{0,120}\bFROM\b|\bINSERT\s+INTO\b|\bUPDATE\s+[\w.`]+\s+SET\b|\bDELETE\s+FROM\b/i.test(
+          strippedComments
+        )
+
+      if (hasRawCall || hasSql) {
+        if (LEGACY_SQL_ALLOWLIST.has(rel)) {
+          matchedAllowlist.add(rel)
+        } else {
+          violations.push(rel)
+        }
+      }
+    }
+
+    const staleAllowlist = Array.from(LEGACY_SQL_ALLOWLIST).filter((f) => !matchedAllowlist.has(f))
+    expect(violations).toEqual([])
+    expect(staleAllowlist).toEqual([])
+  })
 })
