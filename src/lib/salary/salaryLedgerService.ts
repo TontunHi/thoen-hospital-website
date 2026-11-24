@@ -1,5 +1,3 @@
-import { queryMemberDb } from '@/lib/memberDb'
-import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
 import { apiGateway } from '@/lib/apiGateway'
 
 export interface SalaryLedgerOptions {
@@ -30,45 +28,45 @@ export interface SalaryLedgerResult {
   hasRecords?: boolean
 }
 
-type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
+export interface SalaryLedgerGatewayAdapter {
+  lookupMember: (target: string) => Promise<{
+    id: number
+    username: string
+    email: string | null
+    name: string | null
+    department: string | null
+    position: string | null
+    salary_user: string | null
+  } | null>
+  getRecords: (salaryUser: string) => Promise<{
+    salary: Array<Record<string, any>>
+    ot: Array<Record<string, any>>
+  }>
+  getCalendar: () => Promise<Array<Record<string, any>>>
+}
+
+const defaultSalaryLedgerGateway: SalaryLedgerGatewayAdapter = {
+  lookupMember: (target) => apiGateway.salary.lookupMember(target),
+  getRecords: (salaryUser) => apiGateway.salary.getRecords(salaryUser),
+  getCalendar: () => apiGateway.salary.getCalendar(),
+}
 
 export class SalaryLedgerService {
   constructor(
-    private memberDb: QueryExecutor = queryMemberDb,
-    private salaryDb: QueryExecutor = querySalaryDb,
-    private salaryEditDb: QueryExecutor = querySalaryEditDb
+    private readonly gateway: SalaryLedgerGatewayAdapter = defaultSalaryLedgerGateway
   ) {}
 
   async getEmployeeSalaryLedger(options: SalaryLedgerOptions): Promise<SalaryLedgerResult> {
     const { targetUsername, selectedYear, selectedMonth } = options
 
-    // 1. Find target member in memberDb (safely omitting sensitive password fields)
-    const memberRows = await this.memberDb(
-      'SELECT id, username, email, name, department, position, salary_user FROM members WHERE username = ? OR salary_user = ? LIMIT 1',
-      [targetUsername, targetUsername]
-    )
-
-    const targetMember = memberRows && memberRows.length > 0 ? memberRows[0] : null
+    const targetMember = await this.gateway.lookupMember(targetUsername)
     const salaryLookupId = targetMember?.salary_user || targetUsername
 
-    // 2. Fetch salary and OT records
-    let salaryRows: any[] = []
-    let otRows: any[] = []
+    const records = await this.gateway.getRecords(salaryLookupId)
+    const salaryRows: any[] = records?.salary || []
+    const otRows: any[] = records?.ot || []
 
-    if (this.salaryDb === querySalaryDb) {
-      const records = await apiGateway.salary.getRecords(salaryLookupId)
-      salaryRows = records?.salary || []
-      otRows = records?.ot || []
-    } else {
-      const results = await Promise.all([
-        this.salaryDb('SELECT * FROM salary WHERE c2 = ? ORDER BY c1 DESC', [salaryLookupId]),
-        this.salaryDb('SELECT * FROM ot WHERE c2 = ? ORDER BY c1 DESC', [salaryLookupId]),
-      ])
-      salaryRows = results[0] || []
-      otRows = results[1] || []
-    }
-
-    if ((!salaryRows || salaryRows.length === 0) && (!otRows || otRows.length === 0) && !targetMember) {
+    if (salaryRows.length === 0 && otRows.length === 0 && !targetMember) {
       return {
         success: false,
         notFound: true,
@@ -76,25 +74,17 @@ export class SalaryLedgerService {
       }
     }
 
-    // 3. Calendar records for pay dates
     let calendarRows: any[] = []
     try {
-      if (this.salaryEditDb === querySalaryEditDb) {
-        calendarRows = await apiGateway.salary.getCalendar()
-      } else {
-        calendarRows = await this.salaryEditDb(
-          'SELECT id, type, datein, notesalary FROM datein WHERE MONTH(datein) = MONTH(NOW()) AND YEAR(datein) = YEAR(NOW()) ORDER BY ABS(DAY(datein)) ASC'
-        )
-      }
+      calendarRows = (await this.gateway.getCalendar()) || []
     } catch {
       calendarRows = []
     }
 
-    // 4. Map periods in-memory
     const periods = new Set<string>()
 
-    const mappedSalaries = (salaryRows || []).map((row) => {
-      const cleanedPeriod = row.c8 ? row.c8.replace(/\s+/g, ' ').trim() : ''
+    const mappedSalaries = salaryRows.map((row) => {
+      const cleanedPeriod = row.c8 ? String(row.c8).replace(/\s+/g, ' ').trim() : ''
       if (cleanedPeriod) periods.add(cleanedPeriod)
       return {
         ...row,
@@ -102,10 +92,10 @@ export class SalaryLedgerService {
       }
     })
 
-    const mappedOts = (otRows || []).map((row) => {
+    const mappedOts = otRows.map((row) => {
       if (!row.c10 || !row.c1) return { ...row, computedPeriod: '' }
 
-      const otMonth = row.c10.trim()
+      const otMonth = String(row.c10).trim()
       const payDate = new Date(row.c1)
       const payYear = payDate.getFullYear() + 543
       const payMonth = payDate.getMonth()
@@ -123,7 +113,6 @@ export class SalaryLedgerService {
       }
     })
 
-    // Parse and sort periods
     const parsedPeriods = Array.from(periods)
       .map((p) => {
         const parts = p.split(/\s+/)

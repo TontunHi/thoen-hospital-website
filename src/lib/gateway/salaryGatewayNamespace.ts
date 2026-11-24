@@ -67,6 +67,36 @@ export function createSalaryNamespace(client: SalaryHttpClient) {
       )
     },
 
+    lookupMember: (target: string) => {
+      return client.get<{
+        id: number
+        username: string
+        email: string | null
+        name: string | null
+        department: string | null
+        position: string | null
+        salary_user: string | null
+      } | null>(`/api/v1/salary/member-lookup?target=${encodeURIComponent(target)}`)
+    },
+
+    getMemberCredentials: (username: string, email: string) => {
+      return client.post<{
+        salary_user: string | null
+        salary_pass: string | null
+      } | null>('/api/v1/salary/member-credentials', { username, email })
+    },
+
+    verifyFinanceAccess: (username: string, email: string) => {
+      return client.post<{ allowed: boolean; error?: string; status?: number }>(
+        '/api/v1/salary/verify-finance-access',
+        { username, email }
+      )
+    },
+
+    getFeatureEnabled: () => {
+      return client.get<{ enabled: boolean }>('/api/v1/salary/feature-enabled')
+    },
+
     query: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> => {
       const res = await client.post<{ data: T[]; count: number }>('/api/v1/salary/query', { sql, params })
       return Array.isArray(res) ? res : res.data || []

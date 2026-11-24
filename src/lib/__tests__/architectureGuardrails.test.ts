@@ -133,10 +133,7 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/gateway/appGatewayNamespace.ts',
       'src/lib/gateway/clinicalGatewayNamespace.ts',
       'src/lib/gateway/salaryGatewayNamespace.ts',
-      // Phase 1A: Salary Dual-Path (3)
-      'src/lib/salary/salaryBatchService.ts',
-      'src/lib/salary/salaryLedgerService.ts',
-      'src/lib/salary/salaryPortalService.ts',
+      // Phase 1A: Salary Dual-Path (completed -> 0)
       // Phase 1B: RCM Specific Funds Dual-Path (26)
       'src/lib/clinical/family-planning/service91Report.ts',
       'src/lib/clinical/family-planning/service93Report.ts',

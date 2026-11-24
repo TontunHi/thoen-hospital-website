@@ -1,13 +1,42 @@
-import { queryMemberDb } from '@/lib/memberDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { buildStatementData, StatementRange } from '@/lib/salary/salaryStatementService'
 
-export type SalaryPortalQueryExecutor = <T = Record<string, unknown>>(
-  sql: string,
-  params?: unknown[]
-) => Promise<T[]>
+export interface SalaryPortalGatewayAdapter {
+  lookupMember: (target: string) => Promise<{
+    id: number
+    username: string
+    email: string | null
+    name: string | null
+    department: string | null
+    position: string | null
+    salary_user: string | null
+  } | null>
+  getMemberCredentials: (
+    username: string,
+    email: string
+  ) => Promise<{ salary_user: string | null; salary_pass: string | null } | null>
+  verifyFinanceAccess: (
+    username: string,
+    email: string
+  ) => Promise<{ allowed: boolean; error?: string; status?: number }>
+  getFeatureEnabled: () => Promise<{ enabled: boolean }>
+  getRecords: (salaryUser: string) => Promise<{
+    salary: Array<Record<string, any>>
+    ot: Array<Record<string, any>>
+  }>
+  getCalendar: () => Promise<Array<Record<string, any>>>
+}
+
+const defaultSalaryPortalGateway: SalaryPortalGatewayAdapter = {
+  lookupMember: (target) => apiGateway.salary.lookupMember(target),
+  getMemberCredentials: (username, email) => apiGateway.salary.getMemberCredentials(username, email),
+  verifyFinanceAccess: (username, email) => apiGateway.salary.verifyFinanceAccess(username, email),
+  getFeatureEnabled: () => apiGateway.salary.getFeatureEnabled(),
+  getRecords: (salaryUser) => apiGateway.salary.getRecords(salaryUser),
+  getCalendar: () => apiGateway.salary.getCalendar(),
+}
 
 export class SalaryPortalError extends Error {
   constructor(message: string, public readonly status: number = 400) {
@@ -34,21 +63,9 @@ const THAI_MONTH_ORDER = [
 export const SalaryPortalService = {
   async resolveTargetMemberForStatement(
     targetUsername: string,
-    query: SalaryPortalQueryExecutor = queryMemberDb
+    gateway: SalaryPortalGatewayAdapter = defaultSalaryPortalGateway
   ) {
-    const memberRows = await query<{
-      id: number
-      username: string
-      email: string | null
-      name: string | null
-      department: string | null
-      position: string | null
-      salary_user: string | null
-    }>(
-      'SELECT id, username, email, name, department, position, salary_user FROM members WHERE username = ? OR salary_user = ? LIMIT 1',
-      [targetUsername, targetUsername]
-    )
-    return memberRows && memberRows.length > 0 ? memberRows[0] : null
+    return gateway.lookupMember(targetUsername)
   },
 
   async buildEmployeeSalaryStatement(
@@ -60,11 +77,11 @@ export const SalaryPortalService = {
       format: string
       actor: { username: string; email: string }
     },
-    query: SalaryPortalQueryExecutor = queryMemberDb
+    gateway: SalaryPortalGatewayAdapter = defaultSalaryPortalGateway
   ) {
     const targetMember = await this.resolveTargetMemberForStatement(
       params.targetUsername,
-      query
+      gateway
     )
     const salaryLookupId = targetMember?.salary_user || params.targetUsername
 
@@ -72,17 +89,14 @@ export const SalaryPortalService = {
     let otRows: Record<string, any>[] = []
 
     try {
-      const records = await apiGateway.salary.getRecords(salaryLookupId)
+      const records = await gateway.getRecords(salaryLookupId)
       salaryRows = records?.salary || []
       otRows = records?.ot || []
     } catch {
       throw new SalaryPortalError('ไม่สามารถเชื่อมต่อฐานข้อมูลเงินเดือนได้ในขณะนี้', 500)
     }
 
-    if (
-      (!salaryRows || salaryRows.length === 0) &&
-      (!otRows || otRows.length === 0)
-    ) {
+    if (salaryRows.length === 0 && otRows.length === 0) {
       throw new SalaryPortalError(
         `ไม่พบข้อมูลเงินเดือนสำหรับรหัส "${params.targetUsername}"`,
         404
@@ -125,22 +139,22 @@ export const SalaryPortalService = {
 
   async getExpectedSalaryUserForMember(
     memberUsername: string,
-    query: SalaryPortalQueryExecutor = queryMemberDb
+    gateway: SalaryPortalGatewayAdapter = defaultSalaryPortalGateway
   ): Promise<string | null> {
-    const memberRows = await query<{ salary_user: string | null }>(
-      'SELECT salary_user FROM members WHERE username = ? LIMIT 1',
-      [memberUsername]
-    )
-    return memberRows[0]?.salary_user ?? null
+    const member = await gateway.lookupMember(memberUsername)
+    return member?.salary_user ?? null
   },
 
-  async fetchPersonalSalaryPayload(params: {
-    salaryUsername: string
-    salaryDisplayName: string
-    selectedYear: string | null
-    selectedMonth: string | null
-    actor: { username: string; email: string }
-  }) {
+  async fetchPersonalSalaryPayload(
+    params: {
+      salaryUsername: string
+      salaryDisplayName: string
+      selectedYear: string | null
+      selectedMonth: string | null
+      actor: { username: string; email: string }
+    },
+    gateway: SalaryPortalGatewayAdapter = defaultSalaryPortalGateway
+  ) {
     logAudit(
       'READ',
       'salary',
@@ -153,7 +167,7 @@ export const SalaryPortalService = {
     let calendarRows: unknown[] = []
 
     try {
-      const records = await apiGateway.salary.getRecords(params.salaryUsername)
+      const records = await gateway.getRecords(params.salaryUsername)
       salaryRows = records?.salary || []
       otRows = records?.ot || []
     } catch {
@@ -164,7 +178,7 @@ export const SalaryPortalService = {
     }
 
     try {
-      const calRes = await apiGateway.salary.getCalendar()
+      const calRes = await gateway.getCalendar()
       calendarRows = calRes || []
     } catch (calErr) {
       logger.warn(
@@ -278,60 +292,24 @@ export const SalaryPortalService = {
 
   async getStoredMemberSalaryCredentials(
     memberSession: { username: string; email: string },
-    query: SalaryPortalQueryExecutor = queryMemberDb
+    gateway: SalaryPortalGatewayAdapter = defaultSalaryPortalGateway
   ): Promise<{ salary_user: string | null; salary_pass: string | null } | null> {
-    const users = await query<{
-      salary_user: string | null
-      salary_pass: string | null
-    }>(
-      'SELECT salary_user, salary_pass FROM members WHERE username = ? AND email = ? LIMIT 1',
-      [memberSession.username, memberSession.email]
-    )
-    if (!users || users.length === 0) return null
-    return users[0]
+    return gateway.getMemberCredentials(memberSession.username, memberSession.email)
   },
 
   async verifyFinanceUploadAccess(
     session: { username: string; email: string },
-    query: SalaryPortalQueryExecutor = queryMemberDb
+    gateway: SalaryPortalGatewayAdapter = defaultSalaryPortalGateway
   ): Promise<{ allowed: boolean; error?: string; status?: number }> {
-    const users = await query<{ role: string; position: string | null }>(
-      'SELECT role, position FROM members WHERE username = ? AND email = ?',
-      [session.username, session.email]
-    )
-
-    if (!users || users.length === 0) {
-      return { allowed: false, error: 'ไม่พบข้อมูลสมาชิกในระบบ', status: 403 }
-    }
-
-    const member = users[0]
-    let isFinance =
-      member.role === 'admin' ||
-      Boolean(member.position && member.position.includes('เจ้าพนักงานการเงินและบัญชี'))
-
-    if (!isFinance && member.position) {
-      const finPerms = await query<{ count?: number }>(
-        "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'upload_salary' AND TRIM(position_name) = TRIM(?)",
-        [member.position]
-      )
-      isFinance = Number(finPerms[0]?.count || 0) > 0
-    }
-
-    if (!isFinance) {
-      return { allowed: false, error: 'คุณไม่มีสิทธิ์เข้าถึงส่วนงานนี้', status: 403 }
-    }
-
-    return { allowed: true }
+    return gateway.verifyFinanceAccess(session.username, session.email)
   },
 
   async isSalaryFeatureEnabled(
     role: string,
-    query: SalaryPortalQueryExecutor = queryMemberDb
+    gateway: SalaryPortalGatewayAdapter = defaultSalaryPortalGateway
   ): Promise<boolean> {
     if (role === 'admin') return true
-    const settingsRows = await query<{ config_value: string | null }>(
-      "SELECT config_value FROM member_system_settings WHERE config_key = 'feature_salary'"
-    )
-    return settingsRows.length === 0 || settingsRows[0].config_value !== '0'
+    const res = await gateway.getFeatureEnabled()
+    return res?.enabled !== false
   },
 }

@@ -5,7 +5,7 @@ import {
   parseCSV,
   formatNumericValue,
   parseAndFormatDate,
-  SalaryDbExecutor,
+  type SalaryBatchGatewayAdapter,
 } from '../salaryBatchService'
 
 vi.mock('@/lib/audit', () => ({
@@ -32,7 +32,6 @@ describe('SalaryBatchService', () => {
 
   describe('formatNumericValue', () => {
     it('expands scientific notation 13-digit citizen IDs accurately', () => {
-      // e.g. Excel export of citizen ID: 1.529900112233E+12
       const formatted = formatNumericValue('1.529900112233E+12')
       expect(formatted).toBe('1529900112233')
     })
@@ -58,7 +57,7 @@ describe('SalaryBatchService', () => {
     })
   })
 
-  describe('SalaryBatchService batch operations', () => {
+  describe('SalaryBatchService batch operations (Gateway Adapter)', () => {
     it('parses batch buffer and normalizes 30-column rows', () => {
       const csv = `c1,c2,c3,c4\n30/09/2569,1.529900112233E+12,นายสมชาย,15000`
       const buffer = Buffer.from(csv, 'utf8')
@@ -74,8 +73,12 @@ describe('SalaryBatchService', () => {
       expect(batch.rows[0][3]).toBe('15,000.00')
     })
 
-    it('ingests parsed batch through executor', async () => {
-      const mockExecutor: SalaryDbExecutor = vi.fn().mockResolvedValue({ affectedRows: 1 })
+    it('ingests parsed batch through Gateway adapter', async () => {
+      const mockGateway: SalaryBatchGatewayAdapter = {
+        uploadBatch: vi.fn().mockResolvedValue({ insertedCount: 1 }),
+        getLatestBatchSummary: vi.fn(),
+        deleteLatestBatch: vi.fn(),
+      }
       const batch = {
         type: 'salary' as const,
         tableName: 'salary' as const,
@@ -83,26 +86,25 @@ describe('SalaryBatchService', () => {
         totalCount: 1,
       }
 
-      const result = await SalaryBatchService.ingestBatch(batch, mockExecutor)
+      const result = await SalaryBatchService.ingestBatch(batch, mockGateway)
       expect(result.insertedCount).toBe(1)
-      expect(mockExecutor).toHaveBeenCalledTimes(1)
+      expect(mockGateway.uploadBatch).toHaveBeenCalledTimes(1)
     })
 
-    it('gets latest batch summary and executes atomic deletion', async () => {
-      const mockExecutor: SalaryDbExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('ORDER BY id DESC')) {
-          return Promise.resolve([{ latest_date: '2026-09-30' }])
-        }
-        if (sql.includes('COUNT(*)')) {
-          return Promise.resolve([{ total_count: 50 }])
-        }
-        if (sql.includes('DELETE FROM')) {
-          return Promise.resolve({ affectedRows: 50 })
-        }
-        return Promise.resolve([])
-      })
+    it('gets latest batch summary and executes atomic deletion via Gateway adapter', async () => {
+      const mockGateway: SalaryBatchGatewayAdapter = {
+        uploadBatch: vi.fn(),
+        getLatestBatchSummary: vi.fn().mockResolvedValue({
+          summary: { tableName: 'salary', date: '2026-09-30', count: 50 },
+        }),
+        deleteLatestBatch: vi.fn().mockResolvedValue({
+          deletedCount: 50,
+          deletedDate: '2026-09-30',
+          tableName: 'salary',
+        }),
+      }
 
-      const summary = await SalaryBatchService.getLatestBatchSummary('salary', mockExecutor)
+      const summary = await SalaryBatchService.getLatestBatchSummary('salary', mockGateway)
       expect(summary).toEqual({
         tableName: 'salary',
         date: '2026-09-30',
@@ -115,7 +117,7 @@ describe('SalaryBatchService', () => {
           confirmedDate: '2026-09-30',
           user: { username: 'finance_admin' },
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(delResult.success).toBe(true)
