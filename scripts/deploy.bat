@@ -34,26 +34,39 @@ set "NEED_INSTALL=0"
 if not exist "node_modules" (
     set "NEED_INSTALL=1"
     echo      - ไม่พบโฟลเดอร์ node_modules จำเป็นต้องติดตั้งใหม่
-) else (
-    :: ตรวจว่าใน commit ล่าสุดมีการแตะต้อง package.json หรือ package-lock.json หรือไม่
-    git diff !PREV_COMMIT! HEAD --name-only | findstr /i "package.json package-lock.json" >nul
-    if !errorlevel! equ 0 (
-        set "NEED_INSTALL=1"
-        echo      - ตรวจพบการเปลี่ยนแปลงใน package.json หรือ lockfile
-    )
+    goto :STEP2_RUN
 )
 
-if "!NEED_INSTALL!"=="1" (
-    echo      - กำลังอัปเดตแพ็กเกจด้วย npm ci (Fast & Clean)...
-    call npm ci --prefer-offline --no-audit
-    if !errorlevel! neq 0 (
-        echo [ERROR] npm ci ล้มเหลว!
-        goto ERROR_HANDLER
-    )
-    echo      - อัปเดตแพ็กเกจเรียบร้อย
-) else (
-    echo      - [PASS] ข้ามขั้นตอนติดตั้งแพ็กเกจ (ไม่มีการเปลี่ยนแปลง)
+REM ตรวจว่าใน commit ล่าสุดมีการแตะต้อง package.json หรือ package-lock.json หรือไม่
+git diff !PREV_COMMIT! HEAD --name-only | findstr /i "package.json package-lock.json" >nul 2>&1
+if %errorlevel% equ 0 (
+    set "NEED_INSTALL=1"
+    echo      - ตรวจพบการเปลี่ยนแปลงใน package.json หรือ lockfile
 )
+
+:STEP2_RUN
+if not "!NEED_INSTALL!"=="1" goto :STEP2_SKIP
+
+echo      - หยุด PM2 ชั่วคราวก่อนอัปเดต node_modules ^(ป้องกันไฟล์ถูกล็อกบน Windows^)...
+call pm2 stop thoen-hospital-website >nul 2>&1
+echo      - กำลังอัปเดตแพ็กเกจด้วย npm ci ^(Fast ^& Clean^)...
+call npm ci --prefer-offline --no-audit
+if %errorlevel% neq 0 (
+    echo [ERROR] npm ci ล้มเหลว!
+    goto ERROR_HANDLER
+)
+call npx prisma generate
+if %errorlevel% neq 0 (
+    echo [ERROR] npx prisma generate ล้มเหลว!
+    goto ERROR_HANDLER
+)
+echo      - อัปเดตแพ็กเกจเรียบร้อย
+goto :STEP2_DONE
+
+:STEP2_SKIP
+echo      - [PASS] ข้ามขั้นตอนติดตั้งแพ็กเกจ ^(ไม่มีการเปลี่ยนแปลง^)
+
+:STEP2_DONE
 echo.
 
 :: -----------------------------------------------------------------
@@ -61,10 +74,10 @@ echo.
 :: -----------------------------------------------------------------
 echo [3/4] กำลังคอมไพล์โปรเจกต์ (Next.js Build)...
 :: ล้างเฉพาะ .next\dev ที่อาจค้างจากการพัฒนา โดยเก็บ .next\cache ไว้เพื่อเร่งความเร็ว Turbopack Incremental Build
-if exist ".next\dev" (
-    echo      - กำลังล้างแคชฝั่ง Dev (.next\dev) เพื่อประหยัดพื้นที่...
-    rmdir /s /q ".next\dev" >nul 2>&1
-)
+if not exist ".next\dev" goto :SKIP_DEV_CLEAN
+echo      - กำลังล้างแคชฝั่ง Dev ^(.next\dev^) เพื่อประหยัดพื้นที่...
+rmdir /s /q ".next\dev" >nul 2>&1
+:SKIP_DEV_CLEAN
 :: จัดสรร Heap Memory 4GB และเปิดโหมด Fast Build เพื่อข้าม Lint/TypeCheck ซ้ำซ้อนบน Server
 set "NODE_OPTIONS=--max-old-space-size=4096"
 set "FAST_BUILD=true"
