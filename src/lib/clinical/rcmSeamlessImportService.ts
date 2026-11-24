@@ -47,6 +47,17 @@ import {
 
 export * from './seamless-import/typesAndParsers'
 
+/**
+ * Safely unwrap Gateway responses whether received as `{ success, data }` envelope or direct payload.
+ */
+export function unwrapGatewayData<T>(res: unknown): T | null {
+  if (res == null) return null
+  if (typeof res === 'object' && !Array.isArray(res) && 'success' in res && 'data' in res) {
+    return ((res as { data?: T }).data ?? null) as T | null
+  }
+  return res as T
+}
+
 export interface SeamlessImportGatewayAdapter {
   lookupSeamlessBudget: typeof apiGateway.clinical.lookupSeamlessBudget
   resolveSeamlessHospCode: typeof apiGateway.clinical.resolveSeamlessHospCode
@@ -171,9 +182,13 @@ export class RcmSeamlessImportService {
             const cleanPayNo = payNo.replace(/[^a-zA-Z0-9_-]/g, '')
             if (cleanPayNo) {
               const budgetRes = await gw.lookupSeamlessBudget(cleanPayNo)
-              if (budgetRes?.data?.paydate) {
-                summaryInfo.payDate = budgetRes.data.paydate
-                summaryInfo.codeAccount = budgetRes.data.accountcode || null
+              const budgetData = unwrapGatewayData<{
+                paydate: string | null
+                accountcode: string | null
+              }>(budgetRes)
+              if (budgetData?.paydate) {
+                summaryInfo.payDate = budgetData.paydate
+                summaryInfo.codeAccount = budgetData.accountcode || null
               }
             }
           } catch (err) {
@@ -479,8 +494,9 @@ export class RcmSeamlessImportService {
       if (napNumbers.length > 0) {
         try {
           const napRes = await gw.enrichSeamlessImport({ napNumbers })
+          const napData = unwrapGatewayData<{ napRows?: Array<{ nap_number: string; cid: string }> }>(napRes)
           const napCidMap = new Map<string, string>()
-          for (const nr of napRes?.data?.napRows || []) {
+          for (const nr of napData?.napRows || []) {
             if (nr.nap_number && nr.cid) {
               napCidMap.set(String(nr.nap_number).trim(), String(nr.cid).trim())
             }
@@ -517,12 +533,16 @@ export class RcmSeamlessImportService {
             cids: cidsToResolve,
             hnsMissing: hnsMissingInfo,
           })
+          const ptData = unwrapGatewayData<{
+            cidRows?: Array<{ cid: string; hn: string; ptname: string }>
+            hnRows?: Array<{ hn: string; cid: string; ptname: string }>
+          }>(ptRes)
           const patientMap = new Map<string, { hn: string; ptname: string }>()
-          for (const r of ptRes?.data?.cidRows || []) {
+          for (const r of ptData?.cidRows || []) {
             if (r.cid) patientMap.set(r.cid, { hn: r.hn, ptname: r.ptname })
           }
           const hnPatientMap = new Map<string, { cid: string; ptname: string }>()
-          for (const r of ptRes?.data?.hnRows || []) {
+          for (const r of ptData?.hnRows || []) {
             if (r.hn) {
               hnPatientMap.set(normalizeHn(r.hn) || r.hn, { cid: r.cid, ptname: r.ptname })
             }
@@ -560,13 +580,17 @@ export class RcmSeamlessImportService {
             ovstLookup: { hns: uniqueHns, minDate, maxDate },
             iptLookup: { hns: uniqueHns, minDate, maxDate },
           })
+          const visitData = unwrapGatewayData<{
+            ovstRows?: Array<{ vn: string; hn: string; vstdate: string }>
+            iptRows?: Array<{ an: string; hn: string; regdate: string }>
+          }>(visitRes)
           const vnMap = new Map<string, string>()
-          for (const o of visitRes?.data?.ovstRows || []) {
+          for (const o of visitData?.ovstRows || []) {
             const normHn = normalizeHn(o.hn) || o.hn
             vnMap.set(`${normHn}_${o.vstdate}`, o.vn)
           }
           const anMap = new Map<string, string>()
-          for (const ip of visitRes?.data?.iptRows || []) {
+          for (const ip of visitData?.iptRows || []) {
             if (ip.an && ip.hn && ip.regdate) {
               const normHn = normalizeHn(ip.hn) || ip.hn
               anMap.set(`${normHn}_${ip.regdate}`, normalizeAn(ip.an) || ip.an)
@@ -607,8 +631,12 @@ export class RcmSeamlessImportService {
           fileName,
           ids: uniqueRows.map((r) => r.id),
         })
-        existingFileRowCount = Number(preflight?.data?.existingFileRowCount || 0)
-        for (const id of preflight?.data?.existingIds || []) {
+        const preflightData = unwrapGatewayData<{
+          existingFileRowCount?: number
+          existingIds?: string[]
+        }>(preflight)
+        existingFileRowCount = Number(preflightData?.existingFileRowCount || 0)
+        for (const id of preflightData?.existingIds || []) {
           if (id) existingIdSet.add(String(id).trim())
         }
       } catch {
@@ -902,7 +930,7 @@ export class RcmSeamlessImportService {
       async () => {
         try {
           const res = await gw.getSeamlessStats(DEFAULT_SEAMLESS_HOSPCODE)
-          const d = res?.data
+          const d = unwrapGatewayData<any>(res)
           if (d) {
             return {
               totalRows: Number(d.totalRows || 0),
@@ -920,10 +948,10 @@ export class RcmSeamlessImportService {
                 totalCompensated: Number(f.totalCompensated || 0),
               })),
               recentFiles: (d.recentFiles || []).map((rf: any) => ({
-                fileName: rf.fileName,
+                fileName: String(rf.fileName || ''),
                 rowCount: Number(rf.rowCount || 0),
-                minDate: rf.minDate,
-                maxDate: rf.maxDate,
+                minDate: rf.minDate || null,
+                maxDate: rf.maxDate || null,
                 totalCompensated: Number(rf.totalCompensated || 0),
               })),
             }
@@ -1004,7 +1032,12 @@ export class RcmSeamlessImportService {
           exportAll: Boolean(params.exportAll),
           myHospCode,
         })
-        const d = res?.data
+        const d = unwrapGatewayData<{
+          itemRows?: Array<Record<string, unknown>>
+          totalCount?: number
+          totalPages?: number
+          availableFunds?: string[]
+        }>(res)
         const itemRows = d?.itemRows || []
         const totalCount = Number(d?.totalCount || 0)
         const totalPages = Number(d?.totalPages || Math.max(1, Math.ceil(totalCount / pageSize)))
@@ -1085,7 +1118,7 @@ export class RcmSeamlessImportService {
       cacheKey,
       async () => {
         const res = await gw.getSeamlessFiles(DEFAULT_SEAMLESS_HOSPCODE)
-        const rows = res?.data || []
+        const rows = unwrapGatewayData<Array<Record<string, unknown>>>(res) || []
         return rows.map((r: Record<string, unknown>) => ({
           fileName: String(r.fileName || ''),
           rowCount: Number(r.rowCount || 0),
@@ -1121,8 +1154,12 @@ export class RcmSeamlessImportService {
       async () => {
         try {
           const res = await gw.getSeamlessDenyCodes()
-          return (res?.data || [])
-            .map((r: { Code?: string; code?: string; Name?: string; name?: string }) => ({
+          const rawCodes =
+            unwrapGatewayData<Array<{ Code?: string; code?: string; Name?: string; name?: string }>>(
+              res
+            ) || []
+          return rawCodes
+            .map((r) => ({
               code: String(r.Code ?? r.code ?? '').trim(),
               name: String(r.Name ?? r.name ?? '').trim(),
             }))

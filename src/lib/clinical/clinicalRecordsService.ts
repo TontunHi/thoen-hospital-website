@@ -159,6 +159,14 @@ export interface LoratadineDispenseSummary {
   }
 }
 
+export interface AppointmentMismatchRecord {
+  hn: string
+  department: string
+  vstdate: string
+  nextdate: string
+  appUser: string
+}
+
 export interface ClinicalRecordsGatewayAdapter {
   searchPatientVisits: typeof apiGateway.clinical.searchPatientVisits
   getVisitClinicalDetails: typeof apiGateway.clinical.getVisitClinicalDetails
@@ -380,8 +388,19 @@ export const ClinicalRecordsService = {
   async getAppointmentMismatches(
     fetcher: () => Promise<Array<Record<string, unknown>>> = () =>
       apiGateway.clinical.getAppointmentMismatches()
-  ) {
-    const mismatches = (await fetcher()) || []
+  ): Promise<{
+    totalMismatches: number
+    updatedAt: string
+    mismatches: AppointmentMismatchRecord[]
+  }> {
+    const rows = (await fetcher()) || []
+    const mismatches: AppointmentMismatchRecord[] = rows.map((row) => ({
+      hn: row.hn != null ? String(row.hn).trim() : '',
+      department: row.department != null ? String(row.department).trim() : '',
+      vstdate: row.vstdate != null ? String(row.vstdate) : '',
+      nextdate: row.nextdate != null ? String(row.nextdate) : '',
+      appUser: (row.appUser ?? row.app_user) != null ? String(row.appUser ?? row.app_user).trim() : '',
+    }))
     return {
       totalMismatches: mismatches.length,
       updatedAt: new Date().toISOString(),

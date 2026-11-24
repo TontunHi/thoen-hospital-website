@@ -5,6 +5,8 @@ import {
   formatThaiShortDate,
   getDaysUntilDate,
   getUrgencyMeta,
+  normalizeDepartmentLabel,
+  normalizeUserLabel,
   parseCalendarDate,
   summarizeMismatches,
   type AppointmentMismatch,
@@ -148,5 +150,40 @@ describe('mismatchUtils & Excel export', () => {
     expect(dataRow?.getCell(6).value).toBe('19 พ.ย. 2569')
     expect(dataRow?.getCell(7).value).toBe('พรุ่งนี้')
     expect(dataRow?.getCell(3).alignment?.horizontal).toBe('center')
+  })
+
+  it('handles null or undefined fields gracefully without throwing on trim()', () => {
+    const nullableRows = [
+      {
+        hn: null,
+        department: null,
+        vstdate: null,
+        nextdate: null,
+        appUser: undefined,
+      },
+    ] as unknown as AppointmentMismatch[]
+
+    expect(parseCalendarDate(null)).toBeNull()
+    expect(formatThaiShortDate(null)).toBe('-')
+    expect(normalizeDepartmentLabel(null)).toBe('ไม่ระบุห้องตรวจ')
+    expect(normalizeUserLabel(undefined)).toBe('ไม่ระบุผู้นัด')
+
+    const summary = summarizeMismatches(nullableRows, REF_DATE)
+    expect(summary.total).toBe(1)
+    expect(summary.departmentBreakdown[0]?.name).toBe('ไม่ระบุห้องตรวจ')
+    expect(summary.userBreakdown[0]?.name).toBe('ไม่ระบุผู้นัด')
+
+    const filtered = filterAndSortMismatches(
+      nullableRows,
+      {
+        searchQuery: '',
+        urgencyFilter: 'all',
+        departmentFilter: 'all',
+        userFilter: 'all',
+        sortBy: 'nextdate_asc',
+      },
+      REF_DATE
+    )
+    expect(filtered).toHaveLength(1)
   })
 })

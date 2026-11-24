@@ -1,7 +1,12 @@
 import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { logger } from '@/lib/logger'
-import { cleanCellString, loadWorkbookFromBuffer, normalizeDate } from './rcmSeamlessImportService'
+import {
+  cleanCellString,
+  loadWorkbookFromBuffer,
+  normalizeDate,
+  unwrapGatewayData,
+} from './rcmSeamlessImportService'
 
 export const DEFAULT_MY_HOSPCODE = '11152'
 
@@ -204,9 +209,14 @@ export class RcmT1dmImportService {
     let mirrorRows: any[] = []
     try {
       const res = await gw.getT1dmRawRegistries()
-      clinicalRows = Array.isArray(res?.data?.clinicalRows) ? res.data.clinicalRows : []
-      mirrorRows = Array.isArray(res?.data?.mirrorRows) ? res.data.mirrorRows : []
-    } catch {
+      const data = unwrapGatewayData<{
+        clinicalRows?: any[]
+        mirrorRows?: any[]
+      }>(res)
+      clinicalRows = Array.isArray(data?.clinicalRows) ? data.clinicalRows : []
+      mirrorRows = Array.isArray(data?.mirrorRows) ? data.mirrorRows : []
+    } catch (err) {
+      logger.warn({ err }, 'Failed to fetch T1DM raw registries from API Gateway')
       clinicalRows = []
       mirrorRows = []
     }
@@ -678,7 +688,12 @@ export class RcmT1dmImportService {
         hospCodes: hospCodesToResolve,
         fileName,
       })
-      for (const pt of enrichRes?.data?.patients || []) {
+      const enrichData = unwrapGatewayData<{
+        patients?: Array<{ cid: string; hn: string; ptname: string }>
+        hospNames?: Array<{ hospcode: string; name: string }>
+        existingFileRowCount?: number
+      }>(enrichRes)
+      for (const pt of enrichData?.patients || []) {
         if (pt.cid) {
           patientHnMap.set(String(pt.cid).trim(), {
             hn: String(pt.hn || '').trim(),
@@ -686,12 +701,12 @@ export class RcmT1dmImportService {
           })
         }
       }
-      for (const h of enrichRes?.data?.hospNames || []) {
+      for (const h of enrichData?.hospNames || []) {
         if (h.hospcode && h.name) {
           hospNameMap.set(String(h.hospcode).trim().padStart(5, '0'), String(h.name).trim())
         }
       }
-      existingFileRowCount = Number(enrichRes?.data?.existingFileRowCount || 0)
+      existingFileRowCount = Number(enrichData?.existingFileRowCount || 0)
     } catch {
       // non-blocking
     }

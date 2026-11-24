@@ -232,4 +232,43 @@ describe('ClinicalRecordsService', () => {
       expect(result.summary.adultCount).toBe(1)
     })
   })
+
+  describe('getAppointmentMismatches', () => {
+    it('maps raw Gateway rows (app_user snake_case and nullable fields) to AppointmentMismatchRecord', async () => {
+      const result = await ClinicalRecordsService.getAppointmentMismatches(async () => [
+        {
+          hn: ' 0009001 ',
+          department: null,
+          vstdate: '2026-11-10',
+          nextdate: '2026-11-25',
+          app_user: ' สมหญิง ใจดี ',
+        },
+        {
+          hn: null,
+          department: ' คลินิกเบาหวาน ',
+          vstdate: null,
+          nextdate: null,
+          app_user: null,
+        },
+      ])
+
+      expect(result.totalMismatches).toBe(2)
+      expect(result.mismatches).toEqual([
+        {
+          hn: '0009001',
+          department: '',
+          vstdate: '2026-11-10',
+          nextdate: '2026-11-25',
+          appUser: 'สมหญิง ใจดี',
+        },
+        {
+          hn: '',
+          department: 'คลินิกเบาหวาน',
+          vstdate: '',
+          nextdate: '',
+          appUser: '',
+        },
+      ])
+    })
+  })
 })

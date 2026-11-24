@@ -64,7 +64,10 @@ const UNSPECIFIED_USER = 'ไม่ระบุผู้นัด'
  * Extract calendar YYYY-MM-DD components safely in Asia/Bangkok timezone
  * without shifting dates across UTC midnight boundaries.
  */
-export function parseCalendarDate(dateStr: string): { year: number; month: number; day: number } | null {
+export function parseCalendarDate(
+  dateStr?: string | null
+): { year: number; month: number; day: number } | null {
+  if (typeof dateStr !== 'string') return null
   const trimmed = dateStr.trim()
   if (!trimmed) return null
 
@@ -100,9 +103,9 @@ export function parseCalendarDate(dateStr: string): { year: number; month: numbe
 /**
  * Format a date string into Thai Buddhist short date (e.g. "19 พ.ย. 2569").
  */
-export function formatThaiShortDate(dateStr: string): string {
+export function formatThaiShortDate(dateStr?: string | null): string {
   const parts = parseCalendarDate(dateStr)
-  if (!parts) return dateStr.trim() || '-'
+  if (!parts) return (typeof dateStr === 'string' ? dateStr.trim() : '') || '-'
   const monthLabel = THAI_SHORT_MONTHS[parts.month - 1]
   const buddhistYear = parts.year + 543
   return `${parts.day} ${monthLabel} ${buddhistYear}`
@@ -111,7 +114,10 @@ export function formatThaiShortDate(dateStr: string): string {
 /**
  * Compute whole calendar days from referenceDate (Bangkok local date) to target date.
  */
-export function getDaysUntilDate(dateStr: string, referenceDate: Date = new Date()): number | null {
+export function getDaysUntilDate(
+  dateStr?: string | null,
+  referenceDate: Date = new Date()
+): number | null {
   const target = parseCalendarDate(dateStr)
   if (!target) return null
 
@@ -152,12 +158,12 @@ export function getUrgencyMeta(daysUntil: number | null): { tone: UrgencyTone; l
   return { tone: 'neutral', label: `อีก ${daysUntil} วัน` }
 }
 
-export function normalizeDepartmentLabel(department: string): string {
-  return department.trim() || UNSPECIFIED_DEPARTMENT
+export function normalizeDepartmentLabel(department?: string | null): string {
+  return (typeof department === 'string' ? department.trim() : '') || UNSPECIFIED_DEPARTMENT
 }
 
-export function normalizeUserLabel(appUser: string): string {
-  return appUser.trim() || UNSPECIFIED_USER
+export function normalizeUserLabel(appUser?: string | null): string {
+  return (typeof appUser === 'string' ? appUser.trim() : '') || UNSPECIFIED_USER
 }
 
 function buildBreakdown(counts: Map<string, number>, total: number, limit = 5): BreakdownItem[] {
@@ -212,7 +218,7 @@ export function summarizeMismatches(
   }
 }
 
-function toSortTimestamp(dateStr: string): number {
+function toSortTimestamp(dateStr?: string | null): number {
   const parts = parseCalendarDate(dateStr)
   if (!parts) return Number.MAX_SAFE_INTEGER
   return Date.UTC(parts.year, parts.month - 1, parts.day)
@@ -226,7 +232,7 @@ export function filterAndSortMismatches(
   filters: MismatchFilterState,
   referenceDate: Date = new Date()
 ): AppointmentMismatch[] {
-  const q = filters.searchQuery.trim().toLowerCase()
+  const q = (filters.searchQuery ?? '').trim().toLowerCase()
 
   const filtered = mismatches.filter((item) => {
     const deptLabel = normalizeDepartmentLabel(item.department)
@@ -247,7 +253,7 @@ export function filterAndSortMismatches(
     }
 
     if (q) {
-      const haystack = `${item.hn} ${deptLabel} ${userLabel}`.toLowerCase()
+      const haystack = `${item.hn ?? ''} ${deptLabel} ${userLabel}`.toLowerCase()
       if (!haystack.includes(q)) return false
     }
 

@@ -630,14 +630,18 @@ export default function AppointmentMismatchClient() {
                           </td>
                           <td>
                             <span
-                              className={item.department.trim() ? 'mismatchDeptText' : 'mismatchMutedText'}
+                              className={
+                                (item.department ?? '').trim()
+                                  ? 'mismatchDeptText'
+                                  : 'mismatchMutedText'
+                              }
                             >
                               {deptLabel}
                             </span>
                           </td>
                           <td>
                             <span
-                              className={item.appUser.trim() ? '' : 'mismatchMutedText'}
+                              className={(item.appUser ?? '').trim() ? '' : 'mismatchMutedText'}
                             >
                               {userLabel}
                             </span>

@@ -1,57 +1,79 @@
 import type { ClinicalHttpClient } from './clinicalGatewayNamespace'
 
+/**
+ * ApiGatewayClient.request() unwraps `json.data` when `pagination` and `slideDuration` are absent.
+ * Wrap the unwrapped payload back into `{ success: true, data }` so callers receive the envelope
+ * promised by this namespace's TypeScript return types.
+ */
+function asGatewayEnvelope<T>(res: T | { success: boolean; data: T }): { success: boolean; data: T } {
+  if (
+    res !== null &&
+    typeof res === 'object' &&
+    !Array.isArray(res) &&
+    'success' in res &&
+    'data' in res
+  ) {
+    return res as { success: boolean; data: T }
+  }
+  return { success: true, data: res as T }
+}
+
 export function createRcmV2Namespace(client: ClinicalHttpClient) {
   return {
-    getAnClinicalDetails: (an: string) => {
-      return client.get<{
-        success: boolean
-        data: {
-          header: {
-            an: string
-            hn: string
-            cid: string
-            ptname: string
-            sex: string
-            age: number
-            admdate: string
-            dchdate: string
-            pttypename: string
-            ward: string
-          }
-          diagnoses: Array<{
-            icd10: string
-            icdName: string
-            diagtype: string
-            diagtypeName: string
-            doctorName: string
-          }>
-          procedures: Array<{
-            icd9: string
-            icd9Name: string
-            opdate: string
-            doctorName: string
-          }>
-          orders: Array<{
-            icode: string
-            itemName: string
-            strength: string | null
-            units: string | null
-            qty: number
-            unitprice: number
-            sumPrice: number
-            paidstName: string
-            incomeName: string
-            isDrug: boolean
-          }>
-        } | null
-      }>(`/api/v1/clinical/rcm/an-details/${encodeURIComponent(an)}`, { timeoutMs: 30000 })
+    getAnClinicalDetails: async (an: string) => {
+      type AnDetailsPayload = {
+        header: {
+          an: string
+          hn: string
+          cid: string
+          ptname: string
+          sex: string
+          age: number
+          admdate: string
+          dchdate: string
+          pttypename: string
+          ward: string
+        }
+        diagnoses: Array<{
+          icd10: string
+          icdName: string
+          diagtype: string
+          diagtypeName: string
+          doctorName: string
+        }>
+        procedures: Array<{
+          icd9: string
+          icd9Name: string
+          opdate: string
+          doctorName: string
+        }>
+        orders: Array<{
+          icode: string
+          itemName: string
+          strength: string | null
+          units: string | null
+          qty: number
+          unitprice: number
+          sumPrice: number
+          paidstName: string
+          incomeName: string
+          isDrug: boolean
+        }>
+      } | null
+      const res = await client.get<{ success: boolean; data: AnDetailsPayload } | AnDetailsPayload>(
+        `/api/v1/clinical/rcm/an-details/${encodeURIComponent(an)}`,
+        { timeoutMs: 30000 }
+      )
+      return asGatewayEnvelope<AnDetailsPayload>(res)
     },
 
-    getAvailableAdpCodes: () => {
-      return client.get<{
-        success: boolean
-        data: Array<{ code: string; title: string; mappedCount: number }>
-      }>('/api/v1/clinical/rcm/funds-v2/adp-search/available-codes', { timeoutMs: 30000 })
+    getAvailableAdpCodes: async () => {
+      type AdpCodeRows = Array<{ code: string; title: string; mappedCount: number }>
+      const res = await client.get<{ success: boolean; data: AdpCodeRows } | AdpCodeRows>(
+        '/api/v1/clinical/rcm/funds-v2/adp-search/available-codes',
+        { timeoutMs: 30000 }
+      )
+      return asGatewayEnvelope<AdpCodeRows>(res)
     },
 
     checkMultiAdpMapping: (adpCodes: string[]) => {
@@ -77,11 +99,14 @@ export function createRcmV2Namespace(client: ClinicalHttpClient) {
     },
 
     // ── Seamless Import V2 ──
-    lookupSeamlessBudget: (payNo: string) => {
-      return client.post<{
-        success: boolean
-        data: { paydate: string | null; accountcode: string | null } | null
-      }>('/api/v1/clinical/rcm/seamless-v2/lookup-budget', { payNo }, { timeoutMs: 15000 })
+    lookupSeamlessBudget: async (payNo: string) => {
+      type BudgetPayload = { paydate: string | null; accountcode: string | null } | null
+      const res = await client.post<{ success: boolean; data: BudgetPayload } | BudgetPayload>(
+        '/api/v1/clinical/rcm/seamless-v2/lookup-budget',
+        { payNo },
+        { timeoutMs: 15000 }
+      )
+      return asGatewayEnvelope<BudgetPayload>(res)
     },
 
     resolveSeamlessHospCode: (hospName: string) => {
@@ -92,40 +117,48 @@ export function createRcmV2Namespace(client: ClinicalHttpClient) {
       )
     },
 
-    enrichSeamlessImport: (payload: {
+    enrichSeamlessImport: async (payload: {
       napNumbers?: string[]
       cids?: string[]
       hnsMissing?: string[]
       ovstLookup?: { hns: string[]; minDate: string; maxDate: string } | null
       iptLookup?: { hns: string[]; minDate: string; maxDate: string } | null
     }) => {
-      return client.post<{
-        success: boolean
-        data: {
-          napRows: Array<{ nap_number: string; cid: string }>
-          cidRows: Array<{ cid: string; hn: string; ptname: string }>
-          hnRows: Array<{ hn: string; cid: string; ptname: string }>
-          ovstRows: Array<{ vn: string; hn: string; vstdate: string }>
-          iptRows: Array<{ an: string; hn: string; regdate: string }>
-        }
-      }>('/api/v1/clinical/rcm/seamless-v2/enrich-import', payload, { timeoutMs: 60000 })
+      type EnrichPayload = {
+        napRows: Array<{ nap_number: string; cid: string }>
+        cidRows: Array<{ cid: string; hn: string; ptname: string }>
+        hnRows: Array<{ hn: string; cid: string; ptname: string }>
+        ovstRows: Array<{ vn: string; hn: string; vstdate: string }>
+        iptRows: Array<{ an: string; hn: string; regdate: string }>
+      }
+      const res = await client.post<{ success: boolean; data: EnrichPayload } | EnrichPayload>(
+        '/api/v1/clinical/rcm/seamless-v2/enrich-import',
+        payload,
+        { timeoutMs: 60000 }
+      )
+      return asGatewayEnvelope<EnrichPayload>(res)
     },
 
-    preflightSeamlessCheck: (payload: { fileName: string; ids: string[] }) => {
-      return client.post<{
-        success: boolean
-        data: { existingFileRowCount: number; existingIds: string[] }
-      }>('/api/v1/clinical/rcm/seamless-v2/preflight-check', payload, { timeoutMs: 30000 })
+    preflightSeamlessCheck: async (payload: { fileName: string; ids: string[] }) => {
+      type PreflightPayload = { existingFileRowCount: number; existingIds: string[] }
+      const res = await client.post<{ success: boolean; data: PreflightPayload } | PreflightPayload>(
+        '/api/v1/clinical/rcm/seamless-v2/preflight-check',
+        payload,
+        { timeoutMs: 30000 }
+      )
+      return asGatewayEnvelope<PreflightPayload>(res)
     },
 
-    getSeamlessStats: (myHospCode?: string) => {
+    getSeamlessStats: async (myHospCode?: string) => {
       const qs = myHospCode ? `?myHospCode=${encodeURIComponent(myHospCode)}` : ''
-      return client.get<{ success: boolean; data: any }>(`/api/v1/clinical/rcm/seamless-v2/stats${qs}`, {
-        timeoutMs: 30000,
-      })
+      const res = await client.get<{ success: boolean; data: any } | any>(
+        `/api/v1/clinical/rcm/seamless-v2/stats${qs}`,
+        { timeoutMs: 30000 }
+      )
+      return asGatewayEnvelope<any>(res)
     },
 
-    getSeamlessLedger: (params?: {
+    getSeamlessLedger: async (params?: {
       search?: string
       fundFilter?: string
       hospFilter?: string
@@ -151,55 +184,66 @@ export function createRcmV2Namespace(client: ClinicalHttpClient) {
       if (params?.exportAll) q.set('exportAll', 'true')
       if (params?.myHospCode) q.set('myHospCode', params.myHospCode)
       const qs = q.toString() ? `?${q.toString()}` : ''
-      return client.get<{
-        success: boolean
-        data: {
-          itemRows: Array<Record<string, unknown>>
-          totalCount: number
-          totalPages: number
-          page: number
-          pageSize: number
-          availableFunds: string[]
-          myHospCode: string
-        }
-      }>(`/api/v1/clinical/rcm/seamless-v2/ledger${qs}`, { timeoutMs: 60000 })
+      type LedgerPayload = {
+        itemRows: Array<Record<string, unknown>>
+        totalCount: number
+        totalPages: number
+        page: number
+        pageSize: number
+        availableFunds: string[]
+        myHospCode: string
+      }
+      const res = await client.get<{ success: boolean; data: LedgerPayload } | LedgerPayload>(
+        `/api/v1/clinical/rcm/seamless-v2/ledger${qs}`,
+        { timeoutMs: 60000 }
+      )
+      return asGatewayEnvelope<LedgerPayload>(res)
     },
 
-    getSeamlessFiles: (myHospCode?: string) => {
+    getSeamlessFiles: async (myHospCode?: string) => {
       const qs = myHospCode ? `?myHospCode=${encodeURIComponent(myHospCode)}` : ''
-      return client.get<{ success: boolean; data: Array<Record<string, unknown>> }>(
+      type FilesPayload = Array<Record<string, unknown>>
+      const res = await client.get<{ success: boolean; data: FilesPayload } | FilesPayload>(
         `/api/v1/clinical/rcm/seamless-v2/files${qs}`,
         { timeoutMs: 30000 }
       )
+      return asGatewayEnvelope<FilesPayload>(res)
     },
 
-    getSeamlessDenyCodes: () => {
-      return client.get<{
-        success: boolean
-        data: Array<{ Code?: string; code?: string; Name?: string; name?: string }>
-      }>('/api/v1/clinical/rcm/seamless-v2/deny-codes', { timeoutMs: 15000 })
+    getSeamlessDenyCodes: async () => {
+      type DenyCodesPayload = Array<{ Code?: string; code?: string; Name?: string; name?: string }>
+      const res = await client.get<{ success: boolean; data: DenyCodesPayload } | DenyCodesPayload>(
+        '/api/v1/clinical/rcm/seamless-v2/deny-codes',
+        { timeoutMs: 15000 }
+      )
+      return asGatewayEnvelope<DenyCodesPayload>(res)
     },
 
     // ── T1DM Import V2 ──
-    getT1dmRawRegistries: () => {
-      return client.get<{
-        success: boolean
-        data: {
-          clinicalRows: Array<Record<string, unknown>>
-          mirrorRows: Array<Record<string, unknown>>
-        }
-      }>('/api/v1/clinical/rcm/t1dm-v2/raw-registries', { timeoutMs: 30000 })
+    getT1dmRawRegistries: async () => {
+      type T1dmRawPayload = {
+        clinicalRows: Array<Record<string, unknown>>
+        mirrorRows: Array<Record<string, unknown>>
+      }
+      const res = await client.get<{ success: boolean; data: T1dmRawPayload } | T1dmRawPayload>(
+        '/api/v1/clinical/rcm/t1dm-v2/raw-registries',
+        { timeoutMs: 30000 }
+      )
+      return asGatewayEnvelope<T1dmRawPayload>(res)
     },
 
-    enrichT1dmImport: (payload: { cids: string[]; hospCodes: string[]; fileName: string }) => {
-      return client.post<{
-        success: boolean
-        data: {
-          patients: Array<{ cid: string; hn: string; ptname: string }>
-          hospNames: Array<{ hospcode: string; name: string }>
-          existingFileRowCount: number
-        }
-      }>('/api/v1/clinical/rcm/t1dm-v2/enrich-import', payload, { timeoutMs: 30000 })
+    enrichT1dmImport: async (payload: { cids: string[]; hospCodes: string[]; fileName: string }) => {
+      type T1dmEnrichPayload = {
+        patients: Array<{ cid: string; hn: string; ptname: string }>
+        hospNames: Array<{ hospcode: string; name: string }>
+        existingFileRowCount: number
+      }
+      const res = await client.post<{ success: boolean; data: T1dmEnrichPayload } | T1dmEnrichPayload>(
+        '/api/v1/clinical/rcm/t1dm-v2/enrich-import',
+        payload,
+        { timeoutMs: 30000 }
+      )
+      return asGatewayEnvelope<T1dmEnrichPayload>(res)
     },
 
     persistT1dmMirror: (rows: Array<Record<string, unknown>>) => {
