@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { RcmDashboardService } from '../rcmDashboardService'
+import type { RcmDashboardGatewayAdapter } from '../rcm-dashboard/gatewayAdapter'
 
 vi.mock('@/lib/cache', () => ({
   getCachedData: vi.fn((key: string, fetcher: () => Promise<any>) => fetcher()),
@@ -82,7 +83,7 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
       ptname: 'นายฟอกไต พิเศษ',
       vstdate: '2025-10-12',
       authencode: '',
-      pttype: 'H1', // Excluded pttype
+      pttype: 'H1',
       inscl: 'UCS',
       pttypename: 'ฟอกไตสิทธิ์ บัตรทอง',
       address: '99 ม.09',
@@ -109,16 +110,18 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
     },
   ]
 
-  it('filters out excluded pttypes (H1, 35, 36) and calculates summary', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
+  const makeMockGw = (rows = mockRows): Partial<RcmDashboardGatewayAdapter> => ({
+    getRcmPalliativeCareRaw: vi.fn().mockResolvedValue(rows),
+  })
 
+  it('filters out excluded pttypes (H1, 35, 36) and calculates summary', async () => {
+    const gw = makeMockGw()
     const result = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false },
-      mockExecutor
+      gw
     )
 
-    expect(mockExecutor).toHaveBeenCalledTimes(1)
-    // Row 3 with H1 should be excluded
+    expect(gw.getRcmPalliativeCareRaw).toHaveBeenCalledTimes(1)
     expect(result.items.length).toBe(2)
     expect(result.items.some((i) => i.pttype === 'H1')).toBe(false)
     expect(result.summary.totalVisits).toBe(2)
@@ -129,7 +132,6 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
     expect(result.summary.missingZ515Count).toBe(1)
     expect(result.summary.deceasedCount).toBe(1)
 
-    // First item
     expect(result.items[0].pttype).toBe('10')
     expect(result.items[0].pttypename).toBe('บัตรทอง ผู้พิการ ในเขต')
     expect(result.items[0].error_name).toBe('')
@@ -138,11 +140,9 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('defaults to ucOnly=true and filters UCS only', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const result = await RcmDashboardService.getPalliativeCareReport(
-      { ds1: '2025-10-01', ds2: '2025-10-31' }, // ucOnly not specified -> defaults to true
-      mockExecutor
+      { ds1: '2025-10-01', ds2: '2025-10-31' },
+      makeMockGw()
     )
 
     expect(result.items.length).toBe(1)
@@ -152,11 +152,9 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters by Chronic correctly (Z718=Y and Dx=Y)', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const result = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, filterType: 'Chronic' },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(result.items.length).toBe(1)
@@ -166,11 +164,9 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters by Opioid correctly (Cancer=Y and Drug=Y)', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const result = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, filterType: 'Opioid' },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(result.items.length).toBe(1)
@@ -180,11 +176,9 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters rows that have rep_invoice when hasRepInvoice is true', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const result = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, hasRepInvoice: true },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(result.items.length).toBe(1)
@@ -195,12 +189,9 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters by multiple compensated amounts and includes availableCompensations', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
-    // Row 1 has compensated: 5000, Row 2 has 0
     const result = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, compensated: [5000] },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(result.items.length).toBe(1)
@@ -211,10 +202,9 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
     expect(result.availableCompensations).toContain(5000)
     expect(result.availableCompensations).toContain(9000)
 
-    // Test with non-matching compensation
     const noMatchResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, compensated: '1000,2000' },
-      mockExecutor
+      makeMockGw()
     )
     expect(noMatchResult.items.length).toBe(0)
     expect(noMatchResult.summary.totalVisits).toBe(0)
@@ -222,22 +212,18 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters by deathStatus Y and N properly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
-    // Filter deathStatus: 'Y' -> only row 2 (สมใจ สบายดี)
     const deathYResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, deathStatus: 'Y' },
-      mockExecutor
+      makeMockGw()
     )
     expect(deathYResult.items.length).toBe(1)
     expect(deathYResult.items[0].hn).toBe('0000064')
     expect(deathYResult.items[0].death).toBe('Y')
     expect(deathYResult.deathStatus).toBe('Y')
 
-    // Filter deathStatus: 'N' -> only row 1 (ธวัชชัย)
     const deathNResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, deathStatus: 'N' },
-      mockExecutor
+      makeMockGw()
     )
     expect(deathNResult.items.length).toBe(1)
     expect(deathNResult.items[0].hn).toBe('0000063')
@@ -246,22 +232,18 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters by paidStatus PAID and UNPAID properly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
-    // Filter paidStatus: 'PAID' -> only row 1 (ธวัชชัย, ok: 'Y', compensated: 5000)
     const paidResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, paidStatus: 'PAID' },
-      mockExecutor
+      makeMockGw()
     )
     expect(paidResult.items.length).toBe(1)
     expect(paidResult.items[0].hn).toBe('0000063')
     expect(paidResult.items[0].ok).toBe('Y')
     expect(paidResult.paidStatus).toBe('PAID')
 
-    // Filter paidStatus: 'UNPAID' -> only row 2 (สมใจ, ok: ' ', compensated: 0)
     const unpaidResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, paidStatus: 'UNPAID' },
-      mockExecutor
+      makeMockGw()
     )
     expect(unpaidResult.items.length).toBe(1)
     expect(unpaidResult.items[0].hn).toBe('0000064')
@@ -270,56 +252,46 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters by compensated expressions (>=, >, =, 0, array) properly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
-    // Filter compensated: '>=750' -> matches row 1 (5000 >= 750)
     const geResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, compensated: '>=750' },
-      mockExecutor
+      makeMockGw()
     )
     expect(geResult.items.length).toBe(1)
     expect(geResult.items[0].hn).toBe('0000063')
     expect(geResult.items[0].compensated).toBe(5000)
 
-    // Filter compensated: '>9000' -> no match
     const gtResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, compensated: '>9000' },
-      mockExecutor
+      makeMockGw()
     )
     expect(gtResult.items.length).toBe(0)
 
-    // Filter compensated: '=5000' -> matches row 1
     const eqResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, compensated: '=5000' },
-      mockExecutor
+      makeMockGw()
     )
     expect(eqResult.items.length).toBe(1)
     expect(eqResult.items[0].compensated).toBe(5000)
 
-    // Filter compensated: '0' -> matches row 2 (0)
     const zeroResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, compensated: '0' },
-      mockExecutor
+      makeMockGw()
     )
     expect(zeroResult.items.length).toBe(1)
     expect(zeroResult.items[0].compensated).toBe(0)
 
-    // Filter compensated: [5000] -> matches row 1
     const arrResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, compensated: [5000] },
-      mockExecutor
+      makeMockGw()
     )
     expect(arrResult.items.length).toBe(1)
     expect(arrResult.items[0].compensated).toBe(5000)
   })
 
   it('filters by hn substring properly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
-    // Filter hn: '63' -> matches row 1 (hn: '0000063')
     const result = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, hn: '63' },
-      mockExecutor
+      makeMockGw()
     )
     expect(result.items.length).toBe(1)
     expect(result.items[0].hn).toBe('0000063')
@@ -327,11 +299,9 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('handles empty database result gracefully', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([])
-
     const result = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31' },
-      mockExecutor
+      makeMockGw([])
     )
 
     expect(result.items.length).toBe(0)
@@ -341,22 +311,18 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
   })
 
   it('filters by z515Status Y and N properly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
-    // Filter z515Status: 'Y' -> only row 1 (ธวัชชัย)
     const z515YResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, z515Status: 'Y' },
-      mockExecutor
+      makeMockGw()
     )
     expect(z515YResult.items.length).toBe(1)
     expect(z515YResult.items[0].hn).toBe('0000063')
     expect(z515YResult.items[0].z515).toBe('Y')
     expect(z515YResult.z515Status).toBe('Y')
 
-    // Filter z515Status: 'N' -> only row 2 (สมใจ, z515 is empty)
     const z515NResult = await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, z515Status: 'N' },
-      mockExecutor
+      makeMockGw()
     )
     expect(z515NResult.items.length).toBe(1)
     expect(z515NResult.items[0].hn).toBe('0000064')
@@ -364,18 +330,15 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
     expect(z515NResult.z515Status).toBe('N')
   })
 
-  it('joins rcmdb.repeclaim and rcmdb.repdata by VN instead of HN', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([])
-
+  it('delegates date range parameters cleanly to Gateway Named API', async () => {
+    const gw = makeMockGw([])
     await RcmDashboardService.getPalliativeCareReport(
       { ds1: '2024-10-01', ds2: '2025-09-30', ucOnly: false },
-      mockExecutor
+      gw
     )
-
-    const sql = String(mockExecutor.mock.calls[0][0])
-    expect(sql).toContain('e.vn = o.vn')
-    expect(sql).toContain('rd.vn = o.vn')
-    expect(sql).not.toMatch(/ON\s+e\.hn\s*=\s*o\.hn/i)
-    expect(sql).not.toMatch(/GROUP BY\s+hn\b/i)
+    expect(gw.getRcmPalliativeCareRaw).toHaveBeenCalledWith({
+      startDate: '2024-10-01',
+      endDate: '2025-09-30',
+    })
   })
 })

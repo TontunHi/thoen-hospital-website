@@ -1,21 +1,28 @@
 import { describe, it, expect, vi } from 'vitest'
 import { RcmDashboardService } from '@/lib/clinical/rcmDashboardService'
+import type { RcmDashboardGatewayAdapter } from '../rcm-dashboard/gatewayAdapter'
 
 describe('RcmDashboardService.getVnClinicalDetails', () => {
   it('returns null if vn is empty or blank', async () => {
-    const mockExecutor = vi.fn()
-    const result = await RcmDashboardService.getVnClinicalDetails('', mockExecutor)
+    const mockFn = vi.fn()
+    const result = await RcmDashboardService.getVnClinicalDetails('', {
+      getRcmVnClinicalDetailsRaw: mockFn,
+    })
     expect(result).toBeNull()
-    expect(mockExecutor).not.toHaveBeenCalled()
+    expect(mockFn).not.toHaveBeenCalled()
   })
 
   it('returns null if header row is not found in database', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM ovst o')) return []
-      return []
-    })
+    const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+      getRcmVnClinicalDetailsRaw: vi.fn().mockResolvedValue({
+        headerRows: [],
+        screenRows: [],
+        diagRows: [],
+        orderRows: [],
+      }),
+    }
 
-    const result = await RcmDashboardService.getVnClinicalDetails('999999999999', mockExecutor)
+    const result = await RcmDashboardService.getVnClinicalDetails('999999999999', mockGateway)
     expect(result).toBeNull()
   })
 
@@ -123,15 +130,16 @@ describe('RcmDashboardService.getVnClinicalDetails', () => {
       },
     ]
 
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM ovst o')) return mockHeader
-      if (sql.includes('FROM opdscreen s')) return mockScreen
-      if (sql.includes('FROM ovstdiag d')) return mockDiag
-      if (sql.includes('FROM opitemrece o')) return mockOrders
-      return []
-    })
+    const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+      getRcmVnClinicalDetailsRaw: vi.fn().mockResolvedValue({
+        headerRows: mockHeader,
+        screenRows: mockScreen,
+        diagRows: mockDiag,
+        orderRows: mockOrders,
+      }),
+    }
 
-    const result = await RcmDashboardService.getVnClinicalDetails('691021131643', mockExecutor)
+    const result = await RcmDashboardService.getVnClinicalDetails('691021131643', mockGateway)
     expect(result).not.toBeNull()
     if (!result) return
 
@@ -142,14 +150,12 @@ describe('RcmDashboardService.getVnClinicalDetails', () => {
     expect(result.diagnoses.length).toBe(2)
     expect(result.diagnoses[0].icd10).toBe('C548')
 
-    // Orders checking
     expect(result.orders.items.length).toBe(3)
     expect(result.orders.total_price).toBe(600)
     expect(result.orders.total_items).toBe(4)
-    expect(result.orders.total_paid).toBe(100) // paidst 01
-    expect(result.orders.total_claim).toBe(500) // paidst 02
+    expect(result.orders.total_paid).toBe(100)
+    expect(result.orders.total_claim).toBe(500)
 
-    // Categories checking
     const drugCat = result.orders.categories.find((c) => c.category_group === 'DRUG')
     expect(drugCat).toBeDefined()
     expect(drugCat?.items.length).toBe(1)

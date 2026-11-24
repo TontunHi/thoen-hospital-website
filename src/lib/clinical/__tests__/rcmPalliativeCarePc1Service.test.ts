@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { RcmDashboardService } from '../rcmDashboardService'
+import type { RcmDashboardGatewayAdapter } from '../rcm-dashboard/gatewayAdapter'
 
 vi.mock('@/lib/cache', () => ({
   getCachedData: vi.fn((key: string, fetcher: () => Promise<any>) => fetcher()),
@@ -87,12 +88,14 @@ describe('RcmDashboardService.getPalliativeCarePc1Report', () => {
     },
   ]
 
-  it('maps database rows to PalliativeCarePc1Item objects and calculates summary', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
+  const makeMockGw = (rows: any[] = mockRows): Partial<RcmDashboardGatewayAdapter> => ({
+    getRcmPalliativeCarePc1Raw: vi.fn().mockResolvedValue(rows),
+  })
 
+  it('maps database rows to PalliativeCarePc1Item objects and calculates summary', async () => {
     const result = await RcmDashboardService.getPalliativeCarePc1Report(
       { ds1: '2026-10-01', ds2: '2026-10-31' },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(result.summary.totalVisits).toBe(2)
@@ -110,25 +113,20 @@ describe('RcmDashboardService.getPalliativeCarePc1Report', () => {
   })
 
   it('filters by paidStatus correctly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
-    // PAID
     const paidResult = await RcmDashboardService.getPalliativeCarePc1Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', paidStatus: 'PAID' },
-      mockExecutor
+      makeMockGw()
     )
     expect(paidResult.items.length).toBe(1)
     expect(paidResult.items[0].hn).toBe('0000206')
 
-    // UNPAID
     const unpaidResult = await RcmDashboardService.getPalliativeCarePc1Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', paidStatus: 'UNPAID' },
-      mockExecutor
+      makeMockGw()
     )
     expect(unpaidResult.items.length).toBe(1)
     expect(unpaidResult.items[0].hn).toBe('0000207')
 
-    // INVOICE
     const invoiceRows = [
       ...mockRows,
       {
@@ -139,21 +137,18 @@ describe('RcmDashboardService.getPalliativeCarePc1Report', () => {
         invoice_compensated: 500,
       },
     ]
-    const invExecutor = vi.fn().mockResolvedValue(invoiceRows)
     const invResult = await RcmDashboardService.getPalliativeCarePc1Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', paidStatus: 'INVOICE' },
-      invExecutor
+      makeMockGw(invoiceRows)
     )
     expect(invResult.items.length).toBe(1)
     expect(invResult.items[0].hn).toBe('0000208')
   })
 
   it('filters by search keyword correctly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const searchResult = await RcmDashboardService.getPalliativeCarePc1Report(
       { ds1: '2026-10-01', ds2: '2026-10-31', search: 'สมชาย' },
-      mockExecutor
+      makeMockGw()
     )
     expect(searchResult.items.length).toBe(1)
     expect(searchResult.items[0].hn).toBe('0000207')
@@ -161,11 +156,9 @@ describe('RcmDashboardService.getPalliativeCarePc1Report', () => {
   })
 
   it('handles empty data gracefully', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([])
-
     const result = await RcmDashboardService.getPalliativeCarePc1Report(
       { ds1: '2026-10-01', ds2: '2026-10-31' },
-      mockExecutor
+      makeMockGw([])
     )
     expect(result.items.length).toBe(0)
     expect(result.summary.totalVisits).toBe(0)
@@ -173,18 +166,15 @@ describe('RcmDashboardService.getPalliativeCarePc1Report', () => {
     expect(result.summary.totalCompensated).toBe(0)
   })
 
-  it('aggregates rcmdb.repdata and rcmdb.repeclaim by VN prioritizing compensated rows', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue([])
-
+  it('delegates date range parameters cleanly to Gateway Named API', async () => {
+    const gw = makeMockGw([])
     await RcmDashboardService.getPalliativeCarePc1Report(
       { ds1: '2024-10-01', ds2: '2025-09-30' },
-      mockExecutor
+      gw
     )
-
-    const sql = String(mockExecutor.mock.calls[0][0])
-    expect(sql).toContain('GROUP BY vn')
-    expect(sql).toContain('ORDER BY (PallativeCare > 0) DESC, (Compensated > 0) DESC')
-    expect(sql).toContain('rd.vn = o.vn')
-    expect(sql).toContain('re.vn = o.vn')
+    expect(gw.getRcmPalliativeCarePc1Raw).toHaveBeenCalledWith({
+      startDate: '2024-10-01',
+      endDate: '2025-09-30',
+    })
   })
 })

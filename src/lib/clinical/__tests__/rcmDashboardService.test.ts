@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   RcmDashboardService,
-  QueryExecutor,
   getDefaultFiscalYearDateRange,
   resolveFiscalDateRange,
   buildDepartmentSqlCase,
   classifySpecialty,
   CLINICAL_DEPARTMENT_DEFINITIONS,
 } from '../rcmDashboardService'
+import type { RcmDashboardGatewayAdapter } from '../rcm-dashboard/gatewayAdapter'
 import { clearMemoryCache } from '@/lib/cache'
 
 describe('RcmDashboardService', () => {
@@ -53,16 +53,16 @@ describe('RcmDashboardService', () => {
         },
       ]
 
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockRows)
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmSssDentalRaw: vi.fn().mockResolvedValue({ summaryRows: mockRows }),
+      }
 
       const result = await RcmDashboardService.getSssDentalReport(
         { ds1: '2025-10-01', ds2: '2025-11-30' },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.doctors).toHaveLength(2)
-
-      // Sorted by total_income desc: DOC01 has 25,000, DOC02 has 20,000
       expect(result.doctors[0].doctor_code).toBe('DOC01')
       expect(result.doctors[0].total_income).toBe(25000)
       expect(result.doctors[0].total_visits).toBe(20)
@@ -72,7 +72,6 @@ describe('RcmDashboardService', () => {
       expect(result.doctors[1].doctor_code).toBe('DOC02')
       expect(result.doctors[1].total_income).toBe(20000)
 
-      // Grand total check
       expect(result.grandTotal.visits).toBe(35)
       expect(result.grandTotal.income).toBe(45000)
       expect(result.grandTotal.uc_money).toBe(38000)
@@ -101,18 +100,16 @@ describe('RcmDashboardService', () => {
         },
       ]
 
-      const mockExecutor: QueryExecutor = vi
-        .fn()
-        .mockImplementation(async (sql: string) => {
-          if (sql.includes('FROM pttype_eclaim')) {
-            return mockPttypes
-          }
-          return mockRows
-        })
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmOpdDoctorSummaryRaw: vi.fn().mockResolvedValue({
+          allPttypeRows: mockPttypes,
+          rows: mockRows,
+        }),
+      }
 
       const result = await RcmDashboardService.getOpdDoctorSummary(
         { ds1: '2025-10-01', ds2: '2025-10-31', eclaimsParam: '16,17' },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.allPttypeOptions).toHaveLength(2)
@@ -156,11 +153,13 @@ describe('RcmDashboardService', () => {
         },
       ]
 
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockIpdRows)
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmIpdReportRaw: vi.fn().mockResolvedValue(mockIpdRows),
+      }
 
       const result = await RcmDashboardService.getIpdReport(
         { ds1: '2026-09-01', ds2: '2026-09-10' },
-        mockExecutor
+        mockGateway
       )
 
       expect(result).toHaveLength(1)
@@ -231,29 +230,22 @@ describe('RcmDashboardService', () => {
         },
       ]
 
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockDeptRows)
+      const mockFn = vi.fn().mockResolvedValue(mockDeptRows)
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmIpdDepartmentAdjrwRaw: mockFn,
+      }
 
       const result = await RcmDashboardService.getIpdDepartmentAdjrw(
         { ds1: '2024-10-01', ds2: '2025-09-30' },
-        mockExecutor
+        mockGateway
       )
 
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('dept_key'),
-        [
-          '2024-10-01',
-          '2025-09-30',
-          '2024-10-01',
-          '2025-09-30',
-          '2024-10-01',
-          '2025-09-30',
-          '2024-10-01',
-          '2025-09-30',
-        ]
-      )
+      expect(mockFn).toHaveBeenCalledWith({
+        startDate: '2024-10-01',
+        endDate: '2025-09-30',
+      })
 
       expect(result).toHaveLength(2)
-      // Month row
       expect(result[0].month).toBe('ต.ค.-67')
       expect(result[0].total_patients).toBe(150)
       expect(result[0].total_visits).toBe(180)
@@ -261,7 +253,6 @@ describe('RcmDashboardService', () => {
       expect(result[0].cmi).toBeCloseTo(1.3252, 4)
       expect(result[0].medicine).toBe(120.45)
       expect(result[0].surgery).toBe(45.12)
-      // Check depts object
       expect(result[0].depts.medicine).toEqual({
         patients: 50,
         visits: 60,
@@ -275,7 +266,6 @@ describe('RcmDashboardService', () => {
         cmi: 1.8048,
       })
 
-      // Total summary row
       expect(result[1].month).toBe('รวม')
       expect(result[1].total_patients).toBe(1500)
       expect(result[1].total_visits).toBe(1800)
@@ -317,10 +307,12 @@ describe('RcmDashboardService', () => {
         },
       ]
 
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockFlatRows)
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmIpdDepartmentAdjrwRaw: vi.fn().mockResolvedValue(mockFlatRows),
+      }
       const result = await RcmDashboardService.getIpdDepartmentAdjrw(
         { ds1: '2023-10-01', ds2: '2024-09-30' },
-        mockExecutor
+        mockGateway
       )
 
       expect(result).toHaveLength(1)
@@ -384,17 +376,15 @@ describe('RcmDashboardService', () => {
         },
       ]
 
-      const mockExecutor: QueryExecutor = vi
-        .fn()
-        .mockImplementation(async (sql: string) => {
-          if (sql.includes('HAVING uncompleted_charts > 0')) {
-            return mockDocRows
-          }
-          return mockGrandRows
-        })
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmIpdDoctorChartSummaryRaw: vi.fn().mockResolvedValue({
+          docRows: mockDocRows,
+          grandRows: mockGrandRows,
+        }),
+      }
 
       const targetDate = new Date(2026, 9, 12) // Oct 12, 2026 -> FY 2570
-      const result = await RcmDashboardService.getIpdDoctorChartSummary(targetDate, mockExecutor)
+      const result = await RcmDashboardService.getIpdDoctorChartSummary(targetDate, mockGateway)
 
       expect(result.fiscalYear).toBe(2570)
       expect(result.grandTotal.total_charts).toBe(261)
@@ -415,14 +405,17 @@ describe('RcmDashboardService', () => {
         { dept_group: 'รวมทั้งหมด', patients: 1850, visits: 3350 },
       ]
 
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockRows)
+      const mockFn = vi.fn().mockResolvedValue(mockRows)
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmOpdDepartmentSummaryRaw: mockFn,
+      }
 
       const result = await RcmDashboardService.getOpdDepartmentSummary(
         { ds1: '2024-10-01', ds2: '2025-09-30' },
-        mockExecutor
+        mockGateway
       )
 
-      expect(mockExecutor).toHaveBeenCalledTimes(1)
+      expect(mockFn).toHaveBeenCalledTimes(1)
       expect(result).toHaveLength(3)
       expect(result[0].dept_group).toBe('01. อายุรกรรม')
       expect(result[0].patients).toBe(1250)
@@ -433,11 +426,13 @@ describe('RcmDashboardService', () => {
     })
 
     it('handles empty response gracefully', async () => {
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmOpdDepartmentSummaryRaw: vi.fn().mockResolvedValue([]),
+      }
 
       const result = await RcmDashboardService.getOpdDepartmentSummary(
         { ds1: '2025-10-01', ds2: '2026-09-30' },
-        mockExecutor
+        mockGateway
       )
 
       expect(result).toEqual([])
@@ -447,49 +442,49 @@ describe('RcmDashboardService', () => {
       const mockRows = [
         { dept_group: '01. อายุรกรรม', patients: 10, visits: 20 },
       ]
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockRows)
+      const mockFn = vi.fn().mockResolvedValue(mockRows)
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmOpdDepartmentSummaryRaw: mockFn,
+      }
 
       const result = await RcmDashboardService.getOpdDepartmentSummary(
         { startDate: '2026-10-01', endDate: '2027-09-30' },
-        mockExecutor
+        mockGateway
       )
 
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('ovst'),
-        ['2026-10-01', '2027-09-30', '2026-10-01', '2027-09-30']
-      )
+      expect(mockFn).toHaveBeenCalledWith({ startDate: '2026-10-01', endDate: '2027-09-30' })
       expect(result).toHaveLength(1)
       expect(result[0].dept_group).toBe('01. อายุรกรรม')
     })
 
     it('defaults to active fiscal year when params are empty', async () => {
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue([])
+      const mockFn = vi.fn().mockResolvedValue([])
+      const mockGateway: Partial<RcmDashboardGatewayAdapter> = {
+        getRcmOpdDepartmentSummaryRaw: mockFn,
+      }
       const expectedRange = getDefaultFiscalYearDateRange()
 
-      await RcmDashboardService.getOpdDepartmentSummary({}, mockExecutor)
+      await RcmDashboardService.getOpdDepartmentSummary({}, mockGateway)
 
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('ovst'),
-        [expectedRange.startDate, expectedRange.endDate, expectedRange.startDate, expectedRange.endDate]
-      )
+      expect(mockFn).toHaveBeenCalledWith({
+        startDate: expectedRange.startDate,
+        endDate: expectedRange.endDate,
+      })
     })
   })
 
   describe('FiscalDateRange domain logic', () => {
     it('calculates Thai fiscal year bounds correctly across month boundaries', () => {
-      // In October, fiscal year is year + 1
       const octDate = new Date('2026-10-15T00:00:00+07:00')
       const octRange = getDefaultFiscalYearDateRange(octDate)
       expect(octRange.startDate).toBe('2026-10-01')
       expect(octRange.endDate).toBe('2027-09-30')
 
-      // In September, fiscal year is current calendar year
       const sepDate = new Date('2026-09-20T00:00:00+07:00')
       const sepRange = getDefaultFiscalYearDateRange(sepDate)
       expect(sepRange.startDate).toBe('2025-10-01')
       expect(sepRange.endDate).toBe('2026-09-30')
 
-      // In January, fiscal year is current calendar year
       const janDate = new Date('2026-01-10T00:00:00+07:00')
       const janRange = getDefaultFiscalYearDateRange(janDate)
       expect(janRange.startDate).toBe('2025-10-01')
@@ -518,43 +513,30 @@ describe('RcmDashboardService', () => {
     })
 
     it('correctly classifies all 10 hospital specialties in memory', () => {
-      // 1. Medicine
       expect(classifySpecialty('01', 'แผนกอายุรกรรม').key).toBe('medicine')
       expect(classifySpecialty('21', 'อายุรศาสตร์').key).toBe('medicine')
       expect(classifySpecialty('99', 'คลินิกอายุรกรรมพิเศษ').key).toBe('medicine')
 
-      // 2. Surgery (excluding orthopedics keywords)
       expect(classifySpecialty('02', 'ศัลยกรรมทั่วไป').key).toBe('surgery')
       expect(classifySpecialty('08', 'ศัลยกรรมกระดูก').key).toBe('orthopedics')
       expect(classifySpecialty('99', 'ศัลยกรรมกระดูก').key).toBe('orthopedics')
       expect(classifySpecialty('99', 'ศัลยกรรมออร์โธปิดิกส์').key).toBe('orthopedics')
 
-      // 3. Obgyn
       expect(classifySpecialty('03', 'สูติ-นรีเวช').key).toBe('obgyn')
       expect(classifySpecialty('04', 'นรีเวชกรรม').key).toBe('obgyn')
 
-      // 4. Pediatrics
       expect(classifySpecialty('05', 'กุมารเวชกรรม').key).toBe('pediatrics')
       expect(classifySpecialty('99', 'คลินิกเด็กและกุมาร').key).toBe('pediatrics')
 
-      // 5. Orthopedics
       expect(classifySpecialty('08', 'กระดูกและข้อ').key).toBe('orthopedics')
 
-      // 6. ENT
       expect(classifySpecialty('06', 'หู คอ จมูก').key).toBe('ent')
       expect(classifySpecialty('99', 'โสต ศอ นาสิก').key).toBe('ent')
       expect(classifySpecialty('99', 'คลินิก ENT').key).toBe('ent')
 
-      // 7. Eye
       expect(classifySpecialty('07', 'จักษุวิทยา').key).toBe('eye')
-
-      // 8. Dental
       expect(classifySpecialty('11', 'ทันตกรรม').key).toBe('dental')
-
-      // 9. Psychiatry
       expect(classifySpecialty('09', 'จิตเวชและสุขภาพจิต').key).toBe('psychiatry')
-
-      // 10. Other
       expect(classifySpecialty('99', 'เวชศาสตร์ฟื้นฟู').key).toBe('other')
       expect(classifySpecialty(null, null).key).toBe('other')
     })
@@ -575,6 +557,3 @@ describe('RcmDashboardService', () => {
     })
   })
 })
-
-
-

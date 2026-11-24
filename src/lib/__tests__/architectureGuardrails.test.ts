@@ -139,14 +139,11 @@ describe('Hospital Architecture & Build Guardrails', () => {
       // Phase 1D: App Core Dual-Path (completed -> 0)
       // Phase 2A: Cervical Cancer (completed -> 0)
       // Phase 2B: Family Planning IUD & 9.3.2 (completed -> 0)
-      // Phase 2C-2E: Clinical & RCM Pure-SQL (12 remaining)
+      // Phase 2C: RCM Dashboard & REP Funds (completed -> 0)
+      // Phase 2D-2E: Clinical & RCM Pure-SQL (8 remaining)
       'src/lib/clinical/dmRemissionLabService.ts',
       'src/lib/clinical/dmRemissionService.ts',
       'src/lib/clinical/fctHomeVisitService.ts',
-      'src/lib/clinical/rcm-dashboard/ipdReports.ts',
-      'src/lib/clinical/rcm-dashboard/opdReports.ts',
-      'src/lib/clinical/rcm-dashboard/palliativeAndVnReports.ts',
-      'src/lib/clinical/rcmRepFundsService.ts',
       'src/lib/clinical/rcmT1dmGdmPdmService.ts',
       'src/lib/clinical/rcmThaiTraditionalMedicineService.ts',
       'src/lib/clinical/rcmThalassemiaFundService.ts',
