@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   RcmThalassemiaFundService,
   type ThalassemiaFundReportParams,
+  type ThalassemiaFundGatewayAdapter,
 } from '../rcmThalassemiaFundService'
 import { clearMemoryCache, invalidateCacheKey } from '@/lib/cache'
 
@@ -82,7 +83,10 @@ describe('RcmThalassemiaFundService', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockResolvedValue(mockRawRows)
+      const mockGateway: Partial<ThalassemiaFundGatewayAdapter> = {
+        getRcmExtraThalassemiaFundOpdRaw: vi.fn().mockResolvedValue(mockRawRows),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const params: ThalassemiaFundReportParams = {
         startDate: '2026-10-01',
@@ -91,7 +95,7 @@ describe('RcmThalassemiaFundService', () => {
         pageSize: 50,
       }
 
-      const res = await RcmThalassemiaFundService.getOpdReport(params, mockExecutor)
+      const res = await RcmThalassemiaFundService.getOpdReport(params, mockGateway)
 
       expect(res.totalCount).toBe(2)
       expect(res.summary.totalCases).toBe(2)
@@ -146,14 +150,17 @@ describe('RcmThalassemiaFundService', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockResolvedValue(mockRawRows)
+      const mockGateway: Partial<ThalassemiaFundGatewayAdapter> = {
+        getRcmExtraThalassemiaFundOpdRaw: vi.fn().mockResolvedValue(mockRawRows),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
       const res = await RcmThalassemiaFundService.getOpdReport(
         {
           startDate: '2026-10-01',
           endDate: '2027-09-30',
           cardFilter: 'WITH_DRUG',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(res.totalCount).toBe(1)
@@ -196,13 +203,16 @@ describe('RcmThalassemiaFundService', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockResolvedValue(mockRawRows)
+      const mockGateway: Partial<ThalassemiaFundGatewayAdapter> = {
+        getRcmExtraThalassemiaFundIpdRaw: vi.fn().mockResolvedValue(mockRawRows),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
       const res = await RcmThalassemiaFundService.getIpdReport(
         {
           startDate: '2026-10-01',
           endDate: '2027-09-30',
         },
-        mockExecutor
+        mockGateway
       )
 
       expect(res.totalCount).toBe(1)
@@ -221,72 +231,69 @@ describe('RcmThalassemiaFundService', () => {
 
   describe('getAnClinicalDetails', () => {
     it('should return admission clinical details including orders and procedures', async () => {
-      const mockHeader = [
-        {
-          an: '690001234',
-          hn: '0012345',
-          cid: '1529900012345',
-          ptname: 'นาย สมชาย ใจดี',
-          sex: 'ชาย',
-          age: 36,
-          admdate: '2026-10-10',
-          dchdate: '2026-10-14',
-          pttypename: 'ประกันสุขภาพถ้วนหน้า',
-          ward: 'สามัญชาย',
-        },
-      ]
-      const mockDiags = [
-        {
-          icd10: 'D561',
-          icd_name: 'Beta thalassaemia',
-          diagtype: '1',
-          diagtype_name: 'PRINCIPLE DX',
-          doctor_name: 'นพ. ตรวจดี มีสุข',
-        },
-      ]
-      const mockOprts = [
-        {
-          icd9: '9904',
-          icd9_name: 'Transfusion of packed cells',
-          opdate: '2026-10-11',
-          doctor_name: 'นพ. ตรวจดี มีสุข',
-        },
-      ]
-      const mockOrders = [
-        {
-          icode: '1000001',
-          item_name: 'Packed Red Cells (PRC)',
-          strength: null,
-          units: 'Unit',
-          qty: 2,
-          unitprice: 700,
-          sum_price: 1400,
-          paidst_name: 'ลูกหนี้สิทธิ',
-          income_name: 'ค่าบริการโลหิตและส่วนประกอบโลหิต',
-          is_drug: 0,
-        },
-        {
-          icode: '1500002',
-          item_name: 'Desferrioxamin',
-          strength: '500 mg',
-          units: 'Vial',
-          qty: 5,
-          unitprice: 180,
-          sum_price: 900,
-          paidst_name: 'ลูกหนี้สิทธิ',
-          income_name: 'ค่ายาและสารอาหารทางเส้นเลือด',
-          is_drug: 1,
-        },
-      ]
+      const mockGateway: Partial<ThalassemiaFundGatewayAdapter> = {
+        getRcmExtraThalassemiaAnDetailsRaw: vi.fn().mockResolvedValue({
+          headerRows: [
+            {
+              an: '690001234',
+              hn: '0012345',
+              cid: '1529900012345',
+              ptname: 'นาย สมชาย ใจดี',
+              sex: 'ชาย',
+              age: 36,
+              admdate: '2026-10-10',
+              dchdate: '2026-10-14',
+              pttypename: 'ประกันสุขภาพถ้วนหน้า',
+              ward: 'สามัญชาย',
+            },
+          ],
+          diagRows: [
+            {
+              icd10: 'D561',
+              icd_name: 'Beta thalassaemia',
+              diagtype: '1',
+              diagtype_name: 'PRINCIPLE DX',
+              doctor_name: 'นพ. ตรวจดี มีสุข',
+            },
+          ],
+          oprtRows: [
+            {
+              icd9: '9904',
+              icd9_name: 'Transfusion of packed cells',
+              opdate: '2026-10-11',
+              doctor_name: 'นพ. ตรวจดี มีสุข',
+            },
+          ],
+          orderRows: [
+            {
+              icode: '1000001',
+              item_name: 'Packed Red Cells (PRC)',
+              strength: null,
+              units: 'Unit',
+              qty: 2,
+              unitprice: 700,
+              sum_price: 1400,
+              paidst_name: 'ลูกหนี้สิทธิ',
+              income_name: 'ค่าบริการโลหิตและส่วนประกอบโลหิต',
+              is_drug: 0,
+            },
+            {
+              icode: '1500002',
+              item_name: 'Desferrioxamin',
+              strength: '500 mg',
+              units: 'Vial',
+              qty: 5,
+              unitprice: 180,
+              sum_price: 900,
+              paidst_name: 'ลูกหนี้สิทธิ',
+              income_name: 'ค่ายาและสารอาหารทางเส้นเลือด',
+              is_drug: 1,
+            },
+          ],
+        }),
+      }
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockHeader)
-        .mockResolvedValueOnce(mockDiags)
-        .mockResolvedValueOnce(mockOprts)
-        .mockResolvedValueOnce(mockOrders)
-
-      const details = await RcmThalassemiaFundService.getAnClinicalDetails('690001234', mockExecutor)
+      const details = await RcmThalassemiaFundService.getAnClinicalDetails('690001234', mockGateway)
 
       expect(details).not.toBeNull()
       expect(details?.header.an).toBe('690001234')
@@ -298,17 +305,24 @@ describe('RcmThalassemiaFundService', () => {
     })
 
     it('should return null when AN is empty or not found', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
-      const resEmpty = await RcmThalassemiaFundService.getAnClinicalDetails('', mockExecutor)
+      const mockGateway: Partial<ThalassemiaFundGatewayAdapter> = {
+        getRcmExtraThalassemiaAnDetailsRaw: vi.fn().mockResolvedValue({
+          headerRows: [],
+          diagRows: [],
+          oprtRows: [],
+          orderRows: [],
+        }),
+      }
+      const resEmpty = await RcmThalassemiaFundService.getAnClinicalDetails('', mockGateway)
       expect(resEmpty).toBeNull()
 
-      const resNotFound = await RcmThalassemiaFundService.getAnClinicalDetails('999999', mockExecutor)
+      const resNotFound = await RcmThalassemiaFundService.getAnClinicalDetails('999999', mockGateway)
       expect(resNotFound).toBeNull()
     })
   })
 
-  describe('4-table Primary REP SQL and reps filtering', () => {
-    it('queries all 4 primary REP tables and filters OPD report by selected reps', async () => {
+  describe('Primary REP filtering via Gateway Named API', () => {
+    it('filters OPD report by selected reps and computes repBreakdown', async () => {
       const mockRawRows = [
         {
           vn: '691001123456',
@@ -376,10 +390,10 @@ describe('RcmThalassemiaFundService', () => {
         },
       ]
 
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockRawRows)
-        .mockResolvedValueOnce([])
+      const mockGateway: Partial<ThalassemiaFundGatewayAdapter> = {
+        getRcmExtraThalassemiaFundOpdRaw: vi.fn().mockResolvedValue(mockRawRows),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const res = await RcmThalassemiaFundService.getOpdReport(
         {
@@ -387,14 +401,8 @@ describe('RcmThalassemiaFundService', () => {
           endDate: '2027-09-30',
           reps: 'OP_11111',
         },
-        mockExecutor
+        mockGateway
       )
-
-      const executedSql = String(mockExecutor.mock.calls[0]?.[0] ?? '')
-      expect(executedSql).toContain('rcmdb.repeclaim')
-      expect(executedSql).toContain('rcmdb.repdata')
-      expect(executedSql).toContain('rcmdb.neweclaim')
-      expect(executedSql).toContain('eclaimdb.m_registerdata')
 
       expect(res.items).toHaveLength(1)
       expect(res.items[0].vn).toBe('691001123456')

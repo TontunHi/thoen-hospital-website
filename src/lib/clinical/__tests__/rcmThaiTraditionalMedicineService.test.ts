@@ -3,6 +3,7 @@ import {
   RcmThaiTraditionalMedicineService,
   type Ttm3ReportParams,
   type Ttm11ReportParams,
+  type TtmGatewayAdapter,
 } from '../rcmThaiTraditionalMedicineService'
 import { invalidateCacheKey } from '@/lib/cache'
 
@@ -33,8 +34,8 @@ describe('RcmThaiTraditionalMedicineService', () => {
           department: 'กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก',
           clinic: 'แพทย์แผนไทย',
           place: 'Y',
-          treatment1: 'Y', // ยา
-          treatment2: 'Y', // นวด
+          treatment1: 'Y',
+          treatment2: 'Y',
           treatment3: 'N',
           treatment4: 'N',
           treatment5: 'N',
@@ -72,11 +73,11 @@ describe('RcmThaiTraditionalMedicineService', () => {
           pttypename: 'ข้าราชการ',
           department: 'กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก',
           clinic: 'แพทย์แผนไทย',
-          place: 'N', // นอก รพ.
+          place: 'N',
           treatment1: 'N',
           treatment2: 'N',
-          treatment3: 'Y', // ประคบ
-          treatment4: 'Y', // อบ
+          treatment3: 'Y',
+          treatment4: 'Y',
           treatment5: 'N',
           treatment6: 'N',
           treatment7: 'N',
@@ -98,7 +99,10 @@ describe('RcmThaiTraditionalMedicineService', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockResolvedValue(mockRawRows)
+      const mockGateway: Partial<TtmGatewayAdapter> = {
+        getRcmExtraTtmTopic3Raw: vi.fn().mockResolvedValue(mockRawRows),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const params: Ttm3ReportParams = {
         startDate: '2026-10-01',
@@ -107,7 +111,7 @@ describe('RcmThaiTraditionalMedicineService', () => {
         pageSize: 50,
       }
 
-      const res = await RcmThaiTraditionalMedicineService.getReportTopic3(params, mockExecutor)
+      const res = await RcmThaiTraditionalMedicineService.getReportTopic3(params, mockGateway)
 
       expect(res.totalCount).toBe(2)
       expect(res.summary.totalVisits).toBe(2)
@@ -122,18 +126,16 @@ describe('RcmThaiTraditionalMedicineService', () => {
       expect(res.summary.outHospCount).toBe(1)
       expect(res.summary.withAuthenCount).toBe(1)
 
-      // Test cardFilter: TREATMENT_DRUG
       const drugRes = await RcmThaiTraditionalMedicineService.getReportTopic3(
         { ...params, cardFilter: 'TREATMENT_DRUG' },
-        mockExecutor
+        mockGateway
       )
       expect(drugRes.items.length).toBe(1)
       expect(drugRes.items[0].vn).toBe('691001111111')
 
-      // Test place: OUT_HOSP
       const outHospRes = await RcmThaiTraditionalMedicineService.getReportTopic3(
         { ...params, place: 'OUT_HOSP' },
-        mockExecutor
+        mockGateway
       )
       expect(outHospRes.items.length).toBe(1)
       expect(outHospRes.items[0].vn).toBe('691002222222')
@@ -174,32 +176,6 @@ describe('RcmThaiTraditionalMedicineService', () => {
           total_qty: 50,
           total_drug_amount: 180,
           item_count: 2,
-          drug_items_json: JSON.stringify([
-            {
-              icode: '1500001',
-              name: 'ยาฟ้าทะลายโจร',
-              strength: '500 mg',
-              units: 'แคปซูล',
-              ttmt_code: 'TTMT01',
-              did: '40001',
-              category_id: 4,
-              qty: 30,
-              unitprice: 3,
-              sumprice: 90,
-            },
-            {
-              icode: '1500002',
-              name: 'ยาขมิ้นชัน',
-              strength: '250 mg',
-              units: 'แคปซูล',
-              ttmt_code: 'TTMT02',
-              did: '40002',
-              category_id: 3,
-              qty: 20,
-              unitprice: 4.5,
-              sumprice: 90,
-            },
-          ]),
           rep: 'REP-HERB-01',
           compensated: 180,
           fund: 'UC',
@@ -211,7 +187,10 @@ describe('RcmThaiTraditionalMedicineService', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockResolvedValue(mockRawRows)
+      const mockGateway: Partial<TtmGatewayAdapter> = {
+        getRcmExtraTtmTopic11Raw: vi.fn().mockResolvedValue(mockRawRows),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const params: Ttm11ReportParams = {
         startDate: '2026-10-01',
@@ -220,7 +199,7 @@ describe('RcmThaiTraditionalMedicineService', () => {
         pageSize: 50,
       }
 
-      const res = await RcmThaiTraditionalMedicineService.getReportTopic11(params, mockExecutor)
+      const res = await RcmThaiTraditionalMedicineService.getReportTopic11(params, mockGateway)
 
       expect(res.title).toBe('รายชื่อผู้รับบริการรับยาสมุนไพร 32 รายการ')
       expect(res.totalCount).toBe(1)
@@ -256,8 +235,10 @@ describe('RcmThaiTraditionalMedicineService', () => {
           sumprice: 90,
         },
       ]
-      const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-      const res = await RcmThaiTraditionalMedicineService.getVnHerbalDrugs('691001111111', mockExecutor)
+      const mockGateway: Partial<TtmGatewayAdapter> = {
+        getRcmExtraTtmVnHerbs: vi.fn().mockResolvedValue(mockRows),
+      }
+      const res = await RcmThaiTraditionalMedicineService.getVnHerbalDrugs('691001111111', mockGateway)
       expect(res.length).toBe(1)
       expect(res[0].drug).toBe('ยาฟ้าทะลายโจร 500 mg')
       expect(res[0].name).toBe('ยาฟ้าทะลายโจร')

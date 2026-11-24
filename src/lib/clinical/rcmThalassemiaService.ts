@@ -1,15 +1,32 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { resolveFiscalDateRange, type FiscalDateRangeParams } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch, type SeamlessEnrichedFields } from './rcmSeamlessEnricher'
+import {
+  enrichItemsWithSeamlessCache,
+  matchesSeamlessRepSearch,
+  type SeamlessEnrichedFields,
+  type SeamlessEnricherFetcher,
+} from './rcmSeamlessEnricher'
 import {
   buildRepBreakdownSummary,
   matchesRepFilter,
   parseRepFilterParam,
   type RepBreakdownSummary,
 } from './rcmRepTagHelper'
+
+export interface ThalassemiaPregnancyGatewayAdapter {
+  getRcmExtraThalassemiaPregnancyAdpMapping: typeof apiGateway.clinical.getRcmExtraThalassemiaPregnancyAdpMapping
+  getRcmExtraThalassemiaPregnancyReportRaw: typeof apiGateway.clinical.getRcmExtraThalassemiaPregnancyReportRaw
+  seamlessFetcher?: SeamlessEnricherFetcher
+}
+
+const defaultThalassemiaPregnancyGateway: ThalassemiaPregnancyGatewayAdapter = {
+  getRcmExtraThalassemiaPregnancyAdpMapping: (refresh) =>
+    apiGateway.clinical.getRcmExtraThalassemiaPregnancyAdpMapping(refresh),
+  getRcmExtraThalassemiaPregnancyReportRaw: (p) =>
+    apiGateway.clinical.getRcmExtraThalassemiaPregnancyReportRaw(p),
+}
 
 // ── 1. Domain Types: 3.1 ธาลัสซีเมียในหญิงตั้งครรภ์ (Thalassemia in Pregnancy) ──
 
@@ -174,49 +191,25 @@ export class RcmThalassemiaService {
    * Check if ADP codes '30313' and '37532' are mapped in s_drugitems table.
    */
   static async checkThalassemiaAdpMapping(
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<ThalassemiaPregnancyGatewayAdapter> = {}
   ): Promise<ThalassemiaAdpMappingCheck> {
+    const gw = { ...defaultThalassemiaPregnancyGateway, ...gateway }
     const cacheKey = 'rcm-thalassemia-adp-mapping-check'
     return getCachedData(
       cacheKey,
-      async () => {
-        const sql = `
-          SELECT 
-            icode, 
-            name, 
-            strength, 
-            nhso_adp_code
-          FROM s_drugitems 
-          WHERE nhso_adp_code IN ('30313', '37532')
-          ORDER BY nhso_adp_code ASC, icode ASC;
-        `
-        const rows = (await executor(sql, [], { timeoutMs: 15000 })) as any[]
-        const items: ThalassemiaAdpMappingItem[] = (rows || []).map((r) => ({
-          icode: String(r.icode || ''),
-          name: String(r.name || ''),
-          strength: r.strength ? String(r.strength) : null,
-          nhso_adp_code: String(r.nhso_adp_code || ''),
-        }))
-
-        return {
-          isMapped: items.length > 0,
-          mappedCount: items.length,
-          items,
-        }
-      },
-      600000 // Cache TTL 10 minutes
+      async () => gw.getRcmExtraThalassemiaPregnancyAdpMapping(),
+      600000
     )
   }
 
   /**
    * Generate 3.1 Thalassemia screening in pregnancy report.
-   * Matches FoxPro business logic filtering labor_date within fiscal/custom dates,
-   * querying person_anc, person, patient address, and joining 1-year lab_order results.
    */
   static async getThalassemiaReport(
     params: ThalassemiaReportParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<ThalassemiaPregnancyGatewayAdapter> = {}
   ): Promise<ThalassemiaReportResult> {
+    const gw = { ...defaultThalassemiaPregnancyGateway, ...gateway }
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: ThalassemiaCardFilter = params.cardFilter || 'ALL'
     const laborTypeFilter: ThalassemiaLaborTypeFilter = params.laborTypeFilter || 'ALL'
@@ -234,79 +227,24 @@ export class RcmThalassemiaService {
       invalidateCacheKey('rcm-thalassemia-adp-mapping-check')
     }
 
-    const [adpMapping, rawRows] = await Promise.all([
-      this.checkThalassemiaAdpMapping(executor),
-      getCachedData(
-        cacheKey,
-        async () => {
-          const sql = `
-            SELECT 
-              p.person_id,
-              anc.person_anc_id AS ancno,
-              IFNULL(p.cid, '') AS cid,
-              IFNULL(p.patient_hn, '') AS hn,
-              CONCAT(IFNULL(p.pname,''), IFNULL(p.fname,''), ' ', IFNULL(p.lname,'')) AS ptname,
-              IFNULL(TIMESTAMPDIFF(YEAR, p.birthdate, anc.labor_date), 0) AS age,
-              IFNULL(ptt.name, p.pttype) AS pttypename,
-              ptt.pttype_eclaim_id,
-              CONCAT_WS(' ', pt.addrpart, IF(pt.moopart IS NOT NULL AND pt.moopart != '', CONCAT('ม.', pt.moopart), NULL), pt.road) AS address,
-              DATE_FORMAT(anc.labor_date, '%Y-%m-%d') AS labor_date,
-              IFNULL(plt.person_labour_type_name, 'NORMAL') AS labor_type,
-              anc.labour_type_id,
-              IFNULL(h.name, anc.labour_hospcode) AS hospital,
-              anc.labour_hospcode,
-              anc.preg_no,
-              DATE_FORMAT(anc.lmp, '%Y-%m-%d') AS lmp,
-              DATE_FORMAT(anc.edc, '%Y-%m-%d') AS edc,
-              l.labcode,
-              l.labname,
-              l.labresult,
-              l.lab_order_date,
-              ord.ordered_adp_items
-            FROM person_anc anc
-            JOIN person p ON p.person_id = anc.person_id
-            LEFT JOIN patient pt ON pt.hn = p.patient_hn
-            LEFT JOIN pttype ptt ON ptt.pttype = p.pttype
-            LEFT JOIN person_labour_type plt ON plt.person_labour_type_id = anc.labour_type_id
-            LEFT JOIN hospcode h ON h.hospcode = anc.labour_hospcode
-            LEFT JOIN (
-              SELECT 
-                lh.hn,
-                GROUP_CONCAT(DISTINCT lo.lab_items_code SEPARATOR ', ') AS labcode,
-                GROUP_CONCAT(DISTINCT lo.lab_items_name_ref SEPARATOR ', ') AS labname,
-                GROUP_CONCAT(DISTINCT CONCAT(lo.lab_items_name_ref, ': ', IFNULL(lo.lab_order_result, 'รอผล')) SEPARATOR ' | ') AS labresult,
-                MAX(DATE_FORMAT(lh.order_date, '%Y-%m-%d')) AS lab_order_date
-              FROM lab_head lh
-              JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-              WHERE lh.order_date BETWEEN DATE_SUB(?, INTERVAL 1 YEAR) AND ?
-                AND (lo.lab_items_name_ref REGEXP 'hemoglobin|thalass' OR lo.lab_items_name_ref = 'DCIP' OR lo.lab_items_name_ref = 'OF')
-              GROUP BY lh.hn
-            ) l ON l.hn = p.patient_hn
-            LEFT JOIN (
-              SELECT 
-                o.hn,
-                GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS ordered_adp_items
-              FROM opitemrece o
-              JOIN s_drugitems d ON d.icode = o.icode
-              WHERE d.nhso_adp_code IN ('30313', '37532')
-                AND o.vstdate BETWEEN DATE_SUB(?, INTERVAL 1 YEAR) AND ?
-              GROUP BY o.hn
-            ) ord ON ord.hn = p.patient_hn
-            WHERE anc.labor_date BETWEEN ? AND ?
-              AND p.sex = '2'
-            GROUP BY anc.person_anc_id
-            ORDER BY anc.labor_date DESC
-          `
-          return (await executor(sql, [ds1, ds2, ds1, ds2, ds1, ds2], { timeoutMs: 45000 })) as any[]
-        },
-        300000 // Cache TTL 5 minutes
-      ),
-    ])
+    const { adpMapping, rawRows } = await getCachedData(
+      cacheKey,
+      async () =>
+        gw.getRcmExtraThalassemiaPregnancyReportRaw({
+          startDate: ds1,
+          endDate: ds2,
+          refresh: Boolean(params.refresh),
+        }),
+      300000
+    )
 
     // Map rows into strongly-typed domain items
     let allItems: ThalassemiaItem[] = (rawRows || []).map((r, idx) => {
-      const labStatus = determineLabStatus(r.labname, r.labresult)
-      const isThoen = r.labour_hospcode === '11152' || (r.hospital || '').includes('เถิน')
+      const labStatus = determineLabStatus(
+        r.labname != null ? String(r.labname) : null,
+        r.labresult != null ? String(r.labresult) : null
+      )
+      const isThoen = r.labour_hospcode === '11152' || String(r.hospital || '').includes('เถิน')
       const pttypeEclaimId = r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null
       const isUc = isUcEclaimCode(pttypeEclaimId)
       return {
@@ -341,7 +279,7 @@ export class RcmThalassemiaService {
     })
 
     // Dual-mode pttype filter (pttypes takes precedence over ucOnly)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, gw.seamlessFetcher, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) => matchesPttypeFilter(i.pttypename || i.pttype_eclaim_id, params.pttypes, i.isUc, i.pttype_eclaim_id))

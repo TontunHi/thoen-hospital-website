@@ -1,19 +1,35 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
 import { matchesPttypeFilter, isUcEclaimCode } from './pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  enrichItemsWithSeamlessCache,
+  matchesSeamlessRepSearch,
+  type SeamlessEnricherFetcher,
+} from './rcmSeamlessEnricher'
 import {
   buildRepBreakdownSummary,
   matchesRepFilter,
   parseRepFilterParam,
   type RepBreakdownSummary,
 } from './rcmRepTagHelper'
+
+export interface ThalassemiaFundGatewayAdapter {
+  getRcmExtraThalassemiaFundOpdRaw: typeof apiGateway.clinical.getRcmExtraThalassemiaFundOpdRaw
+  getRcmExtraThalassemiaFundIpdRaw: typeof apiGateway.clinical.getRcmExtraThalassemiaFundIpdRaw
+  getRcmExtraThalassemiaAnDetailsRaw: typeof apiGateway.clinical.getRcmExtraThalassemiaAnDetailsRaw
+  seamlessFetcher?: SeamlessEnricherFetcher
+}
+
+const defaultThalassemiaFundGateway: ThalassemiaFundGatewayAdapter = {
+  getRcmExtraThalassemiaFundOpdRaw: (p) => apiGateway.clinical.getRcmExtraThalassemiaFundOpdRaw(p),
+  getRcmExtraThalassemiaFundIpdRaw: (p) => apiGateway.clinical.getRcmExtraThalassemiaFundIpdRaw(p),
+  getRcmExtraThalassemiaAnDetailsRaw: (an) => apiGateway.clinical.getRcmExtraThalassemiaAnDetailsRaw(an),
+}
 
 // ── Types: กองทุน Thalassemia (ผู้ป่วยนอก OPD & ผู้ป่วยใน IPD) ──────────────────────
 
@@ -255,8 +271,9 @@ export class RcmThalassemiaFundService {
    */
   static async getOpdReport(
     params: ThalassemiaFundReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<ThalassemiaFundGatewayAdapter> = {}
   ): Promise<ThalassemiaOpdReportResult> {
+    const gw = { ...defaultThalassemiaFundGateway, ...gateway }
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: ThalassemiaFundCardFilter = params.cardFilter || 'ALL'
     const search = (params.search || '').trim().toLowerCase()
@@ -273,157 +290,13 @@ export class RcmThalassemiaFundService {
 
     const rawRows = await getCachedData(
       cacheKey,
-      async () => {
-
-        const sql = `
-          SELECT 
-            t.vn,
-            t.hn,
-            t.cid,
-            t.ptname,
-            t.sex_code,
-            t.birthday,
-            t.age,
-            t.vstdate,
-            t.vsttime,
-            t.maininscl,
-            t.pttype_eclaim_id,
-            t.pttypename,
-            t.department,
-            t.clinic,
-            t.icd10,
-            t.icd9,
-            t.drugname,
-            b.blood,
-            b.blood_date,
-            IFNULL(b.qty, 0) AS blood_qty,
-            l.Ferritin_Result AS ferritin_result,
-            l.Ferritin_date AS ferritin_date,
-            l.Hb_Result AS hb_result,
-            l.Hb_Date AS hb_date,
-            l.Hct_Result AS hct_result,
-            l.Hct_Date AS hct_date,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-            r.rep AS seamless,
-            COALESCE(NULLIF(nhso.rep, ''), NULLIF(re.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, '')) AS rep,
-            CASE
-              WHEN NULLIF(nhso.rep, '') IS NOT NULL THEN 'NHSO :: มี Invoice แล้ว'
-              WHEN NULLIF(re.rep, '') IS NOT NULL THEN 'Rep :: มี Rep แล้ว'
-              WHEN NULLIF(nn.Rep, '') IS NOT NULL THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
-              WHEN m.statusname IS NOT NULL THEN m.statusname
-              WHEN NULLIF(r.rep, '') IS NOT NULL THEN 'มี Seamless'
-              ELSE 'รอส่งเบิก'
-            END AS status,
-            COALESCE(nhso.compensated, re.compensated, nn.Income, m.compensated, 0) AS compensated
-          FROM (
-            SELECT 
-              o.vn,
-              o.hn,
-              IFNULL(pt.cid, '') AS cid,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              IFNULL(pt.sex, '') AS sex_code,
-              DATE_FORMAT(pt.birthday, '%Y-%m-%d') AS birthday,
-              IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              IFNULL(ptt.hipdata_code, '') AS maininscl,
-              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-              IFNULL(ptt.name, o.pttype) AS pttypename,
-              IFNULL(dep.department, o.main_dep) AS department,
-              IFNULL(spc.name, o.spclty) AS clinic,
-              GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'D56|D582', dx.icd10, NULL) ORDER BY dx.diagtype SEPARATOR ', ') AS icd10,
-              GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^[0-9]', dx.icd10, NULL) SEPARATOR ', ') AS icd9,
-              GROUP_CONCAT(DISTINCT IF(d.name REGEXP 'Deferasirox|Deferipron|Desferrioxamin', CONCAT(d.name, ' ', IFNULL(d.strength, ''), ' #', oo.qty), NULL) SEPARATOR ', ') AS drugname
-            FROM ovst o
-            JOIN patient pt ON pt.hn = o.hn
-            JOIN ovstdiag dx ON dx.vn = o.vn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            LEFT JOIN opitemrece oo ON oo.vn = o.vn
-            LEFT JOIN drugitems d ON d.icode = oo.icode
-            WHERE o.vstdate BETWEEN ? AND ?
-              AND dx.icd10 REGEXP 'D56|D582'
-            GROUP BY o.vn
-          ) t
-          LEFT JOIN (
-            SELECT 
-              oo.vn,
-              GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS blood,
-              GROUP_CONCAT(DISTINCT DATE_FORMAT(oo.rxdate, '%Y-%m-%d') SEPARATOR ', ') AS blood_date,
-              SUM(oo.qty) AS qty
-            FROM opitemrece oo
-            JOIN nondrugitems d ON d.icode = oo.icode
-            WHERE d.nhso_adp_code LIKE '232%'
-              AND oo.vstdate BETWEEN ? AND ?
-            GROUP BY oo.vn
-          ) b ON b.vn = t.vn
-          LEFT JOIN (
-            SELECT 
-              lh.vn,
-              GROUP_CONCAT(DISTINCT IF(l.lab_items_name REGEXP 'ferritin', lo.lab_order_result, NULL) SEPARATOR ', ') AS Ferritin_Result,
-              GROUP_CONCAT(DISTINCT IF(l.lab_items_name REGEXP 'ferritin', DATE_FORMAT(lh.order_date, '%Y-%m-%d'), NULL) SEPARATOR ', ') AS Ferritin_date,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621401', lo.lab_order_result, NULL) SEPARATOR ', ') AS Hb_Result,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621401', DATE_FORMAT(lh.order_date, '%Y-%m-%d'), NULL) SEPARATOR ', ') AS Hb_Date,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621201', lo.lab_order_result, NULL) SEPARATOR ', ') AS Hct_Result,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621201', DATE_FORMAT(lh.order_date, '%Y-%m-%d'), NULL) SEPARATOR ', ') AS Hct_Date
-            FROM lab_head lh
-            JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-            JOIN lab_items l ON l.lab_items_code = lo.lab_items_code
-            WHERE (l.provis_labcode IN ('0621401', '0621201') OR l.lab_items_name REGEXP 'ferritin')
-              AND lh.order_date BETWEEN ? AND ?
-            GROUP BY lh.vn
-          ) l ON l.vn = t.vn
-          LEFT JOIN rcmdb.authencode cc ON cc.vn = t.vn
-          LEFT JOIN visit_pttype vt ON vt.vn = t.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY rep SEPARATOR ', ') AS rep
-            FROM rcmdb.seamless
-            WHERE IFNULL(vn, '') <> ''
-            GROUP BY vn
-          ) r ON r.vn = t.vn
-          LEFT JOIN (
-            SELECT vn,
-                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
-                   SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn, '') <> ''
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) nhso ON nhso.vn = t.vn
-          LEFT JOIN (
-            SELECT vn,
-                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
-                   SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn, '') <> ''
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) re ON re.vn = t.vn
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = t.vn
-          LEFT JOIN (
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq, '') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = t.vn
-          WHERE (t.drugname IS NOT NULL OR b.vn IS NOT NULL)
-          GROUP BY t.vn
-          ORDER BY t.vstdate DESC, t.vsttime DESC;
-        `
-        const rows = (await executor(
-          sql,
-          [ds1, ds2, ds1, ds2, ds1, ds2],
-          { timeoutMs: 90000 }
-        )) as any[]
-        return rows || []
-      },
-      600000 // Cache TTL 10 minutes
+      async () =>
+        ((await gw.getRcmExtraThalassemiaFundOpdRaw({
+          startDate: ds1,
+          endDate: ds2,
+          refresh: Boolean(params.refresh),
+        })) as any[]) || [],
+      600000
     )
 
     // Map rows into domain objects
@@ -480,7 +353,7 @@ export class RcmThalassemiaFundService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, gw.seamlessFetcher, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -626,8 +499,9 @@ export class RcmThalassemiaFundService {
    */
   static async getIpdReport(
     params: ThalassemiaFundReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<ThalassemiaFundGatewayAdapter> = {}
   ): Promise<ThalassemiaIpdReportResult> {
+    const gw = { ...defaultThalassemiaFundGateway, ...gateway }
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: ThalassemiaFundCardFilter = params.cardFilter || 'ALL'
     const search = (params.search || '').trim().toLowerCase()
@@ -644,150 +518,13 @@ export class RcmThalassemiaFundService {
 
     const rawRows = await getCachedData(
       cacheKey,
-      async () => {
-
-        const sql = `
-          SELECT 
-            t.an,
-            t.hn,
-            t.cid,
-            t.ptname,
-            t.sex_code,
-            t.birthday,
-            t.age,
-            t.admdate,
-            t.dchdate,
-            t.maininscl,
-            t.pttype_eclaim_id,
-            t.pttypename,
-            t.ward,
-            t.icd10,
-            t.icd9,
-            t.drugname,
-            b.blood,
-            b.blood_date,
-            IFNULL(b.qty, 0) AS blood_qty,
-            l.Ferritin_Result AS ferritin_result,
-            l.Ferritin_date AS ferritin_date,
-            l.Hb_Result AS hb_result,
-            l.Hb_Date AS hb_date,
-            l.Hct_Result AS hct_result,
-            l.Hct_Date AS hct_date,
-            r.rep AS seamless,
-            COALESCE(NULLIF(nhso.rep, ''), NULLIF(re.rep, ''), NULLIF(nn.Rep, ''), NULLIF(m.rep, '')) AS rep,
-            CASE
-              WHEN NULLIF(nhso.rep, '') IS NOT NULL THEN 'NHSO :: มี Invoice แล้ว'
-              WHEN NULLIF(re.rep, '') IS NOT NULL THEN 'Rep :: มี Rep แล้ว'
-              WHEN NULLIF(nn.Rep, '') IS NOT NULL THEN IFNULL(nn.StatusName, 'E-Claim :: มี Rep แล้ว')
-              WHEN m.statusname IS NOT NULL THEN m.statusname
-              WHEN NULLIF(r.rep, '') IS NOT NULL THEN 'มี Seamless'
-              ELSE 'รอส่งเบิก'
-            END AS status,
-            COALESCE(nhso.compensated, re.compensated, nn.Income, m.compensated, 0) AS compensated
-          FROM (
-            SELECT 
-              i.an,
-              i.hn,
-              IFNULL(pt.cid, '') AS cid,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              IFNULL(pt.sex, '') AS sex_code,
-              DATE_FORMAT(pt.birthday, '%Y-%m-%d') AS birthday,
-              IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, i.dchdate), 0) AS age,
-              DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
-              DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
-              IFNULL(ptt.hipdata_code, '') AS maininscl,
-              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-              IFNULL(ptt.name, i.pttype) AS pttypename,
-              IFNULL(w.name, i.ward) AS ward,
-              GROUP_CONCAT(DISTINCT dx.icd10 ORDER BY dx.diagtype SEPARATOR ', ') AS icd10,
-              GROUP_CONCAT(DISTINCT op.icd9 SEPARATOR ', ') AS icd9,
-              GROUP_CONCAT(DISTINCT IF(d.name REGEXP 'Deferasirox|Deferipron|Desferrioxamin', CONCAT(d.name, ' ', IFNULL(d.strength, ''), ' #', oo.qty), NULL) SEPARATOR ', ') AS drugname
-            FROM ipt i
-            JOIN patient pt ON pt.hn = i.hn
-            JOIN iptdiag dx ON dx.an = i.an
-            LEFT JOIN iptoprt op ON op.an = i.an
-            LEFT JOIN pttype ptt ON ptt.pttype = i.pttype
-            LEFT JOIN ward w ON w.ward = i.ward
-            LEFT JOIN opitemrece oo ON oo.an = i.an
-            LEFT JOIN drugitems d ON d.icode = oo.icode
-            WHERE i.dchdate BETWEEN ? AND ?
-              AND dx.icd10 REGEXP 'D56|D582'
-            GROUP BY i.an
-          ) t
-          LEFT JOIN (
-            SELECT 
-              oo.an,
-              GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS blood,
-              GROUP_CONCAT(DISTINCT DATE_FORMAT(oo.rxdate, '%Y-%m-%d') SEPARATOR ', ') AS blood_date,
-              SUM(oo.qty) AS qty
-            FROM opitemrece oo
-            JOIN nondrugitems d ON d.icode = oo.icode
-            WHERE d.nhso_adp_code LIKE '232%'
-              AND oo.an IS NOT NULL
-            GROUP BY oo.an
-          ) b ON b.an = t.an
-          LEFT JOIN (
-            SELECT 
-              lh.vn AS an,
-              GROUP_CONCAT(DISTINCT IF(l.lab_items_name REGEXP 'ferritin', lo.lab_order_result, NULL) SEPARATOR ', ') AS Ferritin_Result,
-              GROUP_CONCAT(DISTINCT IF(l.lab_items_name REGEXP 'ferritin', DATE_FORMAT(lh.order_date, '%Y-%m-%d'), NULL) SEPARATOR ', ') AS Ferritin_date,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621401', lo.lab_order_result, NULL) SEPARATOR ', ') AS Hb_Result,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621401', DATE_FORMAT(lh.order_date, '%Y-%m-%d'), NULL) SEPARATOR ', ') AS Hb_Date,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621201', lo.lab_order_result, NULL) SEPARATOR ', ') AS Hct_Result,
-              GROUP_CONCAT(DISTINCT IF(l.provis_labcode = '0621201', DATE_FORMAT(lh.order_date, '%Y-%m-%d'), NULL) SEPARATOR ', ') AS Hct_Date
-            FROM lab_head lh
-            JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-            JOIN lab_items l ON l.lab_items_code = lo.lab_items_code
-            WHERE (l.provis_labcode IN ('0621401', '0621201') OR l.lab_items_name REGEXP 'ferritin')
-            GROUP BY lh.vn
-          ) l ON l.an = t.an
-          LEFT JOIN (
-            SELECT an, GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY rep SEPARATOR ', ') AS rep
-            FROM rcmdb.seamless
-            WHERE IFNULL(an, '') <> ''
-            GROUP BY an
-          ) r ON r.an = t.an
-          LEFT JOIN (
-            SELECT an,
-                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
-                   SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repeclaim
-            WHERE department = 'IP' AND IFNULL(an, '') <> ''
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY an
-          ) nhso ON nhso.an = t.an
-          LEFT JOIN (
-            SELECT an,
-                   GROUP_CONCAT(DISTINCT NULLIF(rep, '') ORDER BY (Compensated > 0) DESC, rep SEPARATOR ', ') AS rep,
-                   SUM(IFNULL(compensated, 0)) AS compensated
-            FROM rcmdb.repdata
-            WHERE department = 'IP' AND IFNULL(an, '') <> ''
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY an
-          ) re ON re.an = t.an
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = t.an
-          LEFT JOIN (
-            SELECT m.an,
-                   SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(m.rep, '') ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '2' AND IFNULL(m.an, '') <> ''
-            GROUP BY m.an
-          ) m ON m.an = t.an
-          WHERE (t.icd9 REGEXP '9904' OR t.drugname IS NOT NULL OR b.an IS NOT NULL)
-          GROUP BY t.an
-          ORDER BY t.dchdate DESC, t.admdate DESC;
-        `
-        const rows = (await executor(
-          sql,
-          [ds1, ds2],
-          { timeoutMs: 90000 }
-        )) as any[]
-        return rows || []
-      },
-      600000 // Cache TTL 10 minutes
+      async () =>
+        ((await gw.getRcmExtraThalassemiaFundIpdRaw({
+          startDate: ds1,
+          endDate: ds2,
+          refresh: Boolean(params.refresh),
+        })) as any[]) || [],
+      600000
     )
 
     // Map rows into domain objects
@@ -844,7 +581,7 @@ export class RcmThalassemiaFundService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, gw.seamlessFetcher, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>
@@ -988,96 +725,19 @@ export class RcmThalassemiaFundService {
    */
   static async getAnClinicalDetails(
     an: string,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<ThalassemiaFundGatewayAdapter> = {}
   ): Promise<AnClinicalDetails | null> {
+    const gw = { ...defaultThalassemiaFundGateway, ...gateway }
     const cleanAn = (an || '').trim()
     if (!cleanAn) return null
 
-    const headerSql = `
-      SELECT 
-        i.an, i.hn, IFNULL(pt.cid, '') AS cid,
-        CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
-        CASE WHEN pt.sex = '1' THEN 'ชาย' WHEN pt.sex = '2' THEN 'หญิง' ELSE IFNULL(pt.sex, '-') END AS sex,
-        IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, i.dchdate), 0) AS age,
-        DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
-        DATE_FORMAT(i.dchdate, '%Y-%m-%d') AS dchdate,
-        IFNULL(p.name, IFNULL(i.pttype, '')) AS pttypename,
-        IFNULL(w.name, IFNULL(i.ward, '')) AS ward
-      FROM ipt i
-      LEFT JOIN patient pt ON pt.hn = i.hn
-      LEFT JOIN pttype p ON p.pttype = i.pttype
-      LEFT JOIN ward w ON w.ward = i.ward
-      WHERE i.an = ?
-      LIMIT 1;
-    `
-
-    const diagSql = `
-      SELECT 
-        d.icd10,
-        IFNULL(ic.name, d.icd10) AS icd_name,
-        IFNULL(d.diagtype, '') AS diagtype,
-        IFNULL(dt.name, CASE d.diagtype 
-          WHEN '1' THEN 'PRINCIPLE DX (การวินิจฉัยโรคหลัก)' 
-          WHEN '2' THEN 'CO-MORBIDITY (การวินิจฉัยโรคร่วม)' 
-          WHEN '3' THEN 'COMPLICATION (ภาวะแทรกซ้อน)' 
-          WHEN '4' THEN 'OTHER (การวินิจฉัยอื่นๆ)' 
-          WHEN '5' THEN 'EXTERNAL CAUSE (สาเหตุภายนอก)' 
-          ELSE 'ไม่ระบุประเภท' END) AS diagtype_name,
-        IFNULL(doc.name, '') AS doctor_name
-      FROM iptdiag d
-      LEFT JOIN icd101 ic ON ic.code = d.icd10
-      LEFT JOIN diagtype dt ON dt.diagtype = d.diagtype
-      LEFT JOIN doctor doc ON doc.code = d.doctor
-      WHERE d.an = ?
-      ORDER BY d.diagtype ASC, d.ipt_diag_id ASC;
-    `
-
-    const oprtSql = `
-      SELECT 
-        op.icd9,
-        IFNULL(ic9.name, op.icd9) AS icd9_name,
-        DATE_FORMAT(op.opdate, '%Y-%m-%d') AS opdate,
-        IFNULL(doc.name, '') AS doctor_name
-      FROM iptoprt op
-      LEFT JOIN icd9cm1 ic9 ON ic9.code = op.icd9
-      LEFT JOIN doctor doc ON doc.code = op.doctor
-      WHERE op.an = ?
-      ORDER BY op.opdate ASC;
-    `
-
-    const orderSql = `
-      SELECT 
-        o.icode,
-        COALESCE(d.name, nd.name, o.icode) AS item_name,
-        d.strength,
-        d.units,
-        IFNULL(o.qty, 0) AS qty,
-        IFNULL(o.unitprice, 0) AS unitprice,
-        IFNULL(o.sum_price, 0) AS sum_price,
-        IFNULL(pst.name, o.paidst) AS paidst_name,
-        IFNULL(inc.name, o.income) AS income_name,
-        IF(d.icode IS NOT NULL, 1, 0) AS is_drug
-      FROM opitemrece o
-      LEFT JOIN s_drugitems d ON d.icode = o.icode
-      LEFT JOIN nondrugitems nd ON nd.icode = o.icode
-      LEFT JOIN paidst pst ON pst.paidst = o.paidst
-      LEFT JOIN income inc ON inc.income = o.income
-      WHERE o.an = ?
-      ORDER BY o.income ASC, o.item_no ASC, o.icode ASC;
-    `
-
-    const [headerRows, diagRows, oprtRows, orderRows] = await Promise.all([
-      executor(headerSql, [cleanAn]),
-      executor(diagSql, [cleanAn]),
-      executor(oprtSql, [cleanAn]),
-      executor(orderSql, [cleanAn]),
-    ])
+    const { headerRows, diagRows, oprtRows, orderRows } = await gw.getRcmExtraThalassemiaAnDetailsRaw(cleanAn)
 
     if (!headerRows || headerRows.length === 0) {
       return null
     }
 
-    const h = headerRows[0]
+    const h = headerRows[0] as any
     return {
       header: {
         an: String(h.an || cleanAn),

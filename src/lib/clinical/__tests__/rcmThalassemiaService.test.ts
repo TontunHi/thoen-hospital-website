@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   RcmThalassemiaService,
   determineLabStatus,
+  type ThalassemiaPregnancyGatewayAdapter,
 } from '../rcmThalassemiaService'
 import { invalidateCacheKey } from '@/lib/cache'
 
@@ -41,12 +42,18 @@ describe('RcmThalassemiaService (Fund 3. Thalassemia in Pregnancy)', () => {
 
   describe('checkThalassemiaAdpMapping', () => {
     it('returns isMapped: true when 30313 or 37532 exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        { icode: '3000227', name: 'Hemoglobin typing', strength: '', nhso_adp_code: '30313' },
-        { icode: '3000748', name: 'DCIP', strength: '', nhso_adp_code: '30313' },
-      ])
+      const mockGateway: Partial<ThalassemiaPregnancyGatewayAdapter> = {
+        getRcmExtraThalassemiaPregnancyAdpMapping: vi.fn().mockResolvedValue({
+          isMapped: true,
+          mappedCount: 2,
+          items: [
+            { icode: '3000227', name: 'Hemoglobin typing', strength: null, nhso_adp_code: '30313' },
+            { icode: '3000748', name: 'DCIP', strength: null, nhso_adp_code: '30313' },
+          ],
+        }),
+      }
 
-      const result = await RcmThalassemiaService.checkThalassemiaAdpMapping(mockExecutor)
+      const result = await RcmThalassemiaService.checkThalassemiaAdpMapping(mockGateway)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(2)
       expect(result.items[0].name).toBe('Hemoglobin typing')
@@ -54,9 +61,15 @@ describe('RcmThalassemiaService (Fund 3. Thalassemia in Pregnancy)', () => {
 
     it('returns isMapped: false when no matching ADP codes exist', async () => {
       invalidateCacheKey('rcm-thalassemia-adp-mapping-check')
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway: Partial<ThalassemiaPregnancyGatewayAdapter> = {
+        getRcmExtraThalassemiaPregnancyAdpMapping: vi.fn().mockResolvedValue({
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }),
+      }
 
-      const result = await RcmThalassemiaService.checkThalassemiaAdpMapping(mockExecutor)
+      const result = await RcmThalassemiaService.checkThalassemiaAdpMapping(mockGateway)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toHaveLength(0)
@@ -64,7 +77,7 @@ describe('RcmThalassemiaService (Fund 3. Thalassemia in Pregnancy)', () => {
   })
 
   describe('getThalassemiaReport', () => {
-    it('executes SQL, processes rows, and calculates summary metrics properly', async () => {
+    it('processes rows and calculates summary metrics properly', async () => {
       const mockRows = [
         {
           person_id: 1,
@@ -137,18 +150,21 @@ describe('RcmThalassemiaService (Fund 3. Thalassemia in Pregnancy)', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            { icode: '3000748', name: 'DCIP', strength: '', nhso_adp_code: '30313' },
-          ])
-        }
-        return Promise.resolve(mockRows)
-      })
+      const mockGateway: Partial<ThalassemiaPregnancyGatewayAdapter> = {
+        getRcmExtraThalassemiaPregnancyReportRaw: vi.fn().mockResolvedValue({
+          adpMapping: {
+            isMapped: true,
+            mappedCount: 1,
+            items: [{ icode: '3000748', name: 'DCIP', strength: null, nhso_adp_code: '30313' }],
+          },
+          rawRows: mockRows,
+        }),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const report = await RcmThalassemiaService.getThalassemiaReport(
         { ds1: '2026-05-01', ds2: '2026-05-31', cardFilter: 'ALL', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(report.totalCount).toBe(3)
@@ -192,14 +208,17 @@ describe('RcmThalassemiaService (Fund 3. Thalassemia in Pregnancy)', () => {
         },
       ]
 
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) return Promise.resolve([])
-        return Promise.resolve(mockRows)
-      })
+      const mockGateway: Partial<ThalassemiaPregnancyGatewayAdapter> = {
+        getRcmExtraThalassemiaPregnancyReportRaw: vi.fn().mockResolvedValue({
+          adpMapping: { isMapped: false, mappedCount: 0, items: [] },
+          rawRows: mockRows,
+        }),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const riskReport = await RcmThalassemiaService.getThalassemiaReport(
         { ds1: '2026-06-01', ds2: '2026-06-30', cardFilter: 'RISK', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(riskReport.items).toHaveLength(1)

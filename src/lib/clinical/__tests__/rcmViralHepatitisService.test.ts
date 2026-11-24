@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { RcmViralHepatitisService, isUniversalCoverageScheme } from '../rcmViralHepatitisService'
+import {
+  RcmViralHepatitisService,
+  isUniversalCoverageScheme,
+  type ViralHepatitisGatewayAdapter,
+} from '../rcmViralHepatitisService'
 
 describe('RcmViralHepatitisService (23.1 Viral Hepatitis B Screening ADP 36318, 36319)', () => {
   beforeEach(() => {
@@ -20,24 +24,30 @@ describe('RcmViralHepatitisService (23.1 Viral Hepatitis B Screening ADP 36318, 
 
   describe('checkViralHepatitisAdpMapping', () => {
     it('returns isMapped = true when 36318 or 36319 exists', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '3000101',
-          name: 'ตรวจคัดกรองไวรัสตับอักเสบ บี (HBsAg)',
-          strength: null,
-          nhso_adp_code: '36318',
-          source: 's_drugitems',
-        },
-        {
-          icode: '3000102',
-          name: 'ตรวจคัดกรองไวรัสตับอักเสบ ซี (HCV)',
-          strength: null,
-          nhso_adp_code: '36319',
-          source: 's_drugitems',
-        },
-      ])
+      const mockGateway: Partial<ViralHepatitisGatewayAdapter> = {
+        getRcmExtraViralHepatitisAdpMapping: vi.fn().mockResolvedValue({
+          isMapped: true,
+          mappedCount: 2,
+          items: [
+            {
+              icode: '3000101',
+              name: 'ตรวจคัดกรองไวรัสตับอักเสบ บี (HBsAg)',
+              strength: null,
+              nhso_adp_code: '36318',
+              source: 's_drugitems',
+            },
+            {
+              icode: '3000102',
+              name: 'ตรวจคัดกรองไวรัสตับอักเสบ ซี (HCV)',
+              strength: null,
+              nhso_adp_code: '36319',
+              source: 's_drugitems',
+            },
+          ],
+        }),
+      }
 
-      const result = await RcmViralHepatitisService.checkViralHepatitisAdpMapping(mockExecutor)
+      const result = await RcmViralHepatitisService.checkViralHepatitisAdpMapping(mockGateway)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(2)
       expect(result.items[0].nhso_adp_code).toBe('36318')
@@ -45,9 +55,15 @@ describe('RcmViralHepatitisService (23.1 Viral Hepatitis B Screening ADP 36318, 
     })
 
     it('returns isMapped = false when both are missing', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway: Partial<ViralHepatitisGatewayAdapter> = {
+        getRcmExtraViralHepatitisAdpMapping: vi.fn().mockResolvedValue({
+          isMapped: false,
+          mappedCount: 0,
+          items: [],
+        }),
+      }
 
-      const result = await RcmViralHepatitisService.checkViralHepatitisAdpMapping(mockExecutor, true)
+      const result = await RcmViralHepatitisService.checkViralHepatitisAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -145,22 +161,29 @@ describe('RcmViralHepatitisService (23.1 Viral Hepatitis B Screening ADP 36318, 
     ]
 
     it('aggregates summary and processes items correctly', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([
-          {
-            icode: '3000101',
-            name: 'ตรวจคัดกรองไวรัสตับอักเสบ บี (HBsAg)',
-            strength: null,
-            nhso_adp_code: '36318',
-            source: 's_drugitems',
+      const mockGateway: Partial<ViralHepatitisGatewayAdapter> = {
+        getRcmExtraViralHepatitisReportRaw: vi.fn().mockResolvedValue({
+          adpMapping: {
+            isMapped: true,
+            mappedCount: 1,
+            items: [
+              {
+                icode: '3000101',
+                name: 'ตรวจคัดกรองไวรัสตับอักเสบ บี (HBsAg)',
+                strength: null,
+                nhso_adp_code: '36318',
+                source: 's_drugitems',
+              },
+            ],
           },
-        ])
-        .mockResolvedValueOnce(mockRows)
+          rawRows: mockRows,
+        }),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const result = await RcmViralHepatitisService.getViralHepatitisReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', sortOrder: 'asc', refresh: true },
-        mockExecutor
+        mockGateway
       )
 
       expect(result.totalCount).toBe(2)
@@ -183,40 +206,41 @@ describe('RcmViralHepatitisService (23.1 Viral Hepatitis B Screening ADP 36318, 
     })
 
     it('filters items correctly by cardFilter', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(mockRows)
+      const mockGateway: Partial<ViralHepatitisGatewayAdapter> = {
+        getRcmExtraViralHepatitisReportRaw: vi.fn().mockResolvedValue({
+          adpMapping: { isMapped: false, mappedCount: 0, items: [] },
+          rawRows: mockRows,
+        }),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const compResult = await RcmViralHepatitisService.getViralHepatitisReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', cardFilter: 'COMPENSATED', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(compResult.totalCount).toBe(1)
       expect(compResult.items[0].hn).toBe('0012345')
 
-      const mockExecutor2 = vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(mockRows)
-
       const labResult = await RcmViralHepatitisService.getViralHepatitisReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', cardFilter: 'WITH_LAB', refresh: true },
-        mockExecutor2
+        mockGateway
       )
       expect(labResult.totalCount).toBe(1)
       expect(labResult.items[0].labresult).toBe('Negative')
     })
 
     it('filters items correctly by global search keyword', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(mockRows)
+      const mockGateway: Partial<ViralHepatitisGatewayAdapter> = {
+        getRcmExtraViralHepatitisReportRaw: vi.fn().mockResolvedValue({
+          adpMapping: { isMapped: false, mappedCount: 0, items: [] },
+          rawRows: mockRows,
+        }),
+        seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+      }
 
       const searchResult = await RcmViralHepatitisService.getViralHepatitisReport(
         { ds1: '2026-10-01', ds2: '2026-10-31', search: 'สมศรี', refresh: true },
-        mockExecutor
+        mockGateway
       )
       expect(searchResult.totalCount).toBe(1)
       expect(searchResult.items[0].ptname).toBe('นางสมศรี มีสุข')

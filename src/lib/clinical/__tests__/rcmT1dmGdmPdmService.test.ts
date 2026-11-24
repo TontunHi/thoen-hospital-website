@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   RcmT1dmGdmPdmService,
   type T1dmGdmPdmReportParams,
+  type T1dmGdmPdmGatewayAdapter,
 } from '../rcmT1dmGdmPdmService'
 import { invalidateCacheKey } from '@/lib/cache'
 
@@ -137,9 +138,12 @@ describe('RcmT1dmGdmPdmService', () => {
     },
   ]
 
-  it('aggregates T1DM/GDM/PDM service recipients and computes summary correctly', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
+  const makeMockGw = (rows: any[] = mockRows): Partial<T1dmGdmPdmGatewayAdapter> => ({
+    getRcmExtraT1dmRecipientsRaw: vi.fn().mockResolvedValue(rows),
+    seamlessFetcher: vi.fn().mockResolvedValue(new Map()),
+  })
 
+  it('aggregates T1DM/GDM/PDM service recipients and computes summary correctly', async () => {
     const params: T1dmGdmPdmReportParams = {
       startDate: '2026-10-01',
       endDate: '2027-09-30',
@@ -147,7 +151,7 @@ describe('RcmT1dmGdmPdmService', () => {
       pageSize: 50,
     }
 
-    const res = await RcmT1dmGdmPdmService.getRecipientsReport(params, mockExecutor)
+    const res = await RcmT1dmGdmPdmService.getRecipientsReport(params, makeMockGw())
 
     expect(res.totalCount).toBe(3)
     expect(res.summary.totalCases).toBe(3)
@@ -160,7 +164,6 @@ describe('RcmT1dmGdmPdmService', () => {
     expect(res.summary.noAuthenCases).toBe(1)
     expect(res.summary.ucCases).toBe(1)
 
-    // Check item details
     const item1 = res.items.find((i) => i.vn === '691001000001')
     expect(item1).toBeDefined()
     expect(item1?.isRegistered).toBe(true)
@@ -174,15 +177,13 @@ describe('RcmT1dmGdmPdmService', () => {
   })
 
   it('filters by cardFilter REGISTERED', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const res = await RcmT1dmGdmPdmService.getRecipientsReport(
       {
         startDate: '2026-10-01',
         endDate: '2027-09-30',
         cardFilter: 'REGISTERED',
       },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(res.totalCount).toBe(2)
@@ -190,15 +191,13 @@ describe('RcmT1dmGdmPdmService', () => {
   })
 
   it('filters by cardFilter UNCOMPENSATED', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const res = await RcmT1dmGdmPdmService.getRecipientsReport(
       {
         startDate: '2026-10-01',
         endDate: '2027-09-30',
         cardFilter: 'UNCOMPENSATED',
       },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(res.totalCount).toBe(1)
@@ -207,15 +206,13 @@ describe('RcmT1dmGdmPdmService', () => {
   })
 
   it('filters by cardFilter UC_ONLY', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const res = await RcmT1dmGdmPdmService.getRecipientsReport(
       {
         startDate: '2026-10-01',
         endDate: '2027-09-30',
         cardFilter: 'UC_ONLY',
       },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(res.totalCount).toBe(1)
@@ -224,41 +221,29 @@ describe('RcmT1dmGdmPdmService', () => {
   })
 
   it('filters by global search term', async () => {
-    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
-
     const res = await RcmT1dmGdmPdmService.getRecipientsReport(
       {
         startDate: '2026-10-01',
         endDate: '2027-09-30',
         search: 'นิตยา',
       },
-      mockExecutor
+      makeMockGw()
     )
 
     expect(res.totalCount).toBe(1)
     expect(res.items[0].hn).toBe('0033333')
   })
 
-  it('falls back gracefully if rcmdb.t1dm table does not exist', async () => {
-    const mockExecutor = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Table 'rcmdb.t1dm' doesn't exist"))
-      .mockResolvedValueOnce([
-        {
-          ...mockRows[1],
-        },
-      ])
-
+  it('handles unregistered rows returned by Gateway cleanly', async () => {
     const res = await RcmT1dmGdmPdmService.getRecipientsReport(
       {
         startDate: '2026-10-01',
         endDate: '2027-09-30',
         refresh: true,
       },
-      mockExecutor
+      makeMockGw([mockRows[1]])
     )
 
-    expect(mockExecutor).toHaveBeenCalledTimes(2)
     expect(res.totalCount).toBe(1)
     expect(res.items[0].isRegistered).toBe(false)
   })

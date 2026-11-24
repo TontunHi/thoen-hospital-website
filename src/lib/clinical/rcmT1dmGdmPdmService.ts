@@ -1,20 +1,32 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
   formatThaiSex,
   type FiscalDateRangeParams,
-  type QueryExecutor,
 } from './rcmDashboardService'
 import { isUniversalCoverageScheme } from './rcmColorectalCancerService'
 import { matchesPttypeFilter } from './pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  enrichItemsWithSeamlessCache,
+  matchesSeamlessRepSearch,
+  type SeamlessEnricherFetcher,
+} from './rcmSeamlessEnricher'
 import {
   buildRepBreakdownSummary,
   matchesRepFilter,
   parseRepFilterParam,
   type RepBreakdownSummary,
 } from './rcmRepTagHelper'
+
+export interface T1dmGdmPdmGatewayAdapter {
+  getRcmExtraT1dmRecipientsRaw: typeof apiGateway.clinical.getRcmExtraT1dmRecipientsRaw
+  seamlessFetcher?: SeamlessEnricherFetcher
+}
+
+const defaultT1dmGateway: T1dmGdmPdmGatewayAdapter = {
+  getRcmExtraT1dmRecipientsRaw: (p) => apiGateway.clinical.getRcmExtraT1dmRecipientsRaw(p),
+}
 
 // ── Types: กองทุน T1DM/GDM/PDM (หัวข้อที่ 2 รายชื่อผู้รับบริการ) ──────────────────────
 
@@ -168,8 +180,9 @@ export class RcmT1dmGdmPdmService {
    */
   static async getRecipientsReport(
     params: T1dmGdmPdmReportParams,
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<T1dmGdmPdmGatewayAdapter> = {}
   ): Promise<T1dmGdmPdmReportResult> {
+    const gw = { ...defaultT1dmGateway, ...gateway }
     const categoryTitle = 'กองทุน T1DM/GDM/PDM'
     const reportTitle = 'รายชื่อผู้รับบริการ'
 
@@ -191,170 +204,13 @@ export class RcmT1dmGdmPdmService {
 
     const rawRows = await getCachedData(
       cacheKey,
-      async () => {
-        // Safe check / query: join rcmdb.t1dm if available, otherwise coalesce
-        const sql = `
-          SELECT 
-            o.vn,
-            IFNULL(pt.cid, '') AS cid,
-            o.hn,
-            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-            DATE_FORMAT(pt.birthday, '%Y-%m-%d') AS birthday,
-            IFNULL(pt.sex, '') AS sex_code,
-            IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-            IFNULL(nat.name, pt.nationality) AS nation,
-            CONCAT_WS(' ', NULLIF(pt.informtel, ''), NULLIF(pt.hometel, '')) AS tel,
-            IF(dd.pid IS NOT NULL, 'Y', NULL) AS ok,
-            dd.type AS type,
-            DATE_FORMAT(dd.register_date, '%Y-%m-%d') AS regdate,
-            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-            (
-              SELECT DATE_FORMAT(anc.lmp, '%Y-%m-%d')
-              FROM person p
-              JOIN person_anc anc ON anc.person_id = p.person_id
-              WHERE p.patient_hn = o.hn
-                AND (anc.labor_date IS NULL OR o.vstdate <= anc.labor_date)
-              ORDER BY anc.person_anc_id DESC
-              LIMIT 1
-            ) AS lmp,
-            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-            IFNULL(ptt_pt.name, pt.pttype) AS pttypename_patient,
-            IFNULL(ptt.name, o.pttype) AS pttypename_visit,
-            IFNULL(ptt.hipdata_code, '') AS maininscl,
-            IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-            IFNULL(dep.department, o.main_dep) AS department,
-            IFNULL(spc.name, o.spclty) AS clinic,
-            v.pdx,
-            v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-            v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
-            COALESCE(
-              NULLIF(TRIM(nhso.rep), ''),
-              NULLIF(TRIM(rep.rep), ''),
-              NULLIF(TRIM(nn.Rep), ''),
-              NULLIF(TRIM(m.rep), '')
-            ) AS rep,
-            CASE
-              WHEN nhso.vn IS NOT NULL AND nhso.compensated > 0 THEN nhso.compensated
-              WHEN rep.vn IS NOT NULL AND rep.compensated > 0 THEN rep.compensated
-              WHEN nn.Seq IS NOT NULL AND nn.Income > 0 THEN nn.Income
-              WHEN m.vn IS NOT NULL AND m.compensated > 0 THEN m.compensated
-              ELSE COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0)
-            END AS compensated,
-            rep.fund,
-            rep.subfund
-          FROM ovst o
-          LEFT JOIN patient pt ON pt.hn = o.hn
-          JOIN ovstdiag dx ON dx.vn = o.vn
-          LEFT JOIN vn_stat v ON v.vn = o.vn
-          LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-          LEFT JOIN pttype ptt_pt ON ptt_pt.pttype = pt.pttype
-          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-          LEFT JOIN spclty spc ON spc.spclty = o.spclty
-          LEFT JOIN rcmdb.t1dm dd ON dd.pid = pt.cid
-          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-          LEFT JOIN (
-            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                   'NHSO :: ได้รับ Invoice แล้ว' AS statusname
-            FROM rcmdb.repeclaim
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              AND (errorcode = '' OR errorcode IS NULL)
-            GROUP BY vn
-          ) nhso ON nhso.vn = o.vn
-          LEFT JOIN (
-            SELECT vn,
-                   GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
-                   SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                   IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: ส่ง Rep แล้ว', NULL) AS statusname,
-                   GROUP_CONCAT(DISTINCT fund SEPARATOR ', ') AS fund,
-                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ', ') AS subfund
-            FROM rcmdb.repdata
-            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-            GROUP BY vn
-          ) rep ON rep.vn = o.vn
-          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-          LEFT JOIN (
-            SELECT m.opdseq AS vn,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-          WHERE o.vstdate BETWEEN ? AND ?
-            AND dx.icd10 REGEXP 'O24'
-          GROUP BY o.vn
-          ORDER BY o.vstdate DESC, o.vsttime DESC;
-        `
-
-        const sqlParams: any[] = [
-          ds1, ds2, // nhso
-          ds1, ds2, // rep
-          ds1, ds2, // ovst
-        ]
-
-        let rows: any[] = []
-        try {
-          rows = ((await executor(sql, sqlParams, { timeoutMs: 90000 })) as any[]) || []
-        } catch (dbErr: any) {
-          // If rcmdb.t1dm doesn't exist yet, retry without dd join and enrich from Website DB mirror if available
-          if (dbErr?.message && /rcmdb\.t1dm/i.test(dbErr.message)) {
-            const fallbackSql = sql.replace(
-              'LEFT JOIN rcmdb.t1dm dd ON dd.pid = pt.cid',
-              'LEFT JOIN (SELECT NULL AS pid, NULL AS type, NULL AS register_date) dd ON 1=0'
-            )
-            rows = ((await executor(fallbackSql, sqlParams, { timeoutMs: 90000 })) as any[]) || []
-          } else {
-            throw dbErr
-          }
-        }
-
-        // Enrich with any T1DM records stored in t1dm_registries mirror table if not yet in rcmdb.t1dm
-        if (executor === queryClinicalDb && rows.length > 0) {
-          try {
-            const { apiGateway } = await import('@/lib/apiGateway')
-            const mirrorRows = await apiGateway.app.query<{
-              pid: string
-              type: string
-              regdate: string
-            }>(`
-              SELECT pid, type, DATE_FORMAT(register_date, '%Y-%m-%d') AS regdate
-              FROM t1dm_registries
-              WHERE pid IS NOT NULL AND pid <> ''
-            `)
-            if (Array.isArray(mirrorRows) && mirrorRows.length > 0) {
-              const mirrorMap = new Map<string, { type: string; regdate: string }>()
-              for (const mr of mirrorRows) {
-                if (mr.pid) {
-                  mirrorMap.set(String(mr.pid).trim(), {
-                    type: mr.type || 'T1DM',
-                    regdate: mr.regdate || '',
-                  })
-                }
-              }
-              for (const r of rows) {
-                const cid = String(r.cid || '').trim()
-                if (!r.ok && cid && mirrorMap.has(cid)) {
-                  const matched = mirrorMap.get(cid)!
-                  r.ok = 'Y'
-                  r.type = matched.type
-                  r.regdate = matched.regdate || null
-                }
-              }
-            }
-          } catch {
-            // non-blocking if mirror table doesn't exist
-          }
-        }
-
-        return rows
-      },
-      600000 // Cache TTL 10 minutes
+      async () =>
+        ((await gw.getRcmExtraT1dmRecipientsRaw({
+          startDate: ds1,
+          endDate: ds2,
+          refresh: Boolean(params.refresh),
+        })) as any[]) || [],
+      600000
     )
 
     // Map rows into domain objects
@@ -438,7 +294,7 @@ export class RcmT1dmGdmPdmService {
     })
 
     // Dual-Mode summaryCohort Filtering (pttypes takes precedence, ucOnly fallback)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, gw.seamlessFetcher, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       summaryCohort = allItems.filter((i) =>

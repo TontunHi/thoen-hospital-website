@@ -205,5 +205,121 @@ export function createClinicalV2GatewayNamespace(client: ClinicalHttpClient) {
         diagRows: Array<Record<string, unknown>>
         orderRows: Array<Record<string, unknown>>
       }>(`/api/v1/clinical/rcm/dashboard/vn-details/${encodeURIComponent(vn)}`, { timeoutMs: 60000 }),
+
+    // ── Phase 2D: RCM Extra Funds (T1DM, TTM, Thalassemia Fund, Thalassemia Pregnancy, Viral Hepatitis) ──
+    getRcmExtraT1dmRecipientsRaw: (params: { startDate: string; endDate: string; refresh?: boolean }) => {
+      const q = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate })
+      if (params.refresh) q.set('refresh', 'true')
+      return client.get<Array<Record<string, unknown>>>(
+        `/api/v1/clinical/rcm/extra/t1dm-recipients?${q.toString()}`,
+        { timeoutMs: 90000 }
+      )
+    },
+
+    getRcmExtraTtmTopic3Raw: (params: { startDate: string; endDate: string; refresh?: boolean }) => {
+      const q = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate })
+      if (params.refresh) q.set('refresh', 'true')
+      return client.get<Array<Record<string, unknown>>>(
+        `/api/v1/clinical/rcm/extra/ttm-topic3?${q.toString()}`,
+        { timeoutMs: 90000 }
+      )
+    },
+
+    getRcmExtraTtmTopic11Raw: (params: { startDate: string; endDate: string; refresh?: boolean }) => {
+      const q = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate })
+      if (params.refresh) q.set('refresh', 'true')
+      return client.get<Array<Record<string, unknown>>>(
+        `/api/v1/clinical/rcm/extra/ttm-topic11?${q.toString()}`,
+        { timeoutMs: 90000 }
+      )
+    },
+
+    getRcmExtraTtmVnHerbs: (vn: string) =>
+      client.get<Array<Record<string, unknown>>>(
+        `/api/v1/clinical/rcm/extra/ttm-vn-herbs/${encodeURIComponent(vn)}`,
+        { timeoutMs: 30000 }
+      ),
+
+    getRcmExtraThalassemiaFundOpdRaw: (params: { startDate: string; endDate: string; refresh?: boolean }) => {
+      const q = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate })
+      if (params.refresh) q.set('refresh', 'true')
+      return client.get<Array<Record<string, unknown>>>(
+        `/api/v1/clinical/rcm/extra/thalassemia-fund/opd?${q.toString()}`,
+        { timeoutMs: 90000 }
+      )
+    },
+
+    getRcmExtraThalassemiaFundIpdRaw: (params: { startDate: string; endDate: string; refresh?: boolean }) => {
+      const q = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate })
+      if (params.refresh) q.set('refresh', 'true')
+      return client.get<Array<Record<string, unknown>>>(
+        `/api/v1/clinical/rcm/extra/thalassemia-fund/ipd?${q.toString()}`,
+        { timeoutMs: 90000 }
+      )
+    },
+
+    getRcmExtraThalassemiaAnDetailsRaw: (an: string) =>
+      client.get<{
+        headerRows: Array<Record<string, unknown>>
+        diagRows: Array<Record<string, unknown>>
+        oprtRows: Array<Record<string, unknown>>
+        orderRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/rcm/extra/thalassemia-fund/an-details/${encodeURIComponent(an)}`, { timeoutMs: 60000 }),
+
+    getRcmExtraThalassemiaPregnancyAdpMapping: (refresh?: boolean) => {
+      const qs = refresh ? '?refresh=true' : ''
+      return client.get<{
+        isMapped: boolean
+        mappedCount: number
+        items: Array<{ icode: string; name: string; strength: string | null; nhso_adp_code: string }>
+      }>(`/api/v1/clinical/rcm/extra/thalassemia-pregnancy/adp-mapping${qs}`, { timeoutMs: 30000 })
+    },
+
+    getRcmExtraThalassemiaPregnancyReportRaw: (params: { startDate: string; endDate: string; refresh?: boolean }) => {
+      const q = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate })
+      if (params.refresh) q.set('refresh', 'true')
+      return client.get<{
+        adpMapping: {
+          isMapped: boolean
+          mappedCount: number
+          items: Array<{ icode: string; name: string; strength: string | null; nhso_adp_code: string }>
+        }
+        rawRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/rcm/extra/thalassemia-pregnancy/report?${q.toString()}`, { timeoutMs: 90000 })
+    },
+
+    getRcmExtraViralHepatitisAdpMapping: (refresh?: boolean) => {
+      const qs = refresh ? '?refresh=true' : ''
+      return client.get<{
+        isMapped: boolean
+        mappedCount: number
+        items: Array<{
+          icode: string
+          name: string
+          strength: string | null
+          nhso_adp_code: string
+          source: 's_drugitems' | 'nondrugitems'
+        }>
+      }>(`/api/v1/clinical/rcm/extra/viral-hepatitis/adp-mapping${qs}`, { timeoutMs: 30000 })
+    },
+
+    getRcmExtraViralHepatitisReportRaw: (params: { startDate: string; endDate: string; refresh?: boolean }) => {
+      const q = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate })
+      if (params.refresh) q.set('refresh', 'true')
+      return client.get<{
+        adpMapping: {
+          isMapped: boolean
+          mappedCount: number
+          items: Array<{
+            icode: string
+            name: string
+            strength: string | null
+            nhso_adp_code: string
+            source: 's_drugitems' | 'nondrugitems'
+          }>
+        }
+        rawRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/rcm/extra/viral-hepatitis/report?${q.toString()}`, { timeoutMs: 90000 })
+    },
   }
 }

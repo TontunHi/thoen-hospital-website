@@ -1,14 +1,31 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { resolveFiscalDateRange, type FiscalDateRangeParams } from './rcmDashboardService'
 import { matchesPttypeFilter } from './pttypeConstants'
-import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
+import {
+  enrichItemsWithSeamlessCache,
+  matchesSeamlessRepSearch,
+  type SeamlessEnricherFetcher,
+} from './rcmSeamlessEnricher'
 import {
   buildRepBreakdownSummary,
   matchesRepFilter,
   parseRepFilterParam,
   type RepBreakdownSummary,
 } from './rcmRepTagHelper'
+
+export interface ViralHepatitisGatewayAdapter {
+  getRcmExtraViralHepatitisAdpMapping: typeof apiGateway.clinical.getRcmExtraViralHepatitisAdpMapping
+  getRcmExtraViralHepatitisReportRaw: typeof apiGateway.clinical.getRcmExtraViralHepatitisReportRaw
+  seamlessFetcher?: SeamlessEnricherFetcher
+}
+
+const defaultViralHepatitisGateway: ViralHepatitisGatewayAdapter = {
+  getRcmExtraViralHepatitisAdpMapping: (refresh) =>
+    apiGateway.clinical.getRcmExtraViralHepatitisAdpMapping(refresh),
+  getRcmExtraViralHepatitisReportRaw: (p) =>
+    apiGateway.clinical.getRcmExtraViralHepatitisReportRaw(p),
+}
 
 // ── 1. Domain Types: 23.1 บริการตรวจคัดกรองไวรัสตับอักเสบ B (ADP 36318, 36319) ──
 
@@ -193,9 +210,10 @@ export class RcmViralHepatitisService {
    * select count(*) from s_drugitems where nhso_adp_code in ('36318','36319')
    */
   static async checkViralHepatitisAdpMapping(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: Partial<ViralHepatitisGatewayAdapter> = {},
     refresh?: boolean
   ): Promise<ViralHepatitisAdpMappingCheck> {
+    const gw = { ...defaultViralHepatitisGateway, ...gateway }
     const cacheKey = 'rcm-viral-hepatitis-adp-mapping-check-36318-36319'
     if (refresh) {
       invalidateCacheKey(cacheKey)
@@ -204,40 +222,7 @@ export class RcmViralHepatitisService {
       cacheKey,
       async () => {
         try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code,
-              's_drugitems' AS source
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) IN ('36318', '36319')
-            UNION
-            SELECT 
-              icode, 
-              name, 
-              NULL AS strength, 
-              nhso_adp_code,
-              'nondrugitems' AS source
-            FROM nondrugitems 
-            WHERE TRIM(nhso_adp_code) IN ('36318', '36319')
-            ORDER BY nhso_adp_code ASC, icode ASC;
-          `
-          const rows = (await executor(sql, [], { timeoutMs: 15000 })) as any[]
-          const items: ViralHepatitisAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-            source: r.source === 'nondrugitems' ? 'nondrugitems' : 's_drugitems',
-          }))
-
-          return {
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            items,
-          }
+          return await gw.getRcmExtraViralHepatitisAdpMapping(refresh)
         } catch {
           return {
             isMapped: false,
@@ -246,23 +231,18 @@ export class RcmViralHepatitisService {
           }
         }
       },
-      600000 // Cache TTL 10 minutes
+      600000
     )
   }
 
   /**
    * Generate 23.1 Viral Hepatitis B Screening Report (บริการตรวจคัดกรองไวรัสตับอักเสบ B ADP 36318, 36319)
-   * Direct translation of legacy FoxPro logic:
-   * - Queries visits with dispensing of ADP 36318, 36319 in opitemrece
-   * - Joins lab results from lab_head + lab_order + lab_items + nondrugitems
-   * - Joins HOSxP patient, ovst, vn_stat, opdscreen, pttype, kskdepartment, spclty
-   * - Joins authencode, NHSO repeclaim, repdata, neweclaim, eclaimdb, seamless, ktb_confirm
-   * - Aggregates KPIs, calculates card filter counts, supports sorting, search, pagination.
    */
   static async getViralHepatitisReport(
     params: ViralHepatitisReportParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<ViralHepatitisGatewayAdapter> = {}
   ): Promise<ViralHepatitisReportResult> {
+    const gw = { ...defaultViralHepatitisGateway, ...gateway }
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: ViralHepatitisCardFilter = params.cardFilter || 'ALL'
     const ucOnly = Boolean(params.ucOnly)
@@ -282,174 +262,28 @@ export class RcmViralHepatitisService {
 
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
-      async () => {
-        const sql = `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-              IFNULL(nat.name, pt.nationality) AS nation,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              IFNULL(ptt.hipdata_code, '') AS maininscl,
-              ptt.name AS pttypename,
-              ptt.pttype_eclaim_id,
-              dep.department AS department,
-              spc.name AS clinic,
-              IFNULL(s.cc, '') AS cc,
-              v.pdx,
-              v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-              v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-              IFNULL(v.income, 0) AS income,
-              dd.name AS listname,
-              l.labresult AS labresult,
-              CASE
-                WHEN sm.vn IS NOT NULL THEN CONCAT(sm.status, ' Seamless')
-                WHEN nhso.statusname IS NOT NULL THEN nhso.statusname
-                WHEN cf.vn IS NOT NULL THEN 'KTB :: ส่งแล้ว'
-                WHEN rep.statusname IS NOT NULL THEN rep.statusname
-                WHEN nn.StatusName IS NOT NULL THEN nn.StatusName
-                WHEN m.statusname IS NOT NULL THEN m.statusname
-                ELSE '-::ยังไม่ได้ส่ง'
-              END AS status,
-              COALESCE(
-                NULLIF(TRIM(sm.rep), ''),
-                NULLIF(TRIM(nhso.rep), ''),
-                NULLIF(TRIM(rep.rep), ''),
-                NULLIF(TRIM(nn.Rep), ''),
-                NULLIF(TRIM(m.rep), '')
-              ) AS rep,
-              CASE
-                WHEN sm.vn IS NOT NULL AND sm.compensated > 0 THEN sm.compensated
-                WHEN nhso.vn IS NOT NULL AND nhso.compensated > 0 THEN nhso.compensated
-                WHEN rep.vn IS NOT NULL AND rep.compensated > 0 THEN rep.compensated
-                WHEN nn.Seq IS NOT NULL AND nn.Income > 0 THEN nn.Income
-                WHEN m.vn IS NOT NULL AND m.compensated > 0 THEN m.compensated
-                ELSE COALESCE(sm.compensated, nhso.compensated, rep.compensated, nn.Income, m.compensated, 0)
-              END AS compensated,
-              sm.status AS status_sm,
-              sm.rep AS rep_sm,
-              sm.compensated AS compensated_sm,
-              pt.informaddr AS address,
-              pt.mobile_phone_number AS mobile,
-              CONCAT_WS(' ', NULLIF(pt.informtel, ''), NULLIF(pt.hometel, '')) AS tel,
-              rep.fund,
-              rep.subfund
-            FROM (
-              SELECT 
-                oo.vn,
-                GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN (
-                SELECT icode, name, strength 
-                FROM s_drugitems 
-                WHERE TRIM(nhso_adp_code) IN ('36318', '36319')
-                UNION
-                SELECT icode, name, NULL AS strength 
-                FROM nondrugitems 
-                WHERE TRIM(nhso_adp_code) IN ('36318', '36319')
-              ) d ON d.icode = oo.icode
-              WHERE IFNULL(oo.vn, '') <> ''
-                AND oo.vstdate BETWEEN ? AND ?
-              GROUP BY oo.vn
-            ) dd
-            JOIN ovst o ON o.vn = dd.vn
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN opdscreen s ON s.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            LEFT JOIN (
-              SELECT 
-                lh.vn,
-                GROUP_CONCAT(DISTINCT lo.lab_order_result SEPARATOR ', ') AS labresult
-              FROM lab_head lh 
-              JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-              JOIN lab_items l ON l.lab_items_code = lo.lab_items_code
-              JOIN nondrugitems d ON d.icode = l.icode 
-              WHERE lh.order_date BETWEEN ? AND ?
-                AND TRIM(d.nhso_adp_code) IN ('36318', '36319')
-              GROUP BY lh.vn
-            ) l ON l.vn = o.vn
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: ได้รับ Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn,
-                     GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
-                     SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
-                     IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: ส่ง Rep แล้ว', NULL) AS statusname,
-                     GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
-                     GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                     GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-            FROM eclaimdb.m_registerdata m
-            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-            GROUP BY m.opdseq
-          ) m ON m.vn = o.vn
-          LEFT JOIN (
-            SELECT 
-              vn,
-              SUBSTRING_INDEX(GROUP_CONCAT(status ORDER BY vn), ',', 1) AS status,
-              SUBSTRING_INDEX(GROUP_CONCAT(rep ORDER BY vn), ',', 1) AS rep,
-              SUM(compensated) AS compensated
-            FROM rcmdb.seamless
-            WHERE IFNULL(vn, '') <> ''
-            GROUP BY vn
-          ) sm ON sm.vn = o.vn
-          LEFT JOIN (
-            SELECT vn
-            FROM rcmdb.ktb_confirm
-            WHERE IFNULL(vn, '') <> ''
-            GROUP BY vn
-          ) cf ON cf.vn = o.vn
-          GROUP BY o.vn
-          ORDER BY o.hn ASC, o.vn ASC;
-      `
-      const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
-
-      const [mappingRes, dbRows] = await Promise.all([
-        RcmViralHepatitisService.checkViralHepatitisAdpMapping(executor, Boolean(params.refresh)),
-        executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
-      ])
-      const rows = dbRows || []
-
-      return { rawRows: rows, adpMapping: mappingRes }
-    },
-    180000 // Cache TTL 3 minutes
+      async () =>
+        gw.getRcmExtraViralHepatitisReportRaw({
+          startDate: ds1,
+          endDate: ds2,
+          refresh: Boolean(params.refresh),
+        }),
+      180000
     )
 
     // Transform raw rows into structured domain items
     let allItems: ViralHepatitisItem[] = (rawRows || []).map((r, idx) => {
       const compensatedVal = Number(r.compensated) || 0
+      const statusStr = r.status ? String(r.status) : ''
       const isComp =
         compensatedVal > 0 ||
         Boolean(r.rep) ||
-        (r.status && !r.status.includes('ยังไม่ได้ส่ง'))
+        (Boolean(statusStr) && !statusStr.includes('ยังไม่ได้ส่ง'))
 
-      const isUc = isUniversalCoverageScheme(r.maininscl, r.pttypename)
+      const isUc = isUniversalCoverageScheme(
+        r.maininscl != null ? String(r.maininscl) : null,
+        r.pttypename != null ? String(r.pttypename) : null
+      )
       const labResultVal = r.labresult ? String(r.labresult).trim() : null
       const hasLab = Boolean(labResultVal)
 
@@ -516,7 +350,7 @@ export class RcmViralHepatitisService {
     })
 
     // Calculate Summary Aggregates (Full Page Filter based on pttypes / ucOnly)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, gw.seamlessFetcher, Boolean(params.refresh))
     let summaryCohort = allItems
     if (params.pttypes) {
       const selectedPttypesList = params.pttypes.split(',').map((p) => p.trim()).filter(Boolean)

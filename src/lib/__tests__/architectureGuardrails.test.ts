@@ -140,15 +140,11 @@ describe('Hospital Architecture & Build Guardrails', () => {
       // Phase 2A: Cervical Cancer (completed -> 0)
       // Phase 2B: Family Planning IUD & 9.3.2 (completed -> 0)
       // Phase 2C: RCM Dashboard & REP Funds (completed -> 0)
-      // Phase 2D-2E: Clinical & RCM Pure-SQL (8 remaining)
+      // Phase 2D: RCM Extra Funds (completed -> 0)
+      // Phase 2E: Chronic Care & Home Visit (3 remaining)
       'src/lib/clinical/dmRemissionLabService.ts',
       'src/lib/clinical/dmRemissionService.ts',
       'src/lib/clinical/fctHomeVisitService.ts',
-      'src/lib/clinical/rcmT1dmGdmPdmService.ts',
-      'src/lib/clinical/rcmThaiTraditionalMedicineService.ts',
-      'src/lib/clinical/rcmThalassemiaFundService.ts',
-      'src/lib/clinical/rcmThalassemiaService.ts',
-      'src/lib/clinical/rcmViralHepatitisService.ts',
       // Phase 3: Auth, Permissions, Audit & Integrations (6)
       'src/lib/auditLogService.ts',
       'src/lib/auth/MemberAuthService.ts',
