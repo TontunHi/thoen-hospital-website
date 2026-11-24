@@ -1,7 +1,16 @@
 import ExcelJS from 'exceljs'
-import { queryMemberDb } from '@/lib/memberDb'
-import { KpiService, KpiIndicatorItem, QueryExecutor, cleanPeriodLabel } from './kpiService'
+import { apiGateway } from '@/lib/apiGateway'
+import { KpiService, KpiIndicatorItem, type KpiGatewayAdapter, cleanPeriodLabel } from './kpiService'
 import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, getPeriodsForFrequency, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiNumber } from './kpiTimeUtils'
+
+export interface KpiExportGatewayAdapter {
+  getKpiTopicByIdV2: typeof apiGateway.app.getKpiTopicByIdV2
+  getKpiIndicators?: KpiGatewayAdapter['getKpiIndicators']
+}
+
+const defaultKpiExportGateway: KpiExportGatewayAdapter = {
+  getKpiTopicByIdV2: (topicId) => apiGateway.app.getKpiTopicByIdV2(topicId),
+}
 
 export interface KpiExportOptions {
   topicId: number
@@ -426,21 +435,26 @@ export class KpiExportService {
    */
   static async exportToExcel(
     options: KpiExportOptions,
-    executor: QueryExecutor = queryMemberDb
+    gateway: Partial<KpiExportGatewayAdapter> = {}
   ): Promise<KpiExportResult> {
+    const gw: KpiExportGatewayAdapter = { ...defaultKpiExportGateway, ...gateway }
     const { topicId, fiscalYear, periodKey, category, onlyDue, currentDate } = options
 
-    // 1. Fetch Topic Info
-    const topicRows = await executor(
-      'SELECT id, fiscal_year AS fiscalYear, code, title, description FROM kpi_topics WHERE id = ?',
-      [topicId]
-    )
-    const topic = topicRows[0] || {
-      id: topicId,
-      fiscalYear,
-      code: 'THIP',
-      title: 'ตัวชี้วัดโรงพยาบาลเถิน',
-    }
+    // 1. Fetch Topic Info via Gateway V2
+    const topicRow = await gw.getKpiTopicByIdV2(topicId)
+    const topic = topicRow
+      ? {
+          id: Number(topicRow.id ?? topicId),
+          fiscalYear: String(topicRow.fiscalYear ?? fiscalYear),
+          code: String(topicRow.code ?? 'THIP'),
+          title: String(topicRow.title ?? 'ตัวชี้วัดโรงพยาบาลเถิน'),
+        }
+      : {
+          id: topicId,
+          fiscalYear,
+          code: 'THIP',
+          title: 'ตัวชี้วัดโรงพยาบาลเถิน',
+        }
 
     // 2. Fetch all indicators with latest entry for the topic and fiscal year
     let indicators: KpiIndicatorItem[] = await KpiService.getIndicators(
@@ -450,11 +464,7 @@ export class KpiExportService {
         category: (category && category !== 'ALL') ? category : undefined,
         periodKey: periodKey === 'ALL' ? undefined : periodKey,
       },
-      executor === queryMemberDb
-        ? {}
-        : {
-            getKpiIndicators: async () => executor('SELECT * FROM kpi_indicators i WHERE i.topic_id = ?', [topicId]),
-          }
+      gw.getKpiIndicators ? { getKpiIndicators: gw.getKpiIndicators } : {}
     )
 
     if (onlyDue) {

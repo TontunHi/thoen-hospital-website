@@ -144,13 +144,7 @@ describe('Hospital Architecture & Build Guardrails', () => {
       // Phase 2E: Chronic Care & Home Visit (completed -> 0)
       // Phase 3: Auth, Permissions, Audit & Integrations (completed -> 0)
       // Phase 4A+4B: Inbox Aux, Assets, Equipment Borrow, Events (completed -> 0)
-      // Phase 4C: Hospital Operations App DB (6)
-      'src/lib/cms/EthicsDocumentService.ts',
-      'src/lib/departments/departmentService.ts',
-      'src/lib/internalPhones/internalPhoneService.ts',
-      'src/lib/kpi/kpiAuditService.ts',
-      'src/lib/kpi/kpiExportService.ts',
-      'src/lib/projects/projectTrackerService.ts',
+      // Phase 4C: Hospital Operations App DB (completed -> 0)
     ])
 
     const libRoot = path.join(srcRoot, 'lib')

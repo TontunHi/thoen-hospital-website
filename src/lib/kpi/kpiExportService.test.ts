@@ -4,18 +4,15 @@ import { KpiExportService } from './kpiExportService'
 
 describe('KpiExportService', () => {
   it('generates an official Excel report with metadata, summary, and styled rows', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
-      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
-        return [{
-          id: 3,
-          fiscalYear: '2570',
-          code: 'THIP-70',
-          title: 'ชุดตัวชี้วัด THIP ประจำปี 2570',
-          description: 'ตัวชี้วัดคุณภาพโรงพยาบาล',
-        }]
-      }
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [
+    const mockGateway = {
+      getKpiTopicByIdV2: vi.fn().mockResolvedValue({
+        id: 3,
+        fiscalYear: '2570',
+        code: 'THIP-70',
+        title: 'ชุดตัวชี้วัด THIP ประจำปี 2570',
+        description: 'ตัวชี้วัดคุณภาพโรงพยาบาล',
+      }),
+      getKpiIndicators: vi.fn().mockResolvedValue([
           {
             id: 1,
             topicId: 3,
@@ -103,17 +100,15 @@ describe('KpiExportService', () => {
             displayOrder: 3,
             entryId: null, // pending
           },
-        ]
-      }
-      return []
-    })
+        ]),
+    }
 
     const result = await KpiExportService.exportToExcel(
       {
         topicId: 3,
         fiscalYear: '2570',
       },
-      mockExecutor
+      mockGateway
     )
 
     expect(result).toBeDefined()
@@ -172,30 +167,25 @@ describe('KpiExportService', () => {
   })
 
   it('filters by onlyDue when onlyDue is true', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql) => {
-      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
-        return [{ id: 3, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด 2570' }]
-      }
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [
-          {
-            id: 1,
-            frequency: 'รายเดือน',
-            title: 'ตัวชี้วัดรายเดือน',
-            category: 'หมวดที่ 1',
-            displayOrder: 1,
-          },
-          {
-            id: 2,
-            frequency: 'รายปี',
-            title: 'ตัวชี้วัดรายปี',
-            category: 'หมวดที่ 1',
-            displayOrder: 2,
-          },
-        ]
-      }
-      return []
-    })
+    const mockGateway = {
+      getKpiTopicByIdV2: vi.fn().mockResolvedValue({ id: 3, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด 2570' }),
+      getKpiIndicators: vi.fn().mockResolvedValue([
+        {
+          id: 1,
+          frequency: 'รายเดือน',
+          title: 'ตัวชี้วัดรายเดือน',
+          category: 'หมวดที่ 1',
+          displayOrder: 1,
+        },
+        {
+          id: 2,
+          frequency: 'รายปี',
+          title: 'ตัวชี้วัดรายปี',
+          category: 'หมวดที่ 1',
+          displayOrder: 2,
+        },
+      ]),
+    }
 
     const currentDate = new Date('2026-11-02T10:00:00Z')
     const result = await KpiExportService.exportToExcel({
@@ -203,41 +193,36 @@ describe('KpiExportService', () => {
       fiscalYear: '2570',
       onlyDue: true,
       currentDate,
-    }, mockExecutor)
+    }, mockGateway)
 
     expect(result.totalCount).toBe(1)
     expect(result.filename).toContain('KPI_Report_Due_2570_THIP-70.xlsx')
   })
 
   it('excludes indicators that are already answered in the due round when onlyDue is true', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql) => {
-      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
-        return [{ id: 3, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด 2570' }]
-      }
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [
-          {
-            id: 1,
-            frequency: 'รายเดือน',
-            title: 'ตัวชี้วัดรายเดือน ตอบแล้วในรอบ ต.ค. (M01)',
-            category: 'หมวดที่ 1',
-            displayOrder: 1,
-            entryId: 101,
-            entryPeriodKey: 'M01',
-            entryStatus: 'PASS',
-            entryResultValue: '90.00',
-          },
-          {
-            id: 2,
-            frequency: 'รายเดือน',
-            title: 'ตัวชี้วัดรายเดือน ยังไม่ได้ตอบรอบ ต.ค. (M01)',
-            category: 'หมวดที่ 1',
-            displayOrder: 2,
-          },
-        ]
-      }
-      return []
-    })
+    const mockGateway = {
+      getKpiTopicByIdV2: vi.fn().mockResolvedValue({ id: 3, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด 2570' }),
+      getKpiIndicators: vi.fn().mockResolvedValue([
+        {
+          id: 1,
+          frequency: 'รายเดือน',
+          title: 'ตัวชี้วัดรายเดือน ตอบแล้วในรอบ ต.ค. (M01)',
+          category: 'หมวดที่ 1',
+          displayOrder: 1,
+          entryId: 101,
+          entryPeriodKey: 'M01',
+          entryStatus: 'PASS',
+          entryResultValue: '90.00',
+        },
+        {
+          id: 2,
+          frequency: 'รายเดือน',
+          title: 'ตัวชี้วัดรายเดือน ยังไม่ได้ตอบรอบ ต.ค. (M01)',
+          category: 'หมวดที่ 1',
+          displayOrder: 2,
+        },
+      ]),
+    }
 
     // In Nov 2026, M01 is due
     const currentDate = new Date('2026-11-02T10:00:00Z')
@@ -246,7 +231,7 @@ describe('KpiExportService', () => {
       fiscalYear: '2570',
       onlyDue: true,
       currentDate,
-    }, mockExecutor)
+    }, mockGateway)
 
     // Indicator 1 is already answered in M01, so only Indicator 2 should be in the export
     expect(result.totalCount).toBe(1)
@@ -258,49 +243,44 @@ describe('KpiExportService', () => {
   })
 
   it('preserves answered entries and attaches round history when category is selected', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
-        return [{ id: 5, fiscalYear: '2570', code: 'HA-70', title: 'ตัวชี้วัด HA' }]
-      }
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [
-          {
-            id: 21,
-            sequence: '1',
-            category: 'หมวดที่ 1',
-            subcategory: 'การประเมิน',
-            code: 'IPD-01',
-            frequency: 'รายไตรมาส',
-            title: 'อัตราความพึงพอใจผู้ป่วยใน',
-            numeratorName: 'จำนวนผู้พึงพอใจ',
-            denominatorName: 'จำนวนผู้ตอบทั้งหมด',
-            targetRaw: '>= 85%',
-            targetOperator: '>=',
-            targetValue: '85.0000',
-            targetUnit: '%',
-            responsibleName: 'นิศานาถ',
-            indicatorType: 'HA',
-            displayOrder: 1,
-            entryId: 301,
-            entryPeriodKey: 'Q1',
-            entryPeriodLabel: 'ไตรมาสที่ 1',
-            entryNumeratorValue: '90',
-            entryDenominatorValue: '100',
-            entryResultValue: '90.00',
-            entryStatus: 'PASS',
-            entryRecordedByName: 'นิศานาถ',
-            entryRecordedAt: '2026-11-01',
-          }
-        ]
-      }
-      return []
-    })
+    const mockGateway = {
+      getKpiTopicByIdV2: vi.fn().mockResolvedValue({ id: 5, fiscalYear: '2570', code: 'HA-70', title: 'ตัวชี้วัด HA' }),
+      getKpiIndicators: vi.fn().mockResolvedValue([
+        {
+          id: 21,
+          sequence: '1',
+          category: 'หมวดที่ 1',
+          subcategory: 'การประเมิน',
+          code: 'IPD-01',
+          frequency: 'รายไตรมาส',
+          title: 'อัตราความพึงพอใจผู้ป่วยใน',
+          numeratorName: 'จำนวนผู้พึงพอใจ',
+          denominatorName: 'จำนวนผู้ตอบทั้งหมด',
+          targetRaw: '>= 85%',
+          targetOperator: '>=',
+          targetValue: '85.0000',
+          targetUnit: '%',
+          responsibleName: 'นิศานาถ',
+          indicatorType: 'HA',
+          displayOrder: 1,
+          entryId: 301,
+          entryPeriodKey: 'Q1',
+          entryPeriodLabel: 'ไตรมาสที่ 1',
+          entryNumeratorValue: '90',
+          entryDenominatorValue: '100',
+          entryResultValue: '90.00',
+          entryStatus: 'PASS',
+          entryRecordedByName: 'นิศานาถ',
+          entryRecordedAt: '2026-11-01',
+        },
+      ]),
+    }
 
     const result = await KpiExportService.exportToExcel({
       topicId: 5,
       fiscalYear: '2570',
       category: 'หมวดที่ 1',
-    }, mockExecutor)
+    }, mockGateway)
 
     expect(result.totalCount).toBe(1)
     expect(result.passCount).toBe(1)
@@ -311,21 +291,13 @@ describe('KpiExportService', () => {
     expect(sheet).toBeDefined()
 
     // Row 7 (first indicator):
-    // Col 8 (Numerator question definition):
     expect(sheet?.getCell('H7').value).toBe('จำนวนผู้พึงพอใจ')
-    // Col 9 (Denominator question definition):
     expect(sheet?.getCell('I7').value).toBe('จำนวนผู้ตอบทั้งหมด')
-    // Col 11 (Reported period):
     expect(sheet?.getCell('K7').value).toBe('ไตรมาสที่ 1')
-    // Col 12 (Numerator value number):
     expect(sheet?.getCell('L7').value).toBe(90)
-    // Col 13 (Denominator value number):
     expect(sheet?.getCell('M7').value).toBe(100)
-    // Col 14 (Result display):
     expect(sheet?.getCell('N7').value).toBe('90%')
-    // Col 15 (Status):
     expect(sheet?.getCell('O7').value).toBe('ผ่านเกณฑ์')
-    // Col 16 (Round history): contains round breakdown
     expect(sheet?.getCell('P7').value).toContain('ไตรมาสที่ 1')
     expect(sheet?.getCell('P7').value).toContain('ตัวตั้ง = 90')
     expect(sheet?.getCell('P7').value).toContain('ตัวหาร = 100')
@@ -333,75 +305,70 @@ describe('KpiExportService', () => {
   })
 
   it('exports day-denominator small non-zero results (< 0.01) as ต่อ 1,000 วัน while keeping non-day small values in full decimals', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
-        return [{ id: 6, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด THIP' }]
-      }
-      if (sql.includes('FROM kpi_indicators i')) {
-        return [
-          {
-            id: 31,
-            sequence: '1',
-            category: 'หมวดที่ 1',
-            subcategory: 'ความปลอดภัย',
-            code: 'INF-01',
-            frequency: 'รายไตรมาส',
-            title: 'อัตราการติดเชื้อต่อวันนอน',
-            numeratorName: 'จำนวนครั้งที่ติดเชื้อ',
-            denominatorName: 'จำนวนวันนอนรวม',
-            targetRaw: '<= 0.002',
-            targetOperator: '<=',
-            targetValue: '0.0020',
-            targetUnit: null,
-            responsibleName: 'นิศานาถ',
-            indicatorType: 'HA',
-            displayOrder: 1,
-            entryId: 401,
-            entryPeriodKey: 'Q1',
-            entryPeriodLabel: 'ไตรมาสที่ 1',
-            entryNumeratorValue: '149',
-            entryDenominatorValue: '100000',
-            entryResultValue: '0.0015', // Simulated 4-decimal DB storage
-            entryStatus: 'PASS',
-            entryRecordedByName: 'นิศานาถ',
-            entryRecordedAt: '2026-11-01',
-          },
-          {
-            id: 32,
-            sequence: '2',
-            category: 'หมวดที่ 1',
-            subcategory: 'ความปลอดภัย',
-            code: 'ERR-01',
-            frequency: 'รายไตรมาส',
-            title: 'อัตราความคลาดเคลื่อนการสั่งใช้ยา',
-            numeratorName: 'จำนวนใบสั่งยาผิดพลาด',
-            denominatorName: 'จำนวนใบสั่งยาทั้งหมด',
-            targetRaw: '<= 0.005',
-            targetOperator: '<=',
-            targetValue: '0.0050',
-            targetUnit: null,
-            responsibleName: 'นิศานาถ',
-            indicatorType: 'HA',
-            displayOrder: 2,
-            entryId: 402,
-            entryPeriodKey: 'Q1',
-            entryPeriodLabel: 'ไตรมาสที่ 1',
-            entryNumeratorValue: '149',
-            entryDenominatorValue: '100000',
-            entryResultValue: '0.0015',
-            entryStatus: 'PASS',
-            entryRecordedByName: 'นิศานาถ',
-            entryRecordedAt: '2026-11-01',
-          },
-        ]
-      }
-      return []
-    })
+    const mockGateway = {
+      getKpiTopicByIdV2: vi.fn().mockResolvedValue({ id: 6, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด THIP' }),
+      getKpiIndicators: vi.fn().mockResolvedValue([
+        {
+          id: 31,
+          sequence: '1',
+          category: 'หมวดที่ 1',
+          subcategory: 'ความปลอดภัย',
+          code: 'INF-01',
+          frequency: 'รายไตรมาส',
+          title: 'อัตราการติดเชื้อต่อวันนอน',
+          numeratorName: 'จำนวนครั้งที่ติดเชื้อ',
+          denominatorName: 'จำนวนวันนอนรวม',
+          targetRaw: '<= 0.002',
+          targetOperator: '<=',
+          targetValue: '0.0020',
+          targetUnit: null,
+          responsibleName: 'นิศานาถ',
+          indicatorType: 'HA',
+          displayOrder: 1,
+          entryId: 401,
+          entryPeriodKey: 'Q1',
+          entryPeriodLabel: 'ไตรมาสที่ 1',
+          entryNumeratorValue: '149',
+          entryDenominatorValue: '100000',
+          entryResultValue: '0.0015',
+          entryStatus: 'PASS',
+          entryRecordedByName: 'นิศานาถ',
+          entryRecordedAt: '2026-11-01',
+        },
+        {
+          id: 32,
+          sequence: '2',
+          category: 'หมวดที่ 1',
+          subcategory: 'ความปลอดภัย',
+          code: 'ERR-01',
+          frequency: 'รายไตรมาส',
+          title: 'อัตราความคลาดเคลื่อนการสั่งใช้ยา',
+          numeratorName: 'จำนวนใบสั่งยาผิดพลาด',
+          denominatorName: 'จำนวนใบสั่งยาทั้งหมด',
+          targetRaw: '<= 0.005',
+          targetOperator: '<=',
+          targetValue: '0.0050',
+          targetUnit: null,
+          responsibleName: 'นิศานาถ',
+          indicatorType: 'HA',
+          displayOrder: 2,
+          entryId: 402,
+          entryPeriodKey: 'Q1',
+          entryPeriodLabel: 'ไตรมาสที่ 1',
+          entryNumeratorValue: '149',
+          entryDenominatorValue: '100000',
+          entryResultValue: '0.0015',
+          entryStatus: 'PASS',
+          entryRecordedByName: 'นิศานาถ',
+          entryRecordedAt: '2026-11-01',
+        },
+      ]),
+    }
 
     const result = await KpiExportService.exportToExcel({
       topicId: 6,
       fiscalYear: '2570',
-    }, mockExecutor)
+    }, mockGateway)
 
     const wb = new ExcelJS.Workbook()
     await wb.xlsx.load(result.buffer as any)

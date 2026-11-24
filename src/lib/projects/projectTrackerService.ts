@@ -1,4 +1,4 @@
-import { apiGateway } from '@/lib/apiGateway'
+import { apiGateway, GatewayError, GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import {
   aggregateProjectDashboardStats,
@@ -42,14 +42,22 @@ export interface ProjectTrackerActor {
   email?: string | null
 }
 
-export interface ProjectTrackerDbDeps {
-  appQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
-  appTransaction: (
-    statements: Array<{ sql: string; params?: unknown[] }>
-  ) => Promise<{
-    count: number
-    results: Array<{ affectedRows: number; insertId: number | null }>
-  }>
+export interface ProjectTrackerGatewayAdapter {
+  ensureProjectsSchemaV2: typeof apiGateway.app.ensureProjectsSchemaV2
+  getProjectsBundleV2: typeof apiGateway.app.getProjectsBundleV2
+  createProjectV2: typeof apiGateway.app.createProjectV2
+  updateProjectV2: typeof apiGateway.app.updateProjectV2
+  deleteProjectV2: typeof apiGateway.app.deleteProjectV2
+  batchImportProjectsV2: typeof apiGateway.app.batchImportProjectsV2
+}
+
+const defaultProjectTrackerGateway: ProjectTrackerGatewayAdapter = {
+  ensureProjectsSchemaV2: () => apiGateway.app.ensureProjectsSchemaV2(),
+  getProjectsBundleV2: (fiscalYear) => apiGateway.app.getProjectsBundleV2(fiscalYear),
+  createProjectV2: (fields, actorKey) => apiGateway.app.createProjectV2(fields, actorKey),
+  updateProjectV2: (id, fields, actorKey) => apiGateway.app.updateProjectV2(id, fields, actorKey),
+  deleteProjectV2: (id) => apiGateway.app.deleteProjectV2(id),
+  batchImportProjectsV2: (body) => apiGateway.app.batchImportProjectsV2(body),
 }
 
 export interface ProjectTrackerListFilters {
@@ -60,102 +68,36 @@ export interface ProjectTrackerListFilters {
   search?: string
 }
 
-interface ProjectFieldMapping {
+interface ProjectFieldTransform {
   key: keyof ProjectCreateInput
-  column: string
   transform?: (val: unknown) => unknown
 }
 
-const PROJECT_FIELD_MAPPINGS: readonly ProjectFieldMapping[] = [
-  { key: 'fiscalYear', column: 'fiscal_year' },
+const PROJECT_FIELD_TRANSFORMS: readonly ProjectFieldTransform[] = [
+  { key: 'fiscalYear' },
   {
     key: 'sequenceNo',
-    column: 'sequence_no',
-    transform: (val) => (typeof val === 'number' && Number.isInteger(val) && val > 0 ? val : 1),
+    transform: (val) => (typeof val === 'number' && Number.isInteger(val) && val > 0 ? val : undefined),
   },
-  { key: 'projectCode', column: 'project_code', transform: normalizeOptionalText },
-  { key: 'strategy', column: 'strategy', transform: (val) => String(val ?? 'งานประจำ').trim() },
-  { key: 'projectName', column: 'project_name', transform: (val) => String(val ?? '').trim() },
-  { key: 'responsibleUnit', column: 'responsible_unit', transform: normalizeOptionalText },
-  { key: 'q1Budget', column: 'q1_budget', transform: normalizeBudgetNumber },
-  { key: 'q2Budget', column: 'q2_budget', transform: normalizeBudgetNumber },
-  { key: 'q3Budget', column: 'q3_budget', transform: normalizeBudgetNumber },
-  { key: 'q4Budget', column: 'q4_budget', transform: normalizeBudgetNumber },
-  { key: 'actualSpent', column: 'actual_spent', transform: normalizeBudgetNumber },
+  { key: 'projectCode', transform: normalizeOptionalText },
+  { key: 'strategy', transform: (val) => String(val ?? 'งานประจำ').trim() },
+  { key: 'projectName', transform: (val) => String(val ?? '').trim() },
+  { key: 'responsibleUnit', transform: normalizeOptionalText },
+  { key: 'q1Budget', transform: normalizeBudgetNumber },
+  { key: 'q2Budget', transform: normalizeBudgetNumber },
+  { key: 'q3Budget', transform: normalizeBudgetNumber },
+  { key: 'q4Budget', transform: normalizeBudgetNumber },
+  { key: 'actualSpent', transform: normalizeBudgetNumber },
   {
     key: 'submissionStatus',
-    column: 'submission_status',
     transform: (val) => String(val ?? 'ยังไม่ส่ง').trim() || 'ยังไม่ส่ง',
   },
   {
     key: 'budgetSource',
-    column: 'budget_source',
     transform: (val) => String(val ?? 'เงินบำรุง').trim() || 'เงินบำรุง',
   },
-  { key: 'notes', column: 'notes', transform: normalizeOptionalText },
+  { key: 'notes', transform: normalizeOptionalText },
 ]
-
-const PROJECT_SELECT_SQL = `
-  SELECT
-    id,
-    fiscal_year AS fiscalYear,
-    sequence_no AS sequenceNo,
-    project_code AS projectCode,
-    strategy,
-    project_name AS projectName,
-    responsible_unit AS responsibleUnit,
-    q1_budget AS q1Budget,
-    q2_budget AS q2Budget,
-    q3_budget AS q3Budget,
-    q4_budget AS q4Budget,
-    actual_spent AS actualSpent,
-    submission_status AS submissionStatus,
-    budget_source AS budgetSource,
-    notes,
-    created_by AS createdBy,
-    updated_by AS updatedBy,
-    created_at AS createdAt,
-    updated_at AS updatedAt
-  FROM project_tracking_records
-`
-
-const CREATE_RECORDS_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS project_tracking_records (
-    id INT NOT NULL AUTO_INCREMENT,
-    fiscal_year INT NOT NULL,
-    sequence_no INT NOT NULL DEFAULT 1,
-    project_code VARCHAR(50) NULL,
-    strategy VARCHAR(50) NOT NULL,
-    project_name VARCHAR(500) NOT NULL,
-    responsible_unit VARCHAR(255) NULL,
-    q1_budget DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
-    q2_budget DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
-    q3_budget DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
-    q4_budget DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
-    actual_spent DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
-    submission_status VARCHAR(50) NOT NULL DEFAULT 'ยังไม่ส่ง',
-    budget_source VARCHAR(50) NOT NULL DEFAULT 'เงินบำรุง',
-    notes TEXT NULL,
-    created_by VARCHAR(100) NULL,
-    updated_by VARCHAR(100) NULL,
-    created_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (id),
-    INDEX idx_pt_fiscal_year (fiscal_year),
-    INDEX idx_pt_strategy (strategy),
-    INDEX idx_pt_status (submission_status),
-    INDEX idx_pt_seq (fiscal_year, sequence_no)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
-
-const CREATE_META_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS project_tracking_meta (
-    meta_key VARCHAR(100) NOT NULL,
-    meta_value VARCHAR(255) NOT NULL,
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (meta_key)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
 
 function serializeTimestamp(val: unknown): string {
   if (val instanceof Date) return val.toISOString()
@@ -186,28 +128,19 @@ function mapProjectRow(row: Record<string, unknown>): ProjectRecordRaw {
   }
 }
 
+function isNotFoundGatewayError(err: unknown): boolean {
+  if (err instanceof GatewayNotFoundError) return true
+  if (err instanceof GatewayError && err.status === 404) return true
+  return false
+}
+
 export class ProjectTrackerService {
-  private readonly deps: ProjectTrackerDbDeps
+  private readonly gw: ProjectTrackerGatewayAdapter
   private schemaEnsured = false
   private ensurePromise: Promise<void> | null = null
 
-  constructor(deps?: Partial<ProjectTrackerDbDeps>) {
-    this.deps = {
-      appQuery: deps?.appQuery ?? ((sql, params) => apiGateway.app.query(sql, params)),
-      appTransaction:
-        deps?.appTransaction ?? ((statements) => apiGateway.app.transaction(statements)),
-    }
-  }
-
-  private async executeWrite(
-    sql: string,
-    params: unknown[] = []
-  ): Promise<{ affectedRows: number; insertId: number | null }> {
-    const tx = await this.deps.appTransaction([
-      { sql: 'SET NAMES utf8mb4' },
-      { sql, params },
-    ])
-    return tx.results?.[1] ?? { affectedRows: 0, insertId: null }
+  constructor(gateway?: Partial<ProjectTrackerGatewayAdapter>) {
+    this.gw = { ...defaultProjectTrackerGateway, ...(gateway || {}) }
   }
 
   async ensureSchema(): Promise<void> {
@@ -215,12 +148,7 @@ export class ProjectTrackerService {
     if (this.ensurePromise) return this.ensurePromise
 
     this.ensurePromise = (async () => {
-      await this.deps.appTransaction([
-        { sql: 'SET NAMES utf8mb4' },
-        { sql: CREATE_RECORDS_TABLE_SQL },
-        { sql: CREATE_META_TABLE_SQL },
-      ])
-
+      await this.gw.ensureProjectsSchemaV2()
       this.schemaEnsured = true
     })()
 
@@ -231,60 +159,23 @@ export class ProjectTrackerService {
     }
   }
 
-  private async getByIdOrThrow(id: number): Promise<ProjectRecord> {
-    const rows = await this.deps.appQuery<Record<string, unknown>>(
-      `${PROJECT_SELECT_SQL} WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    if (!rows || rows.length === 0) {
-      throw new ProjectTrackerNotFoundError('ไม่พบข้อมูลโครงการที่ระบุ')
-    }
-    return enrichProjectRecord(mapProjectRow(rows[0]))
-  }
-
-  private async getNextSequenceNo(fiscalYear: number): Promise<number> {
-    const rows = await this.deps.appQuery<{ maxSeq: number | string | null }>(
-      `SELECT MAX(sequence_no) AS maxSeq FROM project_tracking_records WHERE fiscal_year = ?`,
-      [fiscalYear]
-    )
-    return Number(rows[0]?.maxSeq ?? 0) + 1
-  }
-
   async listProjects(filters: ProjectTrackerListFilters = {}): Promise<ProjectListResult> {
     await this.ensureSchema()
 
-    const fyQueryPromise = this.deps.appQuery<{ fiscalYear: number | string }>(
-      `SELECT DISTINCT fiscal_year AS fiscalYear FROM project_tracking_records ORDER BY fiscal_year DESC`
-    )
-
-    let fyRows: Array<{ fiscalYear: number | string }>
-    let targetFiscalYear: number
-    let allYearRows: Array<Record<string, unknown>>
-
-    if (filters.fiscalYear !== undefined) {
-      targetFiscalYear = filters.fiscalYear
-      ;[fyRows, allYearRows] = await Promise.all([
-        fyQueryPromise,
-        this.deps.appQuery<Record<string, unknown>>(
-          `${PROJECT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY sequence_no ASC, id ASC`,
-          [targetFiscalYear]
-        ),
-      ])
-    } else {
-      fyRows = await fyQueryPromise
-      const populated = fyRows
-        .map((r) => Number(r.fiscalYear))
-        .filter((n) => Number.isInteger(n))
-      targetFiscalYear = resolveDefaultFiscalYear(populated)
-      allYearRows = await this.deps.appQuery<Record<string, unknown>>(
-        `${PROJECT_SELECT_SQL} WHERE fiscal_year = ? ORDER BY sequence_no ASC, id ASC`,
-        [targetFiscalYear]
-      )
-    }
+    const bundle = await this.gw.getProjectsBundleV2(filters.fiscalYear)
+    const fyRows = bundle?.fyRows || []
+    const allYearRows = bundle?.allYearRows || []
 
     const populatedYears = fyRows
       .map((r) => Number(r.fiscalYear))
       .filter((n) => Number.isInteger(n))
+
+    const targetFiscalYear =
+      filters.fiscalYear !== undefined
+        ? filters.fiscalYear
+        : Number.isInteger(bundle?.targetFiscalYear)
+        ? bundle.targetFiscalYear
+        : resolveDefaultFiscalYear(populatedYears)
 
     const availableFiscalYears = getPopulatedFiscalYears(populatedYears)
 
@@ -347,45 +238,26 @@ export class ProjectTrackerService {
       throw new ProjectTrackerValidationError('กรุณาระบุชื่อโครงการ')
     }
 
-    const sequenceNo =
-      input.sequenceNo && Number.isInteger(input.sequenceNo) && input.sequenceNo > 0
-        ? input.sequenceNo
-        : await this.getNextSequenceNo(input.fiscalYear)
-
     const actorKey = actor?.username || actor?.email || null
-
-    const columns: string[] = []
-    const placeholders: string[] = []
-    const params: unknown[] = []
-
     const resolvedInput: ProjectCreateInput = {
       ...input,
-      sequenceNo,
       projectName,
     }
 
-    for (const mapping of PROJECT_FIELD_MAPPINGS) {
-      const rawVal = resolvedInput[mapping.key]
-      const val = mapping.transform ? mapping.transform(rawVal) : rawVal
-      columns.push(mapping.column)
-      placeholders.push('?')
-      params.push(val ?? null)
+    const fields: Record<string, unknown> = {}
+    for (const field of PROJECT_FIELD_TRANSFORMS) {
+      const rawVal = resolvedInput[field.key]
+      const val = field.transform ? field.transform(rawVal) : rawVal
+      if (field.key === 'sequenceNo' && val === undefined) continue
+      fields[field.key] = val ?? null
     }
 
-    columns.push('created_by', 'updated_by')
-    placeholders.push('?', '?')
-    params.push(actorKey, actorKey)
-
-    const result = await this.executeWrite(
-      `INSERT INTO project_tracking_records (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
-      params
-    )
-
-    if (!result.insertId) {
+    const createdRow = await this.gw.createProjectV2(fields, actorKey)
+    if (!createdRow || !createdRow.id) {
       throw new Error('ไม่สามารถบันทึกข้อมูลโครงการได้')
     }
 
-    const created = await this.getByIdOrThrow(result.insertId)
+    const created = enrichProjectRecord(mapProjectRow(createdRow))
 
     await logAudit(
       'CREATE',
@@ -406,43 +278,39 @@ export class ProjectTrackerService {
   ): Promise<ProjectRecord> {
     await this.ensureSchema()
 
-    const existing = await this.getByIdOrThrow(id)
-
-    const setClauses: string[] = []
-    const params: unknown[] = []
-
-    for (const mapping of PROJECT_FIELD_MAPPINGS) {
-      if (!(mapping.key in input)) continue
-      const rawVal = input[mapping.key]
+    const fields: Record<string, unknown> = {}
+    for (const field of PROJECT_FIELD_TRANSFORMS) {
+      if (!(field.key in input)) continue
+      const rawVal = input[field.key]
       if (rawVal === undefined) continue
-      const val = mapping.transform ? mapping.transform(rawVal) : rawVal
-      setClauses.push(`${mapping.column} = ?`)
-      params.push(val ?? null)
-    }
-
-    if (setClauses.length === 0) {
-      return existing
+      const val = field.transform ? field.transform(rawVal) : rawVal
+      fields[field.key] = val ?? null
     }
 
     const actorKey = actor?.username || actor?.email || null
-    setClauses.push('updated_by = ?')
-    params.push(actorKey, id)
 
-    await this.executeWrite(
-      `UPDATE project_tracking_records SET ${setClauses.join(', ')} WHERE id = ?`,
-      params
-    )
+    let updatedRow: Record<string, unknown>
+    try {
+      updatedRow = await this.gw.updateProjectV2(id, fields, actorKey)
+    } catch (err) {
+      if (isNotFoundGatewayError(err)) {
+        throw new ProjectTrackerNotFoundError('ไม่พบข้อมูลโครงการที่ระบุ')
+      }
+      throw err
+    }
 
-    const updated = await this.getByIdOrThrow(id)
+    const updated = enrichProjectRecord(mapProjectRow(updatedRow))
 
-    await logAudit(
-      'UPDATE',
-      'project_tracking_records',
-      `Updated project #${updated.id} (status: ${updated.submissionStatus}, spent: ${updated.actualSpent})`,
-      actor?.username || actor?.email
-        ? { username: actor?.username ?? undefined, email: actor?.email ?? undefined }
-        : undefined
-    )
+    if (Object.keys(fields).length > 0) {
+      await logAudit(
+        'UPDATE',
+        'project_tracking_records',
+        `Updated project #${updated.id} (status: ${updated.submissionStatus}, spent: ${updated.actualSpent})`,
+        actor?.username || actor?.email
+          ? { username: actor?.username ?? undefined, email: actor?.email ?? undefined }
+          : undefined
+      )
+    }
 
     return updated
   }
@@ -450,9 +318,17 @@ export class ProjectTrackerService {
   async deleteProject(id: number, actor?: ProjectTrackerActor): Promise<{ id: number }> {
     await this.ensureSchema()
 
-    const existing = await this.getByIdOrThrow(id)
+    let existingRow: Record<string, unknown>
+    try {
+      existingRow = await this.gw.deleteProjectV2(id)
+    } catch (err) {
+      if (isNotFoundGatewayError(err)) {
+        throw new ProjectTrackerNotFoundError('ไม่พบข้อมูลโครงการที่ระบุ')
+      }
+      throw err
+    }
 
-    await this.executeWrite(`DELETE FROM project_tracking_records WHERE id = ?`, [id])
+    const existing = enrichProjectRecord(mapProjectRow(existingRow))
 
     await logAudit(
       'DELETE',
@@ -479,70 +355,33 @@ export class ProjectTrackerService {
     }
 
     const actorKey = actor?.username || actor?.email || null
-    let nextSeq = mode === 'replace' ? 1 : await this.getNextSequenceNo(fiscalYear)
+    const normalizedRows = rows.map((row) => ({
+      sequenceNo:
+        row.sequenceNo && Number.isInteger(row.sequenceNo) && row.sequenceNo > 0
+          ? row.sequenceNo
+          : undefined,
+      projectCode: normalizeOptionalText(row.projectCode),
+      strategy: String(row.strategy || 'งานประจำ').trim(),
+      projectName: String(row.projectName || '').trim(),
+      responsibleUnit: normalizeOptionalText(row.responsibleUnit),
+      q1Budget: normalizeBudgetNumber(row.q1Budget),
+      q2Budget: normalizeBudgetNumber(row.q2Budget),
+      q3Budget: normalizeBudgetNumber(row.q3Budget),
+      q4Budget: normalizeBudgetNumber(row.q4Budget),
+      actualSpent: normalizeBudgetNumber(row.actualSpent),
+      submissionStatus: String(row.submissionStatus || 'ยังไม่ส่ง').trim() || 'ยังไม่ส่ง',
+      budgetSource: String(row.budgetSource || 'เงินบำรุง').trim() || 'เงินบำรุง',
+      notes: normalizeOptionalText(row.notes),
+    }))
 
-    const statements: Array<{ sql: string; params?: unknown[] }> = [
-      { sql: 'SET NAMES utf8mb4' },
-    ]
+    const res = await this.gw.batchImportProjectsV2({
+      fiscalYear,
+      rows: normalizedRows,
+      mode,
+      actorKey,
+    })
 
-    if (mode === 'replace') {
-      statements.push({
-        sql: `DELETE FROM project_tracking_records WHERE fiscal_year = ?`,
-        params: [fiscalYear],
-      })
-    }
-
-    const IMPORT_CHUNK_SIZE = 100
-    const rowValuesTuple = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-
-    for (let i = 0; i < rows.length; i += IMPORT_CHUNK_SIZE) {
-      const chunk = rows.slice(i, i + IMPORT_CHUNK_SIZE)
-      const valueTuples: string[] = []
-      const params: unknown[] = []
-
-      for (const row of chunk) {
-        const seq =
-          row.sequenceNo && Number.isInteger(row.sequenceNo) && row.sequenceNo > 0
-            ? row.sequenceNo
-            : nextSeq
-        nextSeq = Math.max(nextSeq, seq) + 1
-
-        valueTuples.push(rowValuesTuple)
-        params.push(
-          fiscalYear,
-          seq,
-          normalizeOptionalText(row.projectCode),
-          String(row.strategy || 'งานประจำ').trim(),
-          String(row.projectName || '').trim(),
-          normalizeOptionalText(row.responsibleUnit),
-          normalizeBudgetNumber(row.q1Budget),
-          normalizeBudgetNumber(row.q2Budget),
-          normalizeBudgetNumber(row.q3Budget),
-          normalizeBudgetNumber(row.q4Budget),
-          normalizeBudgetNumber(row.actualSpent),
-          String(row.submissionStatus || 'ยังไม่ส่ง').trim() || 'ยังไม่ส่ง',
-          String(row.budgetSource || 'เงินบำรุง').trim() || 'เงินบำรุง',
-          normalizeOptionalText(row.notes),
-          actorKey,
-          actorKey
-        )
-      }
-
-      statements.push({
-        sql: `
-          INSERT INTO project_tracking_records (
-            fiscal_year, sequence_no, project_code, strategy, project_name,
-            responsible_unit, q1_budget, q2_budget, q3_budget, q4_budget,
-            actual_spent, submission_status, budget_source, notes,
-            created_by, updated_by
-          ) VALUES ${valueTuples.join(', ')}
-        `,
-        params,
-      })
-    }
-
-    const tx = await this.deps.appTransaction(statements)
-    const deletedCount = mode === 'replace' ? (tx.results?.[1]?.affectedRows ?? 0) : 0
+    const deletedCount = Number(res?.deletedCount ?? 0)
 
     await logAudit(
       'CREATE',

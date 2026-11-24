@@ -7,13 +7,8 @@ vi.mock('@/lib/audit', () => ({
 }))
 
 describe('KpiAuditService', () => {
-  it('upserts valid zero-PHI batch and skips unknown indicator IDs', async () => {
-    const exec = vi.fn(async (sql: string) => {
-      if (sql.includes('SELECT id FROM kpi_indicators')) {
-        return [{ id: 48 }]
-      }
-      return []
-    })
+  it('upserts valid zero-PHI batch via Gateway V2 and returns saved/skipped counts', async () => {
+    const upsertKpiAuditBatchV2 = vi.fn().mockResolvedValue({ savedCount: 1, skippedCount: 1 })
 
     const res = await KpiAuditService.upsertAuditBatch(
       {
@@ -47,21 +42,19 @@ describe('KpiAuditService', () => {
           },
         ],
       },
-      exec
+      { upsertKpiAuditBatchV2 }
     )
 
     expect(res).toEqual({ savedCount: 1, skippedCount: 1 })
-    expect(exec.mock.calls[0][0]).toContain('CREATE TABLE IF NOT EXISTS kpi_ai_audits')
-    expect(exec.mock.calls.some(call => call[0].includes('ON DUPLICATE KEY UPDATE'))).toBe(true)
+    expect(upsertKpiAuditBatchV2).toHaveBeenCalledTimes(1)
+    expect(upsertKpiAuditBatchV2.mock.calls[0][0]).toMatchObject({
+      fiscalYear: '2570',
+      periodKey: 'M01',
+    })
   })
 
-  it('rejects PHI columns and 13-digit CIDs before writing to DB', async () => {
-    const exec = vi.fn(async (sql: string) => {
-      if (sql.includes('SELECT id FROM kpi_indicators')) {
-        return [{ id: 48 }]
-      }
-      return []
-    })
+  it('rejects PHI columns and 13-digit CIDs before calling Gateway', async () => {
+    const upsertKpiAuditBatchV2 = vi.fn().mockResolvedValue({ savedCount: 0, skippedCount: 0 })
 
     await expect(
       KpiAuditService.upsertAuditBatch(
@@ -79,7 +72,7 @@ describe('KpiAuditService', () => {
             },
           ],
         },
-        exec
+        { upsertKpiAuditBatchV2 }
       )
     ).rejects.toThrow(PhiViolationError)
 
@@ -97,16 +90,21 @@ describe('KpiAuditService', () => {
             },
           ],
         },
-        exec
+        { upsertKpiAuditBatchV2 }
       )
     ).rejects.toThrow(PhiViolationError)
+
+    expect(upsertKpiAuditBatchV2).not.toHaveBeenCalled()
   })
 
   it('returns empty array cleanly when table does not exist yet', async () => {
-    const exec = vi.fn(async () => {
+    const getKpiAuditsByTopicV2 = vi.fn(async () => {
       throw new Error("Table 'thoen.kpi_ai_audits' doesn't exist")
     })
-    const rows = await KpiAuditService.getAuditsByTopic({ topicId: 1, fiscalYear: '2570' }, exec)
+    const rows = await KpiAuditService.getAuditsByTopic(
+      { topicId: 1, fiscalYear: '2570' },
+      { getKpiAuditsByTopicV2 }
+    )
     expect(rows).toEqual([])
   })
 

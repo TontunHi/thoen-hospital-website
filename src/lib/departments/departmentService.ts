@@ -1,7 +1,6 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { resolvePublicProfilePath } from './departmentImageUtils'
-import { z } from 'zod'
 
 export interface DepartmentGroupNode {
   id: number
@@ -82,39 +81,78 @@ export interface ActorInfo {
   name?: string | null
 }
 
+export interface DepartmentGatewayAdapter {
+  listDepartmentGroupsV2: typeof apiGateway.app.listDepartmentGroupsV2
+  getDepartmentGroupByIdV2: typeof apiGateway.app.getDepartmentGroupByIdV2
+  createDepartmentGroupV2: typeof apiGateway.app.createDepartmentGroupV2
+  updateDepartmentGroupV2: typeof apiGateway.app.updateDepartmentGroupV2
+  reorderDepartmentGroupsV2: typeof apiGateway.app.reorderDepartmentGroupsV2
+  deleteDepartmentGroupV2: typeof apiGateway.app.deleteDepartmentGroupV2
+  listDepartmentRolesV2: typeof apiGateway.app.listDepartmentRolesV2
+  createDepartmentRoleV2: typeof apiGateway.app.createDepartmentRoleV2
+  updateDepartmentRoleV2: typeof apiGateway.app.updateDepartmentRoleV2
+  deleteDepartmentRoleV2: typeof apiGateway.app.deleteDepartmentRoleV2
+  reorderDepartmentRolesV2: typeof apiGateway.app.reorderDepartmentRolesV2
+  listDepartmentMembersV2: typeof apiGateway.app.listDepartmentMembersV2
+  createDepartmentMemberV2: typeof apiGateway.app.createDepartmentMemberV2
+  updateDepartmentMemberV2: typeof apiGateway.app.updateDepartmentMemberV2
+  deleteDepartmentMemberV2: typeof apiGateway.app.deleteDepartmentMemberV2
+  reorderDepartmentMembersV2: typeof apiGateway.app.reorderDepartmentMembersV2
+  searchDepartmentStaffV2: typeof apiGateway.app.searchDepartmentStaffV2
+  getPublicOrgChartRawV2: typeof apiGateway.app.getPublicOrgChartRawV2
+}
+
+const defaultDepartmentGateway: DepartmentGatewayAdapter = {
+  listDepartmentGroupsV2: (activeOnly) => apiGateway.app.listDepartmentGroupsV2(activeOnly),
+  getDepartmentGroupByIdV2: (id) => apiGateway.app.getDepartmentGroupByIdV2(id),
+  createDepartmentGroupV2: (body) => apiGateway.app.createDepartmentGroupV2(body),
+  updateDepartmentGroupV2: (id, body) => apiGateway.app.updateDepartmentGroupV2(id, body),
+  reorderDepartmentGroupsV2: (groupIds) => apiGateway.app.reorderDepartmentGroupsV2(groupIds),
+  deleteDepartmentGroupV2: (id) => apiGateway.app.deleteDepartmentGroupV2(id),
+  listDepartmentRolesV2: () => apiGateway.app.listDepartmentRolesV2(),
+  createDepartmentRoleV2: (body) => apiGateway.app.createDepartmentRoleV2(body),
+  updateDepartmentRoleV2: (id, body) => apiGateway.app.updateDepartmentRoleV2(id, body),
+  deleteDepartmentRoleV2: (id) => apiGateway.app.deleteDepartmentRoleV2(id),
+  reorderDepartmentRolesV2: (roleIds) => apiGateway.app.reorderDepartmentRolesV2(roleIds),
+  listDepartmentMembersV2: (groupId) => apiGateway.app.listDepartmentMembersV2(groupId),
+  createDepartmentMemberV2: (body) => apiGateway.app.createDepartmentMemberV2(body),
+  updateDepartmentMemberV2: (id, body) => apiGateway.app.updateDepartmentMemberV2(id, body),
+  deleteDepartmentMemberV2: (id) => apiGateway.app.deleteDepartmentMemberV2(id),
+  reorderDepartmentMembersV2: (groupId, memberIds) =>
+    apiGateway.app.reorderDepartmentMembersV2(groupId, memberIds),
+  searchDepartmentStaffV2: (keyword) => apiGateway.app.searchDepartmentStaffV2(keyword),
+  getPublicOrgChartRawV2: () => apiGateway.app.getPublicOrgChartRawV2(),
+}
+
 export class DepartmentService {
-  constructor(
-    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
-  ) {}
+  private readonly gw: DepartmentGatewayAdapter
+
+  constructor(gateway: Partial<DepartmentGatewayAdapter> = {}) {
+    this.gw = { ...defaultDepartmentGateway, ...gateway }
+  }
 
   /**
    * Retrieves all groups and builds a recursive tree structure.
    */
   async getGroupTree(options: { activeOnly?: boolean } = {}): Promise<DepartmentGroupNode[]> {
-    const whereClause = options.activeOnly ? 'WHERE is_active = 1' : ''
-    const rows = await this.queryExecutor(`
-      SELECT id, name, parent_id, order_index, is_active
-      FROM department_groups
-      ${whereClause}
-      ORDER BY order_index ASC, id ASC
-    `)
+    const rows = await this.gw.listDepartmentGroupsV2(Boolean(options.activeOnly))
 
-    // Build tree
     const map = new Map<number, DepartmentGroupNode>()
     const rootNodes: DepartmentGroupNode[] = []
 
-    rows.forEach((row: any) => {
+    rows.forEach((row: Record<string, unknown>) => {
       map.set(Number(row.id), {
         id: Number(row.id),
         name: String(row.name),
-        parentId: row.parent_id !== null && row.parent_id !== undefined ? Number(row.parent_id) : null,
+        parentId:
+          row.parent_id !== null && row.parent_id !== undefined ? Number(row.parent_id) : null,
         orderIndex: Number(row.order_index || 0),
         isActive: Boolean(row.is_active),
-        children: []
+        children: [],
       })
     })
 
-    rows.forEach((row: any) => {
+    rows.forEach((row: Record<string, unknown>) => {
       const node = map.get(Number(row.id))!
       if (node.parentId && map.has(node.parentId)) {
         map.get(node.parentId)!.children.push(node)
@@ -130,36 +168,36 @@ export class DepartmentService {
    * Retrieves a single group by ID.
    */
   async getGroupById(id: number): Promise<DepartmentGroupNode | null> {
-    const rows = await this.queryExecutor(
-      `SELECT id, name, parent_id, order_index, is_active FROM department_groups WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    if (!rows || rows.length === 0) return null
-    const row = rows[0]
+    const row = await this.gw.getDepartmentGroupByIdV2(id)
+    if (!row) return null
     return {
       id: Number(row.id),
       name: String(row.name),
       parentId: row.parent_id ? Number(row.parent_id) : null,
       orderIndex: Number(row.order_index || 0),
       isActive: Boolean(row.is_active),
-      children: []
+      children: [],
     }
   }
 
   /**
    * Creates a new department or subgroup.
    */
-  async createGroup(input: CreateGroupInput, actor: ActorInfo): Promise<{ id: number; name: string; parentId: number | null; orderIndex: number; isActive: boolean }> {
+  async createGroup(
+    input: CreateGroupInput,
+    actor: ActorInfo
+  ): Promise<{ id: number; name: string; parentId: number | null; orderIndex: number; isActive: boolean }> {
     const cleanName = input.name.trim()
     const parentId = input.parentId && input.parentId > 0 ? input.parentId : null
     const orderIndex = input.orderIndex ?? 0
 
-    const res: any = await this.queryExecutor(
-      `INSERT INTO department_groups (name, parent_id, order_index, is_active) VALUES (?, ?, ?, 1)`,
-      [cleanName, parentId, orderIndex]
-    )
+    const res = await this.gw.createDepartmentGroupV2({
+      name: cleanName,
+      parentId,
+      orderIndex,
+    })
 
-    const insertId = Number(res?.insertId || 0)
+    const insertId = Number(res?.id || 0)
 
     await logAudit(
       'CREATE',
@@ -173,7 +211,7 @@ export class DepartmentService {
       name: cleanName,
       parentId,
       orderIndex,
-      isActive: true
+      isActive: true,
     }
   }
 
@@ -181,33 +219,17 @@ export class DepartmentService {
    * Updates an existing department or subgroup.
    */
   async updateGroup(id: number, input: UpdateGroupInput, actor: ActorInfo): Promise<boolean> {
-    const updates: string[] = []
-    const params: any[] = []
-
-    if (input.name !== undefined) {
-      updates.push('name = ?')
-      params.push(input.name.trim())
-    }
+    const payload: Record<string, unknown> = {}
+    if (input.name !== undefined) payload.name = input.name.trim()
     if (input.parentId !== undefined) {
-      updates.push('parent_id = ?')
-      params.push(input.parentId && input.parentId > 0 ? input.parentId : null)
+      payload.parentId = input.parentId && input.parentId > 0 ? input.parentId : null
     }
-    if (input.orderIndex !== undefined) {
-      updates.push('order_index = ?')
-      params.push(input.orderIndex)
-    }
-    if (input.isActive !== undefined) {
-      updates.push('is_active = ?')
-      params.push(input.isActive ? 1 : 0)
-    }
+    if (input.orderIndex !== undefined) payload.orderIndex = input.orderIndex
+    if (input.isActive !== undefined) payload.isActive = input.isActive
 
-    if (updates.length === 0) return true
-    params.push(id)
+    if (Object.keys(payload).length === 0) return true
 
-    await this.queryExecutor(
-      `UPDATE department_groups SET ${updates.join(', ')} WHERE id = ?`,
-      params
-    )
+    await this.gw.updateDepartmentGroupV2(id, payload)
 
     await logAudit(
       'UPDATE',
@@ -225,16 +247,7 @@ export class DepartmentService {
   async reorderGroups(groupIds: number[], actor: ActorInfo): Promise<boolean> {
     if (groupIds.length === 0) return true
 
-    const cases = groupIds.map(() => 'WHEN ? THEN ?').join(' ')
-    const caseParams = groupIds.flatMap((id, idx) => [id, idx])
-    const inPlaceholders = groupIds.map(() => '?').join(', ')
-
-    await this.queryExecutor(
-      `UPDATE department_groups
-       SET order_index = CASE id ${cases} ELSE order_index END
-       WHERE id IN (${inPlaceholders})`,
-      [...caseParams, ...groupIds]
-    )
+    await this.gw.reorderDepartmentGroupsV2(groupIds)
 
     await logAudit(
       'UPDATE',
@@ -250,25 +263,7 @@ export class DepartmentService {
    * Deletes a department or subgroup, preventing deletion if it contains subgroups or members.
    */
   async deleteGroup(id: number, actor: ActorInfo): Promise<boolean> {
-    // 1. Check subgroups
-    const subRows = await this.queryExecutor(
-      `SELECT COUNT(*) AS count FROM department_groups WHERE parent_id = ?`,
-      [id]
-    )
-    if (Number(subRows[0]?.count || 0) > 0) {
-      throw new Error('ไม่สามารถลบกลุ่มงานนี้ได้ เนื่องจากมีกลุ่มงานย่อยอยู่ภายใน')
-    }
-
-    // 2. Check members
-    const memberRows = await this.queryExecutor(
-      `SELECT COUNT(*) AS count FROM department_members WHERE group_id = ?`,
-      [id]
-    )
-    if (Number(memberRows[0]?.count || 0) > 0) {
-      throw new Error('ไม่สามารถลบกลุ่มงานนี้ได้ เนื่องจากยังมีสมาชิกอยู่ภายในกลุ่มงาน')
-    }
-
-    await this.queryExecutor(`DELETE FROM department_groups WHERE id = ?`, [id])
+    await this.gw.deleteDepartmentGroupV2(id)
 
     await logAudit(
       'DELETE',
@@ -281,56 +276,18 @@ export class DepartmentService {
   }
 
   /**
-   * Ensures the department_roles table exists and default roles are seeded.
-   */
-  async ensureRolesTable(): Promise<void> {
-    try {
-      await this.queryExecutor(`
-        CREATE TABLE IF NOT EXISTS department_roles (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          name VARCHAR(100) NOT NULL,
-          order_index INT NOT NULL DEFAULT 0,
-          is_default TINYINT(1) NOT NULL DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_dept_role_order (order_index)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      `)
-
-      const existing = await this.queryExecutor(`SELECT COUNT(*) AS count FROM department_roles`)
-      if (Number(existing[0]?.count || 0) === 0) {
-        await this.queryExecutor(`
-          INSERT INTO department_roles (name, order_index, is_default)
-          VALUES 
-            ('หัวหน้ากลุ่มงาน / หัวหน้างาน', 0, 0),
-            ('รองหัวหน้ากลุ่มงาน / รองหัวหน้างาน', 1, 0),
-            ('เจ้าหน้าที่ผู้ปฏิบัติงาน', 2, 1)
-        `)
-      }
-    } catch {
-      // Continue gracefully if table already exists or in test environment
-    }
-  }
-
-  /**
    * Retrieves all custom department roles ordered by priority/level.
    */
   async getRoles(): Promise<DepartmentRoleRecord[]> {
     try {
-      await this.ensureRolesTable()
-      const rows = await this.queryExecutor(`
-        SELECT id, name, order_index, is_default
-        FROM department_roles
-        ORDER BY order_index ASC, id ASC
-      `)
-
+      const rows = await this.gw.listDepartmentRolesV2()
       if (!Array.isArray(rows)) return []
 
-      return rows.map((r: any) => ({
+      return rows.map((r: Record<string, unknown>) => ({
         id: Number(r.id),
         name: String(r.name),
         orderIndex: Number(r.order_index ?? 0),
-        isDefault: Boolean(r.is_default)
+        isDefault: Boolean(r.is_default),
       }))
     } catch {
       return []
@@ -341,27 +298,18 @@ export class DepartmentService {
    * Creates a new department role level.
    */
   async createRole(input: CreateRoleInput, actor: ActorInfo): Promise<DepartmentRoleRecord> {
-    await this.ensureRolesTable()
     const cleanName = input.name.trim()
     if (!cleanName) throw new Error('กรุณาระบุชื่อบทบาท')
 
-    let orderIndex = input.orderIndex
-    if (orderIndex === undefined || orderIndex === null) {
-      const maxRows = await this.queryExecutor(`SELECT MAX(order_index) AS max_order FROM department_roles`)
-      orderIndex = Number(maxRows[0]?.max_order ?? -1) + 1
-    }
+    const res = await this.gw.createDepartmentRoleV2({
+      name: cleanName,
+      orderIndex: input.orderIndex,
+      isDefault: Boolean(input.isDefault),
+    })
 
-    const isDefault = input.isDefault ? 1 : 0
-    if (isDefault) {
-      await this.queryExecutor(`UPDATE department_roles SET is_default = 0`)
-    }
+    const insertId = Number(res?.id || 0)
+    const orderIndex = Number(res?.orderIndex ?? input.orderIndex ?? 0)
 
-    const res: any = await this.queryExecutor(
-      `INSERT INTO department_roles (name, order_index, is_default) VALUES (?, ?, ?)`,
-      [cleanName, orderIndex, isDefault]
-    )
-
-    const insertId = Number(res?.insertId || 0)
     await logAudit(
       'CREATE',
       'department_roles',
@@ -373,7 +321,7 @@ export class DepartmentService {
       id: insertId,
       name: cleanName,
       orderIndex,
-      isDefault: Boolean(isDefault)
+      isDefault: Boolean(input.isDefault),
     }
   }
 
@@ -381,32 +329,18 @@ export class DepartmentService {
    * Updates an existing department role.
    */
   async updateRole(id: number, input: UpdateRoleInput, actor: ActorInfo): Promise<boolean> {
-    await this.ensureRolesTable()
-    const updates: string[] = []
-    const params: any[] = []
-
+    const payload: Record<string, unknown> = {}
     if (input.name !== undefined) {
       const cleanName = input.name.trim()
       if (!cleanName) throw new Error('ชื่อบทบาทไม่สามารถเว้นว่างได้')
-      updates.push('name = ?')
-      params.push(cleanName)
+      payload.name = cleanName
     }
-    if (input.orderIndex !== undefined) {
-      updates.push('order_index = ?')
-      params.push(input.orderIndex)
-    }
-    if (input.isDefault !== undefined) {
-      if (input.isDefault) {
-        await this.queryExecutor(`UPDATE department_roles SET is_default = 0 WHERE id != ?`, [id])
-      }
-      updates.push('is_default = ?')
-      params.push(input.isDefault ? 1 : 0)
-    }
+    if (input.orderIndex !== undefined) payload.orderIndex = input.orderIndex
+    if (input.isDefault !== undefined) payload.isDefault = input.isDefault
 
-    if (updates.length === 0) return true
-    params.push(id)
+    if (Object.keys(payload).length === 0) return true
 
-    await this.queryExecutor(`UPDATE department_roles SET ${updates.join(', ')} WHERE id = ?`, params)
+    await this.gw.updateDepartmentRoleV2(id, payload)
 
     await logAudit(
       'UPDATE',
@@ -422,13 +356,7 @@ export class DepartmentService {
    * Deletes a department role. Prevents deletion if it is the only role left.
    */
   async deleteRole(id: number, actor: ActorInfo): Promise<boolean> {
-    await this.ensureRolesTable()
-    const countRows = await this.queryExecutor(`SELECT COUNT(*) AS count FROM department_roles`)
-    if (Number(countRows[0]?.count || 0) <= 1) {
-      throw new Error('ไม่สามารถลบบทบาทนี้ได้ เนื่องจากต้องมีระดับบทบาทอย่างน้อย 1 รายการในระบบ')
-    }
-
-    await this.queryExecutor(`DELETE FROM department_roles WHERE id = ?`, [id])
+    await this.gw.deleteDepartmentRoleV2(id)
 
     await logAudit(
       'DELETE',
@@ -444,19 +372,9 @@ export class DepartmentService {
    * Reorders department roles atomically based on given array order.
    */
   async reorderRoles(roleIds: number[], actor: ActorInfo): Promise<boolean> {
-    await this.ensureRolesTable()
     if (roleIds.length === 0) return true
 
-    const cases = roleIds.map(() => 'WHEN ? THEN ?').join(' ')
-    const caseParams = roleIds.flatMap((id, idx) => [id, idx])
-    const inPlaceholders = roleIds.map(() => '?').join(', ')
-
-    await this.queryExecutor(
-      `UPDATE department_roles
-       SET order_index = CASE id ${cases} ELSE order_index END
-       WHERE id IN (${inPlaceholders})`,
-      [...caseParams, ...roleIds]
-    )
+    await this.gw.reorderDepartmentRolesV2(roleIds)
 
     await logAudit(
       'UPDATE',
@@ -472,18 +390,14 @@ export class DepartmentService {
    * Retrieves members for a specific group ordered by order_index (the admin's saved drag order).
    * If isPublic=true, phone number is stripped for privacy (PDPA compliance).
    */
-  async getMembersByGroupId(groupId: number, options: { isPublic?: boolean } = {}): Promise<DepartmentMemberRecord[]> {
-    const rows = await this.queryExecutor(
-      `SELECT id, group_id, name, position, role, order_index, image_path, phone, member_id
-       FROM department_members
-       WHERE group_id = ?
-       ORDER BY order_index ASC, id ASC`,
-      [groupId]
-    )
-
+  async getMembersByGroupId(
+    groupId: number,
+    options: { isPublic?: boolean } = {}
+  ): Promise<DepartmentMemberRecord[]> {
+    const rows = await this.gw.listDepartmentMembersV2(groupId)
     if (!Array.isArray(rows)) return []
 
-    const records: DepartmentMemberRecord[] = rows.map((row: any) => {
+    return rows.map((row: Record<string, unknown>) => {
       const record: DepartmentMemberRecord = {
         id: Number(row.id),
         groupId: Number(row.group_id),
@@ -491,8 +405,8 @@ export class DepartmentService {
         position: String(row.position),
         role: String(row.role || 'member'),
         orderIndex: Number(row.order_index || 0),
-        imagePath: row.image_path || null,
-        memberId: row.member_id ? Number(row.member_id) : null
+        imagePath: (row.image_path as string | null) || null,
+        memberId: row.member_id ? Number(row.member_id) : null,
       }
 
       if (!options.isPublic && row.phone) {
@@ -501,11 +415,6 @@ export class DepartmentService {
 
       return record
     })
-
-    // Members are already ordered by order_index ASC, id ASC from the DB query above.
-    // Do NOT re-sort here by role rank — that would override the admin's saved drag order.
-
-    return records
   }
 
   /**
@@ -520,13 +429,18 @@ export class DepartmentService {
     const imagePath = await resolvePublicProfilePath(input.imagePath?.trim() || null, memberId)
     const phone = input.phone?.trim() || null
 
-    const res: any = await this.queryExecutor(
-      `INSERT INTO department_members (group_id, name, position, role, order_index, image_path, phone, member_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [input.groupId, cleanName, cleanPosition, role, orderIndex, imagePath, phone, memberId]
-    )
+    const res = await this.gw.createDepartmentMemberV2({
+      groupId: input.groupId,
+      name: cleanName,
+      position: cleanPosition,
+      role,
+      orderIndex,
+      imagePath,
+      phone,
+      memberId,
+    })
 
-    const insertId = Number(res?.insertId || 0)
+    const insertId = Number(res?.id || 0)
 
     await logAudit(
       'CREATE',
@@ -544,7 +458,7 @@ export class DepartmentService {
       orderIndex,
       imagePath,
       phone,
-      memberId
+      memberId,
     }
   }
 
@@ -552,46 +466,22 @@ export class DepartmentService {
    * Updates an existing member.
    */
   async updateMember(id: number, input: UpdateMemberInput, actor: ActorInfo): Promise<boolean> {
-    const updates: string[] = []
-    const params: any[] = []
-
-    if (input.name !== undefined) {
-      updates.push('name = ?')
-      params.push(input.name.trim())
-    }
-    if (input.position !== undefined) {
-      updates.push('position = ?')
-      params.push(input.position.trim())
-    }
-    if (input.role !== undefined) {
-      updates.push('role = ?')
-      params.push(input.role.trim())
-    }
-    if (input.orderIndex !== undefined) {
-      updates.push('order_index = ?')
-      params.push(input.orderIndex)
-    }
+    const payload: Record<string, unknown> = {}
+    if (input.name !== undefined) payload.name = input.name.trim()
+    if (input.position !== undefined) payload.position = input.position.trim()
+    if (input.role !== undefined) payload.role = input.role.trim()
+    if (input.orderIndex !== undefined) payload.orderIndex = input.orderIndex
     if (input.imagePath !== undefined) {
-      const resolvedImg = await resolvePublicProfilePath(input.imagePath?.trim() || null, input.memberId)
-      updates.push('image_path = ?')
-      params.push(resolvedImg)
+      payload.imagePath = await resolvePublicProfilePath(input.imagePath?.trim() || null, input.memberId)
     }
-    if (input.phone !== undefined) {
-      updates.push('phone = ?')
-      params.push(input.phone?.trim() || null)
-    }
+    if (input.phone !== undefined) payload.phone = input.phone?.trim() || null
     if (input.memberId !== undefined) {
-      updates.push('member_id = ?')
-      params.push(input.memberId && input.memberId > 0 ? input.memberId : null)
+      payload.memberId = input.memberId && input.memberId > 0 ? input.memberId : null
     }
 
-    if (updates.length === 0) return true
-    params.push(id)
+    if (Object.keys(payload).length === 0) return true
 
-    await this.queryExecutor(
-      `UPDATE department_members SET ${updates.join(', ')} WHERE id = ?`,
-      params
-    )
+    await this.gw.updateDepartmentMemberV2(id, payload)
 
     await logAudit(
       'UPDATE',
@@ -607,7 +497,7 @@ export class DepartmentService {
    * Deletes a department member.
    */
   async deleteMember(id: number, actor: ActorInfo): Promise<boolean> {
-    await this.queryExecutor(`DELETE FROM department_members WHERE id = ?`, [id])
+    await this.gw.deleteDepartmentMemberV2(id)
 
     await logAudit(
       'DELETE',
@@ -625,16 +515,7 @@ export class DepartmentService {
   async reorderMembers(groupId: number, memberIds: number[], actor: ActorInfo): Promise<boolean> {
     if (memberIds.length === 0) return true
 
-    const cases = memberIds.map(() => 'WHEN ? THEN ?').join(' ')
-    const caseParams = memberIds.flatMap((id, idx) => [id, idx])
-    const inPlaceholders = memberIds.map(() => '?').join(', ')
-
-    await this.queryExecutor(
-      `UPDATE department_members
-       SET order_index = CASE id ${cases} ELSE order_index END
-       WHERE group_id = ? AND id IN (${inPlaceholders})`,
-      [...caseParams, groupId, ...memberIds]
-    )
+    await this.gw.reorderDepartmentMembersV2(groupId, memberIds)
 
     await logAudit(
       'UPDATE',
@@ -649,27 +530,20 @@ export class DepartmentService {
   /**
    * Fast search across active staff for the public directory (no phone returned).
    */
-  async searchStaff(keyword: string): Promise<Array<DepartmentMemberRecord & { groupName: string }>> {
-    const cleanKw = `%${keyword.trim()}%`
-    const rows = await this.queryExecutor(
-      `SELECT m.id, m.group_id, m.name, m.position, m.role, m.order_index, m.image_path, g.name AS group_name
-       FROM department_members m
-       JOIN department_groups g ON m.group_id = g.id
-       WHERE g.is_active = 1 AND (m.name LIKE ? OR m.position LIKE ?)
-       ORDER BY m.name ASC
-       LIMIT 50`,
-      [cleanKw, cleanKw]
-    )
+  async searchStaff(
+    keyword: string
+  ): Promise<Array<DepartmentMemberRecord & { groupName: string }>> {
+    const rows = await this.gw.searchDepartmentStaffV2(keyword.trim())
 
-    return rows.map((row: any) => ({
+    return rows.map((row: Record<string, unknown>) => ({
       id: Number(row.id),
       groupId: Number(row.group_id),
       name: String(row.name),
       position: String(row.position),
       role: String(row.role || 'member'),
       orderIndex: Number(row.order_index || 0),
-      imagePath: row.image_path || null,
-      groupName: String(row.group_name)
+      imagePath: (row.image_path as string | null) || null,
+      groupName: String(row.group_name),
     }))
   }
 
@@ -677,27 +551,44 @@ export class DepartmentService {
    * Retrieves complete active group tree with embedded members for public display.
    * Excludes phone numbers to comply with PDPA and hospital privacy standards.
    */
-  async getPublicOrgChart(): Promise<any[]> {
-    const [groups, members] = await Promise.all([
-      this.queryExecutor(`
-        SELECT id, name, parent_id, order_index
-        FROM department_groups
-        WHERE is_active = 1
-        ORDER BY order_index ASC, id ASC
-      `),
-      this.queryExecutor(`
-        SELECT m.id, m.group_id, m.name, m.position, m.role, m.order_index, m.image_path
-        FROM department_members m
-        JOIN department_groups g ON m.group_id = g.id
-        WHERE g.is_active = 1
-        ORDER BY m.order_index ASC, m.id ASC
-      `)
-    ])
+  async getPublicOrgChart(): Promise<
+    Array<{
+      id: number
+      name: string
+      parentId: number | null
+      orderIndex: number
+      members: Array<{
+        id: number
+        groupId: number
+        name: string
+        position: string
+        role: string
+        orderIndex: number
+        imagePath: string | null
+      }>
+      children: unknown[]
+    }>
+  > {
+    const raw = await this.gw.getPublicOrgChartRawV2()
+    const groups = raw?.groups
+    const members = raw?.members
 
     if (!Array.isArray(groups) || !Array.isArray(members)) return []
 
-    const memberMap = new Map<number, any[]>()
-    members.forEach((m: any) => {
+    const memberMap = new Map<
+      number,
+      Array<{
+        id: number
+        groupId: number
+        name: string
+        position: string
+        role: string
+        orderIndex: number
+        imagePath: string | null
+      }>
+    >()
+
+    members.forEach((m: Record<string, unknown>) => {
       const gid = Number(m.group_id)
       if (!memberMap.has(gid)) memberMap.set(gid, [])
       memberMap.get(gid)!.push({
@@ -707,17 +598,14 @@ export class DepartmentService {
         position: String(m.position),
         role: String(m.role || 'member'),
         orderIndex: Number(m.order_index || 0),
-        imagePath: m.image_path || null
+        imagePath: (m.image_path as string | null) || null,
       })
     })
-
-    // Members are already ordered by order_index ASC, id ASC from the DB query above.
-    // Do NOT re-sort here by role rank — that would override the admin's saved drag order.
 
     const nodeMap = new Map<number, any>()
     const rootNodes: any[] = []
 
-    groups.forEach((g: any) => {
+    groups.forEach((g: Record<string, unknown>) => {
       const gid = Number(g.id)
       nodeMap.set(gid, {
         id: gid,
@@ -725,11 +613,11 @@ export class DepartmentService {
         parentId: g.parent_id !== null && g.parent_id !== undefined ? Number(g.parent_id) : null,
         orderIndex: Number(g.order_index || 0),
         members: memberMap.get(gid) || [],
-        children: []
+        children: [],
       })
     })
 
-    groups.forEach((g: any) => {
+    groups.forEach((g: Record<string, unknown>) => {
       const gid = Number(g.id)
       const node = nodeMap.get(gid)!
       if (node.parentId && nodeMap.has(node.parentId)) {

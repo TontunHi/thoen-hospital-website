@@ -1,4 +1,4 @@
-import { apiGateway } from '@/lib/apiGateway'
+import { apiGateway, GatewayError, GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import {
   computeInternalPhoneStats,
@@ -36,61 +36,23 @@ export class InternalPhoneValidationError extends Error {
   }
 }
 
-export interface InternalPhoneDbDeps {
-  appQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<T[]>
-  appTransaction: (
-    statements: Array<{ sql: string; params?: unknown[] }>
-  ) => Promise<{
-    count: number
-    results: Array<{ affectedRows: number; insertId: number | null }>
-  }>
+export interface InternalPhoneGatewayAdapter {
+  ensureAndSeedInternalPhonesV2: typeof apiGateway.app.ensureAndSeedInternalPhonesV2
+  listInternalPhonesV2: typeof apiGateway.app.listInternalPhonesV2
+  getInternalPhoneByIdV2: typeof apiGateway.app.getInternalPhoneByIdV2
+  createInternalPhoneV2: typeof apiGateway.app.createInternalPhoneV2
+  updateInternalPhoneV2: typeof apiGateway.app.updateInternalPhoneV2
+  deleteInternalPhoneV2: typeof apiGateway.app.deleteInternalPhoneV2
 }
 
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS hospital_internal_phones (
-    id INT NOT NULL AUTO_INCREMENT,
-    building VARCHAR(150) NOT NULL,
-    floor VARCHAR(50) NULL,
-    room VARCHAR(255) NOT NULL,
-    phone VARCHAR(100) NOT NULL DEFAULT '',
-    note VARCHAR(500) NULL,
-    display_order INT NOT NULL DEFAULT 0,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_by VARCHAR(100) NULL,
-    updated_by VARCHAR(100) NULL,
-    created_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (id),
-    INDEX idx_internal_phone_building_floor (building, floor),
-    INDEX idx_internal_phone_active_order (is_active, display_order)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
-
-const CREATE_META_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS hospital_internal_phones_meta (
-    meta_key VARCHAR(100) NOT NULL,
-    meta_value VARCHAR(255) NOT NULL,
-    updated_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-    PRIMARY KEY (meta_key)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
-
-const SELECT_PHONES_SQL = `
-  SELECT
-    id,
-    building,
-    floor,
-    room,
-    phone,
-    note,
-    display_order AS displayOrder,
-    is_active AS isActive,
-    created_by AS createdBy,
-    updated_by AS updatedBy,
-    created_at AS createdAt,
-    updated_at AS updatedAt
-  FROM hospital_internal_phones
-`
+const defaultInternalPhoneGateway: InternalPhoneGatewayAdapter = {
+  ensureAndSeedInternalPhonesV2: (body) => apiGateway.app.ensureAndSeedInternalPhonesV2(body),
+  listInternalPhonesV2: () => apiGateway.app.listInternalPhonesV2(),
+  getInternalPhoneByIdV2: (id) => apiGateway.app.getInternalPhoneByIdV2(id),
+  createInternalPhoneV2: (body) => apiGateway.app.createInternalPhoneV2(body),
+  updateInternalPhoneV2: (id, body) => apiGateway.app.updateInternalPhoneV2(id, body),
+  deleteInternalPhoneV2: (id) => apiGateway.app.deleteInternalPhoneV2(id),
+}
 
 function serializeTimestamp(val: unknown): string {
   if (!val) return new Date().toISOString()
@@ -115,23 +77,24 @@ function mapRow(raw: InternalPhoneRecordRaw): InternalPhoneRecord {
   }
 }
 
+function isNotFoundGatewayError(err: unknown): boolean {
+  if (err instanceof GatewayNotFoundError) return true
+  if (err instanceof GatewayError && err.status === 404) return true
+  return false
+}
+
 const SEED_VERSION_KEY = 'initial_seed_v2'
 
 export class InternalPhoneService {
-  private readonly deps: InternalPhoneDbDeps
+  private readonly gw: InternalPhoneGatewayAdapter
   private initPromise: Promise<void> | null = null
 
-  constructor(deps?: InternalPhoneDbDeps) {
-    this.deps = deps ?? {
-      appQuery: <T = Record<string, unknown>>(sql: string, params?: unknown[]) =>
-        apiGateway.app.query<T>(sql, params),
-      appTransaction: (statements) => apiGateway.app.transaction(statements),
-    }
+  constructor(gateway: Partial<InternalPhoneGatewayAdapter> = {}) {
+    this.gw = { ...defaultInternalPhoneGateway, ...gateway }
   }
 
   /**
    * Ensures tables exist and replaces any older seed data with the v2 directory
-   * (splitting "ตึกเก่า" -> อาคารร่มฉัตร and "ตึกใหม่" -> อาคารผู้ป่วยนอก/บำบัดรักษาฯ6ชั้น)
    * when `initial_seed_v2` marker is absent.
    */
   async ensureTablesAndSeed(): Promise<void> {
@@ -145,57 +108,25 @@ export class InternalPhoneService {
   }
 
   private async runEnsureTablesAndSeed(): Promise<void> {
-    await this.deps.appTransaction([
-      { sql: 'SET NAMES utf8mb4' },
-      { sql: CREATE_TABLE_SQL },
-      { sql: CREATE_META_TABLE_SQL },
-    ])
-
-    const metaRows = await this.deps.appQuery<{ meta_value: string }>(
-      'SELECT meta_value FROM hospital_internal_phones_meta WHERE meta_key = ?',
-      [SEED_VERSION_KEY]
-    )
-    if (metaRows.length > 0) return
-
-    const statements: Array<{ sql: string; params?: unknown[] }> = [
-      { sql: 'SET NAMES utf8mb4' },
-      { sql: 'DELETE FROM hospital_internal_phones' },
-      ...INITIAL_INTERNAL_PHONES.map((item, idx) => ({
-        sql: `
-          INSERT INTO hospital_internal_phones
-            (building, floor, room, phone, note, display_order, is_active, created_by, updated_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        params: [
-          normalizeBuildingName(item.building),
-          normalizeOptionalText(item.floor),
-          item.room.trim(),
-          normalizePhoneString(item.phone),
-          normalizeOptionalText(item.note),
-          item.displayOrder ?? idx + 1,
-          item.isActive === false ? 0 : 1,
-          'system-seed',
-          'system-seed',
-        ],
-      })),
-      {
-        sql: `
-          INSERT INTO hospital_internal_phones_meta (meta_key, meta_value)
-          VALUES (?, 'done')
-          ON DUPLICATE KEY UPDATE meta_value = 'done'
-        `,
-        params: [SEED_VERSION_KEY],
-      },
-    ]
-    await this.deps.appTransaction(statements)
+    const initialItems = INITIAL_INTERNAL_PHONES.map((item, idx) => ({
+      building: normalizeBuildingName(item.building),
+      floor: normalizeOptionalText(item.floor),
+      room: item.room.trim(),
+      phone: normalizePhoneString(item.phone),
+      note: normalizeOptionalText(item.note),
+      displayOrder: item.displayOrder ?? idx + 1,
+      isActive: item.isActive !== false,
+    }))
+    await this.gw.ensureAndSeedInternalPhonesV2({
+      seedKey: SEED_VERSION_KEY,
+      initialItems,
+    })
   }
 
   async listPhones(filters: InternalPhoneListFilters = {}): Promise<InternalPhoneListResult> {
     await this.ensureTablesAndSeed()
 
-    const rows = await this.deps.appQuery<InternalPhoneRecordRaw>(
-      `${SELECT_PHONES_SQL} ORDER BY display_order ASC, id ASC`
-    )
+    const rows = (await this.gw.listInternalPhonesV2()) as unknown as InternalPhoneRecordRaw[]
     const allSorted = sortInternalPhones(rows.map(mapRow))
     const activeRecords = filters.includeInactive
       ? allSorted
@@ -215,14 +146,19 @@ export class InternalPhoneService {
 
   async getPhoneById(id: number): Promise<InternalPhoneRecord> {
     await this.ensureTablesAndSeed()
-    const rows = await this.deps.appQuery<InternalPhoneRecordRaw>(
-      `${SELECT_PHONES_SQL} WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    if (rows.length === 0) {
-      throw new InternalPhoneNotFoundError('ไม่พบข้อมูลเบอร์โทรภายในรายการนี้')
+    try {
+      const raw = (await this.gw.getInternalPhoneByIdV2(id)) as unknown as InternalPhoneRecordRaw | null
+      if (!raw) {
+        throw new InternalPhoneNotFoundError('ไม่พบข้อมูลเบอร์โทรภายในรายการนี้')
+      }
+      return mapRow(raw)
+    } catch (err) {
+      if (err instanceof InternalPhoneNotFoundError) throw err
+      if (isNotFoundGatewayError(err)) {
+        throw new InternalPhoneNotFoundError('ไม่พบข้อมูลเบอร์โทรภายในรายการนี้')
+      }
+      throw err
     }
-    return mapRow(rows[0])
   }
 
   async createPhone(
@@ -245,38 +181,18 @@ export class InternalPhoneService {
       throw new InternalPhoneValidationError('กรุณาระบุชื่อห้องหรือหน่วยงาน')
     }
 
-    let displayOrder = input.displayOrder
-    if (displayOrder === undefined) {
-      const maxRows = await this.deps.appQuery<{ maxOrder: number | null }>(
-        'SELECT MAX(display_order) AS maxOrder FROM hospital_internal_phones'
-      )
-      displayOrder = Number(maxRows[0]?.maxOrder ?? 0) + 1
-    }
+    const rawCreated = (await this.gw.createInternalPhoneV2({
+      building,
+      floor,
+      room,
+      phone,
+      note,
+      displayOrder: input.displayOrder,
+      isActive: input.isActive !== false,
+      actorUsername,
+    })) as unknown as InternalPhoneRecordRaw
 
-    const tx = await this.deps.appTransaction([
-      { sql: 'SET NAMES utf8mb4' },
-      {
-        sql: `
-          INSERT INTO hospital_internal_phones
-            (building, floor, room, phone, note, display_order, is_active, created_by, updated_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        params: [
-          building,
-          floor,
-          room,
-          phone,
-          note,
-          displayOrder,
-          input.isActive === false ? 0 : 1,
-          actorUsername,
-          actorUsername,
-        ],
-      },
-    ])
-
-    const insertId = Number(tx.results?.[1]?.insertId ?? 0)
-    const created = await this.getPhoneById(insertId)
+    const created = mapRow(rawCreated)
 
     await logAudit(
       'CREATE',
@@ -295,21 +211,18 @@ export class InternalPhoneService {
   ): Promise<InternalPhoneRecord> {
     const existing = await this.getPhoneById(id)
 
-    const setClauses: string[] = []
-    const params: unknown[] = []
+    const payload: Record<string, unknown> = {}
 
     if (input.building !== undefined) {
       const building = normalizeBuildingName(input.building)
       if (!building) {
         throw new InternalPhoneValidationError('กรุณาระบุชื่ออาคาร')
       }
-      setClauses.push('building = ?')
-      params.push(building)
+      payload.building = building
     }
 
     if (input.floor !== undefined) {
-      setClauses.push('floor = ?')
-      params.push(normalizeOptionalText(input.floor))
+      payload.floor = normalizeOptionalText(input.floor)
     }
 
     if (input.room !== undefined) {
@@ -317,48 +230,42 @@ export class InternalPhoneService {
       if (!room) {
         throw new InternalPhoneValidationError('กรุณาระบุชื่อห้องหรือหน่วยงาน')
       }
-      setClauses.push('room = ?')
-      params.push(room)
+      payload.room = room
     }
 
     if (input.phone !== undefined) {
-      setClauses.push('phone = ?')
-      params.push(normalizePhoneString(input.phone))
+      payload.phone = normalizePhoneString(input.phone)
     }
 
     if (input.note !== undefined) {
-      setClauses.push('note = ?')
-      params.push(normalizeOptionalText(input.note))
+      payload.note = normalizeOptionalText(input.note)
     }
 
     if (input.displayOrder !== undefined) {
-      setClauses.push('display_order = ?')
-      params.push(input.displayOrder)
+      payload.displayOrder = input.displayOrder
     }
 
     if (input.isActive !== undefined) {
-      setClauses.push('is_active = ?')
-      params.push(input.isActive ? 1 : 0)
+      payload.isActive = input.isActive
     }
 
-    if (setClauses.length === 0) {
+    if (Object.keys(payload).length === 0) {
       return existing
     }
 
-    const actorUsername = actor.username ?? 'system'
-    setClauses.push('updated_by = ?')
-    params.push(actorUsername)
-    params.push(id)
+    payload.actorUsername = actor.username ?? 'system'
 
-    await this.deps.appTransaction([
-      { sql: 'SET NAMES utf8mb4' },
-      {
-        sql: `UPDATE hospital_internal_phones SET ${setClauses.join(', ')} WHERE id = ?`,
-        params,
-      },
-    ])
+    let rawUpdated: InternalPhoneRecordRaw
+    try {
+      rawUpdated = (await this.gw.updateInternalPhoneV2(id, payload)) as unknown as InternalPhoneRecordRaw
+    } catch (err) {
+      if (isNotFoundGatewayError(err)) {
+        throw new InternalPhoneNotFoundError('ไม่พบข้อมูลเบอร์โทรภายในรายการนี้')
+      }
+      throw err
+    }
 
-    const updated = await this.getPhoneById(id)
+    const updated = mapRow(rawUpdated)
 
     await logAudit(
       'UPDATE',
@@ -371,12 +278,18 @@ export class InternalPhoneService {
   }
 
   async deletePhone(id: number, actor: InternalPhoneActor): Promise<{ id: number }> {
-    const existing = await this.getPhoneById(id)
+    await this.ensureTablesAndSeed()
+    let rawExisting: InternalPhoneRecordRaw
+    try {
+      rawExisting = (await this.gw.deleteInternalPhoneV2(id)) as unknown as InternalPhoneRecordRaw
+    } catch (err) {
+      if (isNotFoundGatewayError(err)) {
+        throw new InternalPhoneNotFoundError('ไม่พบข้อมูลเบอร์โทรภายในรายการนี้')
+      }
+      throw err
+    }
 
-    await this.deps.appTransaction([
-      { sql: 'SET NAMES utf8mb4' },
-      { sql: 'DELETE FROM hospital_internal_phones WHERE id = ?', params: [id] },
-    ])
+    const existing = mapRow(rawExisting)
 
     await logAudit(
       'DELETE',

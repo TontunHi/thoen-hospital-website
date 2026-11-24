@@ -1,4 +1,4 @@
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway, GatewayError } from '@/lib/apiGateway'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
 import { getSwrCachedData, invalidateCacheKey } from '@/lib/cache'
@@ -79,6 +79,30 @@ interface EthicsDocumentRow {
   year?: string
 }
 
+export interface EthicsGatewayAdapter {
+  getEthicsTreeRawV2: typeof apiGateway.app.getEthicsTreeRawV2
+  getEthicsYearByIdV2: typeof apiGateway.app.getEthicsYearByIdV2
+  createEthicsYearV2: typeof apiGateway.app.createEthicsYearV2
+  updateEthicsYearV2: typeof apiGateway.app.updateEthicsYearV2
+  deleteEthicsYearV2: typeof apiGateway.app.deleteEthicsYearV2
+  getEthicsDocumentByIdV2: typeof apiGateway.app.getEthicsDocumentByIdV2
+  createEthicsDocumentV2: typeof apiGateway.app.createEthicsDocumentV2
+  updateEthicsDocumentV2: typeof apiGateway.app.updateEthicsDocumentV2
+  deleteEthicsDocumentV2: typeof apiGateway.app.deleteEthicsDocumentV2
+}
+
+const defaultEthicsGateway: EthicsGatewayAdapter = {
+  getEthicsTreeRawV2: (activeOnly) => apiGateway.app.getEthicsTreeRawV2(activeOnly),
+  getEthicsYearByIdV2: (id) => apiGateway.app.getEthicsYearByIdV2(id),
+  createEthicsYearV2: (body) => apiGateway.app.createEthicsYearV2(body),
+  updateEthicsYearV2: (id, body) => apiGateway.app.updateEthicsYearV2(id, body),
+  deleteEthicsYearV2: (id) => apiGateway.app.deleteEthicsYearV2(id),
+  getEthicsDocumentByIdV2: (id) => apiGateway.app.getEthicsDocumentByIdV2(id),
+  createEthicsDocumentV2: (body) => apiGateway.app.createEthicsDocumentV2(body),
+  updateEthicsDocumentV2: (id, body) => apiGateway.app.updateEthicsDocumentV2(id, body),
+  deleteEthicsDocumentV2: (id) => apiGateway.app.deleteEthicsDocumentV2(id),
+}
+
 const documentSchema = z.object({
   yearId: z.coerce.number().int(),
   parentId: z.coerce.number().int().optional().nullable(),
@@ -87,25 +111,25 @@ const documentSchema = z.object({
   isActive: z.boolean().default(true),
 })
 
+function mapGatewayError(err: unknown, fallbackMessage: string): never {
+  if (err instanceof EthicsServiceError) throw err
+  if (err instanceof GatewayError && (err.status === 400 || err.status === 404)) {
+    throw new EthicsServiceError(err.message || fallbackMessage, err.status)
+  }
+  throw err
+}
+
 export class EthicsDocumentService {
-  static async getDocumentTree(): Promise<EthicsYearNode[]> {
+  static async getDocumentTree(
+    gateway: Partial<EthicsGatewayAdapter> = {}
+  ): Promise<EthicsYearNode[]> {
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
     return getSwrCachedData(
       'ethics:tree',
       async () => {
-        const [years, documents] = await Promise.all([
-          queryMemberDb<EthicsYearRow>(`
-            SELECT id, year, display_order AS displayOrder, is_active AS isActive
-            FROM ethics_years
-            WHERE is_active = 1
-            ORDER BY year DESC, display_order DESC
-          `),
-          queryMemberDb<EthicsDocumentRow>(`
-            SELECT id, year_id AS yearId, parent_id AS parentId, title, file_path AS filePath, file_size AS fileSize, display_order AS displayOrder, is_active AS isActive
-            FROM ethics_documents
-            WHERE is_active = 1
-            ORDER BY display_order ASC, id ASC
-          `),
-        ])
+        const raw = await gw.getEthicsTreeRawV2(true)
+        const years = (raw?.years || []) as unknown as EthicsYearRow[]
+        const documents = (raw?.documents || []) as unknown as EthicsDocumentRow[]
 
         return years.map((yearItem) => {
           const yearDocs = documents.filter((doc) => doc.yearId === yearItem.id)
@@ -143,19 +167,13 @@ export class EthicsDocumentService {
     )
   }
 
-  static async getYears(): Promise<Array<EthicsYearRow & { documents: Array<Omit<EthicsDocumentRow, 'fileSize'> & { fileSize: string | null }> }>> {
-    const [years, documents] = await Promise.all([
-      queryMemberDb<EthicsYearRow>(`
-        SELECT id, year, display_order AS displayOrder, is_active AS isActive
-        FROM ethics_years
-        ORDER BY display_order ASC, year DESC
-      `),
-      queryMemberDb<EthicsDocumentRow>(`
-        SELECT id, year_id AS yearId, parent_id AS parentId, title, file_path AS filePath, file_size AS fileSize, display_order AS displayOrder, is_active AS isActive
-        FROM ethics_documents
-        ORDER BY display_order ASC, id ASC
-      `),
-    ])
+  static async getYears(
+    gateway: Partial<EthicsGatewayAdapter> = {}
+  ): Promise<Array<EthicsYearRow & { documents: Array<Omit<EthicsDocumentRow, 'fileSize'> & { fileSize: string | null }> }>> {
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
+    const raw = await gw.getEthicsTreeRawV2(false)
+    const years = (raw?.years || []) as unknown as EthicsYearRow[]
+    const documents = (raw?.documents || []) as unknown as EthicsDocumentRow[]
 
     return years.map((y) => {
       const yearDocs = documents.filter((d) => d.yearId === y.id)
@@ -173,8 +191,10 @@ export class EthicsDocumentService {
 
   static async createDocument(
     input: CreateEthicsDocumentInput,
-    actor: { username: string; session?: Record<string, unknown> | null }
+    actor: { username: string; session?: Record<string, unknown> | null },
+    gateway: Partial<EthicsGatewayAdapter> = {}
   ): Promise<EthicsDocumentResponse> {
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
     const parsed = documentSchema.safeParse({
       yearId: input.yearId,
       parentId: input.parentId,
@@ -189,11 +209,7 @@ export class EthicsDocumentService {
 
     const { yearId, parentId, title, displayOrder, isActive } = parsed.data
 
-    const yearRows = await queryMemberDb<{ id: number; year: string }>(
-      'SELECT id, year FROM ethics_years WHERE id = ?',
-      [yearId]
-    )
-    const yearRecord = yearRows[0]
+    const yearRecord = await gw.getEthicsYearByIdV2(yearId)
     if (!yearRecord) {
       throw new EthicsServiceError('ไม่พบปีงบประมาณที่ระบุ', 404)
     }
@@ -213,23 +229,17 @@ export class EthicsDocumentService {
       fileSize = BigInt(saved.fileSize)
     }
 
-    const res = (await queryMemberDb(
-      `
-      INSERT INTO ethics_documents (year_id, parent_id, title, file_path, file_size, display_order, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `,
-      [
-        yearId,
-        parentId || null,
-        title,
-        filePath,
-        fileSize ? Number(fileSize) : null,
-        displayOrder,
-        isActive ? 1 : 0,
-      ]
-    )) as unknown as { insertId?: number } & Array<{ insertId?: number }>
+    const created = await gw.createEthicsDocumentV2({
+      yearId,
+      parentId: parentId || null,
+      title,
+      filePath,
+      fileSize: fileSize ? Number(fileSize) : null,
+      displayOrder,
+      isActive,
+    })
 
-    const createdId = Number(res?.insertId || res?.[0]?.insertId || 0)
+    const createdId = Number(created?.id || 0)
 
     await logAudit(
       'CREATE',
@@ -254,18 +264,11 @@ export class EthicsDocumentService {
 
   static async updateDocument(
     input: UpdateEthicsDocumentInput,
-    actor: { username: string; session?: Record<string, unknown> | null }
+    actor: { username: string; session?: Record<string, unknown> | null },
+    gateway: Partial<EthicsGatewayAdapter> = {}
   ): Promise<EthicsDocumentResponse> {
-    const existingRows = await queryMemberDb<EthicsDocumentRow>(
-      `
-      SELECT d.id, d.title, d.file_path AS filePath, d.file_size AS fileSize, d.display_order AS displayOrder, d.is_active AS isActive, y.year
-      FROM ethics_documents d
-      JOIN ethics_years y ON d.year_id = y.id
-      WHERE d.id = ?
-    `,
-      [input.id]
-    )
-    const existing = existingRows[0]
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
+    const existing = (await gw.getEthicsDocumentByIdV2(input.id)) as unknown as EthicsDocumentRow | null
     if (!existing) {
       throw new EthicsServiceError('ไม่พบเอกสารที่ต้องการแก้ไข', 404)
     }
@@ -293,21 +296,13 @@ export class EthicsDocumentService {
     const newIsActive =
       input.isActive !== undefined ? input.isActive : Boolean(existing.isActive)
 
-    await queryMemberDb(
-      `
-      UPDATE ethics_documents
-      SET title = ?, display_order = ?, is_active = ?, file_path = ?, file_size = ?, updated_at = NOW()
-      WHERE id = ?
-    `,
-      [
-        newTitle,
-        newDisplayOrder,
-        newIsActive ? 1 : 0,
-        filePath,
-        fileSize ? Number(fileSize) : null,
-        input.id,
-      ]
-    )
+    await gw.updateEthicsDocumentV2(input.id, {
+      title: newTitle,
+      displayOrder: newDisplayOrder,
+      isActive: newIsActive,
+      filePath,
+      fileSize: fileSize ? Number(fileSize) : null,
+    })
 
     await logAudit(
       'UPDATE',
@@ -331,41 +326,30 @@ export class EthicsDocumentService {
   static async deleteDocument(
     id: string,
     actorId: string,
-    actorSession?: Record<string, unknown> | null
+    actorSession?: Record<string, unknown> | null,
+    gateway: Partial<EthicsGatewayAdapter> = {}
   ): Promise<void> {
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
     const docId = parseInt(id, 10)
     if (isNaN(docId)) throw new EthicsServiceError('Invalid ID', 400)
 
-    const rows = await queryMemberDb<{ id: number; title: string; filePath: string | null }>(
-      'SELECT id, title, file_path AS filePath FROM ethics_documents WHERE id = ?',
-      [docId]
-    )
-    const existing = rows[0]
-    if (!existing) {
-      throw new EthicsServiceError('ไม่พบเอกสารที่ต้องการลบ', 404)
+    let deleted: { title: string; filePaths: string[] }
+    try {
+      deleted = await gw.deleteEthicsDocumentV2(docId)
+    } catch (err) {
+      mapGatewayError(err, 'ไม่พบเอกสารที่ต้องการลบ')
     }
 
-    const children = await queryMemberDb<{ id: number; filePath: string | null }>(
-      'SELECT id, file_path AS filePath FROM ethics_documents WHERE parent_id = ?',
-      [docId]
-    )
-
-    for (const child of children) {
-      if (child.filePath) {
-        await DocumentStorage.delete(child.filePath)
+    for (const filePath of deleted.filePaths || []) {
+      if (filePath) {
+        await DocumentStorage.delete(filePath)
       }
     }
-    if (existing.filePath) {
-      await DocumentStorage.delete(existing.filePath)
-    }
-
-    await queryMemberDb('DELETE FROM ethics_documents WHERE parent_id = ?', [docId])
-    await queryMemberDb('DELETE FROM ethics_documents WHERE id = ?', [docId])
 
     await logAudit(
       'DELETE',
       'ethics_documents',
-      `ลบเอกสารจริยธรรม "${existing.title}" (ID: ${docId}) พร้อมเอกสารย่อย โดย ${actorId}`,
+      `ลบเอกสารจริยธรรม "${deleted.title}" (ID: ${docId}) พร้อมเอกสารย่อย โดย ${actorId}`,
       actorSession
     )
 
@@ -374,22 +358,22 @@ export class EthicsDocumentService {
 
   static async createYear(
     input: EthicsYearInput,
-    actor: { username: string; session?: Record<string, unknown> | null }
+    actor: { username: string; session?: Record<string, unknown> | null },
+    gateway: Partial<EthicsGatewayAdapter> = {}
   ) {
-    const existingRows = await queryMemberDb<{ id: number }>(
-      'SELECT id FROM ethics_years WHERE year = ?',
-      [input.year]
-    )
-    if (existingRows.length > 0) {
-      throw new EthicsServiceError(`ปีงบประมาณ ${input.year} มีอยู่ในระบบแล้ว`, 400)
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
+    let created: { id: number }
+    try {
+      created = await gw.createEthicsYearV2({
+        year: input.year,
+        displayOrder: input.displayOrder,
+        isActive: input.isActive,
+      })
+    } catch (err) {
+      mapGatewayError(err, `ปีงบประมาณ ${input.year} มีอยู่ในระบบแล้ว`)
     }
 
-    const res = (await queryMemberDb(
-      'INSERT INTO ethics_years (year, display_order, is_active, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
-      [input.year, input.displayOrder, input.isActive ? 1 : 0]
-    )) as unknown as { insertId?: number } & Array<{ insertId?: number }>
-
-    const createdId = Number(res?.insertId || res?.[0]?.insertId || 0)
+    const createdId = Number(created?.id || 0)
 
     await logAudit(
       'CREATE',
@@ -411,12 +395,15 @@ export class EthicsDocumentService {
   static async updateYear(
     id: number,
     input: EthicsYearInput,
-    actor: { username: string; session?: Record<string, unknown> | null }
+    actor: { username: string; session?: Record<string, unknown> | null },
+    gateway: Partial<EthicsGatewayAdapter> = {}
   ) {
-    await queryMemberDb(
-      'UPDATE ethics_years SET year = ?, display_order = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
-      [input.year, input.displayOrder, input.isActive ? 1 : 0, id]
-    )
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
+    await gw.updateEthicsYearV2(id, {
+      year: input.year,
+      displayOrder: input.displayOrder,
+      isActive: input.isActive,
+    })
 
     await logAudit(
       'UPDATE',
@@ -437,38 +424,31 @@ export class EthicsDocumentService {
 
   static async deleteYear(
     id: number,
-    actor: { username: string; session?: Record<string, unknown> | null }
+    actor: { username: string; session?: Record<string, unknown> | null },
+    gateway: Partial<EthicsGatewayAdapter> = {}
   ): Promise<{ year: string }> {
-    const existingRows = await queryMemberDb<{ id: number; year: string }>(
-      'SELECT id, year FROM ethics_years WHERE id = ?',
-      [id]
-    )
-    const existing = existingRows[0]
-    if (!existing) {
-      throw new EthicsServiceError('ไม่พบปีงบประมาณที่ต้องการลบ', 404)
+    const gw: EthicsGatewayAdapter = { ...defaultEthicsGateway, ...gateway }
+    let deleted: { year: string; filePaths: string[] }
+    try {
+      deleted = await gw.deleteEthicsYearV2(id)
+    } catch (err) {
+      mapGatewayError(err, 'ไม่พบปีงบประมาณที่ต้องการลบ')
     }
 
-    const docs = await queryMemberDb<{ filePath: string | null }>(
-      'SELECT file_path AS filePath FROM ethics_documents WHERE year_id = ?',
-      [id]
-    )
-    for (const doc of docs) {
-      if (doc.filePath) {
-        await DocumentStorage.delete(doc.filePath)
+    for (const filePath of deleted.filePaths || []) {
+      if (filePath) {
+        await DocumentStorage.delete(filePath)
       }
     }
-
-    await queryMemberDb('DELETE FROM ethics_documents WHERE year_id = ?', [id])
-    await queryMemberDb('DELETE FROM ethics_years WHERE id = ?', [id])
 
     await logAudit(
       'DELETE',
       'ethics_years',
-      `ลบปีงบประมาณชมรมจริยธรรม ${existing.year} (ID: ${id}) พร้อมเอกสารทั้งหมด โดย ${actor.username}`,
+      `ลบปีงบประมาณชมรมจริยธรรม ${deleted.year} (ID: ${id}) พร้อมเอกสารทั้งหมด โดย ${actor.username}`,
       actor.session
     )
 
     invalidateCacheKey('ethics:tree')
-    return { year: existing.year }
+    return { year: deleted.year }
   }
 }

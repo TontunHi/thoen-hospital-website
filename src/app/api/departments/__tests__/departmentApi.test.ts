@@ -21,9 +21,6 @@ vi.mock('@/lib/apiGateway', () => ({
     },
   },
 }))
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: vi.fn(),
-}))
 vi.mock('@/lib/departments/departmentImageUtils', () => ({
   resolvePublicProfilePath: vi.fn((p, id) => Promise.resolve(p ? `/uploads/org-chart/member-${id}.jpg` : null)),
 }))
@@ -202,7 +199,7 @@ describe('Department API Routes', () => {
   describe('Public API', () => {
     it('GET /api/departments/public returns org chart for guests', async () => {
       vi.mocked(departmentService.getPublicOrgChart).mockResolvedValueOnce([
-        { id: 1, name: 'การพยาบาล', members: [], children: [] }
+        { id: 1, name: 'การพยาบาล', parentId: null, orderIndex: 0, members: [], children: [] }
       ])
 
       const res = await getPublicOrgChart()

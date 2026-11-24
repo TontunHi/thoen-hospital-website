@@ -139,28 +139,30 @@ describe('projectTrackerDomain', () => {
 })
 
 describe('ProjectTrackerService', () => {
-  it('pins SET NAMES utf8mb4, does not auto-seed hardcoded records, and derives filter options from DB rows', async () => {
+  it('ensures schema via Gateway V2, does not auto-seed hardcoded records, and derives filter options from DB rows', async () => {
     const sampleRow = seedToRecord(0)
-    const appQuery = vi
-      .fn()
-      // 1. distinct fiscal years
-      .mockResolvedValueOnce([{ fiscalYear: 2570 }])
-      // 2. records for FY 2570
-      .mockResolvedValueOnce([sampleRow])
-      // 3. getNextSequenceNo for createProject
-      .mockResolvedValueOnce([{ maxSeq: 1 }])
-      // 4. getByIdOrThrow after create
-      .mockResolvedValueOnce([{ ...sampleRow, id: 99, sequenceNo: 2, projectName: 'โครงการใหม่' }])
+    const ensureProjectsSchemaV2 = vi.fn().mockResolvedValue({ ensured: true })
+    const getProjectsBundleV2 = vi.fn().mockResolvedValue({
+      targetFiscalYear: 2570,
+      fyRows: [{ fiscalYear: 2570 }],
+      allYearRows: [sampleRow],
+    })
+    const createProjectV2 = vi.fn().mockResolvedValue({
+      ...sampleRow,
+      id: 99,
+      sequenceNo: 2,
+      projectName: 'โครงการใหม่',
+    })
 
-    const appTransaction = vi
-      .fn()
-      .mockResolvedValue({ count: 2, results: [{ affectedRows: 0, insertId: null }, { affectedRows: 1, insertId: 99 }] })
-
-    const service = new ProjectTrackerService({ appQuery, appTransaction })
+    const service = new ProjectTrackerService({
+      ensureProjectsSchemaV2,
+      getProjectsBundleV2,
+      createProjectV2,
+    })
     const listResult = await service.listProjects({ fiscalYear: 2570 })
 
-    // Only schema creation transaction should run during ensureSchema (no seed insert transaction)
-    expect(appTransaction).toHaveBeenCalledTimes(1)
+    expect(ensureProjectsSchemaV2).toHaveBeenCalledTimes(1)
+    expect(getProjectsBundleV2).toHaveBeenCalledWith(2570)
     expect(listResult.items).toHaveLength(1)
     expect(listResult.items[0].allocatedBudget).toBe(26500)
     expect(listResult.availableFiscalYears).toEqual([2570])
@@ -178,21 +180,18 @@ describe('ProjectTrackerService', () => {
       { username: 'tester', email: 'tester@thoen.local' }
     )
     expect(created.id).toBe(99)
-    expect(appTransaction).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ sql: 'SET NAMES utf8mb4' })])
+    expect(createProjectV2).toHaveBeenCalledWith(
+      expect.objectContaining({ fiscalYear: 2570, projectName: 'โครงการใหม่', q1Budget: 1000 }),
+      'tester'
     )
   })
 
-  it('batches batchImportProjects into multi-row INSERT chunks and logs deletedCount in replace mode', async () => {
-    const appQuery = vi.fn().mockResolvedValue([])
-    const appTransaction = vi.fn().mockResolvedValue({
-      count: 4,
-      results: [
-        { affectedRows: 0, insertId: null },
-        { affectedRows: 12, insertId: null },
-        { affectedRows: 100, insertId: 1 },
-        { affectedRows: 50, insertId: 101 },
-      ],
+  it('delegates batchImportProjects to Gateway V2 in replace mode and preserves total count', async () => {
+    const ensureProjectsSchemaV2 = vi.fn().mockResolvedValue({ ensured: true })
+    const batchImportProjectsV2 = vi.fn().mockResolvedValue({
+      inserted: 150,
+      deletedCount: 12,
+      fiscalYear: 2571,
     })
 
     const rows = Array.from({ length: 150 }, (_, idx) => ({
@@ -202,7 +201,10 @@ describe('ProjectTrackerService', () => {
       q1Budget: 1000,
     }))
 
-    const service = new ProjectTrackerService({ appQuery, appTransaction })
+    const service = new ProjectTrackerService({
+      ensureProjectsSchemaV2,
+      batchImportProjectsV2,
+    })
     const res = await service.batchImportProjects(2571, rows, 'replace', {
       username: 'importer',
       email: 'importer@thoen.local',
@@ -215,12 +217,14 @@ describe('ProjectTrackerService', () => {
       fiscalYear: 2571,
     })
 
-    // EnsureSchema + Batch Import = 2 transactions; batch import has SET NAMES + DELETE + 2 chunked INSERTs = 4 statements
-    expect(appTransaction).toHaveBeenCalledTimes(2)
-    const batchStatements = appTransaction.mock.calls[1][0]
-    expect(batchStatements).toHaveLength(4)
-    expect(batchStatements[1].sql).toContain('DELETE FROM project_tracking_records')
-    expect(batchStatements[2].params).toHaveLength(100 * 16)
-    expect(batchStatements[3].params).toHaveLength(50 * 16)
+    expect(ensureProjectsSchemaV2).toHaveBeenCalledTimes(1)
+    expect(batchImportProjectsV2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fiscalYear: 2571,
+        mode: 'replace',
+        actorKey: 'importer',
+      })
+    )
+    expect(batchImportProjectsV2.mock.calls[0][0].rows).toHaveLength(150)
   })
 })

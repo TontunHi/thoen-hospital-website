@@ -4,6 +4,7 @@ vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
+import { GatewayNotFoundError } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import {
   buildBuildingSummaries,
@@ -18,12 +19,12 @@ import { INITIAL_INTERNAL_PHONES } from '../internalPhoneSeedData'
 import {
   InternalPhoneNotFoundError,
   InternalPhoneService,
-  type InternalPhoneDbDeps,
+  type InternalPhoneGatewayAdapter,
 } from '../internalPhoneService'
 import type { InternalPhoneRecordRaw } from '../internalPhoneTypes'
 
-function createInMemoryDeps(initialRows: InternalPhoneRecordRaw[] = []): {
-  deps: InternalPhoneDbDeps
+function createInMemoryGateway(initialRows: InternalPhoneRecordRaw[] = []): {
+  gateway: InternalPhoneGatewayAdapter
   rows: InternalPhoneRecordRaw[]
   meta: Map<string, string>
 } {
@@ -31,130 +32,76 @@ function createInMemoryDeps(initialRows: InternalPhoneRecordRaw[] = []): {
   const rows: InternalPhoneRecordRaw[] = [...initialRows]
   const meta = new Map<string, string>()
 
-  const executeStatement = (sql: string, params: unknown[] = []) => {
-    const normalized = sql.trim().replace(/\s+/g, ' ').toUpperCase()
-
-    if (
-      normalized.startsWith('SET NAMES') ||
-      normalized.startsWith('CREATE TABLE')
-    ) {
-      return { affectedRows: 0, insertId: null }
-    }
-
-    if (normalized.startsWith('INSERT INTO HOSPITAL_INTERNAL_PHONES_META')) {
-      const key = String(params[0] ?? 'initial_seed_v2')
-      meta.set(key, 'done')
-      return { affectedRows: 1, insertId: null }
-    }
-
-    if (normalized.startsWith('INSERT INTO HOSPITAL_INTERNAL_PHONES')) {
-      const [
-        building,
-        floor,
-        room,
-        phone,
-        note,
-        displayOrder,
-        isActive,
-        createdBy,
-        updatedBy,
-      ] = params as [
-        string,
-        string | null,
-        string,
-        string,
-        string | null,
-        number,
-        number,
-        string,
-        string,
-      ]
-      const newRow: InternalPhoneRecordRaw = {
+  const gateway: InternalPhoneGatewayAdapter = {
+    ensureAndSeedInternalPhonesV2: async ({ seedKey = 'initial_seed_v2', initialItems }) => {
+      if (meta.has(seedKey)) return { seeded: false }
+      rows.length = 0
+      for (const item of initialItems) {
+        rows.push({
+          id: nextId++,
+          building: String(item.building),
+          floor: (item.floor as string | null) ?? null,
+          room: String(item.room),
+          phone: String(item.phone),
+          note: (item.note as string | null) ?? null,
+          displayOrder: Number(item.displayOrder ?? 0),
+          isActive: item.isActive === false ? 0 : 1,
+          createdBy: 'system-seed',
+          updatedBy: 'system-seed',
+          createdAt: '2026-11-20T06:00:00.000Z',
+          updatedAt: '2026-11-20T06:00:00.000Z',
+        })
+      }
+      meta.set(seedKey, 'done')
+      return { seeded: true }
+    },
+    listInternalPhonesV2: async () => [...rows] as unknown as Array<Record<string, unknown>>,
+    getInternalPhoneByIdV2: async (id) => {
+      const found = rows.find((r) => r.id === id)
+      if (!found) throw new GatewayNotFoundError('Not found')
+      return { ...found } as unknown as Record<string, unknown>
+    },
+    createInternalPhoneV2: async (body) => {
+      const maxOrder = rows.reduce((m, r) => Math.max(m, r.displayOrder), 0)
+      const created: InternalPhoneRecordRaw = {
         id: nextId++,
-        building,
-        floor,
-        room,
-        phone,
-        note,
-        displayOrder,
-        isActive,
-        createdBy,
-        updatedBy,
+        building: String(body.building),
+        floor: (body.floor as string | null) ?? null,
+        room: String(body.room),
+        phone: String(body.phone ?? ''),
+        note: (body.note as string | null) ?? null,
+        displayOrder: body.displayOrder !== undefined ? Number(body.displayOrder) : maxOrder + 1,
+        isActive: body.isActive === false ? 0 : 1,
+        createdBy: String(body.actorUsername ?? 'system'),
+        updatedBy: String(body.actorUsername ?? 'system'),
         createdAt: '2026-11-20T06:00:00.000Z',
         updatedAt: '2026-11-20T06:00:00.000Z',
       }
-      rows.push(newRow)
-      return { affectedRows: 1, insertId: newRow.id }
-    }
-
-    if (normalized.startsWith('UPDATE HOSPITAL_INTERNAL_PHONES SET')) {
-      const id = Number(params[params.length - 1])
+      rows.push(created)
+      return { ...created } as unknown as Record<string, unknown>
+    },
+    updateInternalPhoneV2: async (id, body) => {
       const target = rows.find((r) => r.id === id)
-      if (!target) return { affectedRows: 0, insertId: null }
-
-      const setClause = sql.slice(sql.indexOf('SET') + 3, sql.indexOf('WHERE')).trim()
-      const fields = setClause.split(',').map((part) => part.split('=')[0].trim())
-      fields.forEach((col, idx) => {
-        const val = params[idx]
-        if (col === 'building') target.building = String(val)
-        if (col === 'floor') target.floor = (val as string | null) ?? null
-        if (col === 'room') target.room = String(val)
-        if (col === 'phone') target.phone = String(val)
-        if (col === 'note') target.note = (val as string | null) ?? null
-        if (col === 'display_order') target.displayOrder = Number(val)
-        if (col === 'is_active') target.isActive = Number(val)
-        if (col === 'updated_by') target.updatedBy = String(val)
-      })
-      return { affectedRows: 1, insertId: null }
-    }
-
-    if (normalized === 'DELETE FROM HOSPITAL_INTERNAL_PHONES') {
-      const count = rows.length
-      rows.length = 0
-      return { affectedRows: count, insertId: null }
-    }
-
-    if (normalized.startsWith('DELETE FROM HOSPITAL_INTERNAL_PHONES WHERE ID =')) {
-      const id = Number(params[0])
+      if (!target) throw new GatewayNotFoundError('Not found')
+      if (body.building !== undefined) target.building = String(body.building)
+      if (body.floor !== undefined) target.floor = (body.floor as string | null) ?? null
+      if (body.room !== undefined) target.room = String(body.room)
+      if (body.phone !== undefined) target.phone = String(body.phone)
+      if (body.note !== undefined) target.note = (body.note as string | null) ?? null
+      if (body.displayOrder !== undefined) target.displayOrder = Number(body.displayOrder)
+      if (body.isActive !== undefined) target.isActive = body.isActive ? 1 : 0
+      if (body.actorUsername !== undefined) target.updatedBy = String(body.actorUsername)
+      return { ...target } as unknown as Record<string, unknown>
+    },
+    deleteInternalPhoneV2: async (id) => {
       const idx = rows.findIndex((r) => r.id === id)
-      if (idx === -1) return { affectedRows: 0, insertId: null }
-      rows.splice(idx, 1)
-      return { affectedRows: 1, insertId: null }
-    }
-
-    return { affectedRows: 0, insertId: null }
-  }
-
-  const deps: InternalPhoneDbDeps = {
-    appQuery: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []) => {
-      const normalized = sql.trim().replace(/\s+/g, ' ').toUpperCase()
-      if (normalized.includes('FROM HOSPITAL_INTERNAL_PHONES_META')) {
-        const val = meta.get(String(params[0] ?? ''))
-        return (val ? [{ meta_value: val }] : []) as T[]
-      }
-      if (normalized.includes('SELECT COUNT(*) AS TOTAL FROM HOSPITAL_INTERNAL_PHONES')) {
-        return [{ total: rows.length }] as T[]
-      }
-      if (normalized.includes('SELECT MAX(DISPLAY_ORDER)')) {
-        const maxOrder = rows.reduce((m, r) => Math.max(m, r.displayOrder), 0)
-        return [{ maxOrder }] as T[]
-      }
-      if (normalized.includes('WHERE ID = ?')) {
-        const id = Number(params[0])
-        return rows.filter((r) => r.id === id) as T[]
-      }
-      if (normalized.includes('FROM HOSPITAL_INTERNAL_PHONES')) {
-        return [...rows] as T[]
-      }
-      return [] as T[]
-    },
-    appTransaction: async (statements) => {
-      const results = statements.map((stmt) => executeStatement(stmt.sql, stmt.params))
-      return { count: results.length, results }
+      if (idx === -1) throw new GatewayNotFoundError('Not found')
+      const [removed] = rows.splice(idx, 1)
+      return { ...removed } as unknown as Record<string, unknown>
     },
   }
 
-  return { deps, rows, meta }
+  return { gateway, rows, meta }
 }
 
 describe('internalPhoneDomain', () => {
@@ -250,8 +197,8 @@ describe('InternalPhoneService', () => {
   })
 
   it('seeds 62 initial entries automatically when table is empty', async () => {
-    const { deps, rows, meta } = createInMemoryDeps()
-    const service = new InternalPhoneService(deps)
+    const { gateway, rows, meta } = createInMemoryGateway()
+    const service = new InternalPhoneService(gateway)
 
     const result = await service.listPhones()
     expect(rows).toHaveLength(62)
@@ -263,7 +210,7 @@ describe('InternalPhoneService', () => {
   })
 
   it('replaces legacy v1 rows completely when initial_seed_v2 has not run yet', async () => {
-    const { deps, rows, meta } = createInMemoryDeps([
+    const { gateway, rows, meta } = createInMemoryGateway([
       {
         id: 999,
         building: 'อาคารร่มฉัตร',
@@ -280,7 +227,7 @@ describe('InternalPhoneService', () => {
       },
     ])
     meta.set('initial_seed_v1', 'done')
-    const service = new InternalPhoneService(deps)
+    const service = new InternalPhoneService(gateway)
 
     const result = await service.listPhones()
     expect(meta.get('initial_seed_v2')).toBe('done')
@@ -292,8 +239,8 @@ describe('InternalPhoneService', () => {
   })
 
   it('creates, updates, and deletes entries and writes audit logs', async () => {
-    const { deps } = createInMemoryDeps()
-    const service = new InternalPhoneService(deps)
+    const { gateway } = createInMemoryGateway()
+    const service = new InternalPhoneService(gateway)
 
     const created = await service.createPhone(
       {
