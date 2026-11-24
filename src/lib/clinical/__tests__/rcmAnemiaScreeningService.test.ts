@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import {
   RcmAnemiaScreeningService,
   isUniversalCoverageScheme,
   getFiscalYearStartDate,
   type AnemiaScreeningReportParams,
 } from '../rcmAnemiaScreeningService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmAnemiaScreeningService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   describe('isUniversalCoverageScheme', () => {
@@ -45,31 +48,31 @@ describe('RcmAnemiaScreeningService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped true when ADP 13001 exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '3002545',
-          name: 'คัดกรอง CBC (Z130)  13001 Project code',
-          strength: '',
-          nhso_adp_code: '13001',
-        },
-      ])
+    it('returns isMapped true when ADP 13001 exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '13001',
+        adpItems: [
+          {
+            icode: '3002545',
+            name: 'คัดกรอง CBC (Z130)  13001 Project code',
+            strength: '',
+            nhso_adp_code: '13001',
+          },
+        ],
+      })
 
-      const result = await RcmAnemiaScreeningService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmAnemiaScreeningService.checkAdpMapping(mockGateway, true)
       expect(result.adpCode).toBe('13001')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('3002545')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('FROM s_drugitems'),
-        ['13001'],
-        expect.any(Object)
-      )
+      expect(mockGateway.getAdpMapping).toHaveBeenCalledWith('13001', { refresh: true })
     })
 
-    it('returns isMapped false when database query throws or returns empty', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB connection failed'))
-      const result = await RcmAnemiaScreeningService.checkAdpMapping(mockExecutor, true)
+    it('returns isMapped false when gateway throws or returns empty', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: '13001', adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway connection failed'))
+      const result = await RcmAnemiaScreeningService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -155,21 +158,20 @@ describe('RcmAnemiaScreeningService', () => {
       },
     ]
 
-    const createMockExecutor = () => {
-      return vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            {
-              icode: '3002545',
-              name: 'คัดกรอง CBC (Z130)  13001 Project code',
-              strength: '',
-              nhso_adp_code: '13001',
-            },
-          ])
-        }
-        return Promise.resolve(mockRawRows)
+    const createMockExecutor = () =>
+      createMockRcmFundGateway({
+        adpCode: '13001',
+        fundKey: 'anemia-screening',
+        adpItems: [
+          {
+            icode: '3002545',
+            name: 'คัดกรอง CBC (Z130)  13001 Project code',
+            strength: '',
+            nhso_adp_code: '13001',
+          },
+        ],
+        rawRows: mockRawRows,
       })
-    }
 
     it('calculates summary aggregates accurately', async () => {
       const mockExecutor = createMockExecutor()

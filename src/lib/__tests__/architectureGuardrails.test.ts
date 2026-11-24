@@ -134,25 +134,20 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/gateway/clinicalGatewayNamespace.ts',
       'src/lib/gateway/salaryGatewayNamespace.ts',
       // Phase 1A: Salary Dual-Path (completed -> 0)
-      // Phase 1B: RCM Specific Funds Dual-Path (26)
+      // Phase 1B: RCM Specific Funds Dual-Path (21 remaining)
       'src/lib/clinical/family-planning/service91Report.ts',
       'src/lib/clinical/family-planning/service93Report.ts',
       'src/lib/clinical/rcmAdpSearchService.ts',
       'src/lib/clinical/rcmAmedHomewardService.ts',
       'src/lib/clinical/rcmAncService.ts',
-      'src/lib/clinical/rcmAnemiaScreeningService.ts',
       'src/lib/clinical/rcmCancerFundService.ts',
       'src/lib/clinical/rcmClopidogrelService.ts',
-      'src/lib/clinical/rcmColorectalCancerService.ts',
-      'src/lib/clinical/rcmDentalImplantService.ts',
-      'src/lib/clinical/rcmFluorideVarnishService.ts',
       'src/lib/clinical/rcmHealthScreeningService.ts',
       'src/lib/clinical/rcmHepatitisCService.ts',
       'src/lib/clinical/rcmImcService.ts',
       'src/lib/clinical/rcmInstrumentFundService.ts',
       'src/lib/clinical/rcmIronSupplementsService.ts',
       'src/lib/clinical/rcmOpdDebtRegistryService.ts',
-      'src/lib/clinical/rcmOralCancerService.ts',
       'src/lib/clinical/rcmPostpartumService.ts',
       'src/lib/clinical/rcmPregnancyTestService.ts',
       'src/lib/clinical/rcmRehabilitationService.ts',
@@ -161,7 +156,7 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/clinical/rcmT1dmImportService.ts',
       'src/lib/clinical/rcmTelemedDrugService.ts',
       'src/lib/clinical/rcmWalkinFundService.ts',
-      // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (9)
+      // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (8 remaining)
       'src/lib/clinical/clinicalRecordsService.ts',
       'src/lib/clinical/ipdWardService.ts',
       'src/lib/clinical/ltcRegistryService.ts',
@@ -170,17 +165,15 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/clinical/palliative-registry/typesAndLookup.ts',
       'src/lib/clinical/palliativeRegistryService.ts',
       'src/lib/clinical/rcm-dashboard/invoiceReports.ts',
-      'src/lib/erDb.ts',
-      // Phase 1D: App Core Dual-Path (8)
+      // Phase 1D: App Core Dual-Path (7 remaining)
       'src/lib/auth/memberProfileService.ts',
       'src/lib/inbox/taskDefinitionsAndRepairAction.ts',
       'src/lib/inbox/taskInboxApiService.ts',
       'src/lib/kpi/kpiService.ts',
       'src/lib/media/onlineMediaService.ts',
-      'src/lib/memberAuth.ts',
       'src/lib/screening/screeningService.ts',
       'src/lib/taskInboxService.ts',
-      // Phase 2: Clinical & RCM Pure-SQL (22)
+      // Phase 2: Clinical & RCM Pure-SQL (21 remaining)
       'src/lib/clinical/cervical-cancer/screenedRecipientsReport.ts',
       'src/lib/clinical/cervical-cancer/service1B004Reports.ts',
       'src/lib/clinical/cervical-cancer/service1B004_0NAnd1B005Reports.ts',
@@ -196,7 +189,6 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/clinical/rcm-dashboard/opdReports.ts',
       'src/lib/clinical/rcm-dashboard/palliativeAndVnReports.ts',
       'src/lib/clinical/rcmRepFundsService.ts',
-      'src/lib/clinical/rcmSeamlessEnricher.ts',
       'src/lib/clinical/rcmT1dmGdmPdmService.ts',
       'src/lib/clinical/rcmThaiTraditionalMedicineService.ts',
       'src/lib/clinical/rcmThalassemiaFundService.ts',

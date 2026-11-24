@@ -4,8 +4,9 @@ import {
   evaluateFitTestDataQuality,
   isUniversalCoverageScheme,
 } from '../rcmColorectalCancerService'
-import { clearMemoryCache, invalidateCacheKey } from '@/lib/cache'
+import { clearMemoryCache } from '@/lib/cache'
 import { apiGateway } from '@/lib/apiGateway'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmColorectalCancerService (21.2 บริการตรวจคัดกรองมะเร็งลำไส้ใหญ่ Fit test)', () => {
   beforeEach(() => {
@@ -53,21 +54,24 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped: true when 90005 exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        { icode: '3000501', name: 'ตรวจคัดกรองมะเร็งลำไส้ใหญ่ Fit test', strength: null, nhso_adp_code: '90005' },
-      ])
+    it('returns isMapped: true when 90005 exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '90005',
+        adpItems: [
+          { icode: '3000501', name: 'ตรวจคัดกรองมะเร็งลำไส้ใหญ่ Fit test', strength: null, nhso_adp_code: '90005' },
+        ],
+      })
 
-      const res = await RcmColorectalCancerService.checkAdpMapping(mockExecutor)
+      const res = await RcmColorectalCancerService.checkAdpMapping(mockGateway)
       expect(res.isMapped).toBe(true)
       expect(res.mappedCount).toBe(1)
       expect(res.items[0].nhso_adp_code).toBe('90005')
     })
 
-    it('returns isMapped: false when no records found in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+    it('returns isMapped: false when no records found via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: '90005', adpItems: [] })
 
-      const res = await RcmColorectalCancerService.checkAdpMapping(mockExecutor)
+      const res = await RcmColorectalCancerService.checkAdpMapping(mockGateway)
       expect(res.isMapped).toBe(false)
       expect(res.mappedCount).toBe(0)
       expect(res.items).toHaveLength(0)
@@ -210,18 +214,17 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
       },
     ]
 
-    it('generates report with correct summary KPIs and data quality classification', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockImplementation((sql: string) => {
-          if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) {
-            return Promise.resolve([
-              { icode: '3000501', name: 'ตรวจคัดกรอง FIT test', strength: null, nhso_adp_code: '90005' },
-            ])
-          }
-          return Promise.resolve(mockDbRows)
-        })
+    const createMockGateway = () =>
+      createMockRcmFundGateway({
+        adpCode: '90005',
+        fundKey: 'colorectal-cancer',
+        adpItems: [
+          { icode: '3000501', name: 'ตรวจคัดกรอง FIT test', strength: null, nhso_adp_code: '90005' },
+        ],
+        rawRows: mockDbRows,
+      })
 
+    it('generates report with correct summary KPIs and data quality classification', async () => {
       const res = await RcmColorectalCancerService.getColorectalCancerReport(
         {
           startDate: '2026-10-01',
@@ -230,7 +233,7 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
           sortOrder: 'asc',
           refresh: true,
         },
-        mockExecutor
+        createMockGateway()
       )
 
       expect(res.adpCode).toBe('90005')
@@ -260,14 +263,9 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
     })
 
     it('filters correctly by cardFilter: COMPLETE', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) return Promise.resolve([])
-        return Promise.resolve(mockDbRows)
-      })
-
       const res = await RcmColorectalCancerService.getColorectalCancerReport(
         { cardFilter: 'COMPLETE', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
 
       expect(res.totalCount).toBe(1)
@@ -275,14 +273,9 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
     })
 
     it('filters correctly by cardFilter: MISSING_ADP', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) return Promise.resolve([])
-        return Promise.resolve(mockDbRows)
-      })
-
       const res = await RcmColorectalCancerService.getColorectalCancerReport(
         { cardFilter: 'MISSING_ADP', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
 
       expect(res.totalCount).toBe(1)
@@ -290,39 +283,25 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
     })
 
     it('filters correctly by search query across HN, name, CID, and lab result', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) return Promise.resolve([])
-        return Promise.resolve(mockDbRows)
-      })
-
       const resHn = await RcmColorectalCancerService.getColorectalCancerReport(
         { search: '0005678', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
       expect(resHn.totalCount).toBe(1)
       expect(resHn.items[0].ptname).toContain('สมศรี')
 
       const resLab = await RcmColorectalCancerService.getColorectalCancerReport(
         { search: 'Negative', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
       expect(resLab.totalCount).toBe(1)
       expect(resLab.items[0].hn).toBe('0001234')
     })
 
     it('filters items and recomputes summary KPIs when pttypes is specified', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) return Promise.resolve([])
-        return Promise.resolve(mockDbRows)
-      })
-
-      // mockDbRows has 3 items:
-      // Item 1: UCS / บัตรทอง (UC) -> compensated: 150
-      // Item 2: OFC / ข้าราชการ (non-UC)
-      // Item 3: UCS / บัตรทอง (UC) -> compensated: 0
       const res = await RcmColorectalCancerService.getColorectalCancerReport(
         { pttypes: '01,02,03,04,05,06,07,08,09', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
 
       expect(res.totalCount).toBe(2)
@@ -331,52 +310,7 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
       expect(res.pttypes).toBe('01,02,03,04,05,06,07,08,09')
     })
 
-    it('falls back to executor query when gateway returns generic stripped rows without code', async () => {
-      const { queryClinicalDb } = await import('@/lib/clinicalDb')
-
-      // Mock gateway returning rows without code or pp_special_code
-      vi.spyOn(apiGateway.clinical, 'getAdpMapping').mockResolvedValue({
-        adpCode: '90005',
-        isMapped: true,
-        mappedCount: 1,
-        items: [{ icode: '3000501', name: 'Fit test', strength: null, nhso_adp_code: '90005' }],
-      } as any)
-      vi.spyOn(apiGateway.clinical, 'getRcmFundData').mockResolvedValue({
-        success: true,
-        fundKey: 'colorectal-cancer',
-        data: {
-          rawRows: [
-            {
-              vn: '670101080001',
-              hn: '0001234',
-              // Notice: code, pp_special_code are completely missing (legacy generic route)
-              listname: 'ตรวจคัดกรอง FIT test 90005',
-            },
-          ],
-        },
-      } as any)
-
-      // Spy on queryClinicalDb/apiGateway.clinical.query fallback
-      const querySpy = vi.spyOn(apiGateway.clinical, 'query').mockImplementation((sql: string) => {
-        if (sql.includes('SELECT \n              icode') || sql.includes('SELECT icode')) return Promise.resolve([])
-        return Promise.resolve(mockDbRows)
-      })
-
-      // When executor is queryClinicalDb, it checks gateway, sees rows lack code, and falls back to executor
-      const res = await RcmColorectalCancerService.getColorectalCancerReport(
-        { refresh: true },
-        queryClinicalDb
-      )
-
-      expect(querySpy).toHaveBeenCalled()
-      const completeItem = res.items.find((it) => it.hn === '0001234')
-      expect(completeItem?.code).toBe('1B0060 FIT test ผลปกติ')
-      expect(completeItem?.dataQualityStatus).toBe('COMPLETE')
-    })
-
-    it('accepts gateway data when dedicated fields or isDedicated are present', async () => {
-      const { queryClinicalDb } = await import('@/lib/clinicalDb')
-
+    it('fetches via default apiGateway without any raw SQL queries', async () => {
       vi.spyOn(apiGateway.clinical, 'getAdpMapping').mockResolvedValue({
         adpCode: '90005',
         isMapped: true,
@@ -387,29 +321,23 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
         success: true,
         fundKey: 'colorectal-cancer',
         isDedicated: true,
-        data: {
-          rawRows: mockDbRows,
-        },
+        data: { rawRows: mockDbRows },
       } as any)
+      vi.spyOn(apiGateway.clinical, 'enrichSeamlessVisits').mockResolvedValue({
+        success: true,
+        vnRows: [],
+        anRows: [],
+      })
 
-      // Query spy that should not be called for main data if gateway has dedicated response
-      // (Seamless Rep lookup via FROM rcmdb.seamless still enriches VN rows afterwards)
       const querySpy = vi.spyOn(apiGateway.clinical, 'query').mockResolvedValue([])
 
-      const res = await RcmColorectalCancerService.getColorectalCancerReport(
-        { refresh: true },
-        queryClinicalDb
-      )
+      const res = await RcmColorectalCancerService.getColorectalCancerReport({ refresh: true })
 
       expect(res.items).toHaveLength(3)
       const completeItem = res.items.find((it) => it.hn === '0001234')
       expect(completeItem?.code).toBe('1B0060 FIT test ผลปกติ')
       expect(completeItem?.dataQualityStatus).toBe('COMPLETE')
-      // Ensure main HOSxP raw SQL query was not executed because dedicated gateway data was accepted
-      const nonSeamlessCalls = querySpy.mock.calls.filter(
-        ([sql]) => !String(sql).includes('FROM rcmdb.seamless')
-      )
-      expect(nonSeamlessCalls).toHaveLength(0)
+      expect(querySpy).not.toHaveBeenCalled()
     })
   })
 })

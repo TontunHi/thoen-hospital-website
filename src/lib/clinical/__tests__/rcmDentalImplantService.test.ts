@@ -5,6 +5,7 @@ import {
   DENSUR_ADP_CODE,
   type DentalImplantReportParams,
 } from '../rcmDentalImplantService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmDentalImplantService', () => {
   beforeEach(() => {
@@ -20,30 +21,30 @@ describe('RcmDentalImplantService', () => {
 
   describe('checkAdpMapping', () => {
     it('returns isMapped true when DENSUR ADP code exists', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '3000123',
-          name: 'บริการผ่าตัดใส่รากฟันเทียม',
-          strength: null,
-          nhso_adp_code: 'DENSUR',
-        },
-      ])
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: 'DENSUR',
+        adpItems: [
+          {
+            icode: '3000123',
+            name: 'บริการผ่าตัดใส่รากฟันเทียม',
+            strength: null,
+            nhso_adp_code: 'DENSUR',
+          },
+        ],
+      })
 
-      const result = await RcmDentalImplantService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmDentalImplantService.checkAdpMapping(mockGateway, true)
       expect(result.adpCode).toBe('DENSUR')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('3000123')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('FROM s_drugitems'),
-        ['DENSUR'],
-        expect.any(Object)
-      )
+      expect(mockGateway.getAdpMapping).toHaveBeenCalledWith('DENSUR', { refresh: true })
     })
 
-    it('returns isMapped false when query fails or returns empty array', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB error'))
-      const result = await RcmDentalImplantService.checkAdpMapping(mockExecutor, true)
+    it('returns isMapped false when gateway fails or returns empty array', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: 'DENSUR', adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway error'))
+      const result = await RcmDentalImplantService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -162,21 +163,20 @@ describe('RcmDentalImplantService', () => {
       },
     ]
 
-    const createMockExecutor = () => {
-      return vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            {
-              icode: '3000123',
-              name: 'บริการผ่าตัดใส่รากฟันเทียม',
-              strength: null,
-              nhso_adp_code: 'DENSUR',
-            },
-          ])
-        }
-        return Promise.resolve(mockRawRows)
+    const createMockExecutor = () =>
+      createMockRcmFundGateway({
+        adpCode: 'DENSUR',
+        fundKey: 'dental-implant',
+        adpItems: [
+          {
+            icode: '3000123',
+            name: 'บริการผ่าตัดใส่รากฟันเทียม',
+            strength: null,
+            nhso_adp_code: 'DENSUR',
+          },
+        ],
+        rawRows: mockRawRows,
       })
-    }
 
     it('aggregates summary KPIs correctly', async () => {
       const mockExecutor = createMockExecutor()

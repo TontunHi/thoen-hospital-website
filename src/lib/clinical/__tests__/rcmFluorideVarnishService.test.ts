@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import {
   RcmFluorideVarnishService,
   isUniversalCoverageScheme,
   type FluorideVarnishReportParams,
 } from '../rcmFluorideVarnishService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmFluorideVarnishService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   describe('isUniversalCoverageScheme', () => {
@@ -31,31 +34,31 @@ describe('RcmFluorideVarnishService', () => {
   })
 
   describe('checkAdpMapping', () => {
-    it('returns isMapped true when ADP 15001 exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '3009999',
-          name: 'บริการเคลือบฟลูออไรด์วานิช 15001',
-          strength: '',
-          nhso_adp_code: '15001',
-        },
-      ])
+    it('returns isMapped true when ADP 15001 exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '15001',
+        adpItems: [
+          {
+            icode: '3009999',
+            name: 'บริการเคลือบฟลูออไรด์วานิช 15001',
+            strength: '',
+            nhso_adp_code: '15001',
+          },
+        ],
+      })
 
-      const result = await RcmFluorideVarnishService.checkAdpMapping(mockExecutor, true)
+      const result = await RcmFluorideVarnishService.checkAdpMapping(mockGateway, true)
       expect(result.adpCode).toBe('15001')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('3009999')
-      expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('FROM s_drugitems'),
-        ['15001'],
-        expect.any(Object)
-      )
+      expect(mockGateway.getAdpMapping).toHaveBeenCalledWith('15001', { refresh: true })
     })
 
-    it('returns isMapped false when database query throws or returns empty', async () => {
-      const mockExecutor = vi.fn().mockRejectedValue(new Error('DB connection failed'))
-      const result = await RcmFluorideVarnishService.checkAdpMapping(mockExecutor, true)
+    it('returns isMapped false when gateway throws or returns empty', async () => {
+      const mockGateway = createMockRcmFundGateway({ adpCode: '15001', adpItems: [] })
+      mockGateway.getAdpMapping = vi.fn().mockRejectedValue(new Error('Gateway connection failed'))
+      const result = await RcmFluorideVarnishService.checkAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -119,12 +122,14 @@ describe('RcmFluorideVarnishService', () => {
     ]
 
     it('calculates correct summary metrics across all visits', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '15001',
+        fundKey: 'fluoride-varnish',
+        adpItems: [
           { icode: '3009999', name: 'เคลือบฟลูออไรด์', strength: null, nhso_adp_code: '15001' },
-        ]) // checkAdpMapping
-        .mockResolvedValueOnce(mockRawRows) // main report query
+        ],
+        rawRows: mockRawRows,
+      })
 
       const params: FluorideVarnishReportParams = {
         ds1: '2026-10-01',
@@ -132,7 +137,7 @@ describe('RcmFluorideVarnishService', () => {
         refresh: true,
       }
 
-      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockExecutor)
+      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockGateway)
 
       expect(res.adpCode).toBe('15001')
       expect(res.summary.totalVisits).toBe(2)
@@ -152,12 +157,14 @@ describe('RcmFluorideVarnishService', () => {
     })
 
     it('filters correctly by TARGET_AGE card filter', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '15001',
+        fundKey: 'fluoride-varnish',
+        adpItems: [
           { icode: '3009999', name: 'เคลือบฟลูออไรด์', strength: null, nhso_adp_code: '15001' },
-        ])
-        .mockResolvedValueOnce(mockRawRows)
+        ],
+        rawRows: mockRawRows,
+      })
 
       const params: FluorideVarnishReportParams = {
         ds1: '2026-10-01',
@@ -166,7 +173,7 @@ describe('RcmFluorideVarnishService', () => {
         refresh: true,
       }
 
-      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockExecutor)
+      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockGateway)
 
       expect(res.items.length).toBe(1)
       expect(res.items[0].hn).toBe('0000001')
@@ -175,10 +182,12 @@ describe('RcmFluorideVarnishService', () => {
     })
 
     it('filters correctly by COMPENSATED card filter', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(mockRawRows)
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '15001',
+        fundKey: 'fluoride-varnish',
+        adpItems: [],
+        rawRows: mockRawRows,
+      })
 
       const params: FluorideVarnishReportParams = {
         ds1: '2026-10-01',
@@ -187,7 +196,7 @@ describe('RcmFluorideVarnishService', () => {
         refresh: true,
       }
 
-      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockExecutor)
+      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockGateway)
 
       expect(res.items.length).toBe(1)
       expect(res.items[0].hn).toBe('0000001')
@@ -195,10 +204,12 @@ describe('RcmFluorideVarnishService', () => {
     })
 
     it('searches globally across HN, CID, Name and Diagnosis', async () => {
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(mockRawRows)
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '15001',
+        fundKey: 'fluoride-varnish',
+        adpItems: [],
+        rawRows: mockRawRows,
+      })
 
       const params: FluorideVarnishReportParams = {
         ds1: '2026-10-01',
@@ -207,7 +218,7 @@ describe('RcmFluorideVarnishService', () => {
         refresh: true,
       }
 
-      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockExecutor)
+      const res = await RcmFluorideVarnishService.getFluorideVarnishReport(params, mockGateway)
 
       expect(res.items.length).toBe(1)
       expect(res.items[0].hn).toBe('0000002')

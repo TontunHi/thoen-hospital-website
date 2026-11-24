@@ -1,9 +1,14 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import { matchesPttypeFilter } from './pttypeConstants'
 import { enrichItemsWithSeamlessCache, matchesSeamlessRepSearch } from './rcmSeamlessEnricher'
-import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor } from './rcmDashboardService'
+import { resolveFiscalDateRange, type FiscalDateRangeParams } from './rcmDashboardService'
+import {
+  defaultRcmFundGateway,
+  extractFundRawRows,
+  fetchAdpMappingViaGateway,
+  resolveSeamlessFetcher,
+  type RcmFundGatewayAdapter,
+} from './rcmFundGatewayHelper'
 import {
   buildRepBreakdownSummary,
   matchesRepFilter,
@@ -179,7 +184,7 @@ export class RcmOralCancerService {
    * select count(*) from s_drugitems where nhso_adp_code in ('90004')
    */
   static async checkOralCancerAdpMapping(
-    executor: QueryExecutor = queryClinicalDb,
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway,
     refresh?: boolean
   ): Promise<OralCancerAdpMappingCheck> {
     const cacheKey = 'rcm-oral-cancer-adp-mapping-check-90004'
@@ -189,74 +194,16 @@ export class RcmOralCancerService {
     return getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('90004')
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        try {
-          const sql = `
-            SELECT 
-              icode, 
-              name, 
-              strength, 
-              nhso_adp_code
-            FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) IN ('90004')
-            ORDER BY icode ASC;
-          `
-          const rows = (await executor(sql, [], { timeoutMs: 15000 })) as any[]
-          const items: OralCancerAdpMappingItem[] = (rows || []).map((r) => ({
-            icode: String(r.icode || '').trim(),
-            name: String(r.name || '').trim(),
-            strength: r.strength ? String(r.strength).trim() : null,
-            nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-          }))
-
-          return {
-            isMapped: items.length > 0,
-            mappedCount: items.length,
-            items,
-          }
-        } catch {
-          return {
-            isMapped: false,
-            mappedCount: 0,
-            items: [],
-          }
-        }
+        const res = await fetchAdpMappingViaGateway('90004', gateway, { refresh })
+        return { isMapped: res.isMapped, mappedCount: res.mappedCount, items: res.items }
       },
-      600000 // Cache TTL 10 minutes
+      600000
     )
   }
 
-  /**
-   * Generate 12.1 Oral Cancer Screening Report (บริการคัดกรองรอยโรคเสี่ยงมะเร็งและมะเร็งช่องปาก อายุ 40 ปีขึ้นไป ADP 90004)
-   * Direct translation of legacy FoxPro logic:
-   * - Queries visits with dispensing of ADP 90004 in opitemrece
-   * - Filters age >= 40 (v.age_y >= 40)
-   * - Joins HOSxP patient, ovst, vn_stat, pttype, kskdepartment, spclty
-   * - Joins authencode, NHSO repeclaim, repdata, neweclaim, eclaimdb
-   * - Aggregates KPIs, calculates card filter counts, supports sorting, search, pagination.
-   */
   static async getOralCancerReport(
     params: OralCancerReportParams = {},
-    executor: QueryExecutor = queryClinicalDb
+    gateway: RcmFundGatewayAdapter = defaultRcmFundGateway
   ): Promise<OralCancerReportResult> {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const cardFilter: OralCancerCardFilter = params.cardFilter || 'ALL'
@@ -278,129 +225,13 @@ export class RcmOralCancerService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const sql = `
-            SELECT 
-              o.vn,
-              IFNULL(pt.cid, '') AS cid,
-              o.hn,
-              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-              IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) AS age,
-              IFNULL(nat.name, pt.nationality) AS nation,
-              DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
-              TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
-              IFNULL(ptt.hipdata_code, '') AS maininscl,
-              IFNULL(ptt.pttype_eclaim_id, '') AS pttype_eclaim_id,
-              ptt.name AS pttypename,
-              dep.department AS department,
-              spc.name AS clinic,
-              v.pdx,
-              v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
-              v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
-              IFNULL(v.income, 0) AS income,
-              dd.name AS listname,
-              COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
-              COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
-              COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-              re.fund,
-              re.subfund
-            FROM ovst o
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            JOIN (
-              SELECT 
-                oo.vn,
-                GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              WHERE IFNULL(oo.vn, '') <> ''
-                AND oo.vstdate BETWEEN ? AND ?
-                AND TRIM(d.nhso_adp_code) IN ('90004')
-              GROUP BY oo.vn
-            ) dd ON dd.vn = o.vn
-            LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
-            LEFT JOIN visit_pttype vt ON vt.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'NHSO :: มี Invoice แล้ว' AS statusname
-              FROM rcmdb.repeclaim
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) nhso ON nhso.vn = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'Rep :: มี Rep แล้ว' AS statusname
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
-                     GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
-              GROUP BY vn
-            ) re ON re.vn = o.vn
-            LEFT JOIN (
-              SELECT m.opdseq AS vn,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
-                     SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
-                     SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
-              FROM eclaimdb.m_registerdata m
-              LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
-              WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
-              GROUP BY m.opdseq
-            ) m ON m.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ?
-              AND IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate)) >= 40
-            GROUP BY o.vn
-            ORDER BY o.hn ASC, o.vn ASC;
-        `
-        const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
-
-        let rows: any[] = []
-        let mappingRes: OralCancerAdpMappingCheck = {
-          isMapped: false,
-          mappedCount: 0,
-          items: [],
-        }
-
-        let fetchedViaNamedApi = false
-        if (executor === queryClinicalDb) {
-          try {
-            const [mRes, gwRes] = await Promise.all([
-              RcmOralCancerService.checkOralCancerAdpMapping(executor, Boolean(params.refresh)),
-              apiGateway.clinical.getRcmFundData('oral-cancer', { ds1, ds2 }),
-            ])
-            mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
-        if (!fetchedViaNamedApi) {
-          const [mRes, dbRows] = await Promise.all([
-            RcmOralCancerService.checkOralCancerAdpMapping(executor, Boolean(params.refresh)),
-            executor(sql, sqlParams, { timeoutMs: 90000 }) as Promise<any[]>,
-          ])
-          rows = dbRows || []
-          mappingRes = mRes
-        }
-
-        return { rawRows: rows, adpMapping: mappingRes }
+        const [mappingRes, gwRes] = await Promise.all([
+          RcmOralCancerService.checkOralCancerAdpMapping(gateway, Boolean(params.refresh)),
+          gateway.getRcmFundData('oral-cancer', { ds1, ds2 }),
+        ])
+        return { rawRows: extractFundRawRows(gwRes), adpMapping: mappingRes }
       },
-      180000 // Cache TTL 3 minutes
+      180000
     )
 
     // Transform raw rows into structured domain items
@@ -466,7 +297,7 @@ export class RcmOralCancerService {
     const selectedPttypesList = pttypes ? pttypes.split(',').map((s) => s.trim()).filter(Boolean) : []
 
     // Cohort for summary KPIs (Full page filter Q2: A)
-    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, executor, Boolean(params.refresh))
+    allItems = await enrichItemsWithSeamlessCache(cacheKey, allItems, resolveSeamlessFetcher(gateway), Boolean(params.refresh))
     const summaryCohort = selectedPttypesList.length > 0
       ? allItems.filter((it) => matchesPttypeFilter(it.pttypename || it.pttype_eclaim_id, selectedPttypesList, it.isUc, it.pttype_eclaim_id))
       : allItems

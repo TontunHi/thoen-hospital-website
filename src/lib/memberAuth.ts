@@ -529,25 +529,17 @@ export async function checkPositionPermission(
         : Promise.resolve(null)
 
     const memberCheckPromise =
-      typeof apiGateway.app.query === 'function'
-        ? apiGateway.app
-            .query<{ count: number }>(
-              `SELECT COUNT(*) as count 
-         FROM member_permissions mp 
-         JOIN members m ON m.id = mp.member_id 
-         WHERE (m.username = ? OR m.username = TRIM(?)) AND mp.permission_key IN (${keys.map(() => '?').join(', ')})`,
-              [username, username, ...keys]
-            )
-            .catch(() => [])
-        : Promise.resolve([])
+      typeof apiGateway.app.checkMemberPermission === 'function'
+        ? Promise.resolve(apiGateway.app.checkMemberPermission(username, keys)).catch(() => null)
+        : Promise.resolve(null)
 
-    const [posRes, memRows] = await Promise.all([positionCheckPromise, memberCheckPromise])
+    const [posRes, memRes] = await Promise.all([positionCheckPromise, memberCheckPromise])
 
     if (posRes?.allowed) {
       return true
     }
 
-    if (Number(memRows?.[0]?.count || 0) > 0) {
+    if (memRes?.allowed) {
       return true
     }
 

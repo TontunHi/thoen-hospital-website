@@ -4,9 +4,10 @@ import {
   matchesSeamlessRepSearch,
   enrichRowsWithSeamless,
   enrichItemsWithSeamlessCache,
+  type SeamlessEnricherFetcher,
 } from '../rcmSeamlessEnricher'
 
-describe('rcmSeamlessEnricher', () => {
+describe('rcmSeamlessEnricher (Zero-SQL Gateway Adapter)', () => {
   it('splits comma-separated seamless reps and deduplicates', () => {
     expect(splitSeamlessReps('DDSA68103100077, DDSA69093000090, DDSA68103100077')).toEqual([
       'DDSA68103100077',
@@ -29,41 +30,36 @@ describe('rcmSeamlessEnricher', () => {
     expect(matchesSeamlessRepSearch({ repSeamless: null }, 'ddsa')).toBe(false)
   })
 
-  it('enriches OPD (VN) and IPD (AN) rows with per-Rep breakdown from rcmdb.seamless', async () => {
-    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
-      if (sql.includes('WHERE VN IN')) {
-        return [
-          {
-            k: '681010142318',
-            rep: 'DDSA68103100077',
-            fund: 'DMIS-กายภาพบำบัด (IMC)',
-            type: 'ฟื้นฟูสมรรถภาพด้านการแพทย์',
-            collected: 450,
-            compensated: 450,
-          },
-          {
-            k: '681010142318',
-            rep: 'DDSA69093000090',
-            fund: 'DMIS-กายภาพบำบัด (IMC)',
-            type: 'ค่าบริการกายภาพบำบัด',
-            collected: 100,
-            compensated: 100,
-          },
-        ]
-      }
-      if (sql.includes('WHERE AN IN')) {
-        return [
-          {
-            k: '680012345',
-            rep: 'DDSA68110000111',
-            fund: 'DMIS-IPD',
-            type: 'บริการผู้ป่วยใน',
-            collected: 1500,
-            compensated: 1200,
-          },
-        ]
-      }
-      return []
+  it('enriches OPD (VN) and IPD (AN) rows with per-Rep breakdown from Gateway', async () => {
+    const mockFetcher: SeamlessEnricherFetcher = vi.fn().mockResolvedValue({
+      vnRows: [
+        {
+          k: '681010142318',
+          rep: 'DDSA68103100077',
+          fund: 'DMIS-กายภาพบำบัด (IMC)',
+          type: 'ฟื้นฟูสมรรถภาพด้านการแพทย์',
+          collected: 450,
+          compensated: 450,
+        },
+        {
+          k: '681010142318',
+          rep: 'DDSA69093000090',
+          fund: 'DMIS-กายภาพบำบัด (IMC)',
+          type: 'ค่าบริการกายภาพบำบัด',
+          collected: 100,
+          compensated: 100,
+        },
+      ],
+      anRows: [
+        {
+          k: '680012345',
+          rep: 'DDSA68110000111',
+          fund: 'DMIS-IPD',
+          type: 'บริการผู้ป่วยใน',
+          collected: 1500,
+          compensated: 1200,
+        },
+      ],
     })
 
     const rows = [
@@ -71,8 +67,12 @@ describe('rcmSeamlessEnricher', () => {
       { vn: '-', an: '680012345', hn: '0011111', compensated: 5000 },
     ]
 
-    const enriched = await enrichRowsWithSeamless(rows, mockExecutor)
+    const enriched = await enrichRowsWithSeamless(rows, mockFetcher)
 
+    expect(mockFetcher).toHaveBeenCalledWith({
+      vns: ['681010142318'],
+      ans: ['680012345'],
+    })
     expect(enriched[0].repSeamless).toBe('DDSA68103100077,DDSA69093000090')
     expect(enriched[0].rep_seamless).toBe('DDSA68103100077,DDSA69093000090')
     expect(enriched[0].compensatedSeamless).toBe(550)
@@ -92,25 +92,28 @@ describe('rcmSeamlessEnricher', () => {
   })
 
   it('caches seamless enrichment via enrichItemsWithSeamlessCache when __includeSeamless is enabled', async () => {
-    const mockExecutor = Object.assign(
-      vi.fn().mockResolvedValue([
-        {
-          k: '690101000001',
-          rep: 'DDSA69013100001',
-          fund: 'DMIS-TEST',
-          type: 'TEST',
-          collected: 300,
-          compensated: 300,
-        },
-      ]),
+    const mockFetcher: SeamlessEnricherFetcher = Object.assign(
+      vi.fn().mockResolvedValue({
+        vnRows: [
+          {
+            k: '690101000001',
+            rep: 'DDSA69013100001',
+            fund: 'DMIS-TEST',
+            type: 'TEST',
+            collected: 300,
+            compensated: 300,
+          },
+        ],
+        anRows: [],
+      }),
       { __includeSeamless: true }
     )
 
     const items = [{ vn: '690101000001', hn: '0099999' }]
-    const res1 = await enrichItemsWithSeamlessCache('test-cache-key', items, mockExecutor, true)
-    const res2 = await enrichItemsWithSeamlessCache('test-cache-key', items, mockExecutor, false)
+    const res1 = await enrichItemsWithSeamlessCache('test-cache-key', items, mockFetcher, true)
+    const res2 = await enrichItemsWithSeamlessCache('test-cache-key', items, mockFetcher, false)
 
-    expect(mockExecutor).toHaveBeenCalledTimes(1)
+    expect(mockFetcher).toHaveBeenCalledTimes(1)
     expect(res1[0]).toMatchObject({
       repSeamless: 'DDSA69013100001',
       compensatedSeamless: 300,

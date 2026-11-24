@@ -125,6 +125,13 @@ export function createAppNamespace(client: AppHttpClient) {
       })
     },
 
+    checkMemberPermission: (username: string, keys: string[]) => {
+      return client.post<{ allowed: boolean }>('/api/v1/app/members/check-member-permission', {
+        username,
+        keys,
+      })
+    },
+
     // ── Security Audit Log ──
     logAudit: (entry: {
       actionType: string

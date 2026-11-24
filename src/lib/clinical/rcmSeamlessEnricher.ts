@@ -1,5 +1,5 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import type { QueryExecutor } from './rcmDashboardService'
+import { apiGateway } from '@/lib/apiGateway'
+import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 
 export interface SeamlessRepBreakdown {
   rep: string
@@ -23,6 +23,25 @@ export interface SeamlessEnrichedFields {
   seamlessRepItems?: SeamlessRepBreakdown[]
   seamless_rep_items?: SeamlessRepBreakdown[]
 }
+
+export type SeamlessEnricherFetcher = ((payload: {
+  vns: string[]
+  ans: string[]
+}) => Promise<{
+  vnRows: Array<Record<string, any>>
+  anRows: Array<Record<string, any>>
+}>) & { __includeSeamless?: boolean }
+
+const defaultSeamlessFetcher: SeamlessEnricherFetcher = Object.assign(
+  async (payload: { vns: string[]; ans: string[] }) => {
+    const res = await apiGateway.clinical.enrichSeamlessVisits(payload)
+    return {
+      vnRows: Array.isArray(res?.vnRows) ? res.vnRows : [],
+      anRows: Array.isArray(res?.anRows) ? res.anRows : [],
+    }
+  },
+  { __includeSeamless: true }
+)
 
 interface SeamlessVisitAggregate {
   reps: Set<string>
@@ -62,33 +81,84 @@ export function matchesSeamlessRepSearch(row: any, searchLower: string): boolean
   return false
 }
 
+function buildAggregateMap(resRows: Array<Record<string, any>>): Map<string, SeamlessVisitAggregate> {
+  const map = new Map<string, SeamlessVisitAggregate>()
+  for (const s of resRows || []) {
+    if (!s || typeof s !== 'object' || s.k == null) continue
+    if (!('rep' in s) && !('rep_seamless' in s)) continue
+
+    const key = String(s.k).trim()
+    if (!key) continue
+
+    let entry = map.get(key)
+    if (!entry) {
+      entry = { reps: new Set(), funds: new Set(), totalCompensated: 0, items: [] }
+      map.set(key, entry)
+    }
+
+    if (s.rep) {
+      const repCode = String(s.rep).trim()
+      if (!repCode) continue
+      const compVal = Number(s.compensated ?? s.compensated_seamless ?? 0)
+      const collVal = Number(s.collected ?? 0)
+      const fundVal = s.fund
+        ? String(s.fund).trim()
+        : s.seamless_funds
+          ? String(s.seamless_funds).trim()
+          : null
+      const typeVal = s.type ? String(s.type).trim() : null
+
+      entry.reps.add(repCode)
+      if (fundVal) {
+        for (const f of fundVal.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+          entry.funds.add(f)
+        }
+      }
+      entry.totalCompensated = Math.round((entry.totalCompensated + compVal) * 100) / 100
+      entry.items.push({
+        rep: repCode,
+        fund: fundVal,
+        type: typeVal,
+        collected: Math.round(collVal * 100) / 100,
+        compensated: Math.round(compVal * 100) / 100,
+      })
+    } else if (s.rep_seamless) {
+      const repList = splitSeamlessReps(String(s.rep_seamless))
+      if (repList.length === 0) continue
+      const compVal = Number(s.compensated_seamless ?? s.compensated ?? 0)
+      const fundVal = s.seamless_funds ? String(s.seamless_funds).trim() : null
+
+      for (const rCode of repList) entry.reps.add(rCode)
+      if (fundVal) {
+        for (const f of fundVal.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+          entry.funds.add(f)
+        }
+      }
+      entry.totalCompensated = Math.round((entry.totalCompensated + compVal) * 100) / 100
+      for (let i = 0; i < repList.length; i++) {
+        entry.items.push({
+          rep: repList[i],
+          fund: fundVal,
+          type: null,
+          collected: 0,
+          compensated: repList.length === 1 ? Math.round(compVal * 100) / 100 : 0,
+        })
+      }
+    }
+  }
+  return map
+}
+
 /**
- * ดึงและแนบเลข Rep + ยอดเงินแยกรายใบจากตาราง `rcmdb.seamless` ให้กับรายการผู้รับบริการทุกกองทุน
- *
- * - รองรับทั้งรายการที่มี `vn` (OPD), `an` (IPD), หรือมีทั้งสองอย่างปนกันในตารางเดียว
- * - แนบฟิลด์ทั้งแบบ camelCase (`repSeamless`, `compensatedSeamless`, `seamlessFunds`, `seamlessRepItems`)
- *   และ snake_case (`rep_seamless`, `compensated_seamless`, `seamless_funds`, `seamless_rep_items`)
- *   เพื่อให้ทั้ง Service Layer และ Client Component ทุกหน้าอ่านไปใช้ได้ทันที
- * - หากแถวใดมีข้อมูล `rep_seamless` จาก SQL เดิมอยู่แล้ว แต่ query เสริมไม่คืนค่า (เช่น ใน unit test ที่ใช้ mockResolvedValueOnce)
- *   จะคงค่าเดิมของแถวนั้นไว้และสร้าง `seamlessRepItems` ให้โดยไม่ทำข้อมูลหาย
- * - ล้มเหลวแบบ graceful: หาก query ล้มเหลว จะคืน `rows` เดิมพร้อม normalize ฟิลด์ที่มีอยู่
+ * ดึงและแนบเลข Rep + ยอดเงินแยกรายใบจากตาราง `rcmdb.seamless` ผ่าน API Gateway Named Endpoint
+ * (Zero-SQL in Next.js)
  */
 export async function enrichRowsWithSeamless<T extends Record<string, any>>(
   rows: T[],
-  executor: QueryExecutor = queryClinicalDb
+  fetcher: SeamlessEnricherFetcher | unknown = defaultSeamlessFetcher
 ): Promise<(T & SeamlessEnrichedFields)[]> {
   if (!Array.isArray(rows) || rows.length === 0) return rows || []
 
-  const safeExec = async (sql: string, params: any[]): Promise<any[]> => {
-    try {
-      const res = await executor(sql, params, { timeoutMs: 15000 })
-      return Array.isArray(res) ? res : []
-    } catch {
-      return []
-    }
-  }
-
-  // แยกเก็บ VN และ AN จากทุกรายการ
   const vnSet = new Set<string>()
   const anSet = new Set<string>()
 
@@ -100,118 +170,29 @@ export async function enrichRowsWithSeamless<T extends Record<string, any>>(
     if (an && an !== '-' && an !== '—') anSet.add(an)
   }
 
-  const queryByColumn = async (
-    column: 'VN' | 'AN',
-    keys: string[]
-  ): Promise<Map<string, SeamlessVisitAggregate>> => {
-    const map = new Map<string, SeamlessVisitAggregate>()
-    if (keys.length === 0) return map
+  let vnRows: Array<Record<string, any>> = []
+  let anRows: Array<Record<string, any>> = []
 
-    const CHUNK_SIZE = 1000
-    const chunks: string[][] = []
-    for (let i = 0; i < keys.length; i += CHUNK_SIZE) {
-      chunks.push(keys.slice(i, i + CHUNK_SIZE))
-    }
-
-    const chunkResults = await Promise.all(
-      chunks.map((chunk) =>
-        safeExec(
-          `
-          SELECT
-            ${column} AS k,
-            Rep AS rep,
-            GROUP_CONCAT(DISTINCT Fund ORDER BY Fund SEPARATOR ', ') AS fund,
-            GROUP_CONCAT(DISTINCT Type ORDER BY Type SEPARATOR ', ') AS type,
-            SUM(IFNULL(Collected, 0)) AS collected,
-            SUM(IFNULL(Compensated, 0)) AS compensated,
-            GROUP_CONCAT(DISTINCT Rep ORDER BY Rep SEPARATOR ',') AS rep_seamless,
-            GROUP_CONCAT(DISTINCT Fund ORDER BY Fund SEPARATOR ',') AS seamless_funds,
-            SUM(IFNULL(Compensated, 0)) AS compensated_seamless
-          FROM rcmdb.seamless
-          WHERE ${column} IN (${chunk.map(() => '?').join(',')})
-            AND IFNULL(Rep, '') <> ''
-          GROUP BY ${column}, Rep
-          ORDER BY Rep ASC
-          `,
-          chunk
-        )
-      )
-    )
-
-    for (const resRows of chunkResults) {
-      for (const s of resRows || []) {
-        // กรองแถวที่ไม่ใช่ผลลัพธ์ของ rcmdb.seamless (เช่นกรณี test mock คืนแถวผู้ป่วยของ query หลักกลับมา)
-        if (!s || typeof s !== 'object' || s.k == null) continue
-        if (!('rep' in s) && !('rep_seamless' in s)) continue
-
-        const key = String(s.k).trim()
-        if (!key) continue
-
-        let entry = map.get(key)
-        if (!entry) {
-          entry = { reps: new Set(), funds: new Set(), totalCompensated: 0, items: [] }
-          map.set(key, entry)
-        }
-
-        if (s.rep) {
-          const repCode = String(s.rep).trim()
-          if (!repCode) continue
-          const compVal = Number(s.compensated ?? s.compensated_seamless ?? 0)
-          const collVal = Number(s.collected ?? 0)
-          const fundVal = s.fund
-            ? String(s.fund).trim()
-            : s.seamless_funds
-              ? String(s.seamless_funds).trim()
-              : null
-          const typeVal = s.type ? String(s.type).trim() : null
-
-          entry.reps.add(repCode)
-          if (fundVal) {
-            for (const f of fundVal.split(',').map((x: string) => x.trim()).filter(Boolean)) {
-              entry.funds.add(f)
-            }
-          }
-          entry.totalCompensated = Math.round((entry.totalCompensated + compVal) * 100) / 100
-          entry.items.push({
-            rep: repCode,
-            fund: fundVal,
-            type: typeVal,
-            collected: Math.round(collVal * 100) / 100,
-            compensated: Math.round(compVal * 100) / 100,
-          })
-        } else if (s.rep_seamless) {
-          const repList = splitSeamlessReps(String(s.rep_seamless))
-          if (repList.length === 0) continue
-          const compVal = Number(s.compensated_seamless ?? s.compensated ?? 0)
-          const fundVal = s.seamless_funds ? String(s.seamless_funds).trim() : null
-
-          for (const rCode of repList) entry.reps.add(rCode)
-          if (fundVal) {
-            for (const f of fundVal.split(',').map((x: string) => x.trim()).filter(Boolean)) {
-              entry.funds.add(f)
-            }
-          }
-          entry.totalCompensated = Math.round((entry.totalCompensated + compVal) * 100) / 100
-          for (let i = 0; i < repList.length; i++) {
-            entry.items.push({
-              rep: repList[i],
-              fund: fundVal,
-              type: null,
-              collected: 0,
-              compensated: repList.length === 1 ? Math.round(compVal * 100) / 100 : 0,
-            })
-          }
-        }
+  if (vnSet.size > 0 || anSet.size > 0) {
+    const activeFetcher =
+      typeof fetcher === 'function' ? (fetcher as SeamlessEnricherFetcher) : defaultSeamlessFetcher
+    try {
+      const res = await activeFetcher({
+        vns: Array.from(vnSet),
+        ans: Array.from(anSet),
+      })
+      if (res && typeof res === 'object') {
+        vnRows = Array.isArray((res as any).vnRows) ? (res as any).vnRows : []
+        anRows = Array.isArray((res as any).anRows) ? (res as any).anRows : []
       }
+    } catch {
+      vnRows = []
+      anRows = []
     }
-
-    return map
   }
 
-  const [vnMap, anMap] = await Promise.all([
-    queryByColumn('VN', Array.from(vnSet)),
-    queryByColumn('AN', Array.from(anSet)),
-  ])
+  const vnMap = buildAggregateMap(vnRows)
+  const anMap = buildAggregateMap(anRows)
 
   return rows.map((row: T) => {
     if (!row || typeof row !== 'object') return row
@@ -240,7 +221,6 @@ export async function enrichRowsWithSeamless<T extends Record<string, any>>(
       }
     }
 
-    // Fallback: หากแถวเดิมมีฟิลด์ seamless จาก SQL join อยู่แล้ว (เช่น rep_seamless หรือ seamless)
     const existingRepRaw =
       row.repSeamless ??
       row.rep_seamless ??
@@ -281,16 +261,15 @@ export async function enrichRowsWithSeamless<T extends Record<string, any>>(
   })
 }
 
-import { getCachedData, invalidateCacheKey } from '@/lib/cache'
-
 /**
  * หุ้ม `enrichRowsWithSeamless` ด้วย In-Memory Cache แยกตาม `cacheKey`
- * เพื่อให้นำไปเรียกใช้กับ `allItems` ของทุกกองทุนได้โดยไม่ยิง DB ซ้ำเมื่อเปลี่ยนหน้า/กรองการ์ด
+ * เมื่อไม่ส่ง fetcher (หรือส่ง fetcher ที่มี __includeSeamless) จะเรียก API Gateway จริง
+ * หาก unit test ของบริการอื่นส่ง mock ที่ไม่ตั้ง __includeSeamless จะคืนค่าเดิมแบบ offline เพื่อไม่ให้กระทบ test เดิม
  */
 export async function enrichItemsWithSeamlessCache<T extends Record<string, any>>(
   cacheKey: string,
   items: T[],
-  executor: QueryExecutor = queryClinicalDb,
+  fetcher: SeamlessEnricherFetcher | unknown = defaultSeamlessFetcher,
   refresh = false
 ): Promise<(T & SeamlessEnrichedFields)[]> {
   if (!Array.isArray(items) || items.length === 0) return items || []
@@ -299,13 +278,15 @@ export async function enrichItemsWithSeamlessCache<T extends Record<string, any>
     invalidateCacheKey(seamlessKey)
   }
 
-  const shouldQueryDb =
-    executor === queryClinicalDb || Boolean((executor as any)?.__includeSeamless)
-  const effectiveExecutor: QueryExecutor = shouldQueryDb
-    ? executor
-    : async () => []
+  const isDefaultCall = fetcher === undefined || fetcher === defaultSeamlessFetcher
+  const hasExplicitSeamlessFlag = Boolean((fetcher as any)?.__includeSeamless)
+  const effectiveFetcher: SeamlessEnricherFetcher =
+    isDefaultCall
+      ? defaultSeamlessFetcher
+      : hasExplicitSeamlessFlag && typeof fetcher === 'function'
+        ? (fetcher as SeamlessEnricherFetcher)
+        : async () => ({ vnRows: [], anRows: [] })
 
-  // สร้าง snapshot ของ (vn, an, fallback seamless fields) เพื่อนำไป query & cache เฉพาะ lookup
   const enrichedSnapshot = await getCachedData(
     seamlessKey,
     async () => {
@@ -325,7 +306,7 @@ export async function enrichItemsWithSeamlessCache<T extends Record<string, any>
         seamlessRepItems: r.seamlessRepItems ?? null,
         seamless_rep_items: r.seamless_rep_items ?? null,
       }))
-      return await enrichRowsWithSeamless(minimalRows, effectiveExecutor)
+      return await enrichRowsWithSeamless(minimalRows, effectiveFetcher)
     },
     300000
   )
@@ -346,4 +327,3 @@ export async function enrichItemsWithSeamlessCache<T extends Record<string, any>
     }
   })
 }
-

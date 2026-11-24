@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { clearMemoryCache } from '@/lib/cache'
 import { RcmOralCancerService, isUniversalCoverageScheme } from '../rcmOralCancerService'
+import { createMockRcmFundGateway } from './rcmGatewayTestHelper'
 
 describe('RcmOralCancerService (12.1 Oral Cancer Screening ADP 90004)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   describe('isUniversalCoverageScheme', () => {
@@ -19,17 +22,20 @@ describe('RcmOralCancerService (12.1 Oral Cancer Screening ADP 90004)', () => {
   })
 
   describe('checkOralCancerAdpMapping', () => {
-    it('returns isMapped = true when 90004 exists in s_drugitems', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([
-        {
-          icode: '3009999',
-          name: 'บริการคัดกรองรอยโรคเสี่ยงมะเร็งและมะเร็งช่องปาก (CA Oral Screening)',
-          strength: null,
-          nhso_adp_code: '90004',
-        },
-      ])
+    it('returns isMapped = true when 90004 exists via gateway', async () => {
+      const mockGateway = createMockRcmFundGateway({
+        adpCode: '90004',
+        adpItems: [
+          {
+            icode: '3009999',
+            name: 'บริการคัดกรองรอยโรคเสี่ยงมะเร็งและมะเร็งช่องปาก (CA Oral Screening)',
+            strength: null,
+            nhso_adp_code: '90004',
+          },
+        ],
+      })
 
-      const result = await RcmOralCancerService.checkOralCancerAdpMapping(mockExecutor)
+      const result = await RcmOralCancerService.checkOralCancerAdpMapping(mockGateway)
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].nhso_adp_code).toBe('90004')
@@ -37,9 +43,9 @@ describe('RcmOralCancerService (12.1 Oral Cancer Screening ADP 90004)', () => {
     })
 
     it('returns isMapped = false when 90004 is missing', async () => {
-      const mockExecutor = vi.fn().mockResolvedValue([])
+      const mockGateway = createMockRcmFundGateway({ adpCode: '90004', adpItems: [] })
 
-      const result = await RcmOralCancerService.checkOralCancerAdpMapping(mockExecutor, true)
+      const result = await RcmOralCancerService.checkOralCancerAdpMapping(mockGateway, true)
       expect(result.isMapped).toBe(false)
       expect(result.mappedCount).toBe(0)
       expect(result.items).toEqual([])
@@ -120,24 +126,25 @@ describe('RcmOralCancerService (12.1 Oral Cancer Screening ADP 90004)', () => {
       },
     ]
 
-    it('aggregates statistics and KPIs accurately', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            {
-              icode: '3009999',
-              name: 'คัดกรองมะเร็งช่องปาก',
-              strength: null,
-              nhso_adp_code: '90004',
-            },
-          ])
-        }
-        return Promise.resolve(mockRows)
+    const createMockGateway = () =>
+      createMockRcmFundGateway({
+        adpCode: '90004',
+        fundKey: 'oral-cancer',
+        adpItems: [
+          {
+            icode: '3009999',
+            name: 'คัดกรองมะเร็งช่องปาก',
+            strength: null,
+            nhso_adp_code: '90004',
+          },
+        ],
+        rawRows: mockRows,
       })
 
+    it('aggregates statistics and KPIs accurately', async () => {
       const report = await RcmOralCancerService.getOralCancerReport(
         { startDate: '2026-10-01', endDate: '2026-10-31', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
 
       expect(report.summary.totalVisits).toBe(2)
@@ -157,18 +164,9 @@ describe('RcmOralCancerService (12.1 Oral Cancer Screening ADP 90004)', () => {
     })
 
     it('filters by cardFilter COMPENSATED', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            { icode: '3009999', name: 'คัดกรอง', strength: null, nhso_adp_code: '90004' },
-          ])
-        }
-        return Promise.resolve(mockRows)
-      })
-
       const report = await RcmOralCancerService.getOralCancerReport(
         { startDate: '2026-10-01', endDate: '2026-10-31', cardFilter: 'COMPENSATED', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
 
       expect(report.totalCount).toBe(1)
@@ -177,43 +175,25 @@ describe('RcmOralCancerService (12.1 Oral Cancer Screening ADP 90004)', () => {
     })
 
     it('filters by cardFilter WITH_AUTHEN and NO_AUTHEN', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            { icode: '3009999', name: 'คัดกรอง', strength: null, nhso_adp_code: '90004' },
-          ])
-        }
-        return Promise.resolve(mockRows)
-      })
-
       const withAuthen = await RcmOralCancerService.getOralCancerReport(
         { startDate: '2026-10-01', endDate: '2026-10-31', cardFilter: 'WITH_AUTHEN', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
       expect(withAuthen.totalCount).toBe(1)
       expect(withAuthen.items[0].authencode).toBe('AUTH1234')
 
       const noAuthen = await RcmOralCancerService.getOralCancerReport(
         { startDate: '2026-10-01', endDate: '2026-10-31', cardFilter: 'NO_AUTHEN', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
       expect(noAuthen.totalCount).toBe(1)
       expect(noAuthen.items[0].authencode).toBeNull()
     })
 
     it('searches by patient name, hn, and diagnosis', async () => {
-      const mockExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM s_drugitems')) {
-          return Promise.resolve([
-            { icode: '3009999', name: 'คัดกรอง', strength: null, nhso_adp_code: '90004' },
-          ])
-        }
-        return Promise.resolve(mockRows)
-      })
-
       const searchByDiag = await RcmOralCancerService.getOralCancerReport(
         { startDate: '2026-10-01', endDate: '2026-10-31', search: 'K132', searchField: 'DIAG', refresh: true },
-        mockExecutor
+        createMockGateway()
       )
       expect(searchByDiag.totalCount).toBe(1)
       expect(searchByDiag.items[0].hn).toBe('0012345')

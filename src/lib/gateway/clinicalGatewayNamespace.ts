@@ -29,6 +29,54 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       }>(`/api/v1/clinical/er/status${query}`)
     },
 
+    getErLiveDashboard: () => {
+      return client.get<{
+        activePatients: Array<Record<string, unknown>>
+        errorStatusList: { total: number; list: Array<Record<string, unknown>> }
+        summary: {
+          totalActive: number
+          critical: number
+          emergency: number
+          urgency: number
+          semiUrgency: number
+          nonUrgency: number
+        }
+        stats: {
+          ptTypes: Array<Record<string, unknown>>
+          emergencyLevels: Array<Record<string, unknown>>
+          dischargeTypes: Array<Record<string, unknown>>
+        }
+      }>('/api/v1/clinical/er/live-dashboard')
+    },
+
+    getIpdBedStatusRaw: () => {
+      return client.get<Record<string, any>>('/api/v1/clinical/ipd/bed-status-raw')
+    },
+
+    getIpdOrStatus: () => {
+      return client.get<{
+        waitingList: Array<Record<string, unknown>>
+        inProgressList: Array<Record<string, unknown>>
+        recoveryList: Array<Record<string, unknown>>
+      }>('/api/v1/clinical/ipd/or-status')
+    },
+
+    getLabTrackerReport: (doctorCode?: string | null) => {
+      const qs = doctorCode && doctorCode !== 'all' ? `?doctorCode=${encodeURIComponent(doctorCode)}` : ''
+      return client.get<{
+        pendingRows: Array<Record<string, unknown>>
+        reportedRows: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/lab/tracker-report${qs}`)
+    },
+
+    getLabTrackerDoctors: () => {
+      return client.get<{
+        doctors: Array<Record<string, unknown>>
+        others: Array<Record<string, unknown>>
+        totalCount: number
+      }>('/api/v1/clinical/lab/tracker-doctors')
+    },
+
     getIpdOccupancy: () => {
       return client.get<Array<{ ward: string; ward_name: string; shortname: string; admitted_patients: number }>>(
         '/api/v1/clinical/ipd/occupancy'
@@ -385,14 +433,28 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       }
     },
 
-    getAdpMapping: (adpCode: string) => {
+    getAdpMapping: (adpCode: string, options?: { includeNonDrug?: boolean; refresh?: boolean }) => {
+      const q = new URLSearchParams()
+      if (options?.includeNonDrug) q.set('includeNonDrug', 'true')
+      if (options?.refresh) q.set('refresh', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const path = options?.includeNonDrug || options?.refresh
+        ? `/api/v1/clinical/rcm/funds/adp-mapping-v2/${encodeURIComponent(adpCode.trim())}${qs}`
+        : `/api/v1/clinical/rcm/funds/adp-mapping/${encodeURIComponent(adpCode.trim())}`
       return client.get<{
         success: boolean
         adpCode: string
         isMapped: boolean
         mappedCount: number
         items: Array<{ icode: string; name: string; strength: string | null; nhso_adp_code: string }>
-      }>(`/api/v1/clinical/rcm/funds/adp-mapping/${encodeURIComponent(adpCode.trim())}`)
+      }>(path)
+    },
+
+    enrichSeamlessVisits: (payload: { vns?: string[]; ans?: string[] }, options?: RequestOptions) => {
+      return client.post<{
+        vnRows: Array<Record<string, unknown>>
+        anRows: Array<Record<string, unknown>>
+      }>('/api/v1/clinical/rcm/seamless/enrich-visits', payload, { timeoutMs: 30000, ...options })
     },
 
     // ── RCM Rep Statement & Fund Group Named APIs ──
