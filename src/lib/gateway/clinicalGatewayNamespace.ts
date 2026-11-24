@@ -366,6 +366,22 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       return client.get<any>(`/api/v1/clinical/rcm/palliative-care${qs}`)
     },
 
+    enrichPalliativeHns: (hns: string[]) => {
+      return client.post<{
+        clinicMembers: Array<{ hn: string; regdate: string }>
+        anRows: Array<{ hn: string; an: string }>
+        repeclaimRows: Array<{ hn: string; admdate: string; rep: string; compensated: number }>
+        repdataRows: Array<{
+          hn: string
+          admdate: string
+          rep: string
+          compensated: number
+          errorcode?: string | null
+          remark?: string | null
+        }>
+      }>('/api/v1/clinical/palliative-care/enrich-hns', { hns })
+    },
+
     getMokList: <T = Record<string, unknown>>(params: {
       category: string
       catchment?: 'in_catchment' | 'out_catchment'

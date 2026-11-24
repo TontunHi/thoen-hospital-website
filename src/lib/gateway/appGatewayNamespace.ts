@@ -795,9 +795,42 @@ export function createAppNamespace(client: AppHttpClient) {
       return client.delete<{ message: string }>(`/api/v1/app/palliative-care/registries/${id}`)
     },
 
+    lookupPalliativePatientByHn: (hn: string) => {
+      return client.get<Record<string, any> | null>(
+        `/api/v1/app/palliative-care/lookup/${encodeURIComponent(hn.trim())}`
+      )
+    },
+
+    syncPalliativeWithHosxp: (payload?: { actor?: string }) => {
+      return client.post<Record<string, any>>('/api/v1/app/palliative-care/sync-hosxp', payload || {}, {
+        timeoutMs: 90000,
+      })
+    },
+
+    getPalliativeRawBundle: () => {
+      return client.get<{
+        registries: Array<Record<string, any>>
+        visits: Array<Record<string, any>>
+      }>('/api/v1/app/palliative-care/raw-bundle')
+    },
+
     // ── LTC (Long-Term Care) Registry ──
     getLtcHns: () => {
-      return client.get<{ success: boolean; count: number; data: string[] }>('/api/v1/app/ltc/hns')
+      return client.get<{ success: boolean; count: number; data: string[] } | string[]>('/api/v1/app/ltc/hns')
+    },
+
+    lookupLtcPatientByHn: (hn: string) => {
+      return client.get<Record<string, any> | null>(
+        `/api/v1/app/ltc/lookup/${encodeURIComponent(hn.trim())}`
+      )
+    },
+
+    syncLtcWithHosxp: (payload?: { recordId?: number; actor?: string }) => {
+      return client.post<{
+        totalChecked: number
+        updatedCount: number
+        mismatches: Array<{ hn: string; currentName: string; hosName: string; cid: string }>
+      }>('/api/v1/app/ltc/sync-hosxp', payload || {}, { timeoutMs: 90000 })
     },
 
     getLtcRegistries: (params?: {

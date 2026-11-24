@@ -29,31 +29,42 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
   })
 
   describe('getInvoiceSummary', () => {
-    it('executes query and computes grand total correctly for OPD', async () => {
-      const mockRows = [
-        {
-          code: '01',
-          name: 'UC ใน CUP',
-          visit: 10,
-          receipt: 5000,
-          compensated: 4500,
+    it('fetches summary via Gateway and computes grand total correctly for OPD', async () => {
+      const getRcmInvoiceSummary = vi.fn().mockResolvedValue({
+        department: 'OP',
+        ds1: '2026-08-01',
+        ds2: '2026-08-31',
+        items: [
+          {
+            code: '01',
+            name: 'UC ใน CUP',
+            visit: 10,
+            receipt: 5000,
+            compensated: 4500,
+            down: 500,
+            up: -1000,
+            debit: 5000,
+          },
+          {
+            code: '17',
+            name: 'เบิกจ่ายตรงกรมบัญชีกลาง',
+            visit: 5,
+            receipt: 2000,
+            compensated: 2000,
+            down: 0,
+            up: 0,
+            debit: 2000,
+          },
+        ],
+        grandTotal: {
+          visit: 15,
+          receipt: 7000,
+          compensated: 6500,
           down: 500,
           up: -1000,
-          debit: 5000,
+          debit: 7000,
         },
-        {
-          code: '17',
-          name: 'เบิกจ่ายตรงกรมบัญชีกลาง',
-          visit: 5,
-          receipt: 2000,
-          compensated: 2000,
-          down: 0,
-          up: 0,
-          debit: 2000,
-        },
-      ]
-
-      const mockExecutor = vi.fn().mockResolvedValue(mockRows)
+      })
 
       const result = await RcmDashboardService.getInvoiceSummary(
         {
@@ -61,10 +72,10 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
           ds1: '2026-08-01',
           ds2: '2026-08-31',
         },
-        mockExecutor
+        { getRcmInvoiceSummary }
       )
 
-      expect(mockExecutor).toHaveBeenCalled()
+      expect(getRcmInvoiceSummary).toHaveBeenCalled()
       expect(result.department).toBe('OP')
       expect(result.items.length).toBe(2)
       expect(result.grandTotal).toEqual({
@@ -78,10 +89,23 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
     })
 
     it('handles IPD department parameter correctly', async () => {
-      const mockRows = [
-        {
-          code: '01',
-          name: 'UC ใน CUP',
+      const getRcmInvoiceSummary = vi.fn().mockResolvedValue({
+        department: 'IP',
+        ds1: '2026-08-01',
+        ds2: '2026-08-31',
+        items: [
+          {
+            code: '01',
+            name: 'UC ใน CUP',
+            visit: 2,
+            receipt: 12000,
+            compensated: 10000,
+            down: 0,
+            up: -2000,
+            debit: 12000,
+          },
+        ],
+        grandTotal: {
           visit: 2,
           receipt: 12000,
           compensated: 10000,
@@ -89,9 +113,7 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
           up: -2000,
           debit: 12000,
         },
-      ]
-
-      const mockExecutor = vi.fn().mockResolvedValue(mockRows)
+      })
 
       const result = await RcmDashboardService.getInvoiceSummary(
         {
@@ -99,7 +121,7 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
           ds1: '2026-08-01',
           ds2: '2026-08-31',
         },
-        mockExecutor
+        { getRcmInvoiceSummary }
       )
 
       expect(result.department).toBe('IP')
@@ -109,10 +131,14 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
   })
 
   describe('getInvoiceDetails', () => {
-    it('executes count+summary and paginated data queries correctly', async () => {
-      const mockCount = [
-        {
-          total: 2,
+    it('fetches paginated invoice details and filteredSummary via Gateway', async () => {
+      const getRcmInvoiceDetails = vi.fn().mockResolvedValue({
+        totalCount: 2,
+        totalPages: 1,
+        page: 1,
+        pageSize: 50,
+        filteredSummary: {
+          totalVisits: 2,
           compensated: 1572,
           fund_money: 450,
           income_hosxp: 2000,
@@ -127,41 +153,38 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
           dmis: 40,
           down: 120,
           up: -448,
+          net_diff: -328,
         },
-      ]
-      const mockItems = [
-        {
-          vnOrAn: '690813131739',
-          cid: '1234567890123',
-          hn: '123456',
-          ptname: 'นายทดสอบ ระบบ',
-          vstdate: '2026-08-13',
-          vsttime: '13:17:00',
-          compensated: 572,
-          fund_money: 0,
-          income_hosxp: 572,
-          rcpt_money: 0,
-          debit_hosxp: 572,
-          hc: 0,
-          ae: 0,
-          inst: 0,
-          op: 0,
-          ip: 0,
-          drug: 0,
-          dmis: 0,
-          down: 0,
-          up: 0,
-          rep: '690800078',
-          bill: '8843/022',
-          billdate: '2026-08-25',
-          pttype_eclaim_id: '01',
-        },
-      ]
-
-      const mockExecutor = vi
-        .fn()
-        .mockResolvedValueOnce(mockCount)
-        .mockResolvedValueOnce(mockItems)
+        items: [
+          {
+            no: 1,
+            vnOrAn: '690813131739',
+            cid: '1234567890123',
+            hn: '123456',
+            ptname: 'นายทดสอบ ระบบ',
+            vstdate: '2026-08-13',
+            vsttime: '13:17:00',
+            compensated: 572,
+            fund_money: 0,
+            income_hosxp: 572,
+            rcpt_money: 0,
+            debit_hosxp: 572,
+            hc: 0,
+            ae: 0,
+            inst: 0,
+            op: 0,
+            ip: 0,
+            drug: 0,
+            dmis: 0,
+            down: 0,
+            up: 0,
+            rep: '690800078',
+            bill: '8843/022',
+            billdate: '2026-08-25',
+            pttype_eclaim_id: '01',
+          },
+        ],
+      })
 
       const result = await RcmDashboardService.getInvoiceDetails(
         {
@@ -172,10 +195,10 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
           page: 1,
           pageSize: 50,
         },
-        mockExecutor
+        { getRcmInvoiceDetails }
       )
 
-      expect(mockExecutor).toHaveBeenCalledTimes(2)
+      expect(getRcmInvoiceDetails).toHaveBeenCalledTimes(1)
       expect(result.totalCount).toBe(2)
       expect(result.items.length).toBe(1)
       expect(result.items[0].no).toBe(1)

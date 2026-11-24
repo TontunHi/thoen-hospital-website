@@ -1,43 +1,37 @@
 import { describe, it, expect, vi } from 'vitest'
-import {
-  ClinicalRecordsService,
-  QueryExecutor,
-} from '../clinicalRecordsService'
+import { ClinicalRecordsService } from '../clinicalRecordsService'
 
 describe('ClinicalRecordsService', () => {
   describe('searchPatientVisits', () => {
     it('returns empty array when query is empty or whitespace', async () => {
-      const mockExecutor: QueryExecutor = vi.fn()
-      const result = await ClinicalRecordsService.searchPatientVisits('   ', mockExecutor)
+      const searchPatientVisits = vi.fn()
+      const result = await ClinicalRecordsService.searchPatientVisits('   ', { searchPatientVisits })
       expect(result).toEqual([])
-      expect(mockExecutor).not.toHaveBeenCalled()
+      expect(searchPatientVisits).not.toHaveBeenCalled()
     })
 
-    it('executes HOSxP search query and formats patient records correctly', async () => {
-      const fakeRows = [
+    it('fetches HOSxP search visits via Gateway and formats patient records correctly', async () => {
+      const searchPatientVisits = vi.fn().mockResolvedValue([
         {
           hn: '0012345',
           cid: '1529900112233',
           ptname: 'นายสมชาย ใจดี',
           vn: '690930001',
           an: null,
-          dayv: '30',
-          monthv: 'ก.ย.',
-          yearv: '2569',
+          dateText: '30 ก.ย. 2569',
           department: 'ห้องตรวจโรคทั่วไป',
           cc: 'มีไข้ ไอ เจ็บคอ',
-          status_name: 'ตรวจเสร็จสิ้น',
-          co1: 2,
-          clab: 1,
-          co2: null,
-          clab2: null,
+          statusName: 'ตรวจเสร็จสิ้น',
+          opdDrugsCount: 2,
+          opdLabsCount: 1,
+          ipdDrugsCount: 0,
+          ipdLabsCount: 0,
         },
-      ]
+      ])
 
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(fakeRows)
-      const result = await ClinicalRecordsService.searchPatientVisits('0012345', mockExecutor)
+      const result = await ClinicalRecordsService.searchPatientVisits('0012345', { searchPatientVisits })
 
-      expect(mockExecutor).toHaveBeenCalledTimes(1)
+      expect(searchPatientVisits).toHaveBeenCalledWith('0012345')
       expect(result).toHaveLength(1)
       expect(result[0]).toEqual({
         hn: '0012345',
@@ -59,72 +53,55 @@ describe('ClinicalRecordsService', () => {
 
   describe('getVisitClinicalDetails', () => {
     it('returns null if neither vn nor an is provided', async () => {
-      const mockExecutor: QueryExecutor = vi.fn()
-      const result = await ClinicalRecordsService.getVisitClinicalDetails({}, mockExecutor)
+      const getVisitClinicalDetails = vi.fn()
+      const result = await ClinicalRecordsService.getVisitClinicalDetails({}, { getVisitClinicalDetails })
       expect(result).toBeNull()
-      expect(mockExecutor).not.toHaveBeenCalled()
+      expect(getVisitClinicalDetails).not.toHaveBeenCalled()
     })
 
-    it('returns structured OPD visit details with diagnoses, drugs, labs, and xray', async () => {
-      const mockExecutor: QueryExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM opdscreen o \n        join patient pt')) {
-          return Promise.resolve([
-            {
-              hn: '0012345',
-              cid: '1529900112233',
-              ptname: 'นายสมชาย ใจดี',
-              ptage: 45,
-              vn: '690930001',
-              dayv: '30',
-              monthv: 'ก.ย.',
-              yearv: '2569',
-            },
-          ])
-        }
-        if (sql.includes('concat(ic1.code')) {
-          return Promise.resolve([
-            {
-              bps: 120,
-              bpd: 80,
-              bw: 65,
-              pulse: 78,
-              temperature: 36.6,
-              cc: 'ตรวจสุขภาพ',
-              department: 'OPD 1',
-              name: 'J00 : Acute nasopharyngitis',
-            },
-          ])
-        }
-        if (sql.includes('FROM opitemrece o  \n        join drugitems d')) {
-          return Promise.resolve([
-            {
-              name: 'Paracetamol 500 mg',
-              strength: '500 mg',
-              qty: 10,
-              units: 'เม็ด',
-              name1: 'รับประทานครั้งละ 1 เม็ด',
-            },
-          ])
-        }
-        if (sql.includes('FROM lab_head lh \n        left outer join lab_order lo')) {
-          return Promise.resolve([
-            {
-              form_name: 'CBC',
-              lab_items_name: 'WBC',
-              lab_order_result: '6500',
-              lab_items_normal_value: '4000-10000',
-            },
-          ])
-        }
-        if (sql.includes('xray_head')) {
-          return Promise.resolve([{ xray_list: 'Chest PA Upright normal' }])
-        }
-        return Promise.resolve([])
+    it('returns structured OPD visit details via Gateway', async () => {
+      const getVisitClinicalDetails = vi.fn().mockResolvedValue({
+        type: 'OPD',
+        patient: {
+          hn: '0012345',
+          cid: '1529900112233',
+          name: 'นายสมชาย ใจดี',
+          age: 45,
+          dateText: '30 ก.ย. 2569',
+        },
+        screen: {
+          bps: 120,
+          bpd: 80,
+          bw: 65,
+          pulse: 78,
+          temperature: 36.6,
+          cc: 'ตรวจสุขภาพ',
+          department: 'OPD 1',
+          dxMain: 'J00 : Acute nasopharyngitis',
+        },
+        drugs: [
+          {
+            name: 'Paracetamol 500 mg',
+            strength: '500 mg',
+            qty: 10,
+            units: 'เม็ด',
+            usage: 'รับประทานครั้งละ 1 เม็ด',
+          },
+        ],
+        labs: [
+          {
+            formName: 'CBC',
+            itemName: 'WBC',
+            result: '6500',
+            refValue: '4000-10000',
+          },
+        ],
+        xray: 'Chest PA Upright normal',
       })
 
       const result = await ClinicalRecordsService.getVisitClinicalDetails(
         { vn: '690930001' },
-        mockExecutor
+        { getVisitClinicalDetails }
       )
 
       expect(result).not.toBeNull()
@@ -141,55 +118,25 @@ describe('ClinicalRecordsService', () => {
       }
     })
 
-    it('returns structured IPD admission details for an', async () => {
-      const mockExecutor: QueryExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('FROM an_stat o \n        join patient pt')) {
-          return Promise.resolve([
-            {
-              hn: '0012345',
-              cid: '1529900112233',
-              ptname: 'นายสมชาย ใจดี',
-              ptage: 45,
-              vn: '690930001',
-              dayv: '30',
-              monthv: 'ก.ย.',
-              yearv: '2569',
-              tname: 'I10 : Essential hypertension',
-            },
-          ])
-        }
-        if (sql.includes('FROM opitemrece o  \n        join drugitems d')) {
-          return Promise.resolve([
-            {
-              name: 'Amlodipine 5 mg',
-              strength: '5 mg',
-              qty: 30,
-              units: 'เม็ด',
-              dayv: '30',
-              monthv: 'ก.ย.',
-              yearv: '2569',
-            },
-          ])
-        }
-        if (sql.includes('FROM lab_head lh \n        left outer join lab_order lo')) {
-          return Promise.resolve([
-            {
-              form_name: 'Electrolyte',
-              lab_items_name: 'Potassium',
-              lab_order_result: '4.2',
-              lab_items_normal_value: '3.5-5.0',
-              dayv: '30',
-              monthv: 'ก.ย.',
-              yearv: '2569',
-            },
-          ])
-        }
-        return Promise.resolve([])
+    it('returns structured IPD admission details for an via Gateway', async () => {
+      const getVisitClinicalDetails = vi.fn().mockResolvedValue({
+        type: 'IPD',
+        patient: {
+          hn: '0012345',
+          cid: '1529900112233',
+          name: 'นายสมชาย ใจดี',
+          age: 45,
+          dateText: '30 ก.ย. 2569',
+          diagnosis: 'I10 : Essential hypertension',
+        },
+        drugs: [{ name: 'Amlodipine 5 mg', strength: '5 mg', qty: 30, units: 'เม็ด', dateText: '30 ก.ย. 2569' }],
+        labs: [{ formName: 'Electrolyte', itemName: 'Potassium', result: '4.2', refValue: '3.5-5.0' }],
+        xray: null,
       })
 
       const result = await ClinicalRecordsService.getVisitClinicalDetails(
         { an: '690001' },
-        mockExecutor
+        { getVisitClinicalDetails }
       )
 
       expect(result?.type).toBe('IPD')
@@ -202,56 +149,44 @@ describe('ClinicalRecordsService', () => {
   })
 
   describe('getLabTrackerReport and getLabTrackerDoctors', () => {
-    it('aggregates pending and reported lab orders correctly', async () => {
-      const mockExecutor: QueryExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('lh.report_date is null')) {
-          return Promise.resolve([
-            {
-              hn: '0012345',
-              ptname: 'นายสมชาย',
-              form_name: 'CBC',
-              order_time: '09:00:00',
-              receive_time: '09:15:00',
-              name: 'นพ.ใจดี',
-            },
-          ])
-        }
-        if (sql.includes('lh.report_date is not null')) {
-          return Promise.resolve([
-            {
-              hn: '0098765',
-              ptname: 'นางสมหญิง',
-              report_time: '09:30:00',
-              ovstost: '01',
-              name: 'นพ.ใจดี',
-            },
-          ])
-        }
-        return Promise.resolve([])
+    it('aggregates pending and reported lab orders correctly via Gateway', async () => {
+      const getLabTrackerReport = vi.fn().mockResolvedValue({
+        pendingRows: [
+          {
+            hn: '0012345',
+            ptname: 'นายสมชาย',
+            form_name: 'CBC',
+            order_time: '09:00:00',
+            receive_time: '09:15:00',
+            name: 'นพ.ใจดี',
+          },
+        ],
+        reportedRows: [
+          {
+            hn: '0098765',
+            ptname: 'นางสมหญิง',
+            report_time: '09:30:00',
+            ovstost: '01',
+            name: 'นพ.ใจดี',
+          },
+        ],
       })
 
-      const report = await ClinicalRecordsService.getLabTrackerReport('all', mockExecutor)
+      const report = await ClinicalRecordsService.getLabTrackerReport('all', { getLabTrackerReport })
       expect(report.pending).toHaveLength(1)
       expect(report.reported).toHaveLength(1)
       expect(report.pending[0].patientName).toBe('นายสมชาย')
       expect(report.reported[0].patientName).toBe('นางสมหญิง')
     })
 
-    it('aggregates doctor ordering statistics', async () => {
-      const mockExecutor: QueryExecutor = vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes("not in ('01','011','02')")) {
-          return Promise.resolve([{ code: 'NUR01', name: 'พว.สมศรี', cc: 5 }])
-        }
-        if (sql.includes("in ('01','011','02')")) {
-          return Promise.resolve([{ code: 'DOC01', name: 'นพ.เอก', cc: 15 }])
-        }
-        if (sql.includes('count(distinct(lh.hn))')) {
-          return Promise.resolve([{ cc: 20 }])
-        }
-        return Promise.resolve([])
+    it('aggregates doctor ordering statistics via Gateway', async () => {
+      const getLabTrackerDoctors = vi.fn().mockResolvedValue({
+        doctors: [{ code: 'DOC01', name: 'นพ.เอก', cc: 15 }],
+        others: [{ code: 'NUR01', name: 'พว.สมศรี', cc: 5 }],
+        totalCount: 20,
       })
 
-      const stats = await ClinicalRecordsService.getLabTrackerDoctors(mockExecutor)
+      const stats = await ClinicalRecordsService.getLabTrackerDoctors({ getLabTrackerDoctors })
       expect(stats.doctors).toHaveLength(1)
       expect(stats.doctors[0].name).toBe('นพ.เอก')
       expect(stats.others[0].name).toBe('พว.สมศรี')
@@ -260,8 +195,8 @@ describe('ClinicalRecordsService', () => {
   })
 
   describe('getLoratadineDispenseSummary', () => {
-    it('computes summary statistics for Loratadine dispensing correctly', async () => {
-      const fakeRows = [
+    it('computes summary statistics for Loratadine dispensing correctly via Gateway', async () => {
+      const getLoratadineMonitor = vi.fn().mockResolvedValue([
         {
           hn: '001',
           fullname: 'นายหนึ่ง ทดสอบ',
@@ -286,10 +221,9 @@ describe('ClinicalRecordsService', () => {
           doctor_name: 'พญ.ทดสอบ',
           department: 'หอผู้ป่วยใน',
         },
-      ]
+      ])
 
-      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(fakeRows)
-      const result = await ClinicalRecordsService.getLoratadineDispenseSummary('all', mockExecutor)
+      const result = await ClinicalRecordsService.getLoratadineDispenseSummary('all', { getLoratadineMonitor })
 
       expect(result.summary.totalCount).toBe(2)
       expect(result.summary.totalQty).toBe(30)

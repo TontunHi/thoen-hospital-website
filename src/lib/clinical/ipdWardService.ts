@@ -1,8 +1,5 @@
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { getSwrCachedData } from '@/lib/cache'
-
-export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
 export interface WardSectionConfig {
   id: string
@@ -103,10 +100,6 @@ export interface WardRosterResult {
   sections: WardRosterSection[]
 }
 
-// -------------------------------------------------------------
-// Bed Occupancy Interfaces
-// -------------------------------------------------------------
-
 export const OCCUPANCY_WARD_CONFIG = [
   { wardCode: '06', name: 'ชั้น 3 Ward', beds: 44 },
   { wardCode: '05', name: 'ชั้น 3 ICU', beds: 8 },
@@ -175,10 +168,6 @@ export interface BedOccupancyData {
   updatedAt: string
 }
 
-// -------------------------------------------------------------
-// OR Room Interfaces
-// -------------------------------------------------------------
-
 export interface OrPatientItem {
   hn: string
   ptname: string
@@ -196,9 +185,17 @@ export interface OrRoomStatusResult {
   updatedAt: string
 }
 
-// -------------------------------------------------------------
-// Helper Logic: Bed & Ward Grouping
-// -------------------------------------------------------------
+export interface IpdWardGatewayAdapter {
+  getIpdWardRoster: typeof apiGateway.clinical.getIpdWardRoster
+  getIpdBedStatusRaw: typeof apiGateway.clinical.getIpdBedStatusRaw
+  getIpdOrStatus: typeof apiGateway.clinical.getIpdOrStatus
+}
+
+const defaultIpdWardGateway: IpdWardGatewayAdapter = {
+  getIpdWardRoster: () => apiGateway.clinical.getIpdWardRoster(),
+  getIpdBedStatusRaw: () => apiGateway.clinical.getIpdBedStatusRaw(),
+  getIpdOrStatus: () => apiGateway.clinical.getIpdOrStatus(),
+}
 
 export function resolveWardGroupId(wardCode: string, bedno: string): string {
   const ward = (wardCode || '').trim()
@@ -235,7 +232,7 @@ export function maskPatientName(name: string | null | undefined): string {
 }
 
 function parseSpecialties(rows: unknown[]): SpecialtyBreakdown[] {
-  return rows
+  return (rows || [])
     .map((row) => {
       const r = row as Record<string, unknown>
       return {
@@ -243,11 +240,11 @@ function parseSpecialties(rows: unknown[]): SpecialtyBreakdown[] {
         count: Number(r.patientCount) || 0,
       }
     })
-    .filter(s => s.count > 0)
+    .filter((s) => s.count > 0)
 }
 
 function parseIcnp(rows: unknown[]): IcnpClassification[] {
-  return rows
+  return (rows || [])
     .map((row) => {
       const r = row as Record<string, unknown>
       return {
@@ -255,53 +252,27 @@ function parseIcnp(rows: unknown[]): IcnpClassification[] {
         count: Number(r.can) || 0,
       }
     })
-    .filter(item => item.name && item.count > 0)
+    .filter((item) => item.name && item.count > 0)
 }
 
 function parseUnclassifiedBeds(rows: unknown[]): string[] {
-  return rows
+  return (rows || [])
     .map((row) => {
       const r = row as Record<string, unknown>
       return String(r.bedno || '').trim()
     })
-    .filter(bed => bed.length > 0)
+    .filter((bed) => bed.length > 0)
 }
-
-// -------------------------------------------------------------
-// Deep Domain Module: IpdWardService
-// -------------------------------------------------------------
 
 export const IpdWardService = {
   /**
    * Fetch aggregate public ward summary (no PHI).
    */
   async getWardSummary(
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<IpdWardGatewayAdapter> = defaultIpdWardGateway
   ): Promise<WardSummaryResult> {
-    let rows: any[] | null = null
-    if (executor === queryClinicalDb) {
-      try {
-        const gwRows = await apiGateway.clinical.getIpdWardRoster()
-        if (Array.isArray(gwRows)) {
-          rows = gwRows
-        }
-      } catch {
-        // Graceful fallback to executor query
-      }
-    }
-
-    if (rows === null) {
-      const sql = `
-        SELECT 
-          an.ward,
-          p.bedno
-        FROM an_stat an
-        LEFT OUTER JOIN iptadm p ON an.an = p.an
-        WHERE an.dchdate IS NULL
-          AND an.ward IN ('02', '04', '05', '06', '09')
-      `
-      rows = await executor(sql)
-    }
+    const gw: IpdWardGatewayAdapter = { ...defaultIpdWardGateway, ...gateway }
+    const rows = (await gw.getIpdWardRoster()) || []
 
     const counts: Record<string, number> = {
       w1: 0,
@@ -336,39 +307,11 @@ export const IpdWardService = {
    * Fetch authenticated patient roster grouped by ward (PDPA masked).
    */
   async getWardPatientRoster(
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<IpdWardGatewayAdapter> = defaultIpdWardGateway
   ): Promise<WardRosterResult> {
-    let rows: any[] | null = null
-    if (executor === queryClinicalDb) {
-      try {
-        const gwRows = await apiGateway.clinical.getIpdWardRoster()
-        if (Array.isArray(gwRows)) {
-          rows = gwRows
-        }
-      } catch {
-        // Graceful fallback to executor query
-      }
-    }
+    const gw: IpdWardGatewayAdapter = { ...defaultIpdWardGateway, ...gateway }
+    const rows = (await gw.getIpdWardRoster()) || []
 
-    if (rows === null) {
-      const sql = `
-        SELECT 
-          pt.hn,
-          TRIM(CONCAT(COALESCE(pt.pname, ''), ' ', COALESCE(pt.fname, ''))) AS ptname,
-          TIMESTAMPDIFF(YEAR, pt.birthday, CURRENT_DATE()) AS age,
-          DATE_FORMAT(an.regdate, '%Y-%m-%d') AS regdate,
-          DATEDIFF(CURRENT_DATE(), an.regdate) AS admit_days,
-          p.bedno,
-          an.ward
-        FROM an_stat an
-        LEFT OUTER JOIN patient pt ON an.hn = pt.hn
-        LEFT OUTER JOIN iptadm p ON an.an = p.an
-        WHERE an.dchdate IS NULL
-          AND an.ward IN ('02', '04', '05', '06', '09')
-        ORDER BY p.bedno ASC
-      `
-      rows = await executor(sql)
-    }
     const groups: Record<string, PatientRecord[]> = {
       w1: [],
       w2: [],
@@ -413,360 +356,79 @@ export const IpdWardService = {
   },
 
   /**
-   * Fetch comprehensive bed occupancy report and calculations.
+   * Fetch comprehensive bed occupancy report and calculations via Gateway Named API.
    */
   async getBedOccupancyReport(
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<IpdWardGatewayAdapter> = defaultIpdWardGateway
   ): Promise<BedOccupancyData> {
-    if (executor === queryClinicalDb) {
+    if (gateway === defaultIpdWardGateway) {
       return getSwrCachedData(
         'clinical:bed-occupancy-report',
-        () => this._fetchBedOccupancyReport(executor),
+        () => this._fetchBedOccupancyReport(defaultIpdWardGateway),
         { staleTtlMs: 8_000, maxTtlMs: 30_000 }
       )
     }
-    return this._fetchBedOccupancyReport(executor)
+    const gw: IpdWardGatewayAdapter = { ...defaultIpdWardGateway, ...gateway }
+    return this._fetchBedOccupancyReport(gw)
   },
 
   async _fetchBedOccupancyReport(
-    executor: QueryExecutor
+    gw: IpdWardGatewayAdapter
   ): Promise<BedOccupancyData> {
-    const [
-      opdResult,
-      wardOccupancyResult,
-      vipRoomResult,
-      vipRoomPersonResult,
-      deliveryPreResult,
-      deliveryPostResult,
-      admitTodayResult,
-      dischargeTodayResult,
-      occupancyRateOverallResult,
-      occupancyRateByWardResult,
-      icuVentilatorResult,
-      specialtyWard06Result,
-      specialtyWard05Result,
-      specialtyWard04Result,
-      specialtyWard02Result,
-      specialtyWard09Result,
-      icnpWard06Result,
-      icnpWard05Result,
-      icnpWard04Result,
-      icnpWard02Result,
-      icnpWard09Result,
-      unclassifiedBedsWard06Result,
-      unclassifiedBedsWard05Result,
-      unclassifiedBedsWard04Result,
-      unclassifiedBedsWard02Result,
-      unclassifiedBedsWard09Result,
-    ] = await Promise.all([
-      // Group 1: OPD patient count today
-      executor(`
-        SELECT COUNT(DISTINCT o.hn) AS opdCount
-        FROM ovst o
-        WHERE o.vstdate = CURRENT_DATE
-      `),
+    const raw = (await gw.getIpdBedStatusRaw()) || {}
+    const opdResult = (raw.opdResult || []) as Array<Record<string, unknown>>
+    const wardOccupancyResult = (raw.wardOccupancyResult || []) as Array<Record<string, unknown>>
+    const vipRoomResult = (raw.vipRoomResult || []) as Array<Record<string, unknown>>
+    const vipRoomPersonResult = (raw.vipRoomPersonResult || []) as Array<Record<string, unknown>>
+    const deliveryPreResult = (raw.deliveryPreResult || []) as Array<Record<string, unknown>>
+    const deliveryPostResult = (raw.deliveryPostResult || []) as Array<Record<string, unknown>>
+    const admitTodayResult = (raw.admitTodayResult || []) as Array<Record<string, unknown>>
+    const dischargeTodayResult = (raw.dischargeTodayResult || []) as Array<Record<string, unknown>>
+    const overallOccupancyResult = (raw.overallOccupancyResult || []) as Array<Record<string, unknown>>
+    const wardOccupancyRateResult = (raw.wardOccupancyRateResult || []) as Array<Record<string, unknown>>
+    const icuVentilatorResult = (raw.icuVentilatorResult || []) as Array<Record<string, unknown>>
+    const specByWard = (raw.specByWard || {}) as Record<string, unknown[]>
+    const icnpByWard = (raw.icnpByWard || {}) as Record<string, unknown[]>
+    const unclassifiedByWard = (raw.unclassifiedByWard || {}) as Record<string, unknown[]>
 
-      // Group 2a: Ward occupancy
-      executor(`
-        SELECT i.ward, COUNT(i.an) AS occupiedBeds
-        FROM ipt i
-        WHERE i.dchtype IS NULL
-          AND i.ward IN ('02', '04', '05', '06', '09')
-        GROUP BY i.ward
-      `),
-
-      // Group 2b: VIP room (ward '04') distinct bedno
-      executor(`
-        SELECT COUNT(DISTINCT b.bedno) AS occupiedBeds
-        FROM ipt i
-        LEFT OUTER JOIN iptadm b ON i.an = b.an
-        WHERE i.dchtype IS NULL AND b.bedno LIKE 'v%'
-      `),
-
-      // Group 2b-extra: VIP room person count
-      executor(`
-        SELECT COUNT(b.bedno) AS personCount
-        FROM ipt i
-        LEFT OUTER JOIN iptadm b ON i.an = b.an
-        WHERE i.dchtype IS NULL AND b.bedno LIKE 'v%'
-      `),
-
-      // Group 2c: ห้องคลอด รอคลอด (bedno LIKE 'C0%')
-      executor(`
-        SELECT COUNT(DISTINCT ip.bedno) AS occupiedBeds
-        FROM ipt i
-        LEFT OUTER JOIN iptadm ip ON i.an = ip.an
-        WHERE i.dchtype IS NULL
-          AND i.ward = '02'
-          AND ip.bedno <> ''
-          AND ip.bedno LIKE 'C0%'
-      `),
-
-      // Group 2d: ห้องคลอด หลังคลอด (bedno LIKE 'CP%')
-      executor(`
-        SELECT COUNT(DISTINCT ip.bedno) AS occupiedBeds
-        FROM ipt i
-        LEFT OUTER JOIN iptadm ip ON i.an = ip.an
-        WHERE i.dchtype IS NULL
-          AND i.ward = '02'
-          AND ip.bedno <> ''
-          AND ip.bedno LIKE 'CP%'
-      `),
-
-      // Group 3a: Admit today per ward
-      executor(`
-        SELECT i.ward, COUNT(i.an) AS admitCount
-        FROM ipt i
-        WHERE i.regdate = CURRENT_DATE
-          AND i.ward IN ('02', '04', '05', '06', '09')
-        GROUP BY i.ward
-      `),
-
-      // Group 3b: Discharge today per ward
-      executor(`
-        SELECT i.ward, COUNT(i.an) AS dischargeCount
-        FROM ipt i
-        WHERE i.dchdate = CURRENT_DATE
-          AND i.ward IN ('02', '04', '05', '06', '09')
-        GROUP BY i.ward
-      `),
-
-      // Group 4a: Occupancy rate overall
-      executor(`
-        SELECT
-          SUM(admdate) AS totalAdmDays,
-          DAY(LAST_DAY(CURRENT_DATE)) AS daysInMonth
-        FROM an_stat
-        WHERE dchdate BETWEEN
-          DATE_ADD(DATE_ADD(LAST_DAY(CURRENT_DATE), INTERVAL 1 DAY), INTERVAL -1 MONTH)
-          AND LAST_DAY(CURRENT_DATE)
-      `),
-
-      // Group 4b: Occupancy rate by ward
-      executor(`
-        SELECT
-          ward,
-          SUM(admdate) AS totalAdmDays,
-          DAY(CURRENT_DATE) AS daysSoFar
-        FROM an_stat
-        WHERE ward IN ('02', '04', '05', '06', '09')
-          AND dchdate BETWEEN
-            DATE_ADD(DATE_ADD(LAST_DAY(CURRENT_DATE), INTERVAL 1 DAY), INTERVAL -1 MONTH)
-            AND LAST_DAY(CURRENT_DATE)
-        GROUP BY ward
-      `),
-
-      // Group 6: ICU on ventilator
-      executor(`
-        SELECT COUNT(i.an) AS onVentilator
-        FROM ipt i
-        LEFT OUTER JOIN opitemrece o
-          ON i.an = o.an
-          AND o.rxdate = CURRENT_DATE
-          AND o.icode IN ('3002054', '3002024', '3002025')
-        WHERE i.dchtype IS NULL
-          AND i.ward = '05'
-          AND o.rxdate IS NOT NULL
-      `),
-
-      // Group 5: Specialty breakdown
-      executor(`
-        SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
-        FROM ipt i
-        LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
-        WHERE i.dchdate IS NULL AND i.ward = '06'
-        GROUP BY i.spclty
-      `),
-      executor(`
-        SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
-        FROM ipt i
-        LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
-        WHERE i.dchdate IS NULL AND i.ward = '05'
-        GROUP BY i.spclty
-      `),
-      executor(`
-        SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
-        FROM ipt i
-        LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
-        WHERE i.dchdate IS NULL AND i.ward = '04'
-        GROUP BY i.spclty
-      `),
-      executor(`
-        SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
-        FROM ipt i
-        LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
-        WHERE i.dchdate IS NULL AND i.ward = '02'
-        GROUP BY i.spclty
-      `),
-      executor(`
-        SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
-        FROM ipt i
-        LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
-        WHERE i.dchdate IS NULL AND i.ward = '09'
-        GROUP BY i.spclty
-      `),
-
-      // Group 7a: ICNP classification
-      executor(`
-        SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
-        FROM ipt_icnp i
-        LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
-        LEFT OUTER JOIN ipt ii ON i.an = ii.an
-        WHERE ii.dchdate IS NULL AND ii.ward = '06' AND ic.icnp_classification_name IS NOT NULL
-        GROUP BY i.icnp_classification_id
-        ORDER BY i.icnp_classification_id DESC
-      `),
-      executor(`
-        SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
-        FROM ipt_icnp i
-        LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
-        LEFT OUTER JOIN ipt ii ON i.an = ii.an
-        WHERE ii.dchdate IS NULL AND ii.ward = '05' AND ic.icnp_classification_name IS NOT NULL
-        GROUP BY i.icnp_classification_id
-        ORDER BY i.icnp_classification_id DESC
-      `),
-      executor(`
-        SELECT COUNT(b.bedno) AS can, ic.icnp_classification_name AS icnpName
-        FROM ipt i
-        LEFT OUTER JOIN ward w ON i.ward = w.ward
-        LEFT OUTER JOIN ipt_icnp ii ON i.an = ii.an
-        LEFT OUTER JOIN icnp_classification ic ON ii.icnp_classification_id = ic.icnp_classification_id
-        LEFT OUTER JOIN iptadm b ON ii.an = b.an
-        WHERE i.dchtype IS NULL AND b.bedno LIKE 'v%' AND ic.icnp_classification_name IS NOT NULL
-        GROUP BY ii.icnp_classification_id
-        ORDER BY ic.icnp_classification_id DESC
-      `),
-      executor(`
-        SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
-        FROM ipt_icnp i
-        LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
-        LEFT OUTER JOIN ipt ii ON i.an = ii.an
-        WHERE ii.dchdate IS NULL AND ii.ward = '02' AND ic.icnp_classification_name IS NOT NULL
-        GROUP BY i.icnp_classification_id
-        ORDER BY i.icnp_classification_id DESC
-      `),
-      executor(`
-        SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
-        FROM ipt_icnp i
-        LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
-        LEFT OUTER JOIN ipt ii ON i.an = ii.an
-        WHERE ii.dchdate IS NULL AND ii.ward = '09' AND ic.icnp_classification_name IS NOT NULL
-        GROUP BY i.icnp_classification_id
-        ORDER BY i.icnp_classification_id DESC
-      `),
-
-      // Group 7b: Unclassified beds
-      executor(`
-        SELECT DISTINCT i.bedno
-        FROM iptadm i
-        LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
-        LEFT OUTER JOIN an_stat a ON a.an = i.an
-        WHERE a.dchdate IS NULL AND a.ward = '06' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
-        ORDER BY i.bedno ASC
-      `),
-      executor(`
-        SELECT DISTINCT i.bedno
-        FROM iptadm i
-        LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
-        LEFT OUTER JOIN an_stat a ON a.an = i.an
-        WHERE a.dchdate IS NULL AND a.ward = '05' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
-        ORDER BY i.bedno ASC
-      `),
-      executor(`
-        SELECT DISTINCT i.bedno
-        FROM iptadm i
-        LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
-        LEFT OUTER JOIN an_stat a ON a.an = i.an
-        WHERE a.dchdate IS NULL AND a.ward = '04' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
-        ORDER BY i.bedno ASC
-      `),
-      executor(`
-        SELECT DISTINCT i.bedno
-        FROM iptadm i
-        LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
-        LEFT OUTER JOIN an_stat a ON a.an = i.an
-        WHERE a.dchdate IS NULL AND a.ward = '02' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
-        ORDER BY i.bedno ASC
-      `),
-      executor(`
-        SELECT DISTINCT i.bedno
-        FROM iptadm i
-        LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
-        LEFT OUTER JOIN an_stat a ON a.an = i.an
-        WHERE a.dchdate IS NULL AND a.ward = '09' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
-        ORDER BY i.bedno ASC
-      `),
-    ])
-
-    const opdPatientCount = Number((opdResult[0] as Record<string, unknown>)?.opdCount) || 0
+    const opdPatientCount = Number(opdResult[0]?.opdCount) || 0
 
     const occupancyByWard = new Map<string, number>()
-    for (const row of wardOccupancyResult) {
-      const r = row as Record<string, unknown>
+    for (const r of wardOccupancyResult) {
       occupancyByWard.set(String(r.ward), Number(r.occupiedBeds) || 0)
     }
 
-    const vipRoomCount = Number((vipRoomResult[0] as Record<string, unknown>)?.occupiedBeds) || 0
-    const vipPersonCount = Number((vipRoomPersonResult[0] as Record<string, unknown>)?.personCount) || 0
+    const vipRoomCount = Number(vipRoomResult[0]?.occupiedBeds) || 0
+    const vipPersonCount = Number(vipRoomPersonResult[0]?.personCount) || 0
 
-    const preDeliveryOccupied = Number((deliveryPreResult[0] as Record<string, unknown>)?.occupiedBeds) || 0
-    const postDeliveryOccupied = Number((deliveryPostResult[0] as Record<string, unknown>)?.occupiedBeds) || 0
+    const preDeliveryOccupied = Number(deliveryPreResult[0]?.occupiedBeds) || 0
+    const postDeliveryOccupied = Number(deliveryPostResult[0]?.occupiedBeds) || 0
 
     const admitByWard = new Map<string, number>()
-    for (const row of admitTodayResult) {
-      const r = row as Record<string, unknown>
+    for (const r of admitTodayResult) {
       admitByWard.set(String(r.ward), Number(r.admitCount) || 0)
     }
     const dischargeByWard = new Map<string, number>()
-    for (const row of dischargeTodayResult) {
-      const r = row as Record<string, unknown>
+    for (const r of dischargeTodayResult) {
       dischargeByWard.set(String(r.ward), Number(r.dischargeCount) || 0)
     }
 
-    const overallRow = occupancyRateOverallResult[0] as Record<string, unknown> | undefined
+    const overallRow = overallOccupancyResult[0]
     const totalAdmDays = Number(overallRow?.totalAdmDays) || 0
     const daysInMonth = Number(overallRow?.daysInMonth) || 30
 
     const occupancyRateByWard = new Map<string, number>()
-    for (const row of occupancyRateByWardResult) {
-      const r = row as Record<string, unknown>
+    for (const r of wardOccupancyRateResult) {
       occupancyRateByWard.set(String(r.ward), Number(r.totalAdmDays) || 0)
     }
 
-    const onVentilator = Number((icuVentilatorResult[0] as Record<string, unknown>)?.onVentilator) || 0
-
-    const specialtyResults: Record<string, SpecialtyBreakdown[]> = {
-      '06': parseSpecialties(specialtyWard06Result),
-      '05': parseSpecialties(specialtyWard05Result),
-      '04': parseSpecialties(specialtyWard04Result),
-      '02': parseSpecialties(specialtyWard02Result),
-      '09': parseSpecialties(specialtyWard09Result),
-    }
-
-    const icnpResults: Record<string, IcnpClassification[]> = {
-      '06': parseIcnp(icnpWard06Result),
-      '05': parseIcnp(icnpWard05Result),
-      '04': parseIcnp(icnpWard04Result),
-      '02': parseIcnp(icnpWard02Result),
-      '09': parseIcnp(icnpWard09Result),
-    }
-
-    const unclassifiedBedsResults: Record<string, string[]> = {
-      '06': parseUnclassifiedBeds(unclassifiedBedsWard06Result),
-      '05': parseUnclassifiedBeds(unclassifiedBedsWard05Result),
-      '04': parseUnclassifiedBeds(unclassifiedBedsWard04Result),
-      '02': parseUnclassifiedBeds(unclassifiedBedsWard02Result),
-      '09': parseUnclassifiedBeds(unclassifiedBedsWard09Result),
-    }
+    const onVentilator = Number(icuVentilatorResult[0]?.onVentilator) || 0
 
     const wards: WardOccupancy[] = OCCUPANCY_WARD_CONFIG.map((config) => {
-      let occupied: number
-
-      if (config.wardCode === '04') {
-        occupied = vipRoomCount
-      } else {
-        occupied = occupancyByWard.get(config.wardCode) || 0
-      }
+      const occupied =
+        config.wardCode === '04'
+          ? vipRoomCount
+          : occupancyByWard.get(config.wardCode) || 0
 
       const remaining = Math.max(0, config.beds - occupied)
       const usagePercent =
@@ -788,9 +450,9 @@ export const IpdWardService = {
         occupancyRate: wardOccRate,
         admitToday: admitByWard.get(config.wardCode) || 0,
         dischargeToday: dischargeByWard.get(config.wardCode) || 0,
-        specialties: specialtyResults[config.wardCode] || [],
-        icnpClassifications: icnpResults[config.wardCode] || [],
-        unclassifiedBeds: unclassifiedBedsResults[config.wardCode] || [],
+        specialties: parseSpecialties(specByWard[config.wardCode] || []),
+        icnpClassifications: parseIcnp(icnpByWard[config.wardCode] || []),
+        unclassifiedBeds: parseUnclassifiedBeds(unclassifiedByWard[config.wardCode] || []),
       }
 
       if (config.wardCode === '05') {
@@ -857,44 +519,24 @@ export const IpdWardService = {
    * Fetch operating room status (waiting, in-progress, recovery) with PDPA masking.
    */
   async getOrRoomStatus(
-    executor: QueryExecutor = queryClinicalDb
+    gateway: Partial<IpdWardGatewayAdapter> = defaultIpdWardGateway
   ): Promise<OrRoomStatusResult> {
-    const buildOrQuery = (statusId: string) => `
-      SELECT DISTINCT
-        op.hn,
-        TRIM(CONCAT(COALESCE(pt.pname, ''), COALESCE(pt.fname, ''))) AS ptname,
-        TIMESTAMPDIFF(YEAR, pt.birthday, CURRENT_DATE()) AS age_text,
-        COALESCE(opr.room_name, '-') AS room_name,
-        TIME_FORMAT(op.request_time, '%H:%i') AS request_time,
-        COALESCE(ops.status_name, '${statusId === '1' ? 'รอผ่าตัด' : statusId === '2' ? 'กำลังผ่าตัด' : 'ผ่าตัดเสร็จ/พักฟื้น'}') AS status_name
-      FROM operation_list op
-      LEFT OUTER JOIN patient pt ON op.hn = pt.hn
-      LEFT OUTER JOIN operation_room opr ON op.room_id = opr.room_id
-      LEFT OUTER JOIN operation_status ops ON op.status_id = ops.status_id
-      WHERE op.operation_date = CURRENT_DATE()
-        AND op.status_id IN ('${statusId}')
-      ORDER BY op.request_time ASC
-    `
+    const gw: IpdWardGatewayAdapter = { ...defaultIpdWardGateway, ...gateway }
+    const res = await gw.getIpdOrStatus()
 
-    const [waitingList, inProgressList, recoveryList] = await Promise.all([
-      executor(buildOrQuery('1')),
-      executor(buildOrQuery('2')),
-      executor(buildOrQuery('3')),
-    ])
-
-    const maskList = (list: Record<string, unknown>[]): OrPatientItem[] =>
+    const maskList = (list: Array<Record<string, unknown>>, fallbackStatus: string): OrPatientItem[] =>
       (list || []).map((item) => ({
         hn: String(item.hn || ''),
         ptname: maskPatientName(String(item.ptname || '')),
         age_text: item.age_text !== undefined && item.age_text !== null ? Number(item.age_text) : '-',
         room_name: String(item.room_name || '-'),
         request_time: String(item.request_time || ''),
-        status_name: String(item.status_name || ''),
+        status_name: String(item.status_name || fallbackStatus),
       }))
 
-    const waiting = maskList(waitingList)
-    const inProgress = maskList(inProgressList)
-    const recovery = maskList(recoveryList)
+    const waiting = maskList(res?.waitingList || [], 'รอผ่าตัด')
+    const inProgress = maskList(res?.inProgressList || [], 'กำลังผ่าตัด')
+    const recovery = maskList(res?.recoveryList || [], 'ผ่าตัดเสร็จ/พักฟื้น')
 
     return {
       waiting,

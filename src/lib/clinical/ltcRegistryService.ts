@@ -1,7 +1,6 @@
 import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
-import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 
 export interface LongTermCareRecord {
   id: number
@@ -60,14 +59,10 @@ export interface LtcMutationContext {
   email?: string
 }
 
-// In-memory cache for LTC HNs to provide ultra-fast cross-checks
 let ltcHnCache: { set: Set<string>; timestamp: number } | null = null
-const LTC_CACHE_TTL_MS = 30 * 1000 // 30 seconds
+const LTC_CACHE_TTL_MS = 30 * 1000
 
 export class LtcRegistryService {
-  /**
-   * Invalidate LTC cache on create/update/delete.
-   */
   static invalidateCache() {
     ltcHnCache = null
   }
@@ -82,24 +77,12 @@ export class LtcRegistryService {
     }
 
     try {
-      let hns: string[] = []
-      if (typeof (apiGateway.app as any).getLtcHns === 'function') {
-        try {
-          const res = await (apiGateway.app as any).getLtcHns()
-          if (res && res.success && Array.isArray(res.data)) {
-            hns = res.data
-          }
-        } catch (apiErr) {
-          logger.warn({ apiErr }, 'Fallback to raw query for getAllLtcHnSet')
-        }
-      }
-
-      if (hns.length === 0) {
-        const rows = await apiGateway.app.query<{ hn: string }>(
-          'SELECT hn FROM long_term_care_registries WHERE hn IS NOT NULL'
-        )
-        hns = rows.map((r) => r.hn).filter(Boolean)
-      }
+      const res = await apiGateway.app.getLtcHns()
+      const hns: string[] = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+        ? res.data
+        : []
 
       const set = new Set<string>()
       for (const hn of hns) {
@@ -129,72 +112,18 @@ export class LtcRegistryService {
   }
 
   /**
-   * Look up patient demographic details from HOSxP and check LTC & Palliative Care status.
+   * Look up patient demographic details from HOSxP and check LTC & Palliative Care status via Gateway.
    */
   static async lookupPatientByHn(hn: string): Promise<LtcPatientLookupResult | null> {
     const rawInput = (hn || '').trim()
     if (!rawInput) return null
 
     const cleanHn = /^\d+$/.test(rawInput) ? rawInput.padStart(7, '0') : rawInput
-
-    const ptSql = `
-      SELECT 
-        pt.hn,
-        pt.cid,
-        CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
-        IFNULL(pt.addrpart, '') AS address,
-        IFNULL(pt.moopart, '') AS moo,
-        IFNULL(t.name, '') AS tambon,
-        TIMESTAMPDIFF(YEAR, pt.birthday, CURDATE()) AS age
-      FROM patient pt
-      LEFT JOIN thaiaddress t ON t.chwpart = pt.chwpart AND t.amppart = pt.amppart AND t.tmbpart = pt.tmbpart
-      WHERE pt.hn = ?
-      LIMIT 1;
-    `
-
-    const ptRows = await apiGateway.clinical.query<any>(ptSql, [cleanHn])
-    if (!ptRows || ptRows.length === 0) {
-      return null
-    }
-
-    const pt = ptRows[0]
-
-    // Check if patient is already in LTC
-    const existingLtc = await this.getRegistryByHn(cleanHn)
-
-    // Check if patient is in Palliative Care registry via Named API
-    let isPalliative = false
-    try {
-      if (typeof apiGateway.app.getPalliativeRegistryByHn === 'function') {
-        const pal = await apiGateway.app.getPalliativeRegistryByHn(cleanHn)
-        if (pal && (pal as any).id) {
-          isPalliative = true
-        }
-      } else {
-        const palRows = await apiGateway.app.query<{ id: number }>(
-          'SELECT id FROM palliative_care_registries WHERE hn = ? LIMIT 1',
-          [cleanHn]
-        )
-        if (palRows && palRows.length > 0) {
-          isPalliative = true
-        }
-      }
-    } catch (err) {
-      logger.warn({ err }, 'Failed to check palliative care status for LTC lookup')
-    }
-
-    return {
-      hn: pt.hn,
-      cid: pt.cid || null,
-      patientName: pt.ptname || '',
-      address: pt.address || null,
-      moo: pt.moo || null,
-      tambon: pt.tambon || null,
-      age: pt.age !== null && pt.age !== undefined ? Number(pt.age) : null,
-      isAlreadyInLtc: Boolean(existingLtc),
-      existingLtcId: existingLtc ? existingLtc.id : undefined,
-      isPalliative,
-    }
+    const res = await apiGateway.app.lookupLtcPatientByHn(cleanHn)
+    if (!res) return null
+    const data = ('data' in res && res.data !== undefined ? res.data : res) as LtcPatientLookupResult | null
+    if (!data || !data.hn) return null
+    return data
   }
 
   /**
@@ -206,114 +135,22 @@ export class LtcRegistryService {
     const search = (params.search || '').trim().toLowerCase()
     const areaZone = (params.areaZone || '').trim()
 
-    if (typeof (apiGateway.app as any).getLtcRegistries === 'function') {
-      try {
-        const res = await (apiGateway.app as any).getLtcRegistries({
-          search,
-          areaZone,
-          page,
-          limit,
-          exportAll: params.exportAll,
-        })
-        if (res && res.success && Array.isArray(res.items)) {
-          return {
-            items: res.items,
-            total: res.total,
-            page: res.page,
-            limit: res.limit,
-            totalPages: res.totalPages,
-            availableAreaZones: res.availableAreaZones || [],
-            stats: res.stats || { total: res.total, avgAdl: 0, zoneCounts: {} },
-          }
-        }
-      } catch (err) {
-        logger.warn({ err }, 'Fallback to raw query for listRegistries')
-      }
-    }
-
-    // Query all records from Website DB
-    const sql = `
-      SELECT 
-        id,
-        hn,
-        cid,
-        patient_name AS patientName,
-        address,
-        moo,
-        tambon,
-        age,
-        adl_score AS adlScore,
-        area_zone AS areaZone,
-        created_by AS createdBy,
-        updated_by AS updatedBy,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM long_term_care_registries
-      ORDER BY id DESC
-    `
-
-    const rows = await apiGateway.app.query<LongTermCareRecord>(sql)
-
-    // Extract unique available area zones
-    const zoneSet = new Set<string>()
-    for (const r of rows) {
-      if (r.areaZone && r.areaZone.trim()) {
-        zoneSet.add(r.areaZone.trim())
-      }
-    }
-    const availableAreaZones = Array.from(zoneSet).sort()
-
-    // Filter in-memory
-    let filtered = rows
-    if (search) {
-      filtered = filtered.filter((r) => {
-        const hnMatch = r.hn?.toLowerCase().includes(search)
-        const cidMatch = r.cid?.toLowerCase().includes(search)
-        const nameMatch = r.patientName?.toLowerCase().includes(search)
-        const tambonMatch = r.tambon?.toLowerCase().includes(search)
-        return hnMatch || cidMatch || nameMatch || tambonMatch
-      })
-    }
-
-    if (areaZone && areaZone !== 'ALL') {
-      filtered = filtered.filter((r) => r.areaZone === areaZone)
-    }
-
-    const total = filtered.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-
-    // Calculate stats
-    let totalAdl = 0
-    let countWithAdl = 0
-    const zoneCounts: Record<string, number> = {}
-
-    for (const r of filtered) {
-      if (r.adlScore !== null && r.adlScore !== undefined) {
-        totalAdl += Number(r.adlScore)
-        countWithAdl++
-      }
-      const z = r.areaZone || 'ไม่ระบุเขต'
-      zoneCounts[z] = (zoneCounts[z] || 0) + 1
-    }
-
-    const avgAdl = countWithAdl > 0 ? Math.round((totalAdl / countWithAdl) * 10) / 10 : 0
-
-    const pagedItems = params.exportAll
-      ? filtered
-      : filtered.slice((page - 1) * limit, page * limit)
-
-    return {
-      items: pagedItems,
-      total,
+    const res = await apiGateway.app.getLtcRegistries({
+      search,
+      areaZone,
       page,
       limit,
-      totalPages,
-      availableAreaZones,
-      stats: {
-        total,
-        avgAdl,
-        zoneCounts,
-      },
+      exportAll: params.exportAll,
+    })
+
+    return {
+      items: (res?.items || []) as LongTermCareRecord[],
+      total: Number(res?.total || 0),
+      page: Number(res?.page || page),
+      limit: Number(res?.limit || limit),
+      totalPages: Number(res?.totalPages || 1),
+      availableAreaZones: res?.availableAreaZones || [],
+      stats: res?.stats || { total: Number(res?.total || 0), avgAdl: 0, zoneCounts: {} },
     }
   }
 
@@ -321,42 +158,10 @@ export class LtcRegistryService {
    * Retrieves a single LTC record by its primary key ID.
    */
   static async getRegistryById(id: number): Promise<LongTermCareRecord | null> {
-    if (typeof (apiGateway.app as any).getLtcRegistryById === 'function') {
-      try {
-        const res = await (apiGateway.app as any).getLtcRegistryById(id)
-        if (res && res.success && res.data) {
-          return res.data as LongTermCareRecord
-        }
-      } catch (err) {
-        logger.warn({ err }, 'Fallback to raw query for getRegistryById')
-      }
-    }
-
-    const rows = await apiGateway.app.query<LongTermCareRecord>(
-      `
-      SELECT 
-        id,
-        hn,
-        cid,
-        patient_name AS patientName,
-        address,
-        moo,
-        tambon,
-        age,
-        adl_score AS adlScore,
-        area_zone AS areaZone,
-        created_by AS createdBy,
-        updated_by AS updatedBy,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM long_term_care_registries
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [id]
-    )
-
-    return rows && rows.length > 0 ? rows[0] : null
+    const res = await apiGateway.app.getLtcRegistryById(id)
+    if (!res) return null
+    const record = ('data' in res && res.data !== undefined ? res.data : res) as LongTermCareRecord | null
+    return record && record.id ? record : null
   }
 
   /**
@@ -364,50 +169,16 @@ export class LtcRegistryService {
    */
   static async getRegistryByHn(hn: string): Promise<LongTermCareRecord | null> {
     const cleanHn = String(hn).trim().padStart(7, '0')
-    const rawHn = String(hn).trim()
-
-    if (typeof (apiGateway.app as any).getLtcRegistryByHn === 'function') {
-      try {
-        const res = await (apiGateway.app as any).getLtcRegistryByHn(cleanHn)
-        if (res && res.success) {
-          if (res.exists && res.data) return res.data as LongTermCareRecord
-          if (res.exists === false) return null
-        }
-      } catch (err) {
-        logger.warn({ err }, 'Fallback to raw query for getRegistryByHn')
-      }
-    }
-
-    const rows = await apiGateway.app.query<LongTermCareRecord>(
-      `
-      SELECT 
-        id,
-        hn,
-        cid,
-        patient_name AS patientName,
-        address,
-        moo,
-        tambon,
-        age,
-        adl_score AS adlScore,
-        area_zone AS areaZone,
-        created_by AS createdBy,
-        updated_by AS updatedBy,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM long_term_care_registries
-      WHERE hn = ? OR hn = ?
-      LIMIT 1
-      `,
-      [cleanHn, rawHn]
-    )
-
-    return rows && rows.length > 0 ? rows[0] : null
+    const res = await apiGateway.app.getLtcRegistryByHn(cleanHn)
+    if (!res) return null
+    if (res.exists === false) return null
+    if (res.exists && res.data) return res.data as LongTermCareRecord
+    if ('id' in (res as Record<string, unknown>)) return res as unknown as LongTermCareRecord
+    return null
   }
 
   /**
    * Creates a new LTC registry entry.
-   * Cross-validation: Patient cannot be added if already in LTC.
    */
   static async createRegistry(
     payload: {
@@ -433,86 +204,46 @@ export class LtcRegistryService {
       throw new Error('Patient name is required')
     }
 
-    // 1. Check duplicate in LTC
     const existing = await this.getRegistryByHn(cleanHn)
     if (existing) {
       throw new Error(`ผู้ป่วย HN: ${cleanHn} มีรายชื่อในทะเบียน Long Term Care (LTC) อยู่แล้ว`)
     }
 
-    // 2. Insert into long_term_care_registries
-    const insertSql = `
-      INSERT INTO long_term_care_registries (
-        hn, cid, patient_name, address, moo, tambon, age, adl_score, area_zone, created_by, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
-
     const user = context?.username || 'system'
-    let insertId: number = 0
+    const createRes = await apiGateway.app.createLtcRegistry({
+      hn: cleanHn,
+      cid: payload.cid?.trim() || null,
+      patientName: payload.patientName.trim(),
+      address: payload.address?.trim() || null,
+      moo: payload.moo?.trim() || null,
+      tambon: payload.tambon?.trim() || null,
+      age: payload.age !== null && payload.age !== undefined ? Number(payload.age) : null,
+      adlScore: payload.adlScore !== null && payload.adlScore !== undefined ? Number(payload.adlScore) : null,
+      areaZone: payload.areaZone?.trim() || null,
+      createdBy: user,
+    })
 
-    if (typeof (apiGateway.app as any).createLtcRegistry === 'function') {
-      try {
-        const createRes = await (apiGateway.app as any).createLtcRegistry({
-          hn: cleanHn,
-          cid: payload.cid?.trim() || null,
-          patientName: payload.patientName.trim(),
-          address: payload.address?.trim() || null,
-          moo: payload.moo?.trim() || null,
-          tambon: payload.tambon?.trim() || null,
-          age: payload.age !== null && payload.age !== undefined ? Number(payload.age) : null,
-          adlScore: payload.adlScore !== null && payload.adlScore !== undefined ? Number(payload.adlScore) : null,
-          areaZone: payload.areaZone?.trim() || null,
-          createdBy: user,
-        })
-        if (createRes && createRes.insertId) {
-          insertId = createRes.insertId
-        }
-      } catch (err: any) {
-        if (err?.message?.includes('มีรายชื่อในทะเบียน')) {
-          throw err
-        }
-        logger.warn({ err }, 'Fallback to raw execute for createRegistry')
-      }
-    }
-
-    if (!insertId) {
-      const res = await apiGateway.app.execute(insertSql, [
-        cleanHn,
-        payload.cid?.trim() || null,
-        payload.patientName.trim(),
-        payload.address?.trim() || null,
-        payload.moo?.trim() || null,
-        payload.tambon?.trim() || null,
-        payload.age !== null && payload.age !== undefined ? Number(payload.age) : null,
-        payload.adlScore !== null && payload.adlScore !== undefined ? Number(payload.adlScore) : null,
-        payload.areaZone?.trim() || null,
-        user,
-        user,
-      ])
-      insertId = res.insertId || 0
-    }
-
+    const insertId = Number(createRes?.insertId || 0)
     this.invalidateCache()
 
-    const created = await this.getRegistryById(insertId || 0)
-    if (!created) {
-      // Fallback lookup by HN if insertId wasn't returned
-      const byHn = await this.getRegistryByHn(cleanHn)
-      if (!byHn) throw new Error('Failed to retrieve newly created LTC record')
-      return byHn
+    const created = insertId ? await this.getRegistryById(insertId) : null
+    const resolved = created || (await this.getRegistryByHn(cleanHn))
+    if (!resolved) {
+      throw new Error('Failed to retrieve newly created LTC record')
     }
 
     try {
       await logAudit(
         'CREATE',
         'long_term_care_registries',
-        `Created LTC registry record ID: ${created.id} (HN: ${cleanHn}, Name: ${created.patientName})`,
+        `Created LTC registry record ID: ${resolved.id} (HN: ${cleanHn}, Name: ${resolved.patientName})`,
         { username: context?.username, email: context?.email }
       )
     } catch (auditErr) {
       logger.error({ auditErr }, 'Failed to write LTC create audit log')
     }
 
-    return created
+    return resolved
   }
 
   /**
@@ -537,81 +268,19 @@ export class LtcRegistryService {
       throw new Error(`ไม่พบข้อมูลทะเบียน LTC รหัส ${id}`)
     }
 
-    const updates: string[] = []
-    const values: unknown[] = []
+    const updatePayload: Record<string, unknown> = {
+      updatedBy: context?.username || 'system',
+    }
+    if (payload.patientName !== undefined) updatePayload.patientName = payload.patientName.trim()
+    if (payload.cid !== undefined) updatePayload.cid = payload.cid ? payload.cid.trim() : null
+    if (payload.address !== undefined) updatePayload.address = payload.address ? payload.address.trim() : null
+    if (payload.moo !== undefined) updatePayload.moo = payload.moo ? payload.moo.trim() : null
+    if (payload.tambon !== undefined) updatePayload.tambon = payload.tambon ? payload.tambon.trim() : null
+    if (payload.age !== undefined) updatePayload.age = payload.age !== null ? Number(payload.age) : null
+    if (payload.adlScore !== undefined) updatePayload.adlScore = payload.adlScore !== null ? Number(payload.adlScore) : null
+    if (payload.areaZone !== undefined) updatePayload.areaZone = payload.areaZone ? payload.areaZone.trim() : null
 
-    if (payload.cid !== undefined) {
-      updates.push('cid = ?')
-      values.push(payload.cid ? payload.cid.trim() : null)
-    }
-    if (payload.patientName !== undefined) {
-      updates.push('patient_name = ?')
-      values.push(payload.patientName.trim())
-    }
-    if (payload.address !== undefined) {
-      updates.push('address = ?')
-      values.push(payload.address ? payload.address.trim() : null)
-    }
-    if (payload.moo !== undefined) {
-      updates.push('moo = ?')
-      values.push(payload.moo ? payload.moo.trim() : null)
-    }
-    if (payload.tambon !== undefined) {
-      updates.push('tambon = ?')
-      values.push(payload.tambon ? payload.tambon.trim() : null)
-    }
-    if (payload.age !== undefined) {
-      updates.push('age = ?')
-      values.push(payload.age !== null ? Number(payload.age) : null)
-    }
-    if (payload.adlScore !== undefined) {
-      updates.push('adl_score = ?')
-      values.push(payload.adlScore !== null ? Number(payload.adlScore) : null)
-    }
-    if (payload.areaZone !== undefined) {
-      updates.push('area_zone = ?')
-      values.push(payload.areaZone ? payload.areaZone.trim() : null)
-    }
-
-    updates.push('updated_by = ?')
-    values.push(context?.username || 'system')
-
-    values.push(id)
-
-    const updateSql = `
-      UPDATE long_term_care_registries 
-      SET ${updates.join(', ')}
-      WHERE id = ?
-    `
-
-    let updatedViaApi = false
-    if (typeof (apiGateway.app as any).updateLtcRegistry === 'function') {
-      try {
-        const updatePayload: Record<string, unknown> = {
-          updatedBy: context?.username || 'system'
-        }
-        if (payload.patientName !== undefined) updatePayload.patientName = payload.patientName.trim()
-        if (payload.cid !== undefined) updatePayload.cid = payload.cid ? payload.cid.trim() : null
-        if (payload.address !== undefined) updatePayload.address = payload.address ? payload.address.trim() : null
-        if (payload.moo !== undefined) updatePayload.moo = payload.moo ? payload.moo.trim() : null
-        if (payload.tambon !== undefined) updatePayload.tambon = payload.tambon ? payload.tambon.trim() : null
-        if (payload.age !== undefined) updatePayload.age = payload.age !== null ? Number(payload.age) : null
-        if (payload.adlScore !== undefined) updatePayload.adlScore = payload.adlScore !== null ? Number(payload.adlScore) : null
-        if (payload.areaZone !== undefined) updatePayload.areaZone = payload.areaZone ? payload.areaZone.trim() : null
-
-        const res = await (apiGateway.app as any).updateLtcRegistry(id, updatePayload)
-        if (res && res.success) {
-          updatedViaApi = true
-        }
-      } catch (err) {
-        logger.warn({ err }, 'Fallback to raw execute for updateRegistry')
-      }
-    }
-
-    if (!updatedViaApi) {
-      await apiGateway.app.execute(updateSql, values)
-    }
-
+    await apiGateway.app.updateLtcRegistry(id, updatePayload)
     this.invalidateCache()
 
     const updated = await this.getRegistryById(id)
@@ -642,22 +311,7 @@ export class LtcRegistryService {
       throw new Error(`ไม่พบข้อมูลทะเบียน LTC รหัส ${id}`)
     }
 
-    let deletedViaApi = false
-    if (typeof (apiGateway.app as any).deleteLtcRegistry === 'function') {
-      try {
-        const res = await (apiGateway.app as any).deleteLtcRegistry(id)
-        if (res && res.success) {
-          deletedViaApi = true
-        }
-      } catch (err) {
-        logger.warn({ err }, 'Fallback to raw execute for deleteRegistry')
-      }
-    }
-
-    if (!deletedViaApi) {
-      await apiGateway.app.execute('DELETE FROM long_term_care_registries WHERE id = ?', [id])
-    }
-
+    await apiGateway.app.deleteLtcRegistry(id)
     this.invalidateCache()
 
     try {
@@ -673,8 +327,7 @@ export class LtcRegistryService {
   }
 
   /**
-   * Syncs and verifies CID and demographic details from HOSxP for LTC registries.
-   * Compares patient names with HOSxP to ensure it's the correct person.
+   * Syncs and verifies CID and demographic details from HOSxP for LTC registries via Gateway.
    */
   static async syncWithHosxp(
     recordId?: number,
@@ -684,106 +337,35 @@ export class LtcRegistryService {
     updatedCount: number
     mismatches: Array<{ hn: string; currentName: string; hosName: string; cid: string }>
   }> {
-    let records: LongTermCareRecord[] = []
-    if (recordId) {
-      const rec = await this.getRegistryById(recordId)
-      if (rec) records = [rec]
-    } else {
-      records = await apiGateway.app.query<LongTermCareRecord>(
-        'SELECT id, hn, cid, patient_name AS patientName, address, moo, tambon, age, adl_score AS adlScore, area_zone AS areaZone FROM long_term_care_registries'
-      )
-    }
+    const res = await apiGateway.app.syncLtcWithHosxp({
+      recordId,
+      actor: context?.username || 'hosxp_sync',
+    })
+    const totalChecked = Number(res?.totalChecked || 0)
+    const updatedCount = Number(res?.updatedCount || 0)
+    const mismatches = Array.isArray(res?.mismatches) ? res.mismatches : []
 
-    if (!records || records.length === 0) {
-      return { totalChecked: 0, updatedCount: 0, mismatches: [] }
-    }
-
-    const hns = records.map((r) => String(r.hn).trim().padStart(7, '0'))
-    const hosMap = new Map<string, { cid: string; ptname: string; fname: string; lname: string; age?: number }>()
-
-    const CHUNK_SIZE = 50
-    for (let i = 0; i < hns.length; i += CHUNK_SIZE) {
-      const chunk = hns.slice(i, i + CHUNK_SIZE)
-      const placeholders = chunk.map(() => '?').join(',')
-      const hosxpPatients = await apiGateway.clinical.query<any>(
-        `SELECT 
-          hn, 
-          cid, 
-          fname, 
-          lname, 
-          CONCAT(IFNULL(pname,''), IFNULL(fname,''), ' ', IFNULL(lname,'')) AS ptname,
-          TIMESTAMPDIFF(YEAR, birthday, CURDATE()) AS age
-        FROM patient 
-        WHERE hn IN (${placeholders})`,
-        chunk
-      )
-      for (const hp of hosxpPatients) {
-        hosMap.set(String(hp.hn).trim().padStart(7, '0'), {
-          cid: String(hp.cid || '').replace(/[^0-9]/g, '').trim(),
-          ptname: String(hp.ptname || '').trim(),
-          fname: String(hp.fname || '').trim(),
-          lname: String(hp.lname || '').trim(),
-          age: hp.age !== null && hp.age !== undefined ? Number(hp.age) : undefined,
-        })
-      }
-    }
-
-    const mismatches: Array<{ hn: string; currentName: string; hosName: string; cid: string }> = []
-    const statements: Array<{ sql: string; params: unknown[] }> = []
-    let updatedCount = 0
-
-    for (const rec of records) {
-      const cleanHn = String(rec.hn).trim().padStart(7, '0')
-      const hp = hosMap.get(cleanHn)
-      if (!hp) continue
-
-      // Verify name
-      const currentNameClean = String(rec.patientName || '').replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|ว่าที่ร้อยตรี)/, '').trim()
-      const isMatch = currentNameClean.includes(hp.fname) || currentNameClean.includes(hp.lname)
-      if (!isMatch) {
-        mismatches.push({
-          hn: rec.hn,
-          currentName: rec.patientName,
-          hosName: hp.ptname,
-          cid: hp.cid,
-        })
-      }
-
-      const currentCleanCid = (rec.cid || '').replace(/[^0-9]/g, '').trim()
-      if (hp.cid && currentCleanCid !== hp.cid) {
-        statements.push({
-          sql: 'UPDATE long_term_care_registries SET cid = ?, updated_by = ?, updated_at = NOW() WHERE id = ?',
-          params: [hp.cid, context?.username || 'hosxp_sync', rec.id],
-        })
-        updatedCount++
-      }
-    }
-
-    if (statements.length > 0) {
-      const BATCH_SIZE = 50
-      for (let i = 0; i < statements.length; i += BATCH_SIZE) {
-        const batch = statements.slice(i, i + BATCH_SIZE)
-        await apiGateway.app.transaction(batch)
-      }
+    if (updatedCount > 0) {
       this.invalidateCache()
     }
 
-    try {
-      await logAudit(
-        'UPDATE',
-        'long_term_care_registries',
-        `Synced LTC records with HOSxP (Checked: ${records.length}, Updated: ${updatedCount}, Mismatches: ${mismatches.length})`,
-        { username: context?.username, email: context?.email }
-      )
-    } catch (auditErr) {
-      logger.error({ auditErr }, 'Failed to write LTC sync audit log')
+    if (totalChecked > 0) {
+      try {
+        await logAudit(
+          'UPDATE',
+          'long_term_care_registries',
+          `Synced LTC records with HOSxP (Checked: ${totalChecked}, Updated: ${updatedCount}, Mismatches: ${mismatches.length})`,
+          { username: context?.username, email: context?.email }
+        )
+      } catch (auditErr) {
+        logger.error({ auditErr }, 'Failed to write LTC sync audit log')
+      }
     }
 
     return {
-      totalChecked: records.length,
+      totalChecked,
       updatedCount,
       mismatches,
     }
   }
 }
-

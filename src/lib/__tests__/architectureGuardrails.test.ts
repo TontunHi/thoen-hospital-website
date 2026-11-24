@@ -135,15 +135,7 @@ describe('Hospital Architecture & Build Guardrails', () => {
       'src/lib/gateway/salaryGatewayNamespace.ts',
       // Phase 1A: Salary Dual-Path (completed -> 0)
       // Phase 1B: RCM Specific Funds Dual-Path (completed -> 0)
-      // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (8 remaining)
-      'src/lib/clinical/clinicalRecordsService.ts',
-      'src/lib/clinical/ipdWardService.ts',
-      'src/lib/clinical/ltcRegistryService.ts',
-      'src/lib/clinical/mokService.ts',
-      'src/lib/clinical/outpatientDrugService.ts',
-      'src/lib/clinical/palliative-registry/typesAndLookup.ts',
-      'src/lib/clinical/palliativeRegistryService.ts',
-      'src/lib/clinical/rcm-dashboard/invoiceReports.ts',
+      // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (completed -> 0)
       // Phase 1D: App Core Dual-Path (7 remaining)
       'src/lib/auth/memberProfileService.ts',
       'src/lib/inbox/taskDefinitionsAndRepairAction.ts',
