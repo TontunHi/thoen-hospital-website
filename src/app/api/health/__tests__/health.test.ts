@@ -1,26 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockQueryMemberDb = vi.fn()
-const mockQueryClinicalDb = vi.fn()
-const mockQuerySalaryDb = vi.fn()
 const mockApiGatewayHealth = vi.fn()
 
 vi.mock('@/lib/apiGateway', () => ({
   apiGateway: {
-    health: (...args: any[]) => mockApiGatewayHealth(...args),
+    health: (...args: unknown[]) => mockApiGatewayHealth(...args),
   },
-}))
-
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: (...args: any[]) => mockQueryMemberDb(...args),
-}))
-
-vi.mock('@/lib/clinicalDb', () => ({
-  queryClinicalDb: (...args: any[]) => mockQueryClinicalDb(...args),
-}))
-
-vi.mock('@/lib/salaryDb', () => ({
-  querySalaryDb: (...args: any[]) => mockQuerySalaryDb(...args),
 }))
 
 vi.mock('@/lib/rateLimit', () => ({
@@ -107,20 +92,17 @@ describe('System Health Check API', () => {
     expect(json.services.primaryDatabase.status).toBe('DOWN')
   })
 
-  it('falls back to individual queries when Gateway health call fails', async () => {
+  it('fails closed with 503 unhealthy when API Gateway health call fails', async () => {
     mockApiGatewayHealth.mockRejectedValue(new Error('Gateway connection timeout'))
-    mockQueryMemberDb.mockResolvedValue([{ '1': 1 }])
-    mockQueryClinicalDb.mockResolvedValue([{ '1': 1 }])
-    mockQuerySalaryDb.mockResolvedValue([{ '1': 1 }])
 
     const { GET } = await import('../route')
     const response = await GET()
     const json = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(json.status).toBe('healthy')
-    expect(json.services.primaryDatabase.status).toBe('UP')
-    expect(json.services.hosxpReplicaDatabase.status).toBe('UP')
-    expect(json.services.salaryDatabase.status).toBe('UP')
+    expect(response.status).toBe(503)
+    expect(json.status).toBe('unhealthy')
+    expect(json.services.primaryDatabase.status).toBe('DOWN')
+    expect(json.services.hosxpReplicaDatabase.status).toBe('DOWN')
+    expect(json.services.salaryDatabase.status).toBe('DOWN')
   })
 })

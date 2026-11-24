@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server'
 import { apiGateway } from '@/lib/apiGateway'
-import { queryMemberDb } from '@/lib/memberDb'
-import { queryClinicalDb } from '@/lib/clinicalDb'
-import { querySalaryDb } from '@/lib/salaryDb'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
 
@@ -10,23 +7,6 @@ interface ServiceCheck {
   status: 'UP' | 'DOWN'
   latencyMs: number
   error?: string
-}
-
-async function checkService(fn: () => Promise<any>): Promise<ServiceCheck> {
-  const start = Date.now()
-  try {
-    await fn()
-    return {
-      status: 'UP',
-      latencyMs: Date.now() - start,
-    }
-  } catch (err: any) {
-    return {
-      status: 'DOWN',
-      latencyMs: Date.now() - start,
-      error: err?.message || 'Connection failed',
-    }
-  }
 }
 
 export async function GET() {
@@ -45,6 +25,7 @@ export async function GET() {
     let hosxpDb: ServiceCheck
     let salaryDb: ServiceCheck
 
+    const start = Date.now()
     try {
       const gwHealth = await apiGateway.health()
       const dbs = gwHealth?.databases
@@ -60,22 +41,13 @@ export async function GET() {
         status: dbs?.salary?.connected ? 'UP' : 'DOWN',
         latencyMs: dbs?.salary?.latencyMs ?? 0,
       }
-    } catch {
-      // Graceful fallback to individual probes if Gateway health endpoint is unavailable
-      const [p, h, s] = await Promise.all([
-        checkService(async () => {
-          await queryMemberDb('SELECT 1')
-        }),
-        checkService(async () => {
-          await queryClinicalDb('SELECT 1')
-        }),
-        checkService(async () => {
-          await querySalaryDb('SELECT 1')
-        }),
-      ])
-      primaryDb = p
-      hosxpDb = h
-      salaryDb = s
+    } catch (err: unknown) {
+      // Strict Fail-Closed Zero-DB Architecture: if API Gateway is unreachable, report all services DOWN
+      const latencyMs = Date.now() - start
+      const message = err instanceof Error ? err.message : 'API Gateway unreachable'
+      primaryDb = { status: 'DOWN', latencyMs, error: message }
+      hosxpDb = { status: 'DOWN', latencyMs, error: message }
+      salaryDb = { status: 'DOWN', latencyMs, error: message }
     }
 
     const allUp = primaryDb.status === 'UP' && hosxpDb.status === 'UP' && salaryDb.status === 'UP'
@@ -106,7 +78,7 @@ export async function GET() {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Health check failed unexpectedly')
     return NextResponse.json(
       {

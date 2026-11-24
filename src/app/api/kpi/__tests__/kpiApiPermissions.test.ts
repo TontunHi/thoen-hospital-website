@@ -26,18 +26,6 @@ vi.mock('@/lib/kpi/kpiService', () => ({
   },
 }))
 
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: vi.fn().mockResolvedValue([]),
-}))
-
-vi.mock('@/lib/apiGateway', () => ({
-  apiGateway: {
-    app: {
-      transaction: vi.fn().mockResolvedValue([]),
-    },
-  },
-}))
-
 vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }))

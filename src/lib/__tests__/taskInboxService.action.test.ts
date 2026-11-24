@@ -7,8 +7,12 @@ vi.mock('../audit', () => ({
   logAudit: vi.fn(),
 }))
 
-vi.mock('../memberDb', () => ({
-  queryMemberDb: vi.fn().mockResolvedValue([{ telegram_chat_id: '123456789' }]),
+vi.mock('../apiGateway', () => ({
+  apiGateway: {
+    app: {
+      getInboxTelegramTargetsV2: vi.fn().mockResolvedValue({ chatIds: ['123456789'] }),
+    },
+  },
 }))
 
 vi.mock('../telegramService', () => ({

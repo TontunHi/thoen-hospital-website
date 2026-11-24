@@ -96,17 +96,5 @@ export function createSalaryNamespace(client: SalaryHttpClient) {
     getFeatureEnabled: () => {
       return client.get<{ enabled: boolean }>('/api/v1/salary/feature-enabled')
     },
-
-    query: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> => {
-      const res = await client.post<{ data: T[]; count: number }>('/api/v1/salary/query', { sql, params })
-      return Array.isArray(res) ? res : res.data || []
-    },
-
-    /**
-     * @deprecated Disabled on Gateway (HTTP 410 Gone). Use named salary methods instead (uploadBatch, deleteLatestBatch, etc.).
-     */
-    execute: (sql: string, params: unknown[] = []) => {
-      return client.post<{ affectedRows: number; insertId: number | null }>('/api/v1/salary/execute', { sql, params })
-    },
   }
 }

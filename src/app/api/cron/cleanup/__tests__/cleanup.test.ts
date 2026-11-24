@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockQueryMemberDb = vi.fn()
+const mockPurgeExpiredAuditLogs = vi.fn()
 const mockLogAudit = vi.fn()
 
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: (...args: any[]) => mockQueryMemberDb(...args),
+vi.mock('@/lib/apiGateway', () => ({
+  apiGateway: {
+    app: {
+      purgeExpiredAuditLogs: (...args: unknown[]) => mockPurgeExpiredAuditLogs(...args),
+    },
+  },
 }))
 
 vi.mock('@/lib/audit', () => ({
-  logAudit: (...args: any[]) => mockLogAudit(...args),
+  logAudit: (...args: unknown[]) => mockLogAudit(...args),
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -41,7 +45,7 @@ describe('PDPA Audit Log Retention & Cleanup API', () => {
 
     expect(response.status).toBe(401)
     expect(json.error).toContain('Unauthorized')
-    expect(mockQueryMemberDb).not.toHaveBeenCalled()
+    expect(mockPurgeExpiredAuditLogs).not.toHaveBeenCalled()
   })
 
   it('rejects retention days shorter than 90 days for compliance', async () => {
@@ -62,13 +66,10 @@ describe('PDPA Audit Log Retention & Cleanup API', () => {
     expect(json.error).toContain('at least 90 days')
   })
 
-  it('successfully executes cleanup and returns count of purged records', async () => {
+  it('successfully executes cleanup via Gateway and returns count of purged records', async () => {
     vi.stubEnv('CRON_SECRET', 'test-cron-token')
 
-    // First call: COUNT query returns 15 expired records
-    mockQueryMemberDb.mockResolvedValueOnce([{ expiredCount: 15 }])
-    // Second call: DELETE query returns 15 affected rows
-    mockQueryMemberDb.mockResolvedValueOnce({ affectedRows: 15 })
+    mockPurgeExpiredAuditLogs.mockResolvedValueOnce({ expiredCount: 15, purgedCount: 15 })
 
     const { POST } = await import('../route')
     const request = new Request('http://localhost:3000/api/cron/cleanup?days=365', {
@@ -93,12 +94,12 @@ describe('PDPA Audit Log Retention & Cleanup API', () => {
     )
   })
 
-  it('handles database error gracefully with 500 response', async () => {
+  it('handles gateway error gracefully with 500 response', async () => {
     vi.stubEnv('CRON_SECRET', 'test-cron-token')
-    mockQueryMemberDb.mockRejectedValue(new Error('Database disk full'))
+    mockPurgeExpiredAuditLogs.mockRejectedValue(new Error('Database disk full'))
 
     const { POST } = await import('../route')
-    const request = new Request('http://localhost:3000/api/cron/cleanup', {
+    const request = new Request('http://localhost:3000/api/cron/cleanup?days=365', {
       method: 'POST',
       headers: {
         authorization: 'Bearer test-cron-token',

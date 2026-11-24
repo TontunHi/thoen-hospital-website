@@ -186,18 +186,29 @@ finally:
 
 ## 5. Gateway Plugin Inventory Reference (`192.168.1.208`)
 
-All plugins are registered under `/home/thoen/thoen-api-gateway/routes/`:
+All plugins are registered under `/home/thoen/thoen-api-gateway/routes/` (100% Named Endpoints — `rawSql.js` permanently retired):
 
-| Plugin File | Route Prefix | Purpose | Key Tables Accessed |
-| :--- | :--- | :--- | :--- |
-| `health.js` | `/health` | Health & DB pool status | Ping all 3 DBs |
-| `clinical.js` | `/api/v1/clinical` | Lab tracker, ER, Loratadine, TB | `lab_head`, `er_regist`, `ovst` |
-| `palliative.js` | `/api/v1/clinical/rcm/palliative-care` | Palliative care registries & VN | `palliative_care_*` |
-| `salary.js` | `/api/v1/salary` | Staff encrypted pay slips & periods | External Salary DB |
-| `app.js` | `/api/v1/app` | Member auth, news, slides, repairs | Website DB (`thoen_hospital`) |
-| `gtw.js` | `/api/v1/gtw` | GTW Health Article sync | Articles DB |
-| `audit.js` | `/api/v1/audit` | PDPA audit access logging | `audit_logs` |
-| `rawSql.js` | `/api/v1/{app,salary,clinical}` | Temporary raw SQL endpoints | Various (being phased out) |
+| Plugin File | Route Prefix | Purpose |
+| :--- | :--- | :--- |
+| `health.js` | `/health` | Health & DB pool status (HOSxP, Salary, Website) |
+| `clinical.js` | `/api/v1/clinical` | Lab tracker, ER, Loratadine, TB, Appointments, Screening |
+| `clinicalCoreV2.js` | `/api/v1/clinical` | ER live dashboard, IPD/OR bed status, Lab tracker doctors/report |
+| `clinicalChronicV2.js` | `/api/v1/clinical` | DM Remission, DM Lab, FCT Home Visit |
+| `mok.js` | `/api/v1/clinical/mok` | MOK registry & summaries |
+| `palliative.js` / `palliativeLtcV2.js` | `/api/v1/clinical` | Palliative care & LTC registries |
+| `rcmFunds.js` / `rcmFundsReconcile.js` | `/api/v1/clinical/rcm` | Core RCM fund reports & REP reconciliations |
+| `rcmSeamlessAndFundsV2.js` | `/api/v1/clinical/rcm` | Seamless visit enrichment & ADP mapping V2 |
+| `rcmFundsBatch2V2.js` | `/api/v1/clinical/rcm/v2` | Cancer, Walk-in, Clopidogrel, Health Screening, HepC, Postpartum, Drug Post |
+| `rcmFundsSpecialV2.js` | `/api/v1/clinical/rcm/v2` | Iron, ANC, AMED, Rehab, IMC, Instrument, STEMI, ADP Search, FP 9.1/9.3 |
+| `rcmCervicalCancer.js` / `rcmFamilyPlanningV2.js` | `/api/v1/clinical/rcm` | Cervical cancer & Family Planning IUD / 9.3.2 |
+| `rcmDashboardV2.js` / `rcmExtraFundsV2.js` | `/api/v1/clinical/rcm` | RCM OPD/IPD/Palliative/VN dashboard, REP funds, T1DM/TTM/Thalassemia/VHB |
+| `rcmImportsV2.js` | `/api/v1/clinical/rcm` | Seamless & T1DM workbook enrichment, preflight, stats, ledger, mirror |
+| `salary.js` / `salaryPortal.js` | `/api/v1/salary` | Encrypted pay slips, batch uploads/delete, member credentials & RBAC |
+| `app.js` / `appCoreV2.js` / `tasks.js` / `onlineMedia.js` | `/api/v1/app` | Member profiles, News/CMS, Slides, Task Inbox, KPI, Screening, Online Media |
+| `appAuthV2.js` / `appIntegrationsV2.js` | `/api/v1/app/v2` | Auth/OTP/ThaID, Signatures, Permissions, Audit Admin, Registrations, Telegram |
+| `appTasksV2.js` / `appOpsAssetsEventsV2.js` / `appOpsCmsDirV2.js` | `/api/v1/app/v2` | Inbox aux, Assets, Equipment Borrow, Events/Leaderboard, KPI Audits, Projects, Ethics, Departments, Internal Phones |
+| `gtw.js` | `/api/v1/gtw` | GTW Health Article sync |
+| `audit.js` | `/api/v1/audit` | PDPA audit access logging |
 
 ---
 

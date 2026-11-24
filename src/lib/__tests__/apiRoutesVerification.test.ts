@@ -3,18 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // 1. Mock dependencies
 const mockVerifyMemberSession = vi.fn()
 const mockCheckPositionPermission = vi.fn()
-const mockFetchAppointmentMismatches = vi.fn()
-const mockQuerySalaryEditDb = vi.fn()
+const mockGetAppointmentMismatches = vi.fn()
 const mockLogThrottledAudit = vi.fn()
 const mockLogAudit = vi.fn()
 
 vi.mock('@/lib/memberAuth', () => ({
   verifyMemberSession: () => mockVerifyMemberSession(),
   checkPositionPermission: (...args: any[]) => mockCheckPositionPermission(...args),
-}))
-
-vi.mock('@/lib/clinicalDb', () => ({
-  fetchAppointmentMismatches: () => mockFetchAppointmentMismatches(),
 }))
 
 const mockGetLatestBatchSummary = vi.fn().mockImplementation(() =>
@@ -26,15 +21,14 @@ const mockDeleteLatestBatch = vi.fn().mockImplementation(() =>
 
 vi.mock('@/lib/apiGateway', () => ({
   apiGateway: {
+    clinical: {
+      getAppointmentMismatches: (...args: any[]) => mockGetAppointmentMismatches(...args),
+    },
     salary: {
       getLatestBatchSummary: (...args: any[]) => mockGetLatestBatchSummary(...args),
       deleteLatestBatch: (...args: any[]) => mockDeleteLatestBatch(...args),
     },
   },
-}))
-
-vi.mock('@/lib/salaryDb', () => ({
-  querySalaryEditDb: (...args: any[]) => mockQuerySalaryEditDb(...args),
 }))
 
 vi.mock('@/lib/audit', () => ({
@@ -92,13 +86,13 @@ describe('API Routes Integration Verification', () => {
         exp: 67890,
       })
       mockLogThrottledAudit.mockResolvedValueOnce(true)
-      mockFetchAppointmentMismatches.mockResolvedValueOnce([
+      mockGetAppointmentMismatches.mockResolvedValueOnce([
         {
           hn: '123456',
           department: 'คลินิกเบาหวาน',
           vstdate: '2026-09-24',
           nextdate: '2026-10-01',
-          appUser: 'doctor_smith',
+          app_user: 'doctor_smith',
         },
       ])
 
@@ -147,9 +141,6 @@ describe('API Routes Integration Verification', () => {
         iat: 12345,
         exp: 67890,
       })
-      mockQuerySalaryEditDb
-        .mockResolvedValueOnce([{ latest_date: '2026-09-01', raw_c1: '2026-09-01' }])
-        .mockResolvedValueOnce([{ total_count: 45 }])
 
       const { GET } = await import('@/app/api/salary/batch-delete/route')
       const req = new Request('http://localhost:3000/api/salary/batch-delete?type=salary')
@@ -172,13 +163,6 @@ describe('API Routes Integration Verification', () => {
       })
       mockCheckPositionPermission.mockResolvedValueOnce(true)
       mockLogAudit.mockResolvedValueOnce(undefined)
-      // Check latest row match
-      mockQuerySalaryEditDb
-        .mockResolvedValueOnce([{ latest_date: '2026-09-01', raw_c1: '2026-09-01' }])
-        // Count to delete (total_count)
-        .mockResolvedValueOnce([{ total_count: 10 }])
-        // Execution result
-        .mockResolvedValueOnce({ affectedRows: 10 })
 
       const { DELETE } = await import('@/app/api/salary/batch-delete/route')
       const req = new Request('http://localhost:3000/api/salary/batch-delete', {

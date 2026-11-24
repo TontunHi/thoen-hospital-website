@@ -2,20 +2,32 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST, PUT, DELETE } from '../route'
 
 const mockRequireMemberApi = vi.fn()
-const mockQueryMemberDb = vi.fn()
+const mockCreateAdminMember = vi.fn()
+const mockUpdateAdminMember = vi.fn()
+const mockDeleteAdminMember = vi.fn()
 const mockLogAudit = vi.fn()
 
 vi.mock('@/lib/memberAuth', () => ({
-  requireMemberApi: (...args: any[]) => mockRequireMemberApi(...args),
+  requireMemberApi: (...args: unknown[]) => mockRequireMemberApi(...args),
 }))
 
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: (...args: any[]) => mockQueryMemberDb(...args),
-}))
+vi.mock('@/lib/apiGateway', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/apiGateway')>('@/lib/apiGateway')
+  return {
+    ...actual,
+    apiGateway: {
+      app: {
+        createAdminMember: (...args: unknown[]) => mockCreateAdminMember(...args),
+        updateAdminMember: (...args: unknown[]) => mockUpdateAdminMember(...args),
+        deleteAdminMember: (...args: unknown[]) => mockDeleteAdminMember(...args),
+      },
+    },
+  }
+})
 
 vi.mock('@/lib/audit', () => ({
-  logAudit: (...args: any[]) => mockLogAudit(...args),
-  maskAuditIdentifier: (val: string) => val ? `masked_${val}` : val,
+  logAudit: (...args: unknown[]) => mockLogAudit(...args),
+  maskAuditIdentifier: (val: string) => (val ? `masked_${val}` : val),
 }))
 
 describe('Member API Route Handlers - Audit Logging (A09 Compliance)', () => {
@@ -35,9 +47,7 @@ describe('Member API Route Handlers - Audit Logging (A09 Compliance)', () => {
 
   describe('POST (Create Member)', () => {
     it('creates new member and records Tier 1 Audit Log', async () => {
-      mockQueryMemberDb
-        .mockResolvedValueOnce([]) // duplicate check
-        .mockResolvedValueOnce({ insertId: 10 }) // insert
+      mockCreateAdminMember.mockResolvedValueOnce({ id: 10 })
 
       const req = new Request('http://localhost:3000/api/member', {
         method: 'POST',
@@ -65,11 +75,7 @@ describe('Member API Route Handlers - Audit Logging (A09 Compliance)', () => {
 
   describe('PUT (Update Member)', () => {
     it('updates member and records Tier 1 Audit Log', async () => {
-      mockQueryMemberDb
-        .mockResolvedValueOnce([]) // targetUser self check
-        .mockResolvedValueOnce([]) // duplicate check
-        .mockResolvedValueOnce([{ salary_pass: 'oldhash' }]) // existing salary_pass
-        .mockResolvedValueOnce({ affectedRows: 1 }) // update
+      mockUpdateAdminMember.mockResolvedValueOnce({ finalRole: 'member' })
 
       const req = new Request('http://localhost:3000/api/member', {
         method: 'PUT',
@@ -99,9 +105,7 @@ describe('Member API Route Handlers - Audit Logging (A09 Compliance)', () => {
 
   describe('DELETE (Remove Member)', () => {
     it('removes member and records Tier 1 Audit Log', async () => {
-      mockQueryMemberDb
-        .mockResolvedValueOnce([{ username: 'target_nurse' }]) // query before delete
-        .mockResolvedValueOnce({ affectedRows: 1 }) // delete
+      mockDeleteAdminMember.mockResolvedValueOnce({ targetUsername: 'target_nurse' })
 
       const req = new Request('http://localhost:3000/api/member?id=99', {
         method: 'DELETE',

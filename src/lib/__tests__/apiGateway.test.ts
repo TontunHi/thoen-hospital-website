@@ -137,7 +137,7 @@ describe('ApiGatewayClient (Ticket 01)', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ success: false, error: 'Invalid SQL syntax' })
+      json: async () => ({ success: false, error: 'Upstream domain error' })
     })
 
     const client = createApiGatewayClient({
@@ -145,28 +145,18 @@ describe('ApiGatewayClient (Ticket 01)', () => {
       fetchFn: mockFetch as unknown as typeof fetch
     })
 
-    await expect(client.clinical.query('INVALID SQL')).rejects.toThrow(GatewayError)
+    await expect(client.clinical.getErStatus()).rejects.toThrow(GatewayError)
   })
 
   describe('Clinical Services Namespace', () => {
-    it('clinical.query sends SQL and params and returns array of records', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ success: true, count: 2, data: [{ hn: '123' }, { hn: '456' }] })
-      })
-
+    it('does not expose deprecated raw SQL methods on any Gateway namespace (100% Zero-SQL)', () => {
       const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
-      const rows = await client.clinical.query('SELECT hn FROM patient WHERE hn IN (?, ?)', ['123', '456'])
-
-      expect(rows).toEqual([{ hn: '123' }, { hn: '456' }])
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/clinical/query'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ sql: 'SELECT hn FROM patient WHERE hn IN (?, ?)', params: ['123', '456'] })
-        })
-      )
+      expect((client.clinical as Record<string, unknown>).query).toBeUndefined()
+      expect((client.app as Record<string, unknown>).query).toBeUndefined()
+      expect((client.app as Record<string, unknown>).execute).toBeUndefined()
+      expect((client.app as Record<string, unknown>).transaction).toBeUndefined()
+      expect((client.salary as Record<string, unknown>).query).toBeUndefined()
+      expect((client.salary as Record<string, unknown>).execute).toBeUndefined()
     })
 
     it('clinical.getErStatus supports tv mode parameter', async () => {
@@ -350,43 +340,6 @@ describe('ApiGatewayClient (Ticket 01)', () => {
         expect.stringContaining('/api/v1/app/members'),
         expect.objectContaining({ method: 'GET' })
       )
-    })
-
-    it('app.execute sends parameterized mutation query', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ success: true, affectedRows: 1, insertId: 42 })
-      })
-
-      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
-      const res = await client.app.execute('UPDATE news SET view_count = view_count + 1 WHERE id = ?', [10])
-
-      expect(res).toEqual({ success: true, affectedRows: 1, insertId: 42 })
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/app/execute'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ sql: 'UPDATE news SET view_count = view_count + 1 WHERE id = ?', params: [10] })
-        })
-      )
-    })
-
-    it('app.transaction executes statements atomically', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ success: true, count: 2, results: [{ affectedRows: 1 }, { affectedRows: 2 }] })
-      })
-
-      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
-      const stmts = [
-        { sql: 'INSERT INTO news (title) VALUES (?)', params: ['Test'] },
-        { sql: 'UPDATE stats SET count = count + 1' }
-      ]
-      const res = await client.app.transaction(stmts)
-
-      expect(res).toEqual({ success: true, count: 2, results: [{ affectedRows: 1 }, { affectedRows: 2 }] })
     })
 
     it('app.logAudit records compliance audit entry', async () => {

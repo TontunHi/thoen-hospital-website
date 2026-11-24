@@ -122,38 +122,13 @@ describe('Hospital Architecture & Build Guardrails', () => {
     expect(violations).toEqual([])
   })
 
-  it('enforces Strict Zero-SQL Project Ratchet across src/lib (no new raw SQL or /api/v1/*/query usages)', () => {
-    // Legacy allowlist of files pending migration to Gateway Named Endpoints (shrink-only ratchet).
-    // Remove each entry as its phase completes until this set reaches 0 and rawSql.js is retired.
-    const LEGACY_SQL_ALLOWLIST = new Set<string>([
-      // Wrappers & Gateway raw methods (Phase 5)
-      'src/lib/clinicalDb.ts',
-      'src/lib/memberDb.ts',
-      'src/lib/salaryDb.ts',
-      'src/lib/gateway/appGatewayNamespace.ts',
-      'src/lib/gateway/clinicalGatewayNamespace.ts',
-      'src/lib/gateway/salaryGatewayNamespace.ts',
-      // Phase 1A: Salary Dual-Path (completed -> 0)
-      // Phase 1B: RCM Specific Funds Dual-Path (completed -> 0)
-      // Phase 1C: Clinical Core & Palliative/LTC Dual-Path (completed -> 0)
-      // Phase 1D: App Core Dual-Path (completed -> 0)
-      // Phase 2A: Cervical Cancer (completed -> 0)
-      // Phase 2B: Family Planning IUD & 9.3.2 (completed -> 0)
-      // Phase 2C: RCM Dashboard & REP Funds (completed -> 0)
-      // Phase 2D: RCM Extra Funds (completed -> 0)
-      // Phase 2E: Chronic Care & Home Visit (completed -> 0)
-      // Phase 3: Auth, Permissions, Audit & Integrations (completed -> 0)
-      // Phase 4A+4B: Inbox Aux, Assets, Equipment Borrow, Events (completed -> 0)
-      // Phase 4C: Hospital Operations App DB (completed -> 0)
-    ])
-
+  it('enforces Strict Zero-SQL architecture across src/lib (0 raw SQL strings or /api/v1/*/query usages)', () => {
     const libRoot = path.join(srcRoot, 'lib')
     const libFiles = walkFiles(
       libRoot,
       (f) => /\.(ts|tsx)$/.test(f) && !f.includes('__tests__') && !f.includes('.test.')
     )
     const violations: string[] = []
-    const matchedAllowlist = new Set<string>()
 
     for (const file of libFiles) {
       const rel = path.relative(process.cwd(), file).split(path.sep).join('/')
@@ -169,16 +144,10 @@ describe('Hospital Architecture & Build Guardrails', () => {
         )
 
       if (hasRawCall || hasSql) {
-        if (LEGACY_SQL_ALLOWLIST.has(rel)) {
-          matchedAllowlist.add(rel)
-        } else {
-          violations.push(rel)
-        }
+        violations.push(rel)
       }
     }
 
-    const staleAllowlist = Array.from(LEGACY_SQL_ALLOWLIST).filter((f) => !matchedAllowlist.has(f))
     expect(violations).toEqual([])
-    expect(staleAllowlist).toEqual([])
   })
 })

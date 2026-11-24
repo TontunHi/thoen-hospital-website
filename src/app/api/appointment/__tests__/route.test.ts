@@ -1,20 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET } from '../route'
 import * as audit from '@/lib/audit'
-import * as clinicalDb from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 
 vi.mock('@/lib/audit', () => ({
   logThrottledAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('@/lib/clinicalDb', () => ({
-  queryClinicalDb: vi.fn(),
-}))
-
 vi.mock('@/lib/apiGateway', () => ({
   apiGateway: {
     clinical: {
-      getAppointmentsByCid: vi.fn().mockRejectedValue(new Error('Gateway fallback')),
+      getAppointmentsByCid: vi.fn(),
     },
   },
 }))
@@ -36,8 +32,8 @@ describe('GET /api/appointment', () => {
     expect(json.error).toMatch(/13 หลัก/)
   })
 
-  it('queries appointments, masks patient names, and logs throttled audit', async () => {
-    vi.mocked(clinicalDb.queryClinicalDb).mockResolvedValue([
+  it('queries appointments via Gateway, masks patient names, and logs throttled audit', async () => {
+    vi.mocked(apiGateway.clinical.getAppointmentsByCid).mockResolvedValue([
       {
         hn: '0012345',
         ptname: 'นายสมชาย ใจดี',
@@ -55,6 +51,7 @@ describe('GET /api/appointment', () => {
     expect(res.status).toBe(200)
     const json = await res.json()
 
+    expect(apiGateway.clinical.getAppointmentsByCid).toHaveBeenCalledWith('1529900123456')
     expect(json.success).toBe(true)
     expect(json.appointments[0].hn).toBe('0012345')
     expect(json.appointments[0].ptname).toContain('นาย สม')

@@ -12,17 +12,6 @@ export interface ClinicalHttpClient {
 export function createClinicalNamespace(client: ClinicalHttpClient) {
   const ns = {
     ...createClinicalV2GatewayNamespace(client),
-    /**
-     * Executes a read-only SELECT query against the HOSxP MySQL database.
-     */
-    query: async <T = Record<string, unknown>>(
-      sql: string,
-      params: unknown[] = [],
-      options?: RequestOptions
-    ): Promise<T[]> => {
-      const res = await client.post<{ data: T[]; count: number }>('/api/v1/clinical/query', { sql, params }, options)
-      return Array.isArray(res) ? res : res.data || []
-    },
 
     getErStatus: (mode?: 'tv' | 'summary') => {
       const query = mode === 'tv' ? '?mode=tv' : ''

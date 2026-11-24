@@ -328,15 +328,13 @@ describe('RcmColorectalCancerService (21.2 บริการตรวจคั�
         anRows: [],
       })
 
-      const querySpy = vi.spyOn(apiGateway.clinical, 'query').mockResolvedValue([])
-
       const res = await RcmColorectalCancerService.getColorectalCancerReport({ refresh: true })
 
       expect(res.items).toHaveLength(3)
       const completeItem = res.items.find((it) => it.hn === '0001234')
       expect(completeItem?.code).toBe('1B0060 FIT test ผลปกติ')
       expect(completeItem?.dataQualityStatus).toBe('COMPLETE')
-      expect(querySpy).not.toHaveBeenCalled()
+      expect((apiGateway.clinical as Record<string, unknown>).query).toBeUndefined()
     })
   })
 })

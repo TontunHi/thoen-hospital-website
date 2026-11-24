@@ -14,35 +14,6 @@ export function createAppNamespace(client: AppHttpClient) {
   return {
     ...createAppV2GatewayNamespace(client),
     ...createAppV3GatewayNamespace(client),
-    /**
-     * Executes a read-only SELECT query against the Website MySQL database.
-     */
-    query: async <T = Record<string, unknown>>(
-      sql: string,
-      params: unknown[] = [],
-      options?: RequestOptions
-    ): Promise<T[]> => {
-      const res = await client.post<{ data: T[]; count: number }>('/api/v1/app/query', { sql, params }, options)
-      return Array.isArray(res) ? res : res.data || []
-    },
-
-    /**
-     * Executes an INSERT, UPDATE, or DELETE parameterized query against the Website database.
-     */
-    execute: (sql: string, params: unknown[] = []) => {
-      return client.post<{ affectedRows: number; insertId: number | null }>('/api/v1/app/execute', { sql, params })
-    },
-
-    /**
-     * Executes an array of statements atomically inside a single interactive transaction.
-     */
-    transaction: (statements: Array<{ sql: string; params?: unknown[] }>, options?: RequestOptions) => {
-      return client.post<{ count: number; results: Array<{ affectedRows: number; insertId: number | null }> }>(
-        '/api/v1/app/transaction',
-        { statements },
-        options
-      )
-    },
 
     // ── Members CRUD & Permissions ──
     getMembers: (params?: { search?: string; limit?: number }) => {

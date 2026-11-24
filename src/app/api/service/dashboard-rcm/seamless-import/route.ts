@@ -5,7 +5,7 @@ import {
   handleSeamlessImportPost,
 } from '@/lib/clinical/rcmSeamlessImportRouteHelper'
 
-export async function GET(req?: NextRequest) {
+export async function GET(req: NextRequest) {
   return handleSeamlessImportGet(req)
 }
 

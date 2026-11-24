@@ -39,7 +39,7 @@ describe('/api/service/dashboard-rcm/seamless-import', () => {
     it('returns 401 when session is not authenticated', async () => {
       vi.spyOn(memberAuth, 'verifyMemberSession').mockResolvedValue(null)
 
-      const response = await GET()
+      const response = await GET(new NextRequest('http://localhost/api/service/dashboard-rcm/seamless-import'))
       const json = await response.json()
 
       expect(response.status).toBe(401)
@@ -56,7 +56,7 @@ describe('/api/service/dashboard-rcm/seamless-import', () => {
       } as any)
       vi.spyOn(memberAuth, 'checkPositionPermission').mockResolvedValue(false)
 
-      const response = await GET()
+      const response = await GET(new NextRequest('http://localhost/api/service/dashboard-rcm/seamless-import'))
       const json = await response.json()
 
       expect(response.status).toBe(403)
@@ -82,7 +82,7 @@ describe('/api/service/dashboard-rcm/seamless-import', () => {
       }
       vi.mocked(RcmSeamlessImportService.getSeamlessDatabaseStats).mockResolvedValue(mockStats as any)
 
-      const response = await GET()
+      const response = await GET(new NextRequest('http://localhost/api/service/dashboard-rcm/seamless-import'))
       const json = await response.json()
 
       expect(response.status).toBe(200)

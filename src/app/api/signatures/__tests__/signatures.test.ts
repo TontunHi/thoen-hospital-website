@@ -3,7 +3,10 @@ import { GET as signatureGetHandler, POST as signaturePostHandler } from '../rou
 import { GET as signatureImageGetHandler } from '../image/route'
 
 const mockVerifyMemberSession = vi.fn()
-const mockQueryMemberDb = vi.fn()
+const mockIsSignatureFeatureEnabled = vi.fn()
+const mockGetMemberSignaturePath = vi.fn()
+const mockUpdateMemberSignaturePath = vi.fn()
+const mockResolveMemberSignatureAccess = vi.fn()
 const mockLogAudit = vi.fn()
 const mockStorageSave = vi.fn()
 const mockStorageReadBuffer = vi.fn()
@@ -12,8 +15,15 @@ vi.mock('@/lib/memberAuth', () => ({
   verifyMemberSession: () => mockVerifyMemberSession(),
 }))
 
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: (...args: unknown[]) => mockQueryMemberDb(...args),
+vi.mock('@/lib/apiGateway', () => ({
+  apiGateway: {
+    app: {
+      isSignatureFeatureEnabled: (...args: unknown[]) => mockIsSignatureFeatureEnabled(...args),
+      getMemberSignaturePath: (...args: unknown[]) => mockGetMemberSignaturePath(...args),
+      updateMemberSignaturePath: (...args: unknown[]) => mockUpdateMemberSignaturePath(...args),
+      resolveMemberSignatureAccess: (...args: unknown[]) => mockResolveMemberSignatureAccess(...args),
+    },
+  },
 }))
 
 vi.mock('@/lib/audit', () => ({
@@ -36,7 +46,9 @@ describe('Signatures API Route Handlers & Service Seam - Security Controls', () 
       email: 'somchai@thoen.moph.go.th',
       role: 'member',
     })
-    mockQueryMemberDb.mockResolvedValue([])
+    mockIsSignatureFeatureEnabled.mockResolvedValue({ enabled: true })
+    mockGetMemberSignaturePath.mockResolvedValue({ signaturePath: null, updatedAt: null })
+    mockUpdateMemberSignaturePath.mockResolvedValue({ updated: true })
     mockStorageSave.mockResolvedValue({
       publicUrl: '/storage/doctor_somchai/signature.png',
       relativePath: 'storage/doctor_somchai/signature.png',
@@ -128,11 +140,11 @@ describe('Signatures API Route Handlers & Service Seam - Security Controls', () 
   })
 
   it('returns signature status via GET /api/signatures', async () => {
-    mockQueryMemberDb
-      .mockResolvedValueOnce([]) // feature_signature check
-      .mockResolvedValueOnce([
-        { signature_path: 'storage/doctor_somchai/signature.png', updated_at: '2026-01-01T00:00:00Z' },
-      ])
+    mockIsSignatureFeatureEnabled.mockResolvedValueOnce({ enabled: true })
+    mockGetMemberSignaturePath.mockResolvedValueOnce({
+      signaturePath: 'storage/doctor_somchai/signature.png',
+      updatedAt: '2026-01-01T00:00:00Z',
+    })
 
     const res = await signatureGetHandler()
     expect(res.status).toBe(200)
@@ -145,9 +157,10 @@ describe('Signatures API Route Handlers & Service Seam - Security Controls', () 
   })
 
   it('blocks non-admin from reading another user signature path via GET /api/signatures/image', async () => {
-    mockQueryMemberDb.mockResolvedValueOnce([
-      { signature_path: 'storage/doctor_somchai/signature.png' },
-    ])
+    mockGetMemberSignaturePath.mockResolvedValueOnce({
+      signaturePath: 'storage/doctor_somchai/signature.png',
+      updatedAt: '2026-01-01T00:00:00Z',
+    })
 
     const req = new Request(
       'http://localhost:3000/api/signatures/image?path=storage/other_user/signature.png'

@@ -2,11 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '../route'
 import { NextResponse } from 'next/server'
 
-const mockQueryMemberDb = vi.fn()
+const mockGetExpiredAuditLogsCount = vi.fn()
+const mockPurgeExpiredAuditLogs = vi.fn()
 const mockRequireMemberAdmin = vi.fn()
 
-vi.mock('@/lib/memberDb', () => ({
-  queryMemberDb: (...args: any[]) => mockQueryMemberDb(...args),
+vi.mock('@/lib/apiGateway', () => ({
+  apiGateway: {
+    app: {
+      getExpiredAuditLogsCount: (...args: unknown[]) => mockGetExpiredAuditLogsCount(...args),
+      purgeExpiredAuditLogs: (...args: unknown[]) => mockPurgeExpiredAuditLogs(...args),
+    },
+  },
 }))
 
 vi.mock('@/lib/memberAuth', () => ({
@@ -32,9 +38,9 @@ describe('PDPA Audit Log Cleanup API', () => {
   })
 
   it('checks expired count with minimum 90-day retention enforcement in GET', async () => {
-    mockQueryMemberDb.mockResolvedValueOnce([{ expiredCount: 42 }])
+    mockGetExpiredAuditLogsCount.mockResolvedValueOnce({ expiredCount: 42 })
 
-    const req = new Request('http://localhost/api/admin/audit-logs/cleanup?days=30') // Even if 30 requested, clamp to 90
+    const req = new Request('http://localhost/api/admin/audit-logs/cleanup?days=30')
     const res = await GET(req)
     expect(res.status).toBe(200)
 
@@ -42,6 +48,7 @@ describe('PDPA Audit Log Cleanup API', () => {
     expect(json.success).toBe(true)
     expect(json.retentionDays).toBe(90)
     expect(json.expiredCount).toBe(42)
+    expect(mockGetExpiredAuditLogsCount).toHaveBeenCalledWith(90)
   })
 
   it('rejects POST with retentionDays < 90', async () => {
@@ -57,11 +64,8 @@ describe('PDPA Audit Log Cleanup API', () => {
     expect(json.error).toContain('ไม่น้อยกว่า 90 วัน')
   })
 
-  it('executes batch delete and records audit log in POST', async () => {
-    mockQueryMemberDb
-      .mockResolvedValueOnce([{ expiredCount: 15 }]) // count
-      .mockResolvedValueOnce({ affectedRows: 15 }) // batch delete
-      .mockResolvedValueOnce({ affectedRows: 1 }) // audit log insert
+  it('executes batch delete via Gateway and records admin actor in POST', async () => {
+    mockPurgeExpiredAuditLogs.mockResolvedValueOnce({ expiredCount: 15, purgedCount: 15 })
 
     const req = new Request('http://localhost/api/admin/audit-logs/cleanup', {
       method: 'POST',
@@ -74,11 +78,10 @@ describe('PDPA Audit Log Cleanup API', () => {
     expect(json.success).toBe(true)
     expect(json.purgedCount).toBe(15)
 
-    // Verify audit log insertion
-    expect(mockQueryMemberDb).toHaveBeenCalledTimes(3)
-    const [auditSql, auditParams] = mockQueryMemberDb.mock.calls[2]
-    expect(auditSql).toContain('INSERT INTO audit_logs')
-    expect(auditParams).toContain('admin')
-    expect(auditParams).toContain('DELETE')
+    expect(mockPurgeExpiredAuditLogs).toHaveBeenCalledWith({
+      retentionDays: 90,
+      mode: 'admin',
+      adminActor: { username: 'admin', email: 'admin@hospital.go.th' },
+    })
   })
 })
