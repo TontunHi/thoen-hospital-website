@@ -5,6 +5,13 @@ vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
+const mockDeleteDocument = vi.fn().mockResolvedValue(true)
+vi.mock('@/lib/storage/documentStorage', () => ({
+  DocumentStorage: {
+    delete: (...args: unknown[]) => mockDeleteDocument(...args),
+  },
+}))
+
 describe('EquipmentBorrowService', () => {
   let mockDb: any
   let service: EquipmentBorrowService
@@ -664,6 +671,10 @@ describe('EquipmentBorrowService', () => {
 
     it('deleteMaterial delegates to Gateway Named Endpoint and writes audit log', async () => {
       const mockGw = {
+        listBorrowMaterialsV2: vi.fn().mockResolvedValue({
+          total: 1,
+          items: [{ id: 99, image_url: '/uploads/equipment-borrow/2026/11/board.jpg' }],
+        }),
         deleteBorrowMaterialV2: vi.fn().mockResolvedValue({ name: 'กระดานไวท์บอร์ด' }),
       } as any
 
@@ -672,6 +683,77 @@ describe('EquipmentBorrowService', () => {
 
       expect(res).toEqual({ success: true })
       expect(mockGw.deleteBorrowMaterialV2).toHaveBeenCalledWith(99)
+      expect(mockDeleteDocument).toHaveBeenCalledWith('/uploads/equipment-borrow/2026/11/board.jpg')
+    })
+  })
+
+  describe('Equipment Image Attachment Management', () => {
+    it('updateAssetImage updates asset imageUrl and removes replaced managed upload', async () => {
+      mockDeleteDocument.mockClear()
+      mockDb.hospitalAsset.findUnique.mockResolvedValue({
+        id: 101,
+        articleNum: '7440-001',
+        imageUrl: '/uploads/equipment-borrow/2026/11/old-projector.jpg',
+      })
+      mockDb.hospitalAsset.update.mockResolvedValue({
+        id: 101,
+        articleNum: '7440-001',
+        imageUrl: '/uploads/equipment-borrow/2026/11/new-projector.jpg',
+      })
+
+      const result = await service.updateAssetImage(
+        101,
+        '/uploads/equipment-borrow/2026/11/new-projector.jpg',
+        actor
+      )
+
+      expect(mockDb.hospitalAsset.update).toHaveBeenCalledWith({
+        where: { id: 101 },
+        data: { imageUrl: '/uploads/equipment-borrow/2026/11/new-projector.jpg' },
+      })
+      expect(mockDeleteDocument).toHaveBeenCalledWith('/uploads/equipment-borrow/2026/11/old-projector.jpg')
+      expect(result.imageUrl).toBe('/uploads/equipment-borrow/2026/11/new-projector.jpg')
+    })
+
+    it('updateAssetImage works in Gateway mode and clears old managed upload when set to null', async () => {
+      mockDeleteDocument.mockClear()
+      const mockGw = {
+        getAssetByIdV2: vi.fn().mockResolvedValue({
+          id: 205,
+          articleNum: '6515-010',
+          imageUrl: '/uploads/equipment-borrow/2026/11/pump.png',
+        }),
+        updateAssetV2: vi.fn().mockResolvedValue({
+          id: 205,
+          articleNum: '6515-010',
+          imageUrl: null,
+        }),
+      } as any
+
+      const customService = new EquipmentBorrowService(null, mockGw)
+      const updated = await customService.updateAssetImage(205, null, actor)
+
+      expect(mockGw.updateAssetV2).toHaveBeenCalledWith(205, { imageUrl: null })
+      expect(mockDeleteDocument).toHaveBeenCalledWith('/uploads/equipment-borrow/2026/11/pump.png')
+      expect(updated?.imageUrl).toBeNull()
+    })
+
+    it('getLoanableAssets enriches imageUrl from listAssetsV2 when Gateway loanable-assets omits it', async () => {
+      const mockGw = {
+        listLoanableAssetsV2: vi.fn().mockResolvedValue({
+          total: 1,
+          items: [{ id: 101, articleNum: '7440-001', name: 'Projector', isLoanable: true }],
+        }),
+        listAssetsV2: vi.fn().mockResolvedValue({
+          total: 1,
+          items: [{ id: 101, imageUrl: '/uploads/equipment-borrow/2026/11/prj.jpg' }],
+        }),
+      } as any
+
+      const customService = new EquipmentBorrowService(null, mockGw)
+      const res = await customService.getLoanableAssets({ isLoanable: false })
+
+      expect(res.items[0].imageUrl).toBe('/uploads/equipment-borrow/2026/11/prj.jpg')
     })
   })
 })

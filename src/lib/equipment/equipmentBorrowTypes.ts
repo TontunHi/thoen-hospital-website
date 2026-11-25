@@ -115,6 +115,13 @@ export function mapDbRowToItem(row: any) {
     updatedAt: row.updated_at || row.updatedAt,
     asset: row.asset || null,
     material: row.material || null,
+    imageUrl:
+      row.imageUrl ||
+      row.asset_image_url ||
+      row.mat_image_url ||
+      row.asset?.imageUrl ||
+      row.material?.imageUrl ||
+      null,
   }
 }
 

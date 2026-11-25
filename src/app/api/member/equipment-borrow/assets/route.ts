@@ -8,6 +8,18 @@ const ToggleLoanableSchema = z.object({
   isLoanable: z.boolean(),
 })
 
+const UpdateAssetImageSchema = z.object({
+  assetId: z.number().int().positive('รหัสครุภัณฑ์ไม่ถูกต้อง'),
+  imageUrl: z
+    .string()
+    .max(500, 'URL รูปภาพยาวเกินกำหนด')
+    .refine(
+      (val) => !val.includes('..') && (val.startsWith('/uploads/') || val.startsWith('https://')),
+      'URL รูปภาพไม่ถูกต้อง'
+    )
+    .nullable(),
+})
+
 export async function GET(request: Request) {
   const auth = await requireMemberApi()
   if (auth.error) return auth.error
@@ -63,6 +75,36 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { success: false, error: error.message || 'เกิดข้อผิดพลาดในการปรับสถานะครุภัณฑ์' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request: Request) {
+  const auth = await requireMemberApi({ requiredPermission: 'manage_borrow' })
+  if (auth.error) return auth.error
+
+  try {
+    const body = await request.json()
+    const { assetId, imageUrl } = UpdateAssetImageSchema.parse(body)
+
+    const updated = await equipmentBorrowService.updateAssetImage(assetId, imageUrl, {
+      id: auth.member.id,
+      name: auth.member.name,
+      username: auth.member.username,
+      role: auth.member.role,
+    })
+
+    return NextResponse.json({ success: true, data: updated })
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { success: false, error: error.issues[0]?.message || 'ข้อมูลไม่ถูกต้อง' },
+        { status: 400 }
+      )
+    }
+    return NextResponse.json(
+      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัปเดตรูปภาพครุภัณฑ์' },
       { status: 500 }
     )
   }

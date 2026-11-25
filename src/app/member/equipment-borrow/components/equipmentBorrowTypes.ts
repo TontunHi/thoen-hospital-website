@@ -36,6 +36,7 @@ export interface BasketItem {
   quantity: number
   maxQty: number
   unit: string
+  imageUrl?: string | null
 }
 
 export interface BorrowItemDetail {
@@ -49,6 +50,7 @@ export interface BorrowItemDetail {
   returnCondition?: string | null
   returnNotes?: string | null
   returnedAt?: string | null
+  imageUrl?: string | null
 }
 
 export interface BorrowRequestRecord {
@@ -95,6 +97,7 @@ export interface LoanableAssetRecord {
   isLoanable: boolean
   status: string
   locationFullName?: string | null
+  imageUrl?: string | null
 }
 
 export interface MaterialFormState {
@@ -104,6 +107,7 @@ export interface MaterialFormState {
   totalQty: number
   unit: string
   location: string
+  imageUrl: string | null
   notes: string
   isActive: boolean
 }

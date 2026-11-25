@@ -200,4 +200,20 @@ describe('EventDetailClient - Member Photo Upload & Permissions', () => {
 
     window.print = originalPrint
   })
+
+  it('opens the attachments tab directly when initialTab is "attachments"', () => {
+    render(
+      <EventDetailClient
+        event={baseEvent}
+        checkinUrl="http://localhost:3000/checkin/test"
+        currentUser={regularUser}
+        initialTab="attachments"
+      />
+    )
+
+    const attachTabBtn = screen.getByRole('button', { name: /เอกสารและภาพกิจกรรม/i })
+    expect(attachTabBtn).toHaveClass('active')
+    expect(screen.getByText('ภาพจากเพื่อนร่วมงาน')).toBeInTheDocument()
+    expect(document.getElementById('attachments-section')).toBeInTheDocument()
+  })
 })

@@ -250,13 +250,33 @@ describe('RepReconcileClient Component', () => {
     }) as any
   })
 
-  it('renders SSR initialData immediately without firing a duplicate fetch on mount', () => {
+  it('renders SSR initialData immediately without firing a duplicate fetch on mount, omits subtitle and CSV button, and defaults pageSize to 50', () => {
     render(<RepReconcileClient initialData={mockInitialData} />)
 
     expect(screen.getByText('รวมข้อมูล REP กองทุน (All Funds REP)')).toBeInTheDocument()
+    expect(
+      screen.queryByText(/รวมผลตอบรับการชดเชยจาก rcmdb\.seamless/)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /CSV/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ส่งออก Excel/i })).toBeInTheDocument()
+    expect(screen.getByLabelText('จำนวนแสดงผลต่อหน้า')).toHaveValue('50')
     expect(screen.getByText('691000204')).toBeInTheDocument()
     expect(screen.getByText('DCCS69010001')).toBeInTheDocument()
     expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('allows changing pageSize and resets page to 1 with AbortController signal', async () => {
+    render(<RepReconcileClient initialData={mockInitialData} />)
+
+    const pageSizeSelect = screen.getByLabelText('จำนวนแสดงผลต่อหน้า')
+    fireEvent.change(pageSizeSelect, { target: { value: '100' } })
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('page=1&pageSize=100'),
+        expect.anything()
+      )
+    })
   })
 
   it('opens the Fund Checklist Drawer, filters by fund, and focuses a card with AbortController signal', async () => {

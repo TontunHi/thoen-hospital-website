@@ -687,8 +687,8 @@ export default function DmLabTrackingClient({
               <option value="all">ทุกสถานะทะเบียน</option>
               <option value="unregistered">ยังไม่เข้าทะเบียนใดเลย</option>
               <option value="registered">อยู่ในทะเบียนแล้ว (อย่างน้อย 1 แหล่ง)</option>
-              <option value="dm_remission">มีชื่อในทะเบียน DM Remission</option>
-              <option value="t1dm">มีชื่อในทะเบียน DM (T1DM/GDM/PDM)</option>
+              <option value="dm_remission">ทะเบียน DM Remission โรงพยาบาลเถิน</option>
+              <option value="t1dm">ทะเบียน DM (T1_T2DM/GDM/PDM)</option>
               <option value="both">มีชื่อในทั้ง 2 ทะเบียน</option>
             </select>
 

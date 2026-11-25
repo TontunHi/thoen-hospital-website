@@ -1,0 +1,212 @@
+/* ==========================================================================
+   Christmas Winter Wonderland 3D Three.js Seasonal Atmosphere
+   Thoen Hospital Staff Portal — Interactive WebGL Aurora, Pines & Snowfall
+   ========================================================================== */
+
+.seasonWrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 86% 14%, rgba(254, 243, 199, 0.16) 0%, rgba(251, 191, 36, 0.05) 26%, transparent 56%),
+    radial-gradient(ellipse at 24% 18%, rgba(16, 185, 129, 0.14) 0%, rgba(56, 189, 248, 0.06) 38%, transparent 64%),
+    radial-gradient(ellipse at 50% 100%, rgba(185, 28, 28, 0.09) 0%, rgba(6, 78, 59, 0.14) 42%, transparent 72%),
+    linear-gradient(180deg, #030914 0%, #071726 38%, #0a2224 72%, #05131a 88%, #02080d 100%);
+  user-select: none;
+}
+
+.webglCanvasHost {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.webglCanvasHost canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Soft winter horizon mist */
+.horizonMist {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: 18%;
+  height: 150px;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.05) 42%,
+    rgba(16, 185, 129, 0.07) 75%,
+    transparent 100%
+  );
+  filter: blur(22px);
+  animation: mistDrift 16s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+/* Atmospheric vignette to keep focus on the centered login panel */
+.atmosphericVignette {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 46%, transparent 44%, rgba(2, 8, 16, 0.54) 100%),
+    linear-gradient(180deg, rgba(3, 9, 20, 0.42) 0%, transparent 22%, transparent 78%, rgba(2, 8, 14, 0.68) 100%);
+}
+
+/* Top Festive Fairy Lights Garland */
+.fairyGarland {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 54px;
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  overflow: hidden;
+  padding: 0 2%;
+}
+
+.fairyGarlandCord {
+  position: absolute;
+  top: -18px;
+  left: -2%;
+  width: 104%;
+  height: 44px;
+  opacity: 0.45;
+}
+
+.fairyBulb {
+  position: relative;
+  width: 8px;
+  height: 11px;
+  border-radius: 50% 50% 60% 60%;
+  margin-top: 10px;
+  will-change: opacity, transform;
+  animation: bulbTwinkle 3.2s ease-in-out infinite;
+}
+
+.fairyBulb::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(148, 163, 184, 0.55);
+}
+
+.fairyBulbWarm {
+  background: #fde68a;
+  box-shadow: 0 0 12px 3px rgba(251, 191, 36, 0.65);
+}
+
+.fairyBulbCrimson {
+  background: #fca5a5;
+  box-shadow: 0 0 12px 3px rgba(239, 68, 68, 0.65);
+}
+
+.fairyBulbEmerald {
+  background: #6ee7b7;
+  box-shadow: 0 0 12px 3px rgba(16, 185, 129, 0.65);
+}
+
+.fairyBulbIce {
+  background: #e0f2fe;
+  box-shadow: 0 0 12px 3px rgba(56, 189, 248, 0.6);
+}
+
+/* Frosted Snowflake Corner Ornaments */
+.cornerFrostTopLeft,
+.cornerFrostBottomRight {
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.24;
+  will-change: transform;
+  animation: frostFloat 10s ease-in-out infinite alternate;
+}
+
+.cornerFrostTopLeft {
+  top: 20px;
+  left: 16px;
+}
+
+.cornerFrostBottomRight {
+  bottom: 16px;
+  right: 16px;
+  transform: rotate(180deg);
+  animation-name: frostFloatRotated;
+}
+
+@keyframes mistDrift {
+  0% {
+    transform: translate3d(-2%, 0, 0);
+    opacity: 0.65;
+  }
+  100% {
+    transform: translate3d(2%, -8px, 0);
+    opacity: 0.95;
+  }
+}
+
+@keyframes bulbTwinkle {
+  0%,
+  100% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.42;
+    transform: scale(0.88);
+  }
+}
+
+@keyframes frostFloat {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(4px, 6px, 0) rotate(6deg);
+  }
+}
+
+@keyframes frostFloatRotated {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(180deg);
+  }
+  100% {
+    transform: translate3d(-4px, -6px, 0) rotate(186deg);
+  }
+}
+
+@media (max-width: 767px) {
+  .cornerFrostTopLeft,
+  .cornerFrostBottomRight {
+    width: 104px;
+    height: 104px;
+    opacity: 0.16;
+  }
+
+  .fairyBulb:nth-child(even) {
+    display: none;
+  }
+}

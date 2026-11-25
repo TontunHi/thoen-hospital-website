@@ -422,4 +422,22 @@ describe('EventsClient Component (New Design)', () => {
     expect(qrLink).toHaveAttribute('href', '/member/events/701')
     expect(qrLink).toHaveClass('ev-btn-qr')
   })
+
+  it('renders "แนบภาพกิจกรรม" link next to registration button pointing to event attachments section', () => {
+    render(
+      <EventsClient
+        initialEvents={mockEvents}
+        userStats={mockUserStats}
+        currentUser={mockCurrentUser}
+      />
+    )
+
+    const attachLink = screen.getByRole('link', { name: 'แนบภาพกิจกรรม' })
+    expect(attachLink).toBeInTheDocument()
+    expect(attachLink).toHaveAttribute('href', '/member/events/101?tab=attachments#attachments-section')
+    expect(attachLink).toHaveClass('ev-btn-attach')
+
+    const registerBtn = screen.getByRole('button', { name: /ลงทะเบียนล่วงหน้า/ })
+    expect(attachLink.parentElement).toBe(registerBtn.parentElement)
+  })
 })

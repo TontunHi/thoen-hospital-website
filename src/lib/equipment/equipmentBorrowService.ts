@@ -2,6 +2,22 @@ import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { sendTelegramMessage } from '@/lib/telegramService'
+import { DocumentStorage } from '@/lib/storage/documentStorage'
+
+const MANAGED_BORROW_UPLOAD_PREFIX = '/uploads/equipment-borrow/'
+
+async function cleanupManagedBorrowImage(
+  oldUrl: string | null | undefined,
+  nextUrl?: string | null | undefined
+): Promise<void> {
+  if (!oldUrl || !oldUrl.startsWith(MANAGED_BORROW_UPLOAD_PREFIX)) return
+  if (nextUrl && oldUrl === nextUrl) return
+  try {
+    await DocumentStorage.delete(oldUrl)
+  } catch (err) {
+    logger.warn({ err, oldUrl }, 'Failed to clean up replaced equipment borrow image')
+  }
+}
 
 import {
   type Actor,
@@ -223,6 +239,10 @@ export class EquipmentBorrowService {
         data,
       })
 
+      if (input.imageUrl !== undefined) {
+        await cleanupManagedBorrowImage(existing.imageUrl, data.imageUrl)
+      }
+
       await logAudit(
         'UPDATE',
         'hospital_materials',
@@ -231,6 +251,17 @@ export class EquipmentBorrowService {
       )
 
       return updated
+    }
+
+    let previousImageUrl: string | null = null
+    if (input.imageUrl !== undefined) {
+      try {
+        const listRes = await this.gateway.listBorrowMaterialsV2({ page: 1, limit: 200 })
+        const matched = (listRes?.items || []).find((m: any) => Number(m.id) === id)
+        previousImageUrl = (matched?.image_url || matched?.imageUrl || null) as string | null
+      } catch {
+        // Non-blocking lookup for old image cleanup
+      }
     }
 
     const payload: Record<string, unknown> = {}
@@ -247,6 +278,10 @@ export class EquipmentBorrowService {
 
     const updatedRow = await this.gateway.updateBorrowMaterialV2(id, payload)
     const updated = mapDbRowToMaterial(updatedRow)
+
+    if (input.imageUrl !== undefined) {
+      await cleanupManagedBorrowImage(previousImageUrl, updated.imageUrl)
+    }
 
     await logAudit(
       'UPDATE',
@@ -272,6 +307,7 @@ export class EquipmentBorrowService {
       })
 
       await this.db.hospitalMaterial.delete({ where: { id } })
+      await cleanupManagedBorrowImage(existing.imageUrl, null)
       await logAudit(
         'DELETE',
         'hospital_materials',
@@ -281,7 +317,17 @@ export class EquipmentBorrowService {
       return { success: true }
     }
 
+    let previousImageUrl: string | null = null
+    try {
+      const listRes = await this.gateway.listBorrowMaterialsV2({ page: 1, limit: 200 })
+      const matched = (listRes?.items || []).find((m: any) => Number(m.id) === id)
+      previousImageUrl = (matched?.image_url || matched?.imageUrl || null) as string | null
+    } catch {
+      // Non-blocking lookup for old image cleanup
+    }
+
     const { name } = await this.gateway.deleteBorrowMaterialV2(id)
+    await cleanupManagedBorrowImage(previousImageUrl, null)
     await logAudit(
       'DELETE',
       'hospital_materials',
@@ -289,6 +335,52 @@ export class EquipmentBorrowService {
       { username: actor.username || 'system' }
     )
     return { success: true }
+  }
+
+  async updateAssetImage(assetId: number, imageUrl: string | null, actor: Actor) {
+    const normalizedUrl = imageUrl?.trim() || null
+
+    if (this.db?.hospitalAsset) {
+      const existing = await this.db.hospitalAsset.findUnique({ where: { id: assetId } })
+      if (!existing) {
+        throw new Error(`ไม่พบครุภัณฑ์รหัส ${assetId}`)
+      }
+
+      const updated = await this.db.hospitalAsset.update({
+        where: { id: assetId },
+        data: { imageUrl: normalizedUrl },
+      })
+
+      await cleanupManagedBorrowImage(existing.imageUrl, normalizedUrl)
+
+      await logAudit(
+        'UPDATE',
+        'hospital_assets',
+        JSON.stringify({ assetId, articleNum: existing.articleNum, imageUrl: normalizedUrl }),
+        { username: actor.username || 'system' }
+      )
+
+      return updated
+    }
+
+    const existing = await this.gateway.getAssetByIdV2(assetId)
+    if (!existing) {
+      throw new Error(`ไม่พบครุภัณฑ์รหัส ${assetId}`)
+    }
+
+    const previousImageUrl = (existing.imageUrl || existing.image_url || null) as string | null
+    const updated = await this.gateway.updateAssetV2(assetId, { imageUrl: normalizedUrl })
+
+    await cleanupManagedBorrowImage(previousImageUrl, normalizedUrl)
+
+    await logAudit(
+      'UPDATE',
+      'hospital_assets',
+      JSON.stringify({ assetId, articleNum: existing.articleNum, imageUrl: normalizedUrl }),
+      { username: actor.username || 'system' }
+    )
+
+    return updated
   }
 
   async toggleAssetLoanable(assetId: number, isLoanable: boolean, actor: Actor) {
@@ -378,9 +470,37 @@ export class EquipmentBorrowService {
     })
 
     const total = Number(rawTotal || 0)
+    let items = itemRows || []
+
+    // Fallback enrichment when Gateway loanable-assets endpoint omits imageUrl
+    if (items.length > 0 && items.some((it: any) => it.imageUrl === undefined && it.image_url === undefined)) {
+      try {
+        const assetRes = await this.gateway.listAssetsV2({
+          search,
+          category,
+          page: 1,
+          limit: 200,
+        })
+        const imageMap = new Map<number, string | null>()
+        for (const a of assetRes?.items || []) {
+          imageMap.set(Number(a.id), (a.imageUrl || a.image_url || null) as string | null)
+        }
+        items = items.map((it: any) => ({
+          ...it,
+          imageUrl: it.imageUrl ?? it.image_url ?? imageMap.get(Number(it.id)) ?? null,
+        }))
+      } catch {
+        // Non-blocking fallback
+      }
+    } else {
+      items = items.map((it: any) => ({
+        ...it,
+        imageUrl: it.imageUrl ?? it.image_url ?? null,
+      }))
+    }
 
     return {
-      items: itemRows || [],
+      items,
       total,
       page,
       limit,

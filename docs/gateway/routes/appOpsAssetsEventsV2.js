@@ -47,8 +47,8 @@ const ASSET_SELECT_SQL = `
 const BORROW_ITEMS_JOIN_SQL = `
   SELECT
     i.*,
-    a.name AS asset_name, a.brand AS asset_brand, a.article_num AS asset_code,
-    m.name AS mat_name, m.unit AS mat_unit, m.material_type AS mat_type
+    a.name AS asset_name, a.brand AS asset_brand, a.article_num AS asset_code, a.image_url AS asset_image_url,
+    m.name AS mat_name, m.unit AS mat_unit, m.material_type AS mat_type, m.image_url AS mat_image_url
   FROM equipment_borrow_items i
   LEFT JOIN hospital_assets a ON i.asset_id = a.id
   LEFT JOIN hospital_materials m ON i.material_id = m.id
@@ -390,7 +390,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
       const [[cnt], [items]] = await Promise.all([
         appPool.query(`SELECT COUNT(*) AS total FROM hospital_assets ${whereSql}`, params),
         appPool.query(
-          `SELECT id, article_num AS articleNum, fsn_num AS fsnNum, name, brand, model, serial_no AS serialNo, category, location_full_name AS locationFullName, is_loanable AS isLoanable, status FROM hospital_assets ${whereSql} ORDER BY name ASC LIMIT ? OFFSET ?`,
+          `SELECT id, article_num AS articleNum, fsn_num AS fsnNum, name, brand, model, serial_no AS serialNo, category, location_full_name AS locationFullName, is_loanable AS isLoanable, status, image_url AS imageUrl FROM hospital_assets ${whereSql} ORDER BY name ASC LIMIT ? OFFSET ?`,
           [...params, limit, skip]
         ),
       ])

@@ -5,7 +5,6 @@ import {
   ArrowDownUp,
   ChevronLeft,
   ChevronRight,
-  Download,
   FileSpreadsheet,
   Filter,
   RefreshCw,
@@ -98,12 +97,6 @@ interface QueryState {
   pageSize: number
 }
 
-function escapeCsvCell(value: string | number | null | undefined): string {
-  const raw = value == null ? '' : String(value)
-  const guarded = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw
-  return `"${guarded.replace(/"/g, '""')}"`
-}
-
 function formatMoney(val: number | null | undefined): string {
   return (val ?? 0).toLocaleString('th-TH', {
     minimumFractionDigits: 2,
@@ -143,7 +136,7 @@ export default function RepReconcileClient({
     sortBy: 'admdate',
     sortOrder: 'desc',
     page: 1,
-    pageSize: 50,
+    pageSize: initialData?.pageSize ?? 50,
   })
 
   const [searchInput, setSearchInput] = useState('')
@@ -451,7 +444,7 @@ export default function RepReconcileClient({
     setDetailLoading(false)
   }
 
-  // Export Excel (.xlsx) & CSV (UTF-8 BOM)
+  // Export Excel (.xlsx)
   const fetchExportRows = async (): Promise<RepReconcileItem[]> => {
     const params = buildSearchParams(query, { exportAll: true })
     const res = await fetch(`/api/service/dashboard-rcm/funds/rep-reconcile?${params.toString()}`)
@@ -520,67 +513,6 @@ export default function RepReconcileClient({
     }
   }
 
-  const handleExportCsv = async () => {
-    setIsExporting(true)
-    try {
-      const rows = await fetchExportRows()
-      const headers = [
-        'ลำดับ',
-        'VN/AN',
-        'HN',
-        'CID',
-        'ชื่อ-สกุล',
-        'วันที่รับบริการ',
-        'กองทุน',
-        'เลข Rep',
-        'ประเภท Rep',
-        'แหล่งข้อมูล',
-        'ยอดเรียกเก็บ',
-        'ยอดชดเชย',
-        'ส่วนต่าง',
-        'Error / สถานะ',
-      ]
-      const csvLines = [
-        headers.map(escapeCsvCell).join(','),
-        ...rows.map((r, idx) =>
-          [
-            idx + 1,
-            r.vn || r.an || '',
-            r.hn,
-            r.cid,
-            r.ptname,
-            r.admdateThai,
-            r.primaryFundLabel,
-            r.rep || '',
-            formatRepTypeLabel(r.repPrefix, r.repFund),
-            r.matchedSources.join('+'),
-            r.income,
-            r.compensated,
-            r.diff,
-            r.errorCode || r.eclaimStatus || r.status,
-          ]
-            .map(escapeCsvCell)
-            .join(',')
-        ),
-      ]
-      const blob = new Blob([`\uFEFF${csvLines.join('\r\n')}`], {
-        type: 'text/csv;charset=utf-8;',
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `funds-rep-reconcile-${query.ds1}_to_${query.ds2}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'ส่งออก CSV ไม่สำเร็จ')
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   const summary = data?.summary || EMPTY_SUMMARY
   const items = data?.items || []
   const totalCount = data?.totalCount ?? 0
@@ -606,10 +538,6 @@ export default function RepReconcileClient({
               3 Sources · {totalCount.toLocaleString('th-TH')} แถว
             </span>
           </div>
-          <p className="rr-subtitle">
-            รวมผลตอบรับการชดเชยจาก rcmdb.seamless, rcmdb.repdata และ rcmdb.repeclaim
-            จำแนกตามรายชื่อกองทุนในระบบ /funds/* พร้อมตรวจสอบเลข REP ประเภท REP และยอดชดเชยสุทธิ
-          </p>
         </div>
 
         <div className="rr-header-actions">
@@ -621,15 +549,6 @@ export default function RepReconcileClient({
           >
             <RefreshCw size={16} strokeWidth={1.5} className={isRefreshing ? 'animate-spin' : ''} />
             รีเฟรช
-          </button>
-          <button
-            type="button"
-            className="rr-btn rr-btn-secondary"
-            onClick={handleExportCsv}
-            disabled={isExporting || totalCount === 0}
-          >
-            <Download size={16} strokeWidth={1.5} />
-            CSV
           </button>
           <button
             type="button"
@@ -924,10 +843,36 @@ export default function RepReconcileClient({
               </button>
             )}
           </div>
-          <span className="rr-meta-tag">
-            แสดง {items.length.toLocaleString('th-TH')} จาก {totalCount.toLocaleString('th-TH')} รายการ
-            {loading ? ' · กำลังโหลด...' : ''}
-          </span>
+          <div className="rr-table-toolbar-right">
+            <span className="rr-meta-tag">
+              แสดง {items.length.toLocaleString('th-TH')} จาก {totalCount.toLocaleString('th-TH')} รายการ
+              {loading ? ' · กำลังโหลด...' : ''}
+            </span>
+            <div className="rr-control-group">
+              <label htmlFor="rr-page-size" className="rr-label">
+                แสดงผล
+              </label>
+              <select
+                id="rr-page-size"
+                aria-label="จำนวนแสดงผลต่อหน้า"
+                className="rr-select rr-select-compact"
+                value={query.pageSize}
+                onChange={(e) =>
+                  setQuery((prev) => ({
+                    ...prev,
+                    pageSize: Number(e.target.value),
+                    page: 1,
+                  }))
+                }
+                disabled={loading}
+              >
+                <option value={20}>20 รายการ</option>
+                <option value={50}>50 รายการ</option>
+                <option value={100}>100 รายการ</option>
+                <option value={200}>200 รายการ</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="rr-table-scroll">

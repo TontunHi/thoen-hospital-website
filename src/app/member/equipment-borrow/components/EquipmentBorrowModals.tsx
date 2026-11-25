@@ -18,12 +18,16 @@ import { getInitials } from '@/lib/formatters'
 import type {
   BorrowRequestRecord,
   CurrentUser,
+  LoanableAssetRecord,
   MaterialFormState,
 } from './equipmentBorrowTypes'
+import { EquipmentImageUploadField } from './EquipmentImageUploadField'
+import { EquipmentItemThumbnail } from './EquipmentItemThumbnail'
 
 export interface EquipmentBorrowModalsProps {
   currentUser: CurrentUser
   loading: boolean
+  isUploadingImage: boolean
   renderStatusBadge: (status: string) => React.ReactNode
   renderItemStatusBadge: (itemStatus: string, requestStatus?: string) => React.ReactNode
   // Reject Modal
@@ -47,7 +51,17 @@ export interface EquipmentBorrowModalsProps {
   setMaterialModalMode: React.Dispatch<React.SetStateAction<'create' | 'edit' | null>>
   materialForm: MaterialFormState
   setMaterialForm: React.Dispatch<React.SetStateAction<MaterialFormState>>
+  pendingMaterialImageFile: File | null
+  setPendingMaterialImageFile: React.Dispatch<React.SetStateAction<File | null>>
   handleSaveMaterial: (e: React.FormEvent) => void
+  // Asset Image Modal
+  assetImageModalData: LoanableAssetRecord | null
+  setAssetImageModalData: React.Dispatch<React.SetStateAction<LoanableAssetRecord | null>>
+  assetImageDraftUrl: string | null
+  setAssetImageDraftUrl: React.Dispatch<React.SetStateAction<string | null>>
+  pendingAssetImageFile: File | null
+  setPendingAssetImageFile: React.Dispatch<React.SetStateAction<File | null>>
+  handleSaveAssetImage: (e: React.FormEvent) => void
   // View Detail Modal
   viewDetailModalData: BorrowRequestRecord | null
   setViewDetailModalData: React.Dispatch<React.SetStateAction<BorrowRequestRecord | null>>
@@ -57,6 +71,7 @@ export interface EquipmentBorrowModalsProps {
 export function EquipmentBorrowModals({
   currentUser,
   loading,
+  isUploadingImage,
   renderStatusBadge,
   renderItemStatusBadge,
   rejectModalData,
@@ -73,7 +88,16 @@ export function EquipmentBorrowModals({
   setMaterialModalMode,
   materialForm,
   setMaterialForm,
+  pendingMaterialImageFile,
+  setPendingMaterialImageFile,
   handleSaveMaterial,
+  assetImageModalData,
+  setAssetImageModalData,
+  assetImageDraftUrl,
+  setAssetImageDraftUrl,
+  pendingAssetImageFile,
+  setPendingAssetImageFile,
+  handleSaveAssetImage,
   viewDetailModalData,
   setViewDetailModalData,
   openReturnInspectionModal,
@@ -82,11 +106,16 @@ export function EquipmentBorrowModals({
     <>
       {rejectModalData && (
         <div className="modalBackdrop">
-          <div className="modalContent" style={{ maxWidth: '450px' }}>
+          <div className="modalContent modalSm">
             <div className="modalHeader">
               <h2>ระบุเหตุผลการไม่อนุมัติ ({rejectModalData.requestNo})</h2>
-              <button onClick={() => setRejectModalData(null)} className="modalCloseBtn">
-                <X size={20} />
+              <button
+                type="button"
+                onClick={() => setRejectModalData(null)}
+                className="modalCloseBtn"
+                aria-label="ปิดหน้าต่าง"
+              >
+                <X size={20} strokeWidth={1.5} />
               </button>
             </div>
             <div className="modalBody">
@@ -96,17 +125,21 @@ export function EquipmentBorrowModals({
                   rows={3}
                   className="formControl"
                   required
-                  placeholder="เช่น อุปกรณ์ติดคิวใช้งานราชการอื่น, อุปกรณ์อยู่ระหว่างส่งซ่อมบำรุง..."
+                  placeholder="เช่น อุปกรณ์ติดคิวใช้งานราชการอื่น, อุปกรณ์อยู่ระหว่างส่งซ่อมบำรุง…"
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                 />
               </div>
             </div>
             <div className="modalFooter">
-              <button onClick={() => setRejectModalData(null)} className="secondaryButton">
+              <button type="button" onClick={() => setRejectModalData(null)} className="secondaryButton">
                 ยกเลิก
               </button>
-              <button onClick={handleRejectRequest} className="actionBtn actionBtnReject" style={{ padding: '0.65rem 1.25rem' }}>
+              <button
+                type="button"
+                onClick={handleRejectRequest}
+                className="actionBtn actionBtnReject actionBtnLg"
+              >
                 ยืนยันไม่อนุมัติ
               </button>
             </div>
@@ -116,45 +149,50 @@ export function EquipmentBorrowModals({
 
       {inspectModalData && (
         <div className="modalBackdrop">
-          <div className="modalContent" style={{ maxWidth: '750px' }}>
+          <div className="modalContent modalLg">
             <div className="modalHeader">
               <h2>ตรวจรับคืนอุปกรณ์ ({inspectModalData.requestNo})</h2>
-              <button onClick={() => setInspectModalData(null)} className="modalCloseBtn" aria-label="ปิดหน้าต่าง">
-                <X size={20} />
+              <button
+                type="button"
+                onClick={() => setInspectModalData(null)}
+                className="modalCloseBtn"
+                aria-label="ปิดหน้าต่าง"
+              >
+                <X size={20} strokeWidth={1.5} />
               </button>
             </div>
             <div className="modalBody">
-              <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '0.75rem', fontSize: '0.9rem' }}>
+              <div className="inspectSummaryCard">
                 <div><strong>ผู้ยืม:</strong> {inspectModalData.requesterName} ({inspectModalData.requesterDept || '-'})</div>
                 <div><strong>วัตถุประสงค์:</strong> {inspectModalData.purpose}</div>
               </div>
 
               {inspectModalData.items.every((it) => it.returnedQty >= it.quantity || it.status === 'CONSUMED') && (
-                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', borderRadius: '0.75rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={16} />
+                <div className="detailAlertBox detailAlertBoxReturnDone">
+                  <CheckCircle2 size={16} strokeWidth={1.5} />
                   <span>รายการอุปกรณ์ทั้งหมดในคำขอนี้ได้รับการตรวจรับคืนครบแล้ว ท่านสามารถกดยืนยันเพื่อปิดคำขอและปรับสถานะเป็น &quot;ส่งคืนครบแล้ว&quot; ได้ทันที</span>
                 </div>
               )}
 
               <div className="formGroup">
                 <label>บันทึกสภาพและการรับคืนทีละรายการ</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="inspectItemList">
                   {inspectModalData.items.map((item) => {
                     const inputState = returnItemsInput[item.id] || { returnedQty: 0, condition: 'NORMAL', notes: '' }
                     const remaining = item.quantity - item.returnedQty
 
                     return (
-                      <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem', background: remaining <= 0 ? '#f8fafc' : 'white' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: 600 }}>{item.itemName}</span>
-                          <span style={{ fontSize: '0.85rem', color: remaining <= 0 ? '#16a34a' : '#64748b', fontWeight: remaining <= 0 ? 600 : 'normal' }}>
+                      <div key={item.id} className={`inspectItemCard ${remaining <= 0 ? 'inspectItemCardDone' : ''}`}>
+                        <div className="inspectItemHeader">
+                          <span className="fontSemibold">{item.itemName}</span>
+                          <span className={remaining <= 0 ? 'inspectItemDoneText' : 'inspectItemRemainText'}>
                             {remaining <= 0 ? 'คืนครบแล้ว' : `ยืมไป: ${item.quantity} | คืนแล้ว: ${item.returnedQty} | ค้างคืน: ${remaining}`}
                           </span>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 2fr', gap: '0.75rem', alignItems: 'center' }}>
+                        <div className="inspectItemGrid">
                           <div>
-                            <span style={{ fontSize: '0.8rem', color: '#475569', display: 'block' }}>จำนวนที่ส่งคืนครั้งนี้</span>
+                            <span className="inspectFieldLabel">จำนวนที่ส่งคืนครั้งนี้</span>
                             <input
                               type="number"
                               min={0}
@@ -173,7 +211,7 @@ export function EquipmentBorrowModals({
                           </div>
 
                           <div>
-                            <span style={{ fontSize: '0.8rem', color: '#475569', display: 'block' }}>สภาพอุปกรณ์ตอนคืน</span>
+                            <span className="inspectFieldLabel">สภาพอุปกรณ์ตอนคืน</span>
                             <select
                               className="formControl"
                               value={inputState.condition}
@@ -181,7 +219,7 @@ export function EquipmentBorrowModals({
                               onChange={(e) => {
                                 setReturnItemsInput({
                                   ...returnItemsInput,
-                                  [item.id]: { ...inputState, condition: e.target.value as any },
+                                  [item.id]: { ...inputState, condition: e.target.value as 'NORMAL' | 'DAMAGED' | 'LOST' },
                                 })
                               }}
                             >
@@ -192,11 +230,11 @@ export function EquipmentBorrowModals({
                           </div>
 
                           <div>
-                            <span style={{ fontSize: '0.8rem', color: '#475569', display: 'block' }}>หมายเหตุการตรวจรับ</span>
+                            <span className="inspectFieldLabel">หมายเหตุการตรวจรับ</span>
                             <input
                               type="text"
                               className="formControl"
-                              placeholder="เช่น สายมีรอยถลอก, สภาพสมบูรณ์..."
+                              placeholder="เช่น สายมีรอยถลอก, สภาพสมบูรณ์…"
                               value={inputState.notes}
                               disabled={remaining <= 0}
                               onChange={(e) => {
@@ -216,10 +254,10 @@ export function EquipmentBorrowModals({
             </div>
 
             <div className="modalFooter">
-              <button onClick={() => setInspectModalData(null)} className="secondaryButton">
+              <button type="button" onClick={() => setInspectModalData(null)} className="secondaryButton">
                 ยกเลิก
               </button>
-              <button onClick={handleConfirmReturn} className="primaryButton">
+              <button type="button" onClick={handleConfirmReturn} className="primaryButton">
                 {inspectModalData.items.every((it) => it.returnedQty >= it.quantity || it.status === 'CONSUMED')
                   ? 'ยืนยันปิดคำขอ (คืนครบแล้ว)'
                   : 'บันทึกการตรวจรับคืน'}
@@ -231,35 +269,57 @@ export function EquipmentBorrowModals({
 
       {materialModalMode && (
         <div className="modalBackdrop">
-          <div className="modalContent" style={{ maxWidth: '550px' }}>
+          <div className="modalContent modalMd">
             <div className="modalHeader">
               <h2>{materialModalMode === 'create' ? 'เพิ่มรายการวัสดุใหม่' : 'แก้ไขข้อมูลวัสดุ'}</h2>
-              <button onClick={() => setMaterialModalMode(null)} className="modalCloseBtn" aria-label="ปิดหน้าต่าง">
-                <X size={20} />
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingMaterialImageFile(null)
+                  setMaterialModalMode(null)
+                }}
+                className="modalCloseBtn"
+                aria-label="ปิดหน้าต่าง"
+              >
+                <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
             <form onSubmit={handleSaveMaterial}>
               <div className="modalBody">
                 <div className="formGroup">
-                  <label>ชื่อวัสดุ <span style={{ color: '#dc2626' }}>*</span></label>
+                  <label>ชื่อวัสดุ <span className="requiredMark">*</span></label>
                   <input
                     type="text"
                     required
                     className="formControl"
-                    placeholder="เช่น ปลั๊กพ่วง 5 เมตร 4 ช่อง, สายแปลง HDMI to Type-C..."
+                    placeholder="เช่น ปลั๊กพ่วง 5 เมตร 4 ช่อง, สายแปลง HDMI to Type-C…"
                     value={materialForm.name}
                     onChange={(e) => setMaterialForm({ ...materialForm, name: e.target.value })}
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <EquipmentImageUploadField
+                  currentImageUrl={materialForm.imageUrl}
+                  pendingFile={pendingMaterialImageFile}
+                  onFileSelect={(file) => setPendingMaterialImageFile(file)}
+                  onClearImage={() => setMaterialForm({ ...materialForm, imageUrl: null })}
+                  disabled={loading || isUploadingImage}
+                  label="รูปภาพตัวอย่างวัสดุ (ช่วยให้ผู้ขอยืมเข้าใจหน้าตาอุปกรณ์)"
+                />
+
+                <div className="gridTwoCol">
                   <div className="formGroup">
                     <label>ประเภทวัสดุ</label>
                     <select
                       className="formControl"
                       value={materialForm.materialType}
-                      onChange={(e) => setMaterialForm({ ...materialForm, materialType: e.target.value as any })}
+                      onChange={(e) =>
+                        setMaterialForm({
+                          ...materialForm,
+                          materialType: e.target.value as 'REUSABLE' | 'CONSUMABLE',
+                        })
+                      }
                     >
                       <option value="REUSABLE">ยืม-คืน (ใช้งานหมุนเวียน)</option>
                       <option value="CONSUMABLE">สิ้นเปลือง (เบิกใช้หมดไป)</option>
@@ -281,7 +341,7 @@ export function EquipmentBorrowModals({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="gridTwoCol">
                   <div className="formGroup">
                     <label>จำนวนรวมทั้งหมด</label>
                     <input
@@ -300,7 +360,7 @@ export function EquipmentBorrowModals({
                       type="text"
                       required
                       className="formControl"
-                      placeholder="เช่น ชิ้น, อัน, เส้น, กล่อง..."
+                      placeholder="เช่น ชิ้น, อัน, เส้น, กล่อง…"
                       value={materialForm.unit}
                       onChange={(e) => setMaterialForm({ ...materialForm, unit: e.target.value })}
                     />
@@ -312,7 +372,7 @@ export function EquipmentBorrowModals({
                   <input
                     type="text"
                     className="formControl"
-                    placeholder="เช่น ตู้เก็บของ IT, คลังพัสดุกลาง, ห้องศูนย์คอมฯ..."
+                    placeholder="เช่น ตู้เก็บของ IT, คลังพัสดุกลาง, ห้องศูนย์คอมฯ…"
                     value={materialForm.location}
                     onChange={(e) => setMaterialForm({ ...materialForm, location: e.target.value })}
                   />
@@ -323,7 +383,7 @@ export function EquipmentBorrowModals({
                   <textarea
                     rows={2}
                     className="formControl"
-                    placeholder="รายละเอียดเพิ่มเติมหรือข้อควรระวัง..."
+                    placeholder="รายละเอียดเพิ่มเติมหรือข้อควรระวัง…"
                     value={materialForm.notes}
                     onChange={(e) => setMaterialForm({ ...materialForm, notes: e.target.value })}
                   />
@@ -345,11 +405,79 @@ export function EquipmentBorrowModals({
               </div>
 
               <div className="modalFooter">
-                <button type="button" onClick={() => setMaterialModalMode(null)} className="secondaryButton">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingMaterialImageFile(null)
+                    setMaterialModalMode(null)
+                  }}
+                  className="secondaryButton"
+                >
                   ยกเลิก
                 </button>
-                <button type="submit" disabled={loading} className="primaryButton">
-                  {loading ? 'กำลังบันทึก...' : 'บันทึกข้อมูลวัสดุ'}
+                <button type="submit" disabled={loading || isUploadingImage} className="primaryButton">
+                  {isUploadingImage ? 'กำลังอัปโหลดรูปภาพ…' : loading ? 'กำลังบันทึก…' : 'บันทึกข้อมูลวัสดุ'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {assetImageModalData && (
+        <div className="modalBackdrop" onClick={() => setAssetImageModalData(null)}>
+          <div
+            className="modalContent modalMd"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="asset-image-modal-title"
+          >
+            <div className="modalHeader">
+              <div>
+                <h2 id="asset-image-modal-title">แนบรูปภาพครุภัณฑ์</h2>
+                <div className="lightboxSubCode">
+                  {assetImageModalData.name} ({assetImageModalData.articleNum})
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingAssetImageFile(null)
+                  setAssetImageModalData(null)
+                }}
+                className="modalCloseBtn"
+                aria-label="ปิดหน้าต่าง"
+              >
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAssetImage}>
+              <div className="modalBody">
+                <EquipmentImageUploadField
+                  currentImageUrl={assetImageDraftUrl}
+                  pendingFile={pendingAssetImageFile}
+                  onFileSelect={(file) => setPendingAssetImageFile(file)}
+                  onClearImage={() => setAssetImageDraftUrl(null)}
+                  disabled={loading || isUploadingImage}
+                  label="รูปภาพตัวอย่างครุภัณฑ์"
+                />
+              </div>
+
+              <div className="modalFooter">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingAssetImageFile(null)
+                    setAssetImageModalData(null)
+                  }}
+                  className="secondaryButton"
+                >
+                  ยกเลิก
+                </button>
+                <button type="submit" disabled={loading || isUploadingImage} className="primaryButton">
+                  {isUploadingImage ? 'กำลังอัปโหลดรูปภาพ…' : loading ? 'กำลังบันทึก…' : 'บันทึกรูปภาพครุภัณฑ์'}
                 </button>
               </div>
             </form>
@@ -360,36 +488,22 @@ export function EquipmentBorrowModals({
       {viewDetailModalData && (
         <div className="modalBackdrop" onClick={() => setViewDetailModalData(null)}>
           <div
-            className="modalContent"
-            style={{ maxWidth: '780px' }}
+            className="modalContent modalLg"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="detail-modal-title"
           >
             <div className="modalHeader">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '0.625rem',
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    color: '#15856a',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <FileText size={22} />
+              <div className="detailModalHeaderLeft">
+                <div className="detailModalIconBox">
+                  <FileText size={20} strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h3 id="detail-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
-                    รายละเอียดคำขอยืม: <span style={{ color: '#15856a' }}>{viewDetailModalData.requestNo}</span>
+                  <h3 id="detail-modal-title" className="detailModalTitle">
+                    รายละเอียดคำขอยืม: <span className="detailMetaValueHighlight">{viewDetailModalData.requestNo}</span>
                   </h3>
-                  <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                  <span className="detailModalDate">
                     ยื่นคำขอเมื่อ {new Date(viewDetailModalData.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} เวลา {new Date(viewDetailModalData.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                   </span>
                 </div>
@@ -400,7 +514,7 @@ export function EquipmentBorrowModals({
                 className="modalCloseBtn"
                 aria-label="ปิดหน้าต่าง"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={1.5} />
               </button>
             </div>
 
@@ -413,14 +527,14 @@ export function EquipmentBorrowModals({
                   <div>
                     <div className="detailRequesterName">{viewDetailModalData.requesterName}</div>
                     <div className="detailRequesterMeta">
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <Building2 size={13} />
+                      <span className="inlineIconRow">
+                        <Building2 size={14} strokeWidth={1.5} />
                         {viewDetailModalData.requesterDept || 'ไม่ระบุแผนก'}
                       </span>
                       {viewDetailModalData.phone && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Phone size={13} />
-                          <a href={`tel:${viewDetailModalData.phone}`} style={{ color: '#15856a', textDecoration: 'none' }}>
+                        <span className="inlineIconRow">
+                          <Phone size={14} strokeWidth={1.5} />
+                          <a href={`tel:${viewDetailModalData.phone}`} className="detailPhoneLink">
                             {viewDetailModalData.phone}
                           </a>
                         </span>
@@ -432,27 +546,27 @@ export function EquipmentBorrowModals({
               </div>
 
               <div className="detailMetaGrid">
-                <div className="detailMetaItem" style={{ gridColumn: '1 / -1' }}>
-                  <span className="detailMetaLabel"><FileText size={14} /> วัตถุประสงค์การยืม</span>
+                <div className="detailMetaItem detailMetaItemFull">
+                  <span className="detailMetaLabel"><FileText size={14} strokeWidth={1.5} /> วัตถุประสงค์การยืม</span>
                   <div className="detailMetaValue">{viewDetailModalData.purpose}</div>
                 </div>
 
                 {viewDetailModalData.location && (
                   <div className="detailMetaItem">
-                    <span className="detailMetaLabel"><MapPin size={14} /> สถานที่ใช้งาน</span>
+                    <span className="detailMetaLabel"><MapPin size={14} strokeWidth={1.5} /> สถานที่ใช้งาน</span>
                     <div className="detailMetaValue">{viewDetailModalData.location}</div>
                   </div>
                 )}
 
                 <div className="detailMetaItem">
-                  <span className="detailMetaLabel"><Calendar size={14} /> วันที่เริ่มยืม</span>
+                  <span className="detailMetaLabel"><Calendar size={14} strokeWidth={1.5} /> วันที่เริ่มยืม</span>
                   <div className="detailMetaValue">
                     {new Date(viewDetailModalData.borrowDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </div>
                 </div>
 
                 <div className="detailMetaItem">
-                  <span className="detailMetaLabel"><Clock size={14} /> กำหนดส่งคืน</span>
+                  <span className="detailMetaLabel"><Clock size={14} strokeWidth={1.5} /> กำหนดส่งคืน</span>
                   <div
                     className={`detailMetaValue ${
                       viewDetailModalData.expectedReturnDate &&
@@ -470,7 +584,7 @@ export function EquipmentBorrowModals({
 
                 {viewDetailModalData.actualReturnDate && (
                   <div className="detailMetaItem">
-                    <span className="detailMetaLabel"><CheckCircle2 size={14} color="#16a34a" /> วันที่ส่งคืนจริง</span>
+                    <span className="detailMetaLabel"><CheckCircle2 size={14} strokeWidth={1.5} /> วันที่ส่งคืนจริง</span>
                     <div className="detailMetaValue detailMetaValueSuccess">
                       {new Date(viewDetailModalData.actualReturnDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
@@ -479,7 +593,7 @@ export function EquipmentBorrowModals({
 
                 {viewDetailModalData.approvedByName && (
                   <div className="detailMetaItem">
-                    <span className="detailMetaLabel"><ShieldCheck size={14} color="#15856a" /> ผู้อนุมัติคำขอ</span>
+                    <span className="detailMetaLabel"><ShieldCheck size={14} strokeWidth={1.5} /> ผู้อนุมัติคำขอ</span>
                     <div className="detailMetaValue">{viewDetailModalData.approvedByName}</div>
                   </div>
                 )}
@@ -487,9 +601,9 @@ export function EquipmentBorrowModals({
 
               {viewDetailModalData.rejectReason && (
                 <div className="detailAlertBox detailAlertBoxReject">
-                  <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <AlertTriangle size={18} strokeWidth={1.5} className="alertIconTop" />
                   <div>
-                    <strong style={{ display: 'block', marginBottom: '0.2rem' }}>เหตุผลที่ไม่อนุมัติ:</strong>
+                    <strong className="blockHeadingSm">เหตุผลที่ไม่อนุมัติ:</strong>
                     <span>{viewDetailModalData.rejectReason}</span>
                   </div>
                 </div>
@@ -501,14 +615,14 @@ export function EquipmentBorrowModals({
                   <span className="detailItemBadgeCount">{viewDetailModalData.items.length} รายการ</span>
                 </div>
 
-                <div className="tableContainer" style={{ marginTop: '0.75rem' }}>
-                  <table className="styledTable" style={{ fontSize: '0.875rem' }}>
+                <div className="tableContainer tableContainerNested">
+                  <table className="styledTable styledTableCompact">
                     <thead>
                       <tr>
                         <th>รายการ</th>
-                        <th style={{ textAlign: 'center', width: '80px' }}>ขอยืม</th>
-                        <th style={{ textAlign: 'center', width: '80px' }}>คืนแล้ว</th>
-                        <th style={{ width: '130px' }}>สถานะของ</th>
+                        <th className="textCenter colQty">ขอยืม</th>
+                        <th className="textCenter colQty">คืนแล้ว</th>
+                        <th className="colStatus">สถานะของ</th>
                         <th>สภาพตอนส่งคืน</th>
                       </tr>
                     </thead>
@@ -516,34 +630,40 @@ export function EquipmentBorrowModals({
                       {viewDetailModalData.items.map((it) => (
                         <tr key={it.id}>
                           <td>
-                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{it.itemName}</div>
-                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.2rem', alignItems: 'center' }}>
-                              {it.itemCode && (
-                                <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', padding: '0.1rem 0.4rem', borderRadius: 4 }}>
-                                  รหัส: {it.itemCode}
-                                </span>
-                              )}
-                              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                ({it.itemType === 'ASSET' ? 'ครุภัณฑ์' : 'วัสดุ'})
-                              </span>
+                            <div className="detailItemNameCell">
+                              <EquipmentItemThumbnail
+                                imageUrl={it.imageUrl}
+                                name={it.itemName}
+                                variant="thumb-sm"
+                              />
+                              <div>
+                                <div className="fontSemibold textPrimary">{it.itemName}</div>
+                                <div className="detailItemCodeRow">
+                                  {it.itemCode && (
+                                    <span className="codeTag">รหัส: {it.itemCode}</span>
+                                  )}
+                                  <span className="detailItemTypeTag">
+                                    ({it.itemType === 'ASSET' ? 'ครุภัณฑ์' : 'วัสดุ'})
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '0.9375rem' }}>
-                            {it.quantity}
-                          </td>
+                          <td className="textCenter fontSemibold tabularNums">{it.quantity}</td>
                           <td
-                            style={{
-                              textAlign: 'center',
-                              fontWeight: 700,
-                              fontSize: '0.9375rem',
-                              color: it.returnedQty >= it.quantity ? '#16a34a' : it.returnedQty > 0 ? '#d97706' : '#64748b',
-                            }}
+                            className={`textCenter fontSemibold tabularNums ${
+                              it.returnedQty >= it.quantity
+                                ? 'textSuccess'
+                                : it.returnedQty > 0
+                                ? 'textWarning'
+                                : 'textMuted'
+                            }`}
                           >
                             {it.returnedQty}
                           </td>
                           <td>{renderItemStatusBadge(it.status, viewDetailModalData.status)}</td>
                           <td>
-                            <div style={{ fontWeight: 500 }}>
+                            <div className="fontMedium">
                               {it.returnCondition === 'NORMAL'
                                 ? 'สภาพปกติ'
                                 : it.returnCondition === 'DAMAGED'
@@ -553,7 +673,7 @@ export function EquipmentBorrowModals({
                                 : '-'}
                             </div>
                             {it.returnNotes && (
-                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
+                              <div className="returnNoteSubtext">
                                 หมายเหตุ: {it.returnNotes}
                               </div>
                             )}
@@ -576,17 +696,15 @@ export function EquipmentBorrowModals({
                       setViewDetailModalData(null)
                       openReturnInspectionModal(req)
                     }}
-                    className="primaryButton"
-                    style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                    className="primaryButton compactBtn"
                   >
-                    <RotateCcw size={16} /> ดำเนินการตรวจรับคืนของ
+                    <RotateCcw size={16} strokeWidth={1.5} /> ดำเนินการตรวจรับคืนของ
                   </button>
                 )}
               <button
                 type="button"
                 onClick={() => setViewDetailModalData(null)}
-                className="secondaryButton"
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                className="secondaryButton compactBtn"
               >
                 ปิดหน้าต่าง
               </button>

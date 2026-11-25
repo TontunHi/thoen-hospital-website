@@ -13,6 +13,7 @@ import {
   CreditCard,
   Mail,
 } from 'lucide-react'
+import ChristmasScene from '@/components/seasonal/ChristmasScene'
 import LoyKrathongScene from '@/components/seasonal/LoyKrathongScene'
 import HalloweenScene from '@/components/seasonal/HalloweenScene'
 import './page.css'
@@ -504,13 +505,28 @@ function MemberLoginForm() {
   )
 }
 
+function SeasonalBackdrop() {
+  const searchParams = useSearchParams()
+  const themeParam = searchParams.get('theme')
+
+  if (themeParam === 'normal') {
+    return null
+  }
+  if (themeParam === 'loy-krathong') {
+    return <LoyKrathongScene />
+  }
+  if (themeParam === 'halloween') {
+    return <HalloweenScene />
+  }
+  return <ChristmasScene forceActive />
+}
+
 export default function MemberLoginPage() {
   return (
     <div className="memberLoginContainer">
       {/* Seasonal Atmosphere Layers (Three.js 3D WebGL Scene) */}
       <Suspense fallback={null}>
-        <HalloweenScene />
-        <LoyKrathongScene />
+        <SeasonalBackdrop />
       </Suspense>
 
       <div className="memberLoginStage">

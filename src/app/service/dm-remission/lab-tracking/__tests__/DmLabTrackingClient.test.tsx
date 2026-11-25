@@ -182,5 +182,11 @@ describe('DmLabTrackingClient', () => {
 
     expect(screen.getByText('อยู่ในทะเบียน (ไม่ Remission)')).toBeInTheDocument()
     expect(screen.getByText('ลงทะเบียนแล้ว (T1DM)')).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'ทะเบียน DM Remission โรงพยาบาลเถิน' })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'ทะเบียน DM (T1_T2DM/GDM/PDM)' })
+    ).toBeInTheDocument()
   })
 })

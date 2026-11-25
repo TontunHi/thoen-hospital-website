@@ -514,7 +514,8 @@
   min-width: 220px;
 }
 
-.ev-btn-qr {
+.ev-btn-qr,
+.ev-btn-attach {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -534,13 +535,15 @@
   cursor: pointer;
 }
 
-.ev-btn-qr:hover {
+.ev-btn-qr:hover,
+.ev-btn-attach:hover {
   background-color: #fafbf9;
   border-color: #5d6b63;
   color: #14201a;
 }
 
-.ev-btn-qr:focus-visible {
+.ev-btn-qr:focus-visible,
+.ev-btn-attach:focus-visible {
   outline: 2px solid #0b6b47;
   outline-offset: 2px;
 }
@@ -654,6 +657,7 @@
   .ev-actions-col {
     min-width: 180px;
     gap: 8px;
+    flex-wrap: wrap;
   }
 }
 
@@ -722,6 +726,7 @@
   }
 
   .ev-btn-qr,
+  .ev-btn-attach,
   .ev-btn-register,
   .ev-link-detail {
     min-height: 44px;

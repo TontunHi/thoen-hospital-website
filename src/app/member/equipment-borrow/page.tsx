@@ -1,3 +1,4 @@
+import '../../../../opendesigner/build/css/tokens.css'
 import { redirect } from 'next/navigation'
 import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'

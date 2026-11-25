@@ -230,6 +230,12 @@
   height: var(--ds-space-32);
 }
 
+.rr-select-compact {
+  height: var(--ds-space-32);
+  padding: 0 var(--ds-space-8);
+  font-size: var(--ds-font-size-12);
+}
+
 .rr-select:focus,
 .rr-input:focus {
   outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
@@ -708,6 +714,13 @@
 }
 
 .rr-table-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-12);
+  flex-wrap: wrap;
+}
+
+.rr-table-toolbar-right {
   display: flex;
   align-items: center;
   gap: var(--ds-space-12);

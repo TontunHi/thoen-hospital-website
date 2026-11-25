@@ -147,4 +147,79 @@ describe('EquipmentBorrowClient Component', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+
+  it('displays equipment photo on catalog card and opens lightbox modal on click', async () => {
+    const mockCatalogItem = {
+      id: 55,
+      itemType: 'MATERIAL',
+      name: 'สายแปลง HDMI to Type-C',
+      code: 'MAT-0055',
+      category: 'IT',
+      subType: 'วัสดุยืม-คืน',
+      availableQty: 3,
+      unit: 'เส้น',
+      location: 'ห้องศูนย์คอมฯ',
+      imageUrl: '/uploads/equipment-borrow/2026/11/hdmi-adapter.jpg',
+    }
+
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/member/equipment-borrow/catalog')) {
+        return Promise.resolve({
+          json: async () => ({ success: true, data: [mockCatalogItem] }),
+        })
+      }
+      return Promise.resolve({
+        json: async () => ({ success: true, data: [] }),
+      })
+    }))
+
+    render(<EquipmentBorrowClient initialStats={initialStats} currentUser={staffUser} />)
+
+    const cardImg = await screen.findByAltText('ภาพประกอบ สายแปลง HDMI to Type-C')
+    expect(cardImg).toHaveAttribute('src', '/uploads/equipment-borrow/2026/11/hdmi-adapter.jpg')
+
+    const previewBtn = screen.getByRole('button', { name: /ดูรูปภาพและรายละเอียด สายแปลง HDMI to Type-C/ })
+    fireEvent.click(previewBtn)
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByAltText('ภาพขยาย สายแปลง HDMI to Type-C')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: /หยิบใส่รายการขอยืม/ })).toBeInTheDocument()
+  })
+
+  it('allows admin to open asset image attachment modal in inventory tab', async () => {
+    const mockAsset = {
+      id: 301,
+      articleNum: '7440-001-0301',
+      name: 'เครื่องโปรเจคเตอร์ Epson',
+      brand: 'Epson',
+      category: 'IT',
+      isLoanable: true,
+      status: 'ACTIVE',
+      locationFullName: 'ห้องประชุมชั้น 2',
+      imageUrl: null,
+    }
+
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/member/equipment-borrow/assets')) {
+        return Promise.resolve({
+          json: async () => ({ success: true, items: [mockAsset] }),
+        })
+      }
+      return Promise.resolve({
+        json: async () => ({ success: true, data: [], items: [] }),
+      })
+    }))
+
+    render(<EquipmentBorrowClient initialStats={initialStats} currentUser={adminUser} />)
+
+    fireEvent.click(screen.getByText('จัดการข้อมูลคลัง'))
+    fireEvent.click(await screen.findByText(/ครุภัณฑ์พร้อมให้ยืม/))
+
+    const attachBtn = await screen.findByRole('button', { name: /แนบรูป/ })
+    fireEvent.click(attachBtn)
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('แนบรูปภาพครุภัณฑ์')).toBeInTheDocument()
+    expect(within(dialog).getByText(/7440-001-0301/)).toBeInTheDocument()
+  })
 })

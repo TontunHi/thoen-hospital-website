@@ -52,11 +52,14 @@ interface MemberOption {
   position: string | null
 }
 
+type EventDetailTab = 'attendances' | 'registrations' | 'attachments'
+
 interface EventDetailClientProps {
   event: any
   checkinUrl: string
   currentUser: CurrentUser
   availableMembers?: MemberOption[]
+  initialTab?: EventDetailTab
 }
 
 export default function EventDetailClient({
@@ -64,6 +67,7 @@ export default function EventDetailClient({
   checkinUrl,
   currentUser,
   availableMembers = [],
+  initialTab = 'attendances',
 }: EventDetailClientProps) {
   const [event, setEvent] = useState(initialEvent)
   const [attendances, setAttendances] = useState<any[]>(initialEvent.attendances || [])
@@ -71,7 +75,7 @@ export default function EventDetailClient({
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const [registering, setRegistering] = useState(false)
-  const [activeTab, setActiveTab] = useState<'attendances' | 'registrations' | 'attachments'>('attendances')
+  const [activeTab, setActiveTab] = useState<EventDetailTab>(initialTab)
   const [attachments, setAttachments] = useState<any[]>(initialEvent.attachments || [])
   const [attachmentFilter, setAttachmentFilter] = useState<'ALL' | 'IMAGE' | 'DOCUMENT' | 'NOTE'>('ALL')
   const [isAddAttachModalOpen, setIsAddAttachModalOpen] = useState(false)
@@ -926,7 +930,7 @@ export default function EventDetailClient({
       )}
 
       {/* Tab: Attendances vs Registrations */}
-      <div className="tableCard">
+      <div id="attachments-section" className="tableCard" style={{ scrollMarginTop: '1.5rem' }}>
         <div
           className="eventsTabsGroup"
           style={{ borderRadius: 0, padding: '0.5rem 1rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}

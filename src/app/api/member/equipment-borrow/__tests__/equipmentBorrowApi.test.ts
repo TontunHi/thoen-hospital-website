@@ -11,9 +11,30 @@ import { GET as getRequestDetail } from '../requests/[id]/route'
 import { POST as approveRequest } from '../requests/[id]/approve/route'
 import { POST as rejectRequest } from '../requests/[id]/reject/route'
 import { POST as returnItems } from '../requests/[id]/return/route'
-import { GET as getAssets, POST as toggleAsset } from '../assets/route'
+import { GET as getAssets, POST as toggleAsset, PATCH as updateAssetImage } from '../assets/route'
+import { POST as uploadEquipmentImage, DELETE as deleteEquipmentImage } from '../upload/route'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
+import { DocumentStorage } from '@/lib/storage/documentStorage'
 import * as memberAuth from '@/lib/memberAuth'
+
+vi.mock('@/lib/audit', () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@/lib/storage/documentStorage', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/storage/documentStorage')>(
+    '@/lib/storage/documentStorage'
+  )
+  return {
+    ...actual,
+    DocumentStorage: {
+      ...actual.DocumentStorage,
+      formatDateDirectory: vi.fn().mockReturnValue('public/uploads/equipment-borrow/2026/11'),
+      save: vi.fn(),
+      delete: vi.fn(),
+    },
+  }
+})
 
 vi.mock('@/lib/equipment/equipmentBorrowService', () => ({
   equipmentBorrowService: {
@@ -32,6 +53,7 @@ vi.mock('@/lib/equipment/equipmentBorrowService', () => ({
     processItemReturn: vi.fn(),
     getHospitalAssets: vi.fn(),
     toggleAssetLoanable: vi.fn(),
+    updateAssetImage: vi.fn(),
   },
 }))
 
@@ -376,5 +398,99 @@ describe('Equipment Borrow API Routes (Task-based Endpoints)', () => {
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.data).toEqual(mockAsset)
+  })
+
+  // 14. Equipment Image Upload & Asset Image Patch
+  it('POST upload rejects missing file with 400', async () => {
+    vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+      member: { id: 1, username: 'admin', isAdmin: true } as any,
+    })
+
+    const form = new FormData()
+    const req = new Request('http://localhost/api/member/equipment-borrow/upload', {
+      method: 'POST',
+      body: form,
+    })
+    const res = await uploadEquipmentImage(req)
+    expect(res.status).toBe(400)
+  })
+
+  it('POST upload saves image via DocumentStorage and returns 201', async () => {
+    vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+      member: { id: 1, username: 'admin', isAdmin: true } as any,
+    })
+
+    vi.mocked(DocumentStorage.save).mockResolvedValue({
+      publicUrl: '/uploads/equipment-borrow/2026/11/material-123.jpg',
+      relativePath: 'public/uploads/equipment-borrow/2026/11/material-123.jpg',
+      diskPath: '/tmp/material-123.jpg',
+      fileName: 'material-123.jpg',
+      fileSize: 2048,
+      mimeType: 'image/jpeg',
+    })
+
+    const form = new FormData()
+    form.append('itemType', 'MATERIAL')
+    form.append('file', new File(['img-bytes'], 'cable.jpg', { type: 'image/jpeg' }))
+
+    const req = new Request('http://localhost/api/member/equipment-borrow/upload', {
+      method: 'POST',
+      body: form,
+    })
+    const res = await uploadEquipmentImage(req)
+    const body = await res.json()
+
+    expect(res.status).toBe(201)
+    expect(body.success).toBe(true)
+    expect(body.data.url).toBe('/uploads/equipment-borrow/2026/11/material-123.jpg')
+  })
+
+  it('DELETE upload rejects path outside equipment-borrow directory', async () => {
+    vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+      member: { id: 1, username: 'admin', isAdmin: true } as any,
+    })
+
+    const req = new Request(
+      'http://localhost/api/member/equipment-borrow/upload?path=/uploads/other/secret.jpg',
+      { method: 'DELETE' }
+    )
+    const res = await deleteEquipmentImage(req)
+    expect(res.status).toBe(400)
+  })
+
+  it('PATCH assets updates asset imageUrl and rejects invalid traversal URLs', async () => {
+    vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+      member: { id: 1, username: 'admin', name: 'Admin', role: 'admin', isAdmin: true } as any,
+    })
+
+    const badReq = new Request('http://localhost/api/member/equipment-borrow/assets', {
+      method: 'PATCH',
+      body: JSON.stringify({ assetId: 101, imageUrl: '/uploads/../etc/passwd' }),
+    })
+    const badRes = await updateAssetImage(badReq)
+    expect(badRes.status).toBe(400)
+
+    vi.mocked(equipmentBorrowService.updateAssetImage).mockResolvedValue({
+      id: 101,
+      imageUrl: '/uploads/equipment-borrow/2026/11/asset-1.jpg',
+    } as any)
+
+    const goodReq = new Request('http://localhost/api/member/equipment-borrow/assets', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        assetId: 101,
+        imageUrl: '/uploads/equipment-borrow/2026/11/asset-1.jpg',
+      }),
+    })
+    const goodRes = await updateAssetImage(goodReq)
+    const body = await goodRes.json()
+
+    expect(goodRes.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(equipmentBorrowService.updateAssetImage).toHaveBeenCalledWith(
+      101,
+      '/uploads/equipment-borrow/2026/11/asset-1.jpg',
+      expect.objectContaining({ username: 'admin' })
+    )
   })
 })

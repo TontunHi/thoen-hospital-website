@@ -497,6 +497,13 @@ export default function EventsClient({
                             </Link>
                           )}
 
+                          <Link
+                            href={`/member/events/${event.id}?tab=attachments#attachments-section`}
+                            className="ev-btn-attach"
+                          >
+                            แนบภาพกิจกรรม
+                          </Link>
+
                           {!isPast ? (
                             <button
                               type="button"
