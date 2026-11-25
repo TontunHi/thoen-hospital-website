@@ -75,7 +75,7 @@ export default async function appAuthV2Routes(fastify, opts) {
   // 1. MEMBER AUTH (OTP, Session Active Check, ThaID / ProviderID / HealthID)
   // =========================================================================
 
-  fastify.get('/api/v1/app/auth/member-by-username', async (req, reply) => {
+  fastify.get('/api/v1/app/auth/member-by-username', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ค้นหาข้อมูลสมาชิกสำหรับยืนยันตัวตนด้วย username/email (รองรับ includeOtp)' } }, async (req, reply) => {
     try {
       const username = String(req.query?.username || '').trim()
       const email = req.query?.email ? String(req.query.email).trim() : ''
@@ -98,7 +98,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/auth/member-by-hash-cid/:hashCid', async (req, reply) => {
+  fastify.get('/api/v1/app/auth/member-by-hash-cid/:hashCid', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ค้นหาสมาชิกจากค่า SHA-256 ของเลขบัตรประชาชน (ThaID / ProviderID)' } }, async (req, reply) => {
     try {
       const hashCid = String(req.params?.hashCid || '').trim().toLowerCase()
       if (!hashCid) return { success: true, data: null }
@@ -112,7 +112,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/auth/set-otp', async (req, reply) => {
+  fastify.post('/api/v1/app/auth/set-otp', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'บันทึกรหัส OTP และเวลาหมดอายุให้สมาชิก' } }, async (req, reply) => {
     try {
       const { memberId, otp } = req.body || {}
       if (!memberId || !otp) {
@@ -128,7 +128,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/auth/clear-otp', async (req, reply) => {
+  fastify.post('/api/v1/app/auth/clear-otp', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ล้างรหัส OTP ของสมาชิกหลังยืนยันสำเร็จ' } }, async (req, reply) => {
     try {
       const { memberId } = req.body || {}
       if (!memberId) {
@@ -144,7 +144,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/auth/check-active', async (req, reply) => {
+  fastify.get('/api/v1/app/auth/check-active', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ตรวจสอบสถานะความพร้อมใช้งานของบัญชีสมาชิก (Session Active Check)' } }, async (req, reply) => {
     try {
       const username = String(req.query?.username || '').trim()
       const email = String(req.query?.email || '').trim()
@@ -168,7 +168,7 @@ export default async function appAuthV2Routes(fastify, opts) {
   // 2. MEMBER SIGNATURES
   // =========================================================================
 
-  fastify.get('/api/v1/app/signatures/feature-flag', async (_req, reply) => {
+  fastify.get('/api/v1/app/signatures/feature-flag', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ตรวจสอบการเปิดใช้งานฟีเจอร์ลายเซ็นอิเล็กทรอนิกส์' } }, async (_req, reply) => {
     try {
       const [rows] = await appPool.query(
         "SELECT config_value FROM member_system_settings WHERE config_key = 'feature_signature' LIMIT 1"
@@ -180,7 +180,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/signatures/status', async (req, reply) => {
+  fastify.get('/api/v1/app/signatures/status', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ตรวจสอบสถานะลายเซ็นอิเล็กทรอนิกส์ของสมาชิก' } }, async (req, reply) => {
     try {
       const username = String(req.query?.username || '').trim()
       if (!username) return { success: true, data: { signaturePath: null, updatedAt: null } }
@@ -203,7 +203,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.put('/api/v1/app/signatures/path', async (req, reply) => {
+  fastify.put('/api/v1/app/signatures/path', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'อัปเดต path ไฟล์รูปลายเซ็นอิเล็กทรอนิกส์ของสมาชิก' } }, async (req, reply) => {
     try {
       const { username, signaturePath } = req.body || {}
       if (!username || !signaturePath) {
@@ -218,7 +218,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/signatures/resolve-access', async (req, reply) => {
+  fastify.get('/api/v1/app/signatures/resolve-access', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ตรวจสอบสิทธิ์การเข้าถึงและแสดงลายเซ็นอิเล็กทรอนิกส์' } }, async (req, reply) => {
     try {
       const sessionUsername = String(req.query?.sessionUsername || '').trim()
       const sessionEmail = String(req.query?.sessionEmail || '').trim()
@@ -249,7 +249,7 @@ export default async function appAuthV2Routes(fastify, opts) {
   // 3. TASK PERMISSIONS MANAGEMENT
   // =========================================================================
 
-  fastify.get('/api/v1/app/permissions/task-centric', async (_req, reply) => {
+  fastify.get('/api/v1/app/permissions/task-centric', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ดึงรายการสิทธิ์ตามภาระงาน (Task-Centric Permissions)' } }, async (_req, reply) => {
     try {
       const [[members], [permissionRows], [positionPerms]] = await Promise.all([
         appPool.query('SELECT id, username, name, department, position, role FROM members ORDER BY department ASC, name ASC'),
@@ -262,7 +262,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/permissions/members-list', async (req, reply) => {
+  fastify.get('/api/v1/app/permissions/members-list', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ดึงรายชื่อสมาชิกพร้อมสิทธิ์ประจำตัว (กรองตามแผนก/คำค้น)' } }, async (req, reply) => {
     try {
       const query = req.query?.query ? String(req.query.query).trim() : ''
       const department = req.query?.department ? String(req.query.department).trim() : ''
@@ -291,7 +291,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/permissions/grant-member', async (req, reply) => {
+  fastify.post('/api/v1/app/permissions/grant-member', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'มอบสิทธิ์การใช้งานเฉพาะบุคคลให้สมาชิก' } }, async (req, reply) => {
     try {
       const { memberId, permissionKey, actorUsername = 'admin' } = req.body || {}
       const [rows] = await appPool.query('SELECT id, name, username FROM members WHERE id = ? LIMIT 1', [memberId])
@@ -312,7 +312,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/permissions/revoke-member', async (req, reply) => {
+  fastify.post('/api/v1/app/permissions/revoke-member', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'เพิกถอนสิทธิ์การใช้งานเฉพาะบุคคลของสมาชิก' } }, async (req, reply) => {
     try {
       const { memberId, permissionKey } = req.body || {}
       const [rows] = await appPool.query('SELECT id, name, username FROM members WHERE id = ? LIMIT 1', [memberId])
@@ -326,7 +326,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/permissions/grant-position', async (req, reply) => {
+  fastify.post('/api/v1/app/permissions/grant-position', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'มอบสิทธิ์การใช้งานประจำตำแหน่งงาน' } }, async (req, reply) => {
     try {
       const { positionName, permissionKey } = req.body || {}
       await withUtf8Conn(appPool, async (conn) => {
@@ -341,7 +341,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/permissions/revoke-position', async (req, reply) => {
+  fastify.post('/api/v1/app/permissions/revoke-position', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'เพิกถอนสิทธิ์การใช้งานประจำตำแหน่งงาน' } }, async (req, reply) => {
     try {
       const { positionName, permissionKey } = req.body || {}
       await appPool.query(
@@ -354,7 +354,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.put('/api/v1/app/permissions/member/:memberId', async (req, reply) => {
+  fastify.put('/api/v1/app/permissions/member/:memberId', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'อัปเดตชุดสิทธิ์ทั้งหมดของสมาชิกรายบุคคล' } }, async (req, reply) => {
     try {
       const memberId = Number(req.params?.memberId)
       const { permissions = [], performedBy = 'admin' } = req.body || {}
@@ -374,7 +374,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.put('/api/v1/app/permissions/batch', async (req, reply) => {
+  fastify.put('/api/v1/app/permissions/batch', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'อัปเดตสิทธิ์สมาชิกหลายรายการพร้อมกัน (Batch Update)' } }, async (req, reply) => {
     try {
       const { updates = [], performedBy = 'admin' } = req.body || {}
       await withUtf8Tx(appPool, async (conn) => {
@@ -395,7 +395,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/permissions/positions', async (_req, reply) => {
+  fastify.get('/api/v1/app/permissions/positions', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ดึงรายชื่อตำแหน่งงานทั้งหมดในระบบสิทธิ์' } }, async (_req, reply) => {
     try {
       const [[mappings], [positionsResult]] = await Promise.all([
         appPool.query('SELECT id, permission_key, position_name FROM position_permissions ORDER BY permission_key, position_name'),
@@ -417,7 +417,7 @@ export default async function appAuthV2Routes(fastify, opts) {
   // 4. AUDIT LOGS ADMIN QUERIES, STATS, EXPORT & PURGE
   // =========================================================================
 
-  fastify.get('/api/v1/app/audit-logs', async (req, reply) => {
+  fastify.get('/api/v1/app/audit-logs', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ค้นหาและแบ่งหน้ารายการ Audit Log (สำหรับผู้ดูแลระบบ)' } }, async (req, reply) => {
     try {
       const page = Math.max(1, Number(req.query?.page || 1))
       const limit = Math.min(500, Math.max(1, Number(req.query?.limit || 25)))
@@ -443,7 +443,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/audit-logs/export', async (req, reply) => {
+  fastify.get('/api/v1/app/audit-logs/export', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ส่งออกข้อมูล Audit Log ตามช่วงวันที่และตัวกรอง' } }, async (req, reply) => {
     try {
       const { clause, params } = buildAuditFilter(req.query, false)
       const [rows] = await appPool.query(
@@ -457,7 +457,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/audit-logs/stats', async (_req, reply) => {
+  fastify.get('/api/v1/app/audit-logs/stats', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'สรุปสถิติการใช้งานและจำนวน Audit Log ตามหมวดหมู่' } }, async (_req, reply) => {
     try {
       const [[summaryRows], [todayRows], [storageRows]] = await Promise.all([
         appPool.query('SELECT COUNT(*) AS total_logs, MIN(timestamp) AS oldest_log, MAX(timestamp) AS newest_log FROM audit_logs'),
@@ -488,7 +488,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/audit-logs/expired-count', async (req, reply) => {
+  fastify.get('/api/v1/app/audit-logs/expired-count', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'นับจำนวน Audit Log ที่เกินอายุจัดเก็บ (Retention Days)' } }, async (req, reply) => {
     try {
       const retentionDays = Math.max(1, Number(req.query?.retentionDays || 90))
       const [rows] = await appPool.query(
@@ -501,7 +501,7 @@ export default async function appAuthV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/audit-logs/purge', async (req, reply) => {
+  fastify.post('/api/v1/app/audit-logs/purge', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ล้างข้อมูล Audit Log ที่หมดอายุจัดเก็บตามนโยบาย' } }, async (req, reply) => {
     try {
       const { retentionDays = 90, mode = 'admin', adminActor } = req.body || {}
       const days = Math.max(1, Number(retentionDays))

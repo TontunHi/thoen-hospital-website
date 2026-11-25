@@ -430,7 +430,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
   // 1. DM REMISSION COHORTS & OPTIONS
   // =========================================================================
 
-  fastify.post('/api/v1/clinical/dm-remission/ensure-schema', async (_req, reply) => {
+  fastify.post('/api/v1/clinical/dm-remission/ensure-schema', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ตรวจสอบและเตรียมตารางระบบ DM Remission' } }, async (_req, reply) => {
     try {
       await ensureDmSchema()
       return { success: true, data: { ensured: true } }
@@ -439,7 +439,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/dm-remission/lookup-patient/:hn', async (req, reply) => {
+  fastify.get('/api/v1/clinical/dm-remission/lookup-patient/:hn', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ค้นหาข้อมูลผู้ป่วยเบาหวานจาก HOSxP ด้วย HN (DM Remission)' } }, async (req, reply) => {
     try {
       const hn = String(req.params?.hn || '').trim()
       if (!hn) return { success: true, data: null }
@@ -456,7 +456,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/dm-remission/options', async (_req, reply) => {
+  fastify.get('/api/v1/clinical/dm-remission/options', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ดึงตัวเลือกประกอบทะเบียน DM Remission' } }, async (_req, reply) => {
     try {
       await ensureDmSchema()
       const [rows] = await appPool.query(`${DM_OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`)
@@ -466,7 +466,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/clinical/dm-remission/options', async (req, reply) => {
+  fastify.post('/api/v1/clinical/dm-remission/options', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'เพิ่มตัวเลือกประกอบทะเบียน DM Remission' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const { category, label, sortOrder = 0, isActive = true, actorName = 'system' } = req.body || {}
@@ -498,7 +498,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/clinical/dm-remission/options/:id', async (req, reply) => {
+  fastify.patch('/api/v1/clinical/dm-remission/options/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'แก้ไขตัวเลือกประกอบทะเบียน DM Remission' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const id = Number(req.params?.id)
@@ -548,7 +548,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/clinical/dm-remission/options/:id', async (req, reply) => {
+  fastify.delete('/api/v1/clinical/dm-remission/options/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ลบตัวเลือกประกอบทะเบียน DM Remission' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const id = Number(req.params?.id)
@@ -565,7 +565,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/dm-remission/cohorts-bundle', async (req, reply) => {
+  fastify.get('/api/v1/clinical/dm-remission/cohorts-bundle', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ดึงข้อมูลกลุ่มเป้าหมาย DM Remission ทั้งหมด' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const rawFy = req.query?.fiscalYear
@@ -603,7 +603,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/clinical/dm-remission/cohorts', async (req, reply) => {
+  fastify.post('/api/v1/clinical/dm-remission/cohorts', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'เพิ่มผู้ป่วยเข้ากลุ่มเป้าหมาย DM Remission' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const { fields = {}, actorName = 'system' } = req.body || {}
@@ -662,7 +662,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/clinical/dm-remission/cohorts/:id', async (req, reply) => {
+  fastify.patch('/api/v1/clinical/dm-remission/cohorts/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'แก้ไขข้อมูลผู้ป่วยในกลุ่ม DM Remission' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const id = Number(req.params?.id)
@@ -726,7 +726,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/clinical/dm-remission/cohorts/:id', async (req, reply) => {
+  fastify.delete('/api/v1/clinical/dm-remission/cohorts/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ลบผู้ป่วยออกจากกลุ่ม DM Remission' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const id = Number(req.params?.id)
@@ -743,7 +743,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/clinical/dm-remission/carryover', async (req, reply) => {
+  fastify.post('/api/v1/clinical/dm-remission/carryover', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ยกยอดกลุ่มเป้าหมาย DM Remission ข้ามปีงบประมาณ' } }, async (req, reply) => {
     try {
       await ensureDmSchema()
       const { fromFiscalYear, toFiscalYear, actorName = 'system', defaultRemissionStatus = 'รอ lab A1c' } = req.body || {}
@@ -829,7 +829,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
   // 2. DM REMISSION LAB TRACKING
   // =========================================================================
 
-  fastify.get('/api/v1/clinical/dm-remission/lab/dataset', async (req, reply) => {
+  fastify.get('/api/v1/clinical/dm-remission/lab/dataset', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ดึงชุดข้อมูลผลแล็บ (HbA1c/FBS/eGFR) ของกลุ่ม DM Remission' } }, async (req, reply) => {
     try {
       const startDate = String(req.query?.startDate || '').trim()
       const endDate = String(req.query?.endDate || '').trim()
@@ -1066,7 +1066,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/dm-remission/lab/timeline/:hn', async (req, reply) => {
+  fastify.get('/api/v1/clinical/dm-remission/lab/timeline/:hn', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ดึงไทม์ไลน์ผลแล็บย้อนหลังรายบุคคลด้วย HN (DM Remission)' } }, async (req, reply) => {
     try {
       const hn = String(req.params?.hn || '').trim()
       if (!hn) return { success: true, data: { patientRows: [], labRows: [], diagRows: [], rxRows: [] } }
@@ -1125,7 +1125,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
   // 3. FCT HOME VISITS & OPTIONS
   // =========================================================================
 
-  fastify.post('/api/v1/clinical/fct-home-visit/ensure-schema', async (_req, reply) => {
+  fastify.post('/api/v1/clinical/fct-home-visit/ensure-schema', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ตรวจสอบและเตรียมตารางระบบเยี่ยมบ้าน FCT Home Visit' } }, async (_req, reply) => {
     try {
       await ensureFctSchema()
       return { success: true, data: { ensured: true } }
@@ -1134,7 +1134,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/fct-home-visit/lookup-patient/:hn', async (req, reply) => {
+  fastify.get('/api/v1/clinical/fct-home-visit/lookup-patient/:hn', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ค้นหาข้อมูลผู้ป่วยจาก HOSxP ด้วย HN สำหรับบันทึกเยี่ยมบ้าน FCT' } }, async (req, reply) => {
     try {
       const hn = String(req.params?.hn || '').trim()
       if (!hn) return { success: true, data: null }
@@ -1165,7 +1165,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/fct-home-visit/options', async (_req, reply) => {
+  fastify.get('/api/v1/clinical/fct-home-visit/options', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ดึงตัวเลือกประกอบแบบบันทึกเยี่ยมบ้าน FCT' } }, async (_req, reply) => {
     try {
       await ensureFctSchema()
       const [rows] = await appPool.query(`${FCT_OPTION_SELECT_SQL} ORDER BY category ASC, sort_order ASC, id ASC`)
@@ -1175,7 +1175,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/clinical/fct-home-visit/options', async (req, reply) => {
+  fastify.post('/api/v1/clinical/fct-home-visit/options', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'เพิ่มตัวเลือกประกอบแบบบันทึกเยี่ยมบ้าน FCT' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const { category, label, sortOrder = 0, isActive = true, actorName = 'system' } = req.body || {}
@@ -1207,7 +1207,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/clinical/fct-home-visit/options/:id', async (req, reply) => {
+  fastify.patch('/api/v1/clinical/fct-home-visit/options/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'แก้ไขตัวเลือกประกอบแบบบันทึกเยี่ยมบ้าน FCT' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const id = Number(req.params?.id)
@@ -1251,7 +1251,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/clinical/fct-home-visit/options/:id', async (req, reply) => {
+  fastify.delete('/api/v1/clinical/fct-home-visit/options/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ลบตัวเลือกประกอบแบบบันทึกเยี่ยมบ้าน FCT' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const id = Number(req.params?.id)
@@ -1268,7 +1268,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/fct-home-visit/visits-bundle', async (req, reply) => {
+  fastify.get('/api/v1/clinical/fct-home-visit/visits-bundle', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ดึงรายการประวัติการเยี่ยมบ้าน FCT ทั้งหมด' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const rawFy = req.query?.fiscalYear
@@ -1306,7 +1306,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/clinical/fct-home-visit/visits/:id', async (req, reply) => {
+  fastify.get('/api/v1/clinical/fct-home-visit/visits/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ดึงรายละเอียดบันทึกเยี่ยมบ้าน FCT ตาม ID' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const id = Number(req.params?.id)
@@ -1317,7 +1317,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/clinical/fct-home-visit/visits', async (req, reply) => {
+  fastify.post('/api/v1/clinical/fct-home-visit/visits', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'บันทึกการเยี่ยมบ้าน FCT ใหม่' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const { fields = {}, actorName = 'system' } = req.body || {}
@@ -1347,7 +1347,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/clinical/fct-home-visit/visits/:id', async (req, reply) => {
+  fastify.patch('/api/v1/clinical/fct-home-visit/visits/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'แก้ไขบันทึกการเยี่ยมบ้าน FCT' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const id = Number(req.params?.id)
@@ -1379,7 +1379,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/clinical/fct-home-visit/visits/:id', async (req, reply) => {
+  fastify.delete('/api/v1/clinical/fct-home-visit/visits/:id', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'ลบบันทึกการเยี่ยมบ้าน FCT' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const id = Number(req.params?.id)
@@ -1396,7 +1396,7 @@ export default async function clinicalChronicV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/clinical/fct-home-visit/visits/batch-import', async (req, reply) => {
+  fastify.post('/api/v1/clinical/fct-home-visit/visits/batch-import', { schema: { tags: ['03. Clinical — Chronic, Palliative & LTC'], summary: 'นำเข้าข้อมูลการเยี่ยมบ้าน FCT แบบหลายรายการ (Batch Import)' } }, async (req, reply) => {
     try {
       await ensureFctSchema()
       const { items = [], actorName = 'system' } = req.body || {}

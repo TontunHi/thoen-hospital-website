@@ -11,7 +11,7 @@ export default async function palliativeRoutes(fastify, options) {
 // 1.16 RCM Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด
 fastify.get('/api/v1/clinical/rcm/palliative-care', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['04. RCM — Dashboard, OPD/IPD & Debt'],
     summary: 'รายชื่อผู้ป่วย Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด',
     querystring: {
       type: 'object',
@@ -260,7 +260,7 @@ async function ensureVisitsTable() {
   // 4.9.0 Find Registry by HN (Named API for duplicate prevention)
   fastify.get('/api/v1/app/palliative-care/registries/by-hn/:hn', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ค้นหาข้อมูลทะเบียน Palliative Care รายคนด้วย HN เพื่อป้องกันข้อมูลซ้ำซ้อน',
       params: {
         type: 'object',
@@ -289,7 +289,7 @@ async function ensureVisitsTable() {
 
   fastify.get('/api/v1/app/palliative-care/registries', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ดึงรายชื่อและสถิติทะเบียนผู้ป่วย Palliative Care พร้อมระบบค้นหาและแบ่งหน้า',
       querystring: {
         type: 'object',
@@ -429,7 +429,7 @@ async function ensureVisitsTable() {
 
   fastify.get('/api/v1/app/palliative-care/registries/:id', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ดึงข้อมูลผู้ป่วย Palliative Care รายบุคคลตาม ID',
       params: {
         type: 'object',
@@ -498,7 +498,7 @@ async function ensureVisitsTable() {
 
   fastify.post('/api/v1/app/palliative-care/registries', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ลงทะเบียนผู้ป่วย Palliative Care ใหม่',
       body: {
         type: 'object',
@@ -621,7 +621,7 @@ async function ensureVisitsTable() {
 
   fastify.put('/api/v1/app/palliative-care/registries/:id', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'แก้ไขข้อมูลผู้ป่วย Palliative Care ตาม ID',
       params: {
         type: 'object',
@@ -710,7 +710,7 @@ async function ensureVisitsTable() {
 
   fastify.delete('/api/v1/app/palliative-care/registries/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'ลบข้อมูลผู้ป่วย Palliative Care ตาม ID',
     params: {
       type: 'object',

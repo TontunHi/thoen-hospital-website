@@ -174,7 +174,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   };
 
   // ── 1. SSS Dental Report ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/sss-dental', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/sss-dental', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'รายงานทันตกรรมประกันสังคม (RCM SSS Dental Dashboard)' } }, async (request, reply) => {
     const { startDate, endDate, doctorFilter = '', fetchVisits = 'false' } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -261,7 +261,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 2. OPD Doctor Summary ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/opd-doctor-summary', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/opd-doctor-summary', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'สรุปรายรับผู้ป่วยนอกแยกตามแพทย์ (RCM OPD Doctor Summary)' } }, async (request, reply) => {
     const { startDate, endDate, eclaimsParam = '' } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -317,7 +317,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 3. OPD Detailed Report ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/opd-detailed', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/opd-detailed', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'รายงานผู้ป่วยนอกรายละเอียดราย Visit (RCM OPD Detailed)' } }, async (request, reply) => {
     const { startDate, endDate, pttype = '', isAll = 'false' } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -380,7 +380,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 4. OPD Department Summary ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/opd-department-summary', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/opd-department-summary', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'สรุปรายรับผู้ป่วยนอกแยกตาม 10 สาขาแผนก (RCM OPD Dept Summary)' } }, async (request, reply) => {
     const { startDate, endDate } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -422,7 +422,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 5. IPD Report ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/ipd-report', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/ipd-report', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'รายงานผู้ป่วยในและค่ารักษาพยาบาลราย AN (RCM IPD Report)' } }, async (request, reply) => {
     const { startDate, endDate, pttype = '' } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -499,7 +499,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 6. IPD Department AdjRW ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/ipd-department-adjrw', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/ipd-department-adjrw', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'สรุปผู้ป่วยใน AdjRW และ CMI แยกตาม 10 สาขาแผนก' } }, async (request, reply) => {
     const { startDate, endDate } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -583,7 +583,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 7. IPD Doctor Chart Summary (Telegram Notification) ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/ipd-doctor-chart-summary', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/ipd-doctor-chart-summary', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'สรุปชาร์ตผู้ป่วยในแยกตามแพทย์เจ้าของไข้' } }, async (request, reply) => {
     const { startDate, endDate } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -624,7 +624,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 8. Palliative Care Report ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/palliative-care', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/palliative-care', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'รายงานแดชบอร์ดผู้ป่วย Palliative Care (RCM)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -744,7 +744,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 9. Palliative Care PC.1 (ADP 30001) ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/palliative-care-pc1', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/palliative-care-pc1', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'รายงานผู้ป่วย Palliative Care กลุ่ม PC1 (RCM)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -839,7 +839,7 @@ export default async function rcmDashboardV2Routes(fastify, opts) {
   });
 
   // ── 10. VN Clinical Details ──
-  fastify.get('/api/v1/clinical/rcm/dashboard/vn-details/:vn', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/dashboard/vn-details/:vn', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'รายละเอียดค่าใช้จ่าย ยา หัตถการ และ REP ของ Visit (VN Details)' } }, async (request, reply) => {
     const cleanVn = String(request.params?.vn || '').trim();
     if (!cleanVn) {
       return reply.code(400).send({ success: false, error: 'vn is required' });

@@ -65,7 +65,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
   // 1. STAFF REGISTRATIONS
   // =========================================================================
 
-  fastify.get('/api/v1/app/v2/registrations/existing-member', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/registrations/existing-member', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ตรวจสอบสมาชิกเดิมจากเลขบัตรประชาชนหรืออีเมลก่อนสมัครใหม่' } }, async (req, reply) => {
     try {
       const citizenId = req.query?.citizenId ? String(req.query.citizenId).trim() : ''
       const email = req.query?.email ? String(req.query.email).trim() : ''
@@ -84,7 +84,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/registrations/pending', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/registrations/pending', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ตรวจสอบคำขอสมัครสมาชิกที่ค้างพิจารณาซ้ำซ้อน' } }, async (req, reply) => {
     try {
       const citizenId = req.query?.citizenId ? String(req.query.citizenId).trim() : ''
       const email = req.query?.email ? String(req.query.email).trim() : ''
@@ -104,7 +104,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/registrations', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/registrations', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ส่งคำขอลงทะเบียนสมาชิกใหม่ (V2)' } }, async (req, reply) => {
     try {
       const d = req.body || {}
       const vehiclesJson = d.vehicles ? JSON.stringify(d.vehicles) : null
@@ -139,7 +139,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/registrations', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/registrations', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ดึงรายการคำขอสมัครสมาชิกทั้งหมดพร้อมค้นหาและแบ่งหน้า' } }, async (req, reply) => {
     try {
       const page = Math.max(1, Number(req.query?.page || 1))
       const limit = Math.min(200, Math.max(1, Number(req.query?.limit || 20)))
@@ -182,7 +182,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/registrations/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/registrations/:id', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ดึงรายละเอียดคำขอสมัครสมาชิกตาม ID' } }, async (req, reply) => {
     try {
       const id = Number(req.params?.id)
       const [rows] = await appPool.query('SELECT * FROM member_registrations WHERE id = ? LIMIT 1', [id])
@@ -192,7 +192,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/registrations/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/registrations/:id', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'อัปเดตสถานะการอนุมัติหรือปฏิเสธคำขอสมัครสมาชิก' } }, async (req, reply) => {
     try {
       const id = Number(req.params?.id)
       const d = req.body || {}
@@ -221,7 +221,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/registrations/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/registrations/:id', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ลบรายการคำขอสมัครสมาชิก' } }, async (req, reply) => {
     try {
       const id = Number(req.params?.id)
       await appPool.query('DELETE FROM member_registrations WHERE id = ?', [id])
@@ -231,7 +231,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/registrations/create-member', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/registrations/create-member', { schema: { tags: ['08. Auth, Members & Permissions'], summary: 'สร้างบัญชีสมาชิกจริงจากคำขอสมัครที่ได้รับอนุมัติ' } }, async (req, reply) => {
     try {
       const { username, email, name, department, position, role } = req.body || {}
       const memberId = await withUtf8Conn(appPool, async (conn) => {
@@ -259,7 +259,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
   // 2. TELEGRAM BOT CORE (Linking & Interactive Repair Callbacks)
   // =========================================================================
 
-  fastify.post('/api/v1/app/v2/telegram/challenges', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/telegram/challenges', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'สร้างรหัส Challenge Token สำหรับผูกบัญชี Telegram' } }, async (req, reply) => {
     try {
       const { memberId, token } = req.body || {}
       await withUtf8Tx(appPool, async (conn) => {
@@ -278,7 +278,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/telegram/link/:memberId', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/telegram/link/:memberId', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ตรวจสอบสถานะการเชื่อมต่อ Telegram ของสมาชิก' } }, async (req, reply) => {
     try {
       const memberId = Number(req.params?.memberId)
       const [rows] = await appPool.query(
@@ -291,7 +291,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/telegram/link/:memberId', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/telegram/link/:memberId', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ยกเลิกการเชื่อมต่อ Telegram ด้วย memberId' } }, async (req, reply) => {
     try {
       const memberId = Number(req.params?.memberId)
       await appPool.query('DELETE FROM member_telegram_links WHERE member_id = ?', [memberId])
@@ -301,7 +301,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/telegram/link-by-chat/:chatId', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/telegram/link-by-chat/:chatId', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ยกเลิกการเชื่อมต่อ Telegram ด้วย chatId' } }, async (req, reply) => {
     try {
       const chatId = String(req.params?.chatId || '').trim()
       const [rows] = await appPool.query(
@@ -321,7 +321,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/telegram/verify-link', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/telegram/verify-link', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ยืนยันการผูกบัญชี Telegram กับสมาชิกผ่านโทเค็น' } }, async (req, reply) => {
     try {
       const { token, chatId, userId, username, firstName } = req.body || {}
       const [challenges] = await appPool.query(
@@ -364,7 +364,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/telegram/member-by-telegram', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/telegram/member-by-telegram', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ค้นหาข้อมูลสมาชิกจาก Telegram chatId หรือ userId' } }, async (req, reply) => {
     try {
       const userId = Number(req.query?.userId || 0)
       const chatId = req.query?.chatId || 0
@@ -382,7 +382,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/telegram/repair-context/:taskId', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/telegram/repair-context/:taskId', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ดึงข้อมูลบริบทใบงานแจ้งซ่อมสำหรับ Telegram Bot' } }, async (req, reply) => {
     try {
       const taskId = String(req.params?.taskId || '').trim()
       const [[tasks], [repairs]] = await Promise.all([
@@ -401,7 +401,7 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/telegram/repair-action', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/telegram/repair-action', { schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'ดำเนินการรับงาน/อัปเดตงานซ่อมจาก Telegram Bot' } }, async (req, reply) => {
     try {
       const { action, taskId, memberId, memberName, username, solutionStep } = req.body || {}
       const [[tasks], [repairs]] = await Promise.all([

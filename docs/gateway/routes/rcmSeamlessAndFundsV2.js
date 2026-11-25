@@ -17,7 +17,7 @@ export default async function rcmSeamlessAndFundsV2Routes(fastify, { pools, getC
   // 1. Batch Seamless REP enrichment for VN / AN arrays (replaces client-side chunked SQL in rcmSeamlessEnricher.ts)
   fastify.post('/api/v1/clinical/rcm/seamless/enrich-visits', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'],
       summary: 'ดึงเลข REP และยอดชดเชยจาก rcmdb.seamless สำหรับชุด VN / AN (Batch Enrichment)',
     }
   }, async (req, reply) => {
@@ -70,7 +70,7 @@ export default async function rcmSeamlessAndFundsV2Routes(fastify, { pools, getC
   // 2. Enhanced ADP Mapping lookup across both s_drugitems and nondrugitems (supports comma-separated codes + refresh)
   fastify.get('/api/v1/clinical/rcm/funds/adp-mapping-v2/:adpCode', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'ตรวจสอบการผูก NHSO ADP Code ทั้ง s_drugitems และ nondrugitems (รองรับ refresh)',
     }
   }, async (req, reply) => {

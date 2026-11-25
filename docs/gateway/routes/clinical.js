@@ -9,7 +9,7 @@ export default async function clinicalRoutes(fastify, options) {
 // 1.1 ER Status & TV Mode
 fastify.get('/api/v1/clinical/er/status', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'สถานะห้องฉุกเฉินและระดับคัดกรอง Triage (รองรับ TV Mode)',
     querystring: {
       type: 'object',
@@ -73,7 +73,7 @@ fastify.get('/api/v1/clinical/er/status', {
 // 1.2 IPD Ward Bed Occupancy
 fastify.get('/api/v1/clinical/ipd/occupancy', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'อัตราการครองเตียงผู้ป่วยในรายตึก (IPD Wards Occupancy)'
   }
 }, async (req, reply) => {
@@ -96,7 +96,7 @@ fastify.get('/api/v1/clinical/ipd/occupancy', {
 // 1.3 IPD Ward Roster
 fastify.get('/api/v1/clinical/ipd/ward-roster', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'รายชื่อผู้ป่วยที่นอนพักรักษาตัวในหอผู้ป่วยใน (Grouped by Ward & Bed)'
   }
 }, async (req, reply) => {
@@ -123,7 +123,7 @@ fastify.get('/api/v1/clinical/ipd/ward-roster', {
 // 1.4 Appointments Search
 fastify.get('/api/v1/clinical/appointments', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ค้นหารายการนัดหมายแพทย์ (ตามวันที่, HN, หรือเลขบัตรประชาชน)',
     querystring: {
       type: 'object',
@@ -158,7 +158,7 @@ fastify.get('/api/v1/clinical/appointments', {
 // 1.4.1 Appointments Lookup by CID (Check Date Service for Citizens)
 fastify.get('/api/v1/clinical/appointments/by-cid/:cid', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ค้นหารายการนัดหมายแพทย์สำหรับประชาชนด้วยเลขบัตรประชาชน (Check Date Service)',
     params: {
       type: 'object',
@@ -196,7 +196,7 @@ fastify.get('/api/v1/clinical/appointments/by-cid/:cid', {
 // 1.5 Appointment Mismatches
 fastify.get('/api/v1/clinical/appointments/mismatches', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ตรวจสอบรายการนัดในห้องตรวจที่ปิดใช้งานแล้ว'
   }
 }, async (req, reply) => {
@@ -217,7 +217,7 @@ fastify.get('/api/v1/clinical/appointments/mismatches', {
 // 1.6 Lab Tracker Orders
 fastify.get('/api/v1/clinical/lab/tracker', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ติดตามสถานะคำสั่งตรวจแล็บประจำวัน (Lab Orders Tracker)',
     querystring: {
       type: 'object',
@@ -251,7 +251,7 @@ fastify.get('/api/v1/clinical/lab/tracker', {
 // 1.7 Lab Tracker Detail by HN
 fastify.get('/api/v1/clinical/lab/detail/:hn', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ดึงรายละเอียดผลแล็บประจำวันของคนไข้ (Reported & Pending)',
     params: {
       type: 'object',
@@ -295,7 +295,7 @@ fastify.get('/api/v1/clinical/lab/detail/:hn', {
 // 1.8 Drug Dispensing Status Queue (Paid & Printed)
 fastify.get('/api/v1/clinical/drugs/status', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'สถานะคิวจ่ายยาผู้ป่วยนอกห้องยา (รอจัดยา vs กำลังจัดยา)'
   }
 }, async (req, reply) => {
@@ -340,7 +340,7 @@ fastify.get('/api/v1/clinical/drugs/status', {
 // 1.9 Loratadine Dispensing Monitor
 fastify.get('/api/v1/clinical/drugs/loratadine', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ติดตามการจ่ายยาลอราทาดีน (Loratadine Monitor)',
     querystring: {
       type: 'object',
@@ -377,7 +377,7 @@ fastify.get('/api/v1/clinical/drugs/loratadine', {
 // 1.10 RCM OPD Department Summary
 fastify.get('/api/v1/clinical/rcm/opd-dept-summary', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['04. RCM — Dashboard, OPD/IPD & Debt'],
     summary: 'รายงานผู้ป่วยนอกแยกตามแผนก (RCM OPD Summary)',
     querystring: {
       type: 'object',
@@ -410,7 +410,7 @@ fastify.get('/api/v1/clinical/rcm/opd-dept-summary', {
 // 1.11 RCM IPD Department AdjRW Summary
 fastify.get('/api/v1/clinical/rcm/ipd-dept-adjrw', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['04. RCM — Dashboard, OPD/IPD & Debt'],
     summary: 'รายงานผู้ป่วยใน ค่าน้ำหนักสัมพัทธ์ AdjRW และ CMI (RCM IPD AdjRW)',
     querystring: {
       type: 'object',
@@ -490,7 +490,7 @@ function getHospitalStatus(chw, amp, tmb, moo) {
 // 1.12 TB Chest X-Ray Screening Tracker
 fastify.get('/api/v1/clinical/tb/cxr-tracker', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'TB Chest X-Ray Screening Tracker',
     description: 'Track TB screening and CXR status with filters',
     querystring: {
@@ -635,7 +635,7 @@ ORDER BY c.id ASC
 // 1.13 Outreach Screening Visit Verification (Check Medical Record & Today Visit)
 fastify.post('/api/v1/clinical/screening/verify-visits', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ตรวจสอบเวชระเบียนและสถานะการเปิด Visit สำหรับระบบคัดกรองตรวจนอกพื้นที่ (Screening Queue)',
     description: 'รับรายการเลขประจำตัวประชาชน (CIDs) เพื่อตรวจสอบว่ามีประวัติในเวชระเบียน (patient) หรือไม่ และมีประวัติการเปิด Visit วันนี้ (vn_stat where vstdate = CURRENT_DATE) หรือไม่ พร้อมส่งคืนสถานะ (NO_RECORD, WAITING, VISIT_OPENED), HN, และ VN',
     body: {
@@ -753,7 +753,7 @@ fastify.post('/api/v1/clinical/screening/verify-visits', {
 // 1.14 RCM Invoice Summary (5.2.2.1 รายงานสรุปรายรับจาก Invoice e-Claim)
 fastify.get('/api/v1/clinical/rcm/invoice-summary', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['04. RCM — Dashboard, OPD/IPD & Debt'],
     summary: '5.2.2.1 รายงานสรุปรายรับจาก Invoice (e-Claim) เปรียบเทียบลูกหนี้และเงินชดเชย',
     description: 'รายงานเปรียบเทียบลูกหนี้ค่ารักษาพยาบาล HOSxP กับยอดเงินชดเชยที่ สปสช./กองทุน จ่ายจริง จำแนกตามกลุ่มสิทธิ e-Claim (OPD/IPD)',
     querystring: {
@@ -991,7 +991,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-summary', {
 // 1.15 RCM Invoice Patient Details (5.2.2.1 รายชื่อผู้ป่วยและรายละเอียดการชดเชย Invoice)
 fastify.get('/api/v1/clinical/rcm/invoice-details', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['04. RCM — Dashboard, OPD/IPD & Debt'],
     summary: '5.2.2.1 รายชื่อผู้ป่วยและรายละเอียดการชดเชย Invoice (Drill-down Patient List)',
     description: 'ดึงรายชื่อผู้ป่วย ข้อมูลการชดเชยราย Visit/Invoice พร้อมหมวดกองทุนย่อยและผลต่างลูกหนี้',
     querystring: {
@@ -1308,7 +1308,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
 // 1.15 Patient Clinical Visits Search (by CID or HN)
 fastify.get('/api/v1/clinical/records/visits', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ค้นหาประวัติการรับบริการคลินิกของผู้ป่วยด้วย CID หรือ HN',
     querystring: {
       type: 'object',
@@ -1388,7 +1388,7 @@ fastify.get('/api/v1/clinical/records/visits', {
 // 1.16 Visit Clinical Details (OPD / IPD Vitals, Dx, Drugs, Labs, X-Ray)
 fastify.get('/api/v1/clinical/records/visit-details', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
     summary: 'ดึงรายละเอียดการตรวจรักษาคลินิกเชิงลึก (Vitals, Dx, ยา, แล็บ, X-Ray) ด้วย VN หรือ AN',
     querystring: {
       type: 'object',
@@ -1616,7 +1616,7 @@ fastify.get('/api/v1/clinical/records/visit-details', {
 // 1.16 RCM 2.1.1.3 OPD Debt Registry (ทะเบียนตั้งหนี้ผู้ป่วยนอก)
 fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
   schema: {
-    tags: ['1. Clinical Services (HOSxP)'],
+    tags: ['04. RCM — Dashboard, OPD/IPD & Debt'],
     summary: '2.1.1.3 รายชื่อผู้ป่วยนอก รับบริการ (ทะเบียนตั้งหนี้) — Pattern A Two-Tier Summary & Paginated Ledger',
     querystring: {
       type: 'object',

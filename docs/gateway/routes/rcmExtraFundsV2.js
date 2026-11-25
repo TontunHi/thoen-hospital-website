@@ -16,7 +16,7 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
   };
 
   // ── 1. T1DM / GDM / PDM Recipients ──
-  fastify.get('/api/v1/clinical/rcm/extra/t1dm-recipients', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/t1dm-recipients', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'รายงานผู้รับบริการกองทุน T1DM / GDM / PDM พร้อมจับคู่ทะเบียน' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -181,7 +181,7 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
   });
 
   // ── 2. Thai Traditional Medicine: Topic 3 ──
-  fastify.get('/api/v1/clinical/rcm/extra/ttm-topic3', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/ttm-topic3', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานแพทย์แผนไทย หัวข้อ 3 (หัตถการ/บริการแพทย์แผนไทย)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -336,7 +336,7 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
   });
 
   // ── 3. Thai Traditional Medicine: Topic 11 (32 Herbal Medicines) ──
-  fastify.get('/api/v1/clinical/rcm/extra/ttm-topic11', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/ttm-topic11', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานแพทย์แผนไทย หัวข้อ 11 (ยาสมุนไพร 32 รายการ)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -434,7 +434,7 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
   });
 
   // ── 4. Thai Traditional Medicine: VN Herbal Drugs ──
-  fastify.get('/api/v1/clinical/rcm/extra/ttm-vn-herbs/:vn', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/ttm-vn-herbs/:vn', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายละเอียดรายการยาสมุนไพรของ Visit ตาม VN' } }, async (request, reply) => {
     const cleanVn = String(request.params?.vn || '').trim();
     if (!cleanVn) return reply.send({ success: true, data: [] });
     const [rows] = await hosPool.query(
@@ -468,7 +468,7 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
   });
 
   // ── 5. Thalassemia Fund: OPD ──
-  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-fund/opd', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-fund/opd', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนโรคธาลัสซีเมีย ผู้ป่วยนอก (OPD)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -629,7 +629,7 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
   });
 
   // ── 6. Thalassemia Fund: IPD ──
-  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-fund/ipd', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-fund/ipd', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนโรคธาลัสซีเมีย ผู้ป่วยใน (IPD)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -783,7 +783,7 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
   });
 
   // ── 7. Thalassemia Fund: AN Clinical Details ──
-  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-fund/an-details/:an', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-fund/an-details/:an', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายละเอียดผู้ป่วยในกองทุนธาลัสซีเมียตาม AN' } }, async (request, reply) => {
     const cleanAn = String(request.params?.an || '').trim();
     if (!cleanAn) {
       return reply.code(400).send({ success: false, error: 'an is required' });
@@ -897,12 +897,12 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
       refresh
     );
 
-  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-pregnancy/adp-mapping', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-pregnancy/adp-mapping', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบ ADP Mapping คัดกรองธาลัสซีเมียในหญิงตั้งครรภ์ (3.1)' } }, async (request, reply) => {
     const data = await getThalassemiaPregnancyAdpMapping(request.query?.refresh === 'true');
     return reply.send({ success: true, data });
   });
 
-  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-pregnancy/report', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/thalassemia-pregnancy/report', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการคัดกรองธาลัสซีเมียในหญิงตั้งครรภ์ (3.1)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });
@@ -1015,12 +1015,12 @@ export default async function rcmExtraFundsV2Routes(fastify, opts) {
       refresh
     );
 
-  fastify.get('/api/v1/clinical/rcm/extra/viral-hepatitis/adp-mapping', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/viral-hepatitis/adp-mapping', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบ ADP Mapping ไวรัสตับอักเสบบี (23.1 ADP 36318, 36319)' } }, async (request, reply) => {
     const data = await getViralHepatitisAdpMapping(request.query?.refresh === 'true');
     return reply.send({ success: true, data });
   });
 
-  fastify.get('/api/v1/clinical/rcm/extra/viral-hepatitis/report', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/extra/viral-hepatitis/report', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการตรวจ/รักษาไวรัสตับอักเสบบี (23.1)' } }, async (request, reply) => {
     const { startDate, endDate, refresh } = request.query || {};
     if (!startDate || !endDate) {
       return reply.code(400).send({ success: false, error: 'startDate and endDate required' });

@@ -80,7 +80,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   const { hosPool } = pools
 
   // ── 1. Iron Supplements (18.2) ─────────────────────────────────────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/iron-supplements', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/iron-supplements', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการยาเม็ดเสริมธาตุเหล็ก (18.2 V2)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDates(request.query || {})
     if (!validateDates(ds1, ds2, reply)) return
     const adpCode = '14001'
@@ -195,7 +195,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 2. ANC 30011 (2.4) ─────────────────────────────────────────────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/anc-30011', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/anc-30011', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการฝากครรภ์ ANC ADP 30011 (2.4)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDates(request.query || {})
     if (!validateDates(ds1, ds2, reply)) return
 
@@ -278,7 +278,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 3. ANC 2.3 (Ultrasound / Dental / ANC) ─────────────────────────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/anc-23', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/anc-23', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการฝากครรภ์ ANC 2.3 (Ultrasound / ทันตกรรม / ANC)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDates(request.query || {})
     if (!validateDates(ds1, ds2, reply)) return
 
@@ -454,7 +454,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 4. AMed Homeward ───────────────────────────────────────────────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/amed-homeward', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/amed-homeward', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการดูแลผู้ป่วยที่บ้าน AMed Homeward' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDates(request.query || {})
     if (!validateDates(ds1, ds2, reply)) return
 
@@ -591,7 +591,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 5. Rehabilitation (11.47.3) & ADP Mapping ──────────────────────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/rehab-adp-mapping', async () => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/rehab-adp-mapping', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบ ADP Mapping กองทุนฟื้นฟูสมรรถภาพ (11.47.3)' } }, async () => {
     const placeholders = REHAB_ADP_CODES.map(() => '?').join(',')
     const sql = `
       SELECT TRIM(icode) AS icode, TRIM(name) AS name, TRIM(strength) AS strength, TRIM(nhso_adp_code) AS nhso_adp_code
@@ -618,7 +618,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     }
   })
 
-  fastify.get('/api/v1/clinical/rcm/funds-v2/rehabilitation', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/rehabilitation', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการฟื้นฟูสมรรถภาพ Rehabilitation (11.47.3)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDates(request.query || {})
     if (!validateDates(ds1, ds2, reply)) return
     const placeholders = REHAB_ADP_CODES.map(() => '?').join(',')
@@ -859,7 +859,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     })
   }
 
-  fastify.get('/api/v1/clinical/rcm/funds-v2/imc', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/imc', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนผู้ป่วยระยะกลาง IMC (OPD/IPD + Seamless Rep)' } }, async (request, reply) => {
     const q = request.query || {}
     const { ds1, ds2 } = resolveDates(q)
     if (!validateDates(ds1, ds2, reply)) return
@@ -1078,7 +1078,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 7. Instrument Fund (OPD & IPD) & ADP Mapping ───────────────────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/instrument-adp-mapping', async () => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/instrument-adp-mapping', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบ ADP Mapping กองทุนอุปกรณ์/อวัยวะเทียม' } }, async () => {
     const rows = await safeQuery(
       hosPool,
       `SELECT icode, name, nhso_adp_code, nhso_adp_type_id FROM nondrugitems WHERE nhso_adp_type_id = 2 ORDER BY nhso_adp_code ASC`
@@ -1092,7 +1092,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     return { success: true, adpCode: 'INSTRUMENT_TYPE_2', isMapped: items.length > 0, mappedCount: items.length, items }
   })
 
-  fastify.get('/api/v1/clinical/rcm/funds-v2/instrument', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/instrument', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนอุปกรณ์/เครื่องมือแพทย์ Instrument (OPD/IPD)' } }, async (request, reply) => {
     const q = request.query || {}
     const { ds1, ds2 } = resolveDates(q)
     if (!validateDates(ds1, ds2, reply)) return
@@ -1215,7 +1215,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 8. Streptokinase (OPD & IPD), STEMI ADP Mapping, AN Clinical Details ───
-  fastify.get('/api/v1/clinical/rcm/funds-v2/stemi-adp-mapping', async () => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/stemi-adp-mapping', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบ ADP Mapping กองทุนยาละลายลิ่มเลือด STEMI' } }, async () => {
     const rows = await safeQuery(
       hosPool,
       `SELECT icode, name, strength, nhso_adp_code FROM s_drugitems WHERE nhso_adp_code REGEXP 'STEMI' ORDER BY icode ASC`
@@ -1229,7 +1229,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     return { success: true, adpCode: 'STEMI', isMapped: items.length > 0, mappedCount: items.length, items }
   })
 
-  fastify.get('/api/v1/clinical/rcm/funds-v2/streptokinase', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/streptokinase', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนยา Streptokinase (OPD/IPD)' } }, async (request, reply) => {
     const q = request.query || {}
     const { ds1, ds2 } = resolveDates(q)
     if (!validateDates(ds1, ds2, reply)) return
@@ -1378,7 +1378,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     }
   })
 
-  fastify.get('/api/v1/clinical/rcm/an-details/:an', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/an-details/:an', { schema: { tags: ['04. RCM — Dashboard, OPD/IPD & Debt'], summary: 'รายละเอียดค่าใช้จ่าย ยา และหัตถการผู้ป่วยในตาม AN' } }, async (request, reply) => {
     const cleanAn = String(request.params?.an || '').trim()
     if (!cleanAn) return reply.code(400).send({ success: false, error: 'Missing AN' })
 
@@ -1494,7 +1494,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 9. ADP Search (OPD & IPD, Multi-ADP Check, Available Codes) ────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/adp-search/available-codes', async () => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/adp-search/available-codes', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ดึงรายการรหัส ADP ทั้งหมดที่มีในระบบค้นหา' } }, async () => {
     const rows = await safeQuery(
       hosPool,
       `SELECT TRIM(nhso_adp_code) AS code, MIN(TRIM(name)) AS title, COUNT(*) AS mappedCount
@@ -1506,7 +1506,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     return { success: true, data: rows }
   })
 
-  fastify.post('/api/v1/clinical/rcm/funds-v2/adp-search/check-mapping', async (request) => {
+  fastify.post('/api/v1/clinical/rcm/funds-v2/adp-search/check-mapping', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบการจับคู่หลายรหัส ADP พร้อมกัน' } }, async (request) => {
     const body = request.body || {}
     const codes = Array.isArray(body.adpCodes)
       ? body.adpCodes.map((c) => String(c || '').trim()).filter(Boolean)
@@ -1531,7 +1531,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     return { success: true, adpCodes: codes, isMapped: items.length > 0, mappedCount: items.length, items }
   })
 
-  fastify.get('/api/v1/clinical/rcm/funds-v2/adp-search', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/adp-search', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ค้นหาข้อมูลการให้บริการผู้ป่วยตามรหัส ADP (OPD/IPD)' } }, async (request, reply) => {
     const q = request.query || {}
     const { ds1, ds2 } = resolveDates(q)
     if (!validateDates(ds1, ds2, reply)) return
@@ -1696,7 +1696,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
   })
 
   // ── 10. Family Planning 9.1 & 9.3 ──────────────────────────────────────────
-  fastify.get('/api/v1/clinical/rcm/funds-v2/family-planning-91/adp-mapping', async (request) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/family-planning-91/adp-mapping', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบ ADP Mapping วางแผนครอบครัว 9.1' } }, async (request) => {
     const format = String(request.query?.format || 'NEW_ECLAIM').toUpperCase() === 'KRUNGTHAI' ? 'KRUNGTHAI' : 'NEW_ECLAIM'
     const codes = format === 'KRUNGTHAI' ? KRUNGTHAI_FP_CODES : NEW_ECLAIM_FP_CODES
     const ph = codes.map(() => '?').join(', ')
@@ -1714,7 +1714,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     return { success: true, format, isMapped: items.length > 0, mappedCount: items.length, items }
   })
 
-  fastify.get('/api/v1/clinical/rcm/funds-v2/family-planning-91', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/family-planning-91', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการวางแผนครอบครัว 9.1' } }, async (request, reply) => {
     const q = request.query || {}
     const { ds1, ds2 } = resolveDates(q)
     if (!validateDates(ds1, ds2, reply)) return
@@ -1822,7 +1822,7 @@ export default async function rcmFundsSpecialV2Routes(fastify, { pools }) {
     return { success: true, data: { rawRows: rows || [] } }
   })
 
-  fastify.get('/api/v1/clinical/rcm/funds-v2/family-planning-93', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/family-planning-93', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการวางแผนครอบครัว 9.3' } }, async (request, reply) => {
     const q = request.query || {}
     const { ds1, ds2 } = resolveDates(q)
     if (!validateDates(ds1, ds2, reply)) return

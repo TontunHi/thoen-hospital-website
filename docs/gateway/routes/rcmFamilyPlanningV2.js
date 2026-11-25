@@ -48,7 +48,7 @@ export default async function rcmFamilyPlanningV2Routes(fastify, { pools, getCac
   }
 
   fastify.get('/api/v1/clinical/rcm/fp/iud-adp-mapping', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'ตรวจสอบ ADP Mapping 9.2 ห่วงอนามัย' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ตรวจสอบ ADP Mapping 9.2 ห่วงอนามัย' }
   }, async (_req, reply) => {
     try {
       const data = await getCached('gw-fp-iud-adp', 600000, queryIudAdpMapping)
@@ -59,7 +59,7 @@ export default async function rcmFamilyPlanningV2Routes(fastify, { pools, getCac
   })
 
   fastify.get('/api/v1/clinical/rcm/fp/iud', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'รายงาน 9.2 บริการใส่ห่วงอนามัย (OPD/IPD)' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'รายงาน 9.2 บริการใส่ห่วงอนามัย (OPD/IPD)' }
   }, async (req, reply) => {
     try {
       const { startDate: ds1, endDate: ds2, patientType = 'OPD', refresh } = req.query || {}
@@ -263,7 +263,7 @@ export default async function rcmFamilyPlanningV2Routes(fastify, { pools, getCac
   })
 
   fastify.get('/api/v1/clinical/rcm/fp/932-adp-mapping', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'ตรวจสอบ ADP Mapping 9.3.2 คุมกำเนิดกึ่งถาวร >= 20 ปี' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ตรวจสอบ ADP Mapping 9.3.2 คุมกำเนิดกึ่งถาวร >= 20 ปี' }
   }, async (req, reply) => {
     try {
       const format = req.query?.format === 'KRUNGTHAI' ? 'KRUNGTHAI' : 'NEW_ECLAIM'
@@ -275,7 +275,7 @@ export default async function rcmFamilyPlanningV2Routes(fastify, { pools, getCac
   })
 
   fastify.get('/api/v1/clinical/rcm/fp/932', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'รายงาน 9.3.2 คุมกำเนิดกึ่งถาวร ในหญิงอายุ 20 ปีขึ้นไป' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'รายงาน 9.3.2 คุมกำเนิดกึ่งถาวร ในหญิงอายุ 20 ปีขึ้นไป' }
   }, async (req, reply) => {
     try {
       const { startDate: ds1, endDate: ds2, format: rawFmt, refresh } = req.query || {}

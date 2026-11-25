@@ -21,7 +21,7 @@ export default async function mokRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/mok/summary', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'สรุปจำนวนผู้ป่วยในแต่ละกลุ่มของหมออนามัยครอบครัว (มอค.)',
       querystring: {
         type: 'object',
@@ -109,7 +109,7 @@ export default async function mokRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/mok/list', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'รายชื่อผู้ป่วยตามกลุ่มโรค/การเฝ้าระวังของหมออนามัยครอบครัว (มอค.)',
       querystring: {
         type: 'object',

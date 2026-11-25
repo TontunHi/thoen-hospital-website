@@ -10,7 +10,7 @@ export default async function appRoutes(fastify, options) {
 // 3.1 List Members
 fastify.get('/api/v1/app/members', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'ดึงรายชื่อสมาชิก/บุคลากรทั้งหมด (รองรับ search และ limit)',
     querystring: {
       type: 'object',
@@ -44,7 +44,7 @@ fastify.get('/api/v1/app/members', {
 // 3.2 Get Member by ID
 fastify.get('/api/v1/app/members/:id', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'ดึงข้อมูลสมาชิกรายบุคคลตาม ID',
     params: {
       type: 'object',
@@ -70,7 +70,7 @@ fastify.get('/api/v1/app/members/:id', {
 // 3.3 Create Member
 fastify.post('/api/v1/app/members', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'เพิ่มสมาชิกใหม่เข้าสู่ระบบ',
     body: {
       type: 'object',
@@ -106,7 +106,7 @@ fastify.post('/api/v1/app/members', {
 // 3.4 Update Member
 fastify.put('/api/v1/app/members/:id', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'แก้ไขข้อมูลสมาชิก (Edit Member)',
     params: {
       type: 'object',
@@ -156,7 +156,7 @@ fastify.put('/api/v1/app/members/:id', {
 // 3.5 Delete Member
 fastify.delete('/api/v1/app/members/:id', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'ลบสมาชิกออกจากระบบ (Delete Member)',
     params: {
       type: 'object',
@@ -179,7 +179,7 @@ fastify.delete('/api/v1/app/members/:id', {
 // 3.6 Member Permissions
 fastify.get('/api/v1/app/members/:id/permissions', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'ดึงรายการสิทธิ์เฉพาะบุคคลของสมาชิก',
     params: {
       type: 'object',
@@ -198,7 +198,7 @@ fastify.get('/api/v1/app/members/:id/permissions', {
 
 fastify.post('/api/v1/app/members/:id/permissions', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'มอบสิทธิ์เฉพาะบุคคลให้แก่สมาชิก',
     params: {
       type: 'object',
@@ -229,7 +229,7 @@ fastify.post('/api/v1/app/members/:id/permissions', {
 
 fastify.delete('/api/v1/app/members/:id/permissions/:key', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'เพิกถอนสิทธิ์เฉพาะบุคคลของสมาชิก',
     params: {
       type: 'object',
@@ -256,7 +256,7 @@ fastify.delete('/api/v1/app/members/:id/permissions/:key', {
 // 4.1 News List & Create
 fastify.get('/api/v1/app/news', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายการข่าวสาร/ประชาสัมพันธ์ (รองรับ pagination, category, all, search)',
     querystring: {
       type: 'object',
@@ -350,7 +350,7 @@ fastify.get('/api/v1/app/news', {
 
 fastify.post('/api/v1/app/news', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'สร้างข่าวสาร/กิจกรรมใหม่ (พร้อมแนบไฟล์รูป/PDF ใน 1 transaction)',
     body: {
       type: 'object',
@@ -431,7 +431,7 @@ fastify.post('/api/v1/app/news', {
 // 4.2 News Detail & Update & Delete & View Count
 fastify.get('/api/v1/app/news/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายละเอียดข่าวสารตาม ID หรือ Slug (พร้อมไฟล์แนบ)',
     params: {
       type: 'object',
@@ -466,7 +466,7 @@ fastify.get('/api/v1/app/news/:id', {
 
 fastify.post('/api/v1/app/news/:id/view', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'เพิ่มจำนวนผู้เข้าชมข่าวสาร (View Count Increment)',
     params: {
       type: 'object',
@@ -494,7 +494,7 @@ fastify.post('/api/v1/app/news/:id/view', {
 
 fastify.put('/api/v1/app/news/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'แก้ไขข้อมูลข่าวสาร (พร้อมอัปเดตไฟล์แนบ)',
     params: {
       type: 'object',
@@ -579,7 +579,7 @@ fastify.put('/api/v1/app/news/:id', {
 
 fastify.delete('/api/v1/app/news/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ลบข่าวสารและไฟล์แนบ',
     params: {
       type: 'object',
@@ -604,7 +604,7 @@ fastify.delete('/api/v1/app/news/:id', {
 // 4.3 Hero Slides
 fastify.get('/api/v1/app/slides', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงแบนเนอร์สไลด์หน้าแรก (รองรับ all=true และคืนค่า slideDuration)',
     querystring: {
       type: 'object',
@@ -685,7 +685,7 @@ fastify.get('/api/v1/app/slides', {
 
 fastify.post('/api/v1/app/slides', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'เพิ่มภาพสไลด์แบนเนอร์ใหม่',
     body: {
       type: 'object',
@@ -735,7 +735,7 @@ fastify.post('/api/v1/app/slides', {
 
 fastify.put('/api/v1/app/slides/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'แก้ไขภาพสไลด์แบนเนอร์',
     params: {
       type: 'object',
@@ -788,7 +788,7 @@ fastify.put('/api/v1/app/slides/:id', {
 
 fastify.delete('/api/v1/app/slides/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ลบภาพสไลด์แบนเนอร์และปรับลำดับสไลด์ที่เหลือ',
     params: {
       type: 'object',
@@ -827,7 +827,7 @@ fastify.delete('/api/v1/app/slides/:id', {
 
 fastify.patch('/api/v1/app/slides/duration', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ตั้งค่าความเร็วการเปลี่ยนสไลด์ (วินาที)',
     body: {
       type: 'object',
@@ -860,7 +860,7 @@ fastify.patch('/api/v1/app/slides/duration', {
 // 4.4 Hospital Assets
 fastify.get('/api/v1/app/assets', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'ค้นหาทะเบียนครุภัณฑ์โรงพยาบาล',
     querystring: {
       type: 'object',
@@ -889,7 +889,7 @@ fastify.get('/api/v1/app/assets', {
 // 4.6 Hospital Locations
 fastify.get('/api/v1/app/locations', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'ดึงรายการสถานที่/ห้อง/อาคารของโรงพยาบาล (รองรับทั้งแบบย่อและแบบละเอียด)',
     querystring: {
       type: 'object',
@@ -1006,7 +1006,7 @@ fastify.get('/api/v1/app/locations', {
 
 fastify.post('/api/v1/app/locations', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'สร้างสถานที่/ห้องใหม่',
     body: {
       type: 'object',
@@ -1082,7 +1082,7 @@ fastify.post('/api/v1/app/locations', {
 
 fastify.put('/api/v1/app/locations/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'แก้ไขข้อมูลสถานที่หรือเปลี่ยนสถานะใช้งาน',
     params: {
       type: 'object',
@@ -1171,7 +1171,7 @@ fastify.put('/api/v1/app/locations/:id', {
 
 fastify.delete('/api/v1/app/locations/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'ลบข้อมูลสถานที่',
     params: {
       type: 'object',
@@ -1200,7 +1200,7 @@ fastify.delete('/api/v1/app/locations/:id', {
 // 4.5 Hospital Events
 fastify.get('/api/v1/app/events', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'ดึงรายการปฏิทินกิจกรรมโรงพยาบาล'
   }
 }, async (req, reply) => {
@@ -1218,7 +1218,7 @@ fastify.get('/api/v1/app/events', {
 // 4.5.1 Event Attachments (Media, Documents, Notes)
 fastify.get('/api/v1/app/events/:id/attachments', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'ดึงรายการเอกสาร รูปภาพ และบันทึกข้อความของกิจกรรม (Event Attachments)',
     params: {
       type: 'object',
@@ -1250,7 +1250,7 @@ fastify.get('/api/v1/app/events/:id/attachments', {
 
 fastify.post('/api/v1/app/events/:id/attachments', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'แนบเอกสาร รูปภาพ หรือข้อความสรุปสำหรับกิจกรรม (Add Event Attachment)',
     params: {
       type: 'object',
@@ -1292,7 +1292,7 @@ fastify.post('/api/v1/app/events/:id/attachments', {
 
 fastify.delete('/api/v1/app/events/:id/attachments/:attachmentId', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'ลบเอกสารหรือรูปภาพของกิจกรรม (Delete Event Attachment)',
     params: {
       type: 'object',
@@ -1321,7 +1321,7 @@ fastify.delete('/api/v1/app/events/:id/attachments/:attachmentId', {
 // 4.6 Inbox Tasks (Workflows & Repairs)
 fastify.get('/api/v1/app/tasks', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['10. Operations — Task Inbox, Projects & KPI'],
     summary: 'ดึงรายการงานสารบรรณ/งานซ่อม/คำขอยืมอุปกรณ์ (Task Inbox)',
     querystring: {
       type: 'object',
@@ -1350,7 +1350,7 @@ fastify.get('/api/v1/app/tasks', {
 // 4.7 Contact Messages
 fastify.get('/api/v1/app/contact-messages', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงข้อความติดต่อจากประชาชนหน้าเว็บไซต์'
   }
 }, async (req, reply) => {
@@ -1364,7 +1364,7 @@ fastify.get('/api/v1/app/contact-messages', {
 
 fastify.post('/api/v1/app/contact-messages', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ส่งข้อความติดต่อสอบถามจากประชาชน',
     body: {
       type: 'object',
@@ -1390,7 +1390,7 @@ fastify.post('/api/v1/app/contact-messages', {
 // 4.8 Member Registration Requests
 fastify.get('/api/v1/app/registrations', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'ดึงคำขอสมัครสมาชิกใหม่ของบุคลากร (รอการตรวจสอบ)'
   }
 }, async (req, reply) => {
@@ -1405,7 +1405,7 @@ fastify.get('/api/v1/app/registrations', {
 // 4.12 KPI Batch Import (Atomic Transaction)
 fastify.post('/api/v1/app/kpi/import-batch', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['10. Operations — Task Inbox, Projects & KPI'],
     summary: 'นำเข้าข้อมูลตัวชี้วัด KPI แบบกลุ่ม (Batch Insert with Transaction)',
     body: {
       type: 'object',
@@ -1494,7 +1494,7 @@ fastify.post('/api/v1/app/kpi/import-batch', {
 // 4.10 Member Auth Context (Hydrates profile, permissions, system settings, and telegram link)
 fastify.post('/api/v1/app/members/auth-context', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'ดึงข้อมูล Context ของสมาชิกเพื่อทำ Authentication (รวมสิทธิ์, ตั้งค่าระบบ, Telegram)',
     body: {
       type: 'object',
@@ -1559,7 +1559,7 @@ fastify.post('/api/v1/app/members/auth-context', {
 // 4.11 Check Position / Member Permission
 fastify.post('/api/v1/app/members/check-position-permission', {
   schema: {
-    tags: ['3. Members Management'],
+    tags: ['08. Auth, Members & Permissions'],
     summary: 'ตรวจสอบสิทธิ์ของตำแหน่งงานหรือสิทธิ์เฉพาะบุคคล (Position & Direct Member Permission)',
     body: {
       type: 'object',
@@ -1612,7 +1612,7 @@ fastify.post('/api/v1/app/members/check-position-permission', {
 // 4.12 Published News with Attachments
 fastify.get('/api/v1/app/news/published', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายการข่าวสารที่มีผลเผยแพร่ในปัจจุบัน พร้อมไฟล์แนบ (หน้าแรก)',
     querystring: {
       type: 'object',
@@ -1674,7 +1674,7 @@ fastify.get('/api/v1/app/news/published', {
 // 4.13 Sitemap News
 fastify.get('/api/v1/app/news/sitemap', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายการข่าวสารสำหรับ Sitemap'
   }
 }, async (req, reply) => {
@@ -1698,7 +1698,7 @@ fastify.get('/api/v1/app/news/sitemap', {
 // 4.14 Active Hero Slides
 fastify.get('/api/v1/app/slides/active', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายการแบนเนอร์สไลด์ที่กำลังแสดงผล (มีผลตามวันที่)'
   }
 }, async (req, reply) => {
@@ -1722,7 +1722,7 @@ fastify.get('/api/v1/app/slides/active', {
 // 4.15.1 Get all LTC HNs
 fastify.get('/api/v1/app/ltc/hns', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'ดึงรายชื่อ HN ทั้งหมดในทะเบียน LTC เพื่อใช้ตรวจสอบความซ้ำซ้อน'
   }
 }, async (req, reply) => {
@@ -1738,7 +1738,7 @@ fastify.get('/api/v1/app/ltc/hns', {
 // 4.15.2 Get LTC Registries list with filtering and stats
 fastify.get('/api/v1/app/ltc/registries', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'ดึงรายชื่อทะเบียน Long-Term Care (LTC) พร้อมการค้นหาและสถิติ',
     querystring: {
       type: 'object',
@@ -1843,7 +1843,7 @@ fastify.get('/api/v1/app/ltc/registries', {
 // 4.15.3 Get LTC Registry by ID
 fastify.get('/api/v1/app/ltc/registries/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'ดึงข้อมูลทะเบียน LTC รายบุคคลตาม ID',
     params: {
       type: 'object',
@@ -1885,7 +1885,7 @@ fastify.get('/api/v1/app/ltc/registries/:id', {
 // 4.15.4 Get LTC Registry by HN
 fastify.get('/api/v1/app/ltc/registries/by-hn/:hn', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'ดึงข้อมูลทะเบียน LTC รายบุคคลตาม HN',
     params: {
       type: 'object',
@@ -1928,7 +1928,7 @@ fastify.get('/api/v1/app/ltc/registries/by-hn/:hn', {
 // 4.15.5 Create LTC Registry
 fastify.post('/api/v1/app/ltc/registries', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'เพิ่มผู้ป่วยในทะเบียน Long-Term Care (LTC)',
     body: {
       type: 'object',
@@ -1979,7 +1979,7 @@ fastify.post('/api/v1/app/ltc/registries', {
 // 4.15.6 Update LTC Registry
 fastify.put('/api/v1/app/ltc/registries/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'แก้ไขข้อมูลทะเบียน LTC ตาม ID',
     params: {
       type: 'object',
@@ -2032,7 +2032,7 @@ fastify.put('/api/v1/app/ltc/registries/:id', {
 // 4.15.7 Delete LTC Registry
 fastify.delete('/api/v1/app/ltc/registries/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['03. Clinical — Chronic, Palliative & LTC'],
     summary: 'ลบข้อมูลทะเบียน LTC ตาม ID',
     params: {
       type: 'object',
@@ -2059,7 +2059,7 @@ fastify.delete('/api/v1/app/ltc/registries/:id', {
 // 4.16.1 List ITA Blogs
 fastify.get('/api/v1/app/ita/blogs', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายการบทความ ITA (รองรับ filter authorId, admin, search, limit)',
     querystring: {
       type: 'object',
@@ -2112,7 +2112,7 @@ fastify.get('/api/v1/app/ita/blogs', {
 // 4.16.2 Get ITA Blog by ID or Slug
 fastify.get('/api/v1/app/ita/blogs/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงข้อมูลบทความ ITA ตาม ID หรือ Slug',
     params: {
       type: 'object',
@@ -2154,7 +2154,7 @@ fastify.get('/api/v1/app/ita/blogs/:id', {
 // 4.16.3 Create ITA Blog
 fastify.post('/api/v1/app/ita/blogs', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'สร้างบทความ ITA ใหม่',
     body: {
       type: 'object',
@@ -2186,7 +2186,7 @@ fastify.post('/api/v1/app/ita/blogs', {
 // 4.16.4 Update ITA Blog
 fastify.put('/api/v1/app/ita/blogs/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'แก้ไขบทความ ITA',
     params: {
       type: 'object',
@@ -2233,7 +2233,7 @@ fastify.put('/api/v1/app/ita/blogs/:id', {
 // 4.16.5 Delete ITA Blog
 fastify.delete('/api/v1/app/ita/blogs/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ลบบทความ ITA',
     params: {
       type: 'object',
@@ -2261,7 +2261,7 @@ fastify.delete('/api/v1/app/ita/blogs/:id', {
 // 4.17.1 Get RDU Folder & File Tree
 fastify.get('/api/v1/app/rdu/tree', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงโครงสร้างโฟลเดอร์และไฟล์ RDU ทั้งหมด',
     querystring: {
       type: 'object',
@@ -2319,7 +2319,7 @@ fastify.get('/api/v1/app/rdu/tree', {
 // 4.17.2 Create RDU Folder
 fastify.post('/api/v1/app/rdu/folders', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'สร้างโฟลเดอร์ RDU ใหม่',
     body: {
       type: 'object',
@@ -2358,7 +2358,7 @@ fastify.post('/api/v1/app/rdu/folders', {
 // 4.17.3 Update RDU Folder (Rename or Reorder)
 fastify.put('/api/v1/app/rdu/folders/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'แก้ไขชื่อโฟลเดอร์หรือสลับลำดับโฟลเดอร์ RDU',
     params: {
       type: 'object',
@@ -2434,7 +2434,7 @@ fastify.put('/api/v1/app/rdu/folders/:id', {
 // 4.17.4 Delete RDU Folder
 fastify.delete('/api/v1/app/rdu/folders/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ลบโฟลเดอร์ RDU และไฟล์ทั้งหมดในโฟลเดอร์',
     params: {
       type: 'object',
@@ -2461,7 +2461,7 @@ fastify.delete('/api/v1/app/rdu/folders/:id', {
 // 4.17.5 Get RDU File by ID (For streaming)
 fastify.get('/api/v1/app/rdu/files/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงข้อมูลไฟล์ RDU เดี่ยวสำหรับแสดงผลหรือดาวน์โหลด',
     params: {
       type: 'object',
@@ -2490,7 +2490,7 @@ fastify.get('/api/v1/app/rdu/files/:id', {
 // 4.17.6 Create RDU File Record
 fastify.post('/api/v1/app/rdu/files', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'บันทึกข้อมูลไฟล์ PDF ของ RDU เข้าสู่ระบบ',
     body: {
       type: 'object',
@@ -2541,7 +2541,7 @@ fastify.post('/api/v1/app/rdu/files', {
 // 4.17.7 Update RDU File (Rename or Reorder)
 fastify.put('/api/v1/app/rdu/files/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'แก้ไขชื่อแสดงผลหรือสลับลำดับไฟล์ RDU',
     params: {
       type: 'object',
@@ -2598,7 +2598,7 @@ fastify.put('/api/v1/app/rdu/files/:id', {
 // 4.17.8 Delete RDU File
 fastify.delete('/api/v1/app/rdu/files/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ลบข้อมูลไฟล์ RDU',
     params: {
       type: 'object',
@@ -2633,7 +2633,7 @@ fastify.delete('/api/v1/app/rdu/files/:id', {
 // 4.18.1 List Outgoing Documents
 fastify.get('/api/v1/app/outgoing-documents', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['10. Operations — Task Inbox, Projects & KPI'],
     summary: 'ดึงรายการหนังสือส่งออก Online',
     querystring: {
       type: 'object',
@@ -2672,7 +2672,7 @@ fastify.get('/api/v1/app/outgoing-documents', {
 // 4.18.2 Get Outgoing Document by ID
 fastify.get('/api/v1/app/outgoing-documents/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['10. Operations — Task Inbox, Projects & KPI'],
     summary: 'ดึงข้อมูลหนังสือส่งออกตาม ID',
     params: {
       type: 'object',
@@ -2701,7 +2701,7 @@ fastify.get('/api/v1/app/outgoing-documents/:id', {
 // 4.18.3 Create Outgoing Document
 fastify.post('/api/v1/app/outgoing-documents', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['10. Operations — Task Inbox, Projects & KPI'],
     summary: 'เพิ่มรายการหนังสือส่งออกใหม่',
     body: {
       type: 'object',
@@ -2761,7 +2761,7 @@ fastify.post('/api/v1/app/outgoing-documents', {
 // 4.18.4 Update Outgoing Document
 fastify.put('/api/v1/app/outgoing-documents/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['10. Operations — Task Inbox, Projects & KPI'],
     summary: 'แก้ไขรายการหนังสือส่งออก',
     params: {
       type: 'object',
@@ -2832,7 +2832,7 @@ fastify.put('/api/v1/app/outgoing-documents/:id', {
 // 4.18.5 Delete Outgoing Document
 fastify.delete('/api/v1/app/outgoing-documents/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['10. Operations — Task Inbox, Projects & KPI'],
     summary: 'ลบรายการหนังสือส่งออก',
     params: {
       type: 'object',
@@ -2861,7 +2861,7 @@ fastify.delete('/api/v1/app/outgoing-documents/:id', {
 // 4.19.1 List Photo Albums (supports pagination, year/month filter, search, all=true)
 fastify.get('/api/v1/app/albums', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายการอัลบั้มภาพข่าวและกิจกรรม (รองรับกรองรายเดือน/ปี, ค้นหา, และแบ่งหน้า)',
     querystring: {
       type: 'object',
@@ -2978,7 +2978,7 @@ fastify.get('/api/v1/app/albums', {
 // 4.19.2 Get Single Photo Album by ID or Slug
 fastify.get('/api/v1/app/albums/:idOrSlug', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ดึงรายละเอียดอัลบั้มภาพข่าวและรูปภาพทั้งหมดภายในอัลบั้ม',
     params: {
       type: 'object',
@@ -3034,7 +3034,7 @@ fastify.get('/api/v1/app/albums/:idOrSlug', {
 // 4.19.3 Create Photo Album
 fastify.post('/api/v1/app/albums', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'สร้างอัลบั้มภาพข่าวและกิจกรรมใหม่',
     body: {
       type: 'object',
@@ -3165,7 +3165,7 @@ fastify.post('/api/v1/app/albums', {
 // 4.19.4 Update Photo Album
 fastify.put('/api/v1/app/albums/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'แก้ไขอัลบั้มภาพข่าวและเรียงลำดับ/เปลี่ยนรูปภาพ',
     params: {
       type: 'object',
@@ -3274,7 +3274,7 @@ fastify.put('/api/v1/app/albums/:id', {
 // 4.19.5 Delete Photo Album
 fastify.delete('/api/v1/app/albums/:id', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'ลบอัลบั้มภาพข่าวและรูปภาพในอัลบั้ม',
     params: {
       type: 'object',
@@ -3303,7 +3303,7 @@ fastify.delete('/api/v1/app/albums/:id', {
 // 4.19.6 Increment View Count
 fastify.post('/api/v1/app/albums/:idOrSlug/view', {
   schema: {
-    tags: ['4. Website Application Services'],
+    tags: ['11. CMS, RDU, Ethics & Directory'],
     summary: 'เพิ่มยอดเข้าชมอัลบั้มภาพข่าว',
     params: {
       type: 'object',

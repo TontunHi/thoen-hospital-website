@@ -26,7 +26,7 @@ function resolveDateParams(query) {
 export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   const { hosPool } = pools
   // ── ADP Mapping V2 (supports s_drugitems + drugitems UNION & clopidogrel prefix) ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/adp-mapping/:adpCode', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/adp-mapping/:adpCode', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'ตรวจสอบการผูก ADP Code กับรายการยาและเวชภัณฑ์ (Batch2 V2)' } }, async (request, reply) => {
     const adpCode = String(request.params.adpCode || '').trim()
     const includeDrugItems = request.query.includeDrugItems === 'true' || request.query.includeDrugItems === '1'
     const includeNonDrug = request.query.includeNonDrug === 'true' || request.query.includeNonDrug === '1'
@@ -90,7 +90,7 @@ export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   })
 
   // ── 1. Cancer Fund (CANCER ADP across s_drugitems UNION drugitems) ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/cancer', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/cancer', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนโรคมะเร็ง (CANCER ADP)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDateParams(request.query)
     const adpCode = String(request.query.adpCode || 'CANCER').trim()
     if (!ds1 || !ds2) return reply.status(400).send({ success: false, error: 'ds1 and ds2 are required' })
@@ -200,7 +200,7 @@ export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   })
 
   // ── 2. Walkin Fund (WALKIN ADP) ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/walkin', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/walkin', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนผู้ป่วยนอก Walk-in (WALKIN ADP)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDateParams(request.query)
     const adpCode = String(request.query.adpCode || 'WALKIN').trim()
     if (!ds1 || !ds2) return reply.status(400).send({ success: false, error: 'ds1 and ds2 are required' })
@@ -292,7 +292,7 @@ export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   })
 
   // ── 3. Clopidogrel Drug Fund ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/clopidogrel', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/clopidogrel', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานกองทุนยาต้านเกล็ดเลือด Clopidogrel' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDateParams(request.query)
     if (!ds1 || !ds2) return reply.status(400).send({ success: false, error: 'ds1 and ds2 are required' })
 
@@ -418,7 +418,7 @@ export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   })
 
   // ── 4. Health Screening 14.5 (12003) & 14.6 (12004) ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/health-screening', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/health-screening', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการตรวจคัดกรองสุขภาพ 14.5 (12003) และ 14.6 (12004)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDateParams(request.query)
     const adpCode = request.query.adpCode === '12004' ? '12004' : '12003'
     if (!ds1 || !ds2) return reply.status(400).send({ success: false, error: 'ds1 and ds2 are required' })
@@ -550,7 +550,7 @@ export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   })
 
   // ── 5. Hepatitis C 23.2 (36331) & 23.4 (36333) ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/hepatitis-c', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/hepatitis-c', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการไวรัสตับอักเสบซี 23.2 (36331) และ 23.4 (36333)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDateParams(request.query)
     const adpCode = String(request.query.adpCode || '36331').trim()
     if (!ds1 || !ds2) return reply.status(400).send({ success: false, error: 'ds1 and ds2 are required' })
@@ -687,7 +687,7 @@ export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   })
 
   // ── 6. Postpartum 7.2 (30015) & 7.3 (30016) ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/postpartum', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/postpartum', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการตรวจหลังคลอด 7.2 (30015) และ 7.3 (30016)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDateParams(request.query)
     const adpCode = request.query.adpCode === '30016' ? '30016' : '30015'
     if (!ds1 || !ds2) return reply.status(400).send({ success: false, error: 'ds1 and ds2 are required' })
@@ -781,7 +781,7 @@ export default async function rcmFundsBatch2V2Routes(fastify, { pools }) {
   })
 
   // ── 7. Postal Drug 11.52 (DRUGP) ──
-  fastify.get('/api/v1/clinical/rcm/funds-v2/drug-post', async (request, reply) => {
+  fastify.get('/api/v1/clinical/rcm/funds-v2/drug-post', { schema: { tags: ['05. RCM — Funds & REP Reconcile'], summary: 'รายงานบริการส่งยาทางไปรษณีย์ 11.52 (DRUGP)' } }, async (request, reply) => {
     const { ds1, ds2 } = resolveDateParams(request.query)
     const adpCode = String(request.query.adpCode || 'DRUGP').trim()
     if (!ds1 || !ds2) return reply.status(400).send({ success: false, error: 'ds1 and ds2 are required' })

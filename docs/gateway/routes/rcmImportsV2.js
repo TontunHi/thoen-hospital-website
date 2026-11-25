@@ -21,7 +21,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
 
   // ── Seamless Import Endpoints ──────────────────────────────────────────────
 
-  fastify.post('/api/v1/clinical/rcm/seamless-v2/lookup-budget', async (request) => {
+  fastify.post('/api/v1/clinical/rcm/seamless-v2/lookup-budget', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ค้นหาข้อมูลการโอนเงินงบประมาณจาก nhso_budget' } }, async (request) => {
     const cleanPayNo = String(request.body?.payNo || '').replace(/[^a-zA-Z0-9_-]/g, '')
     if (!cleanPayNo) return { success: true, data: null }
     const rows = await safeQuery(
@@ -33,7 +33,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     return { success: true, data: rows[0] || null }
   })
 
-  fastify.post('/api/v1/clinical/rcm/seamless-v2/resolve-hospcode', async (request) => {
+  fastify.post('/api/v1/clinical/rcm/seamless-v2/resolve-hospcode', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'แปลงชื่อหน่วยบริการเป็นรหัส Hospcode 5 หลัก' } }, async (request) => {
     const hospName = String(request.body?.hospName || '').trim()
     if (!hospName) return { success: true, hospcode: '' }
     const cleanedName = hospName.replace(/^โรงพยาบาล/, '').trim() || hospName
@@ -47,7 +47,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     return { success: true, hospcode: rows[0]?.hospcode ? String(rows[0].hospcode).trim() : '' }
   })
 
-  fastify.post('/api/v1/clinical/rcm/seamless-v2/enrich-import', async (request) => {
+  fastify.post('/api/v1/clinical/rcm/seamless-v2/enrich-import', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'นำเข้าและเสริมข้อมูล Seamless Claim Rep (V2)' } }, async (request) => {
     const body = request.body || {}
     const napNumbers = Array.isArray(body.napNumbers) ? body.napNumbers.filter(Boolean) : []
     const cids = Array.isArray(body.cids) ? body.cids.filter(Boolean) : []
@@ -127,7 +127,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     return { success: true, data: { napRows, cidRows, hnRows, ovstRows, iptRows } }
   })
 
-  fastify.post('/api/v1/clinical/rcm/seamless-v2/preflight-check', async (request) => {
+  fastify.post('/api/v1/clinical/rcm/seamless-v2/preflight-check', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ตรวจสอบไฟล์ Seamless Claim ก่อนนำเข้าจริง (Preflight Check)' } }, async (request) => {
     const fileName = String(request.body?.fileName || '').trim()
     const ids = Array.isArray(request.body?.ids) ? request.body.ids.filter(Boolean) : []
 
@@ -155,7 +155,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     return { success: true, data: { existingFileRowCount, existingIds } }
   })
 
-  fastify.get('/api/v1/clinical/rcm/seamless-v2/stats', async (request) => {
+  fastify.get('/api/v1/clinical/rcm/seamless-v2/stats', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'สรุปสถิติและยอดชดเชย Seamless Claim (V2)' } }, async (request) => {
     const myHospCode = String(request.query?.myHospCode || DEFAULT_HOSPCODE).trim().padStart(5, '0')
     const [summaryRows, topFunds, recentFiles, extraHealthRows, denyCountRows] = await Promise.all([
       safeQuery(
@@ -221,7 +221,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     }
   })
 
-  fastify.get('/api/v1/clinical/rcm/seamless-v2/ledger', async (request) => {
+  fastify.get('/api/v1/clinical/rcm/seamless-v2/ledger', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ดึงรายการบัญชีแยกรายเคส Seamless Claim Ledger (V2)' } }, async (request) => {
     const q = request.query || {}
     const myHospCode = String(q.myHospCode || DEFAULT_HOSPCODE).trim().padStart(5, '0')
     const page = Math.max(1, Number(q.page || 1))
@@ -309,7 +309,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     }
   })
 
-  fastify.get('/api/v1/clinical/rcm/seamless-v2/files', async (request) => {
+  fastify.get('/api/v1/clinical/rcm/seamless-v2/files', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ดึงรายชื่อไฟล์ Seamless ที่นำเข้าแล้ว' } }, async (request) => {
     const myHospCode = String(request.query?.myHospCode || DEFAULT_HOSPCODE).trim().padStart(5, '0')
     const rows = await safeQuery(
       hosPool,
@@ -327,14 +327,14 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     return { success: true, data: rows }
   })
 
-  fastify.get('/api/v1/clinical/rcm/seamless-v2/deny-codes', async () => {
+  fastify.get('/api/v1/clinical/rcm/seamless-v2/deny-codes', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ดึงรายการรหัสปฏิเสธการจ่าย (Deny Codes) ใน Seamless' } }, async () => {
     const rows = await safeQuery(hosPool, `SELECT Code, Name FROM rcmdb.seamless_error ORDER BY Code ASC`)
     return { success: true, data: rows }
   })
 
   // ── T1DM Registry Import Endpoints ─────────────────────────────────────────
 
-  fastify.get('/api/v1/clinical/rcm/t1dm-v2/raw-registries', async () => {
+  fastify.get('/api/v1/clinical/rcm/t1dm-v2/raw-registries', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ดึงข้อมูลดิบทะเบียนผู้ป่วย T1DM/GDM/PDM (V2)' } }, async () => {
     const buildSql = (hospCol, includeFileName) => `
       SELECT
         t.ID AS id, IFNULL(t.Year, '') AS year, IFNULL(t.PID, '') AS pid, IFNULL(t.PtName, '') AS ptname,
@@ -382,7 +382,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     return { success: true, data: { clinicalRows, mirrorRows } }
   })
 
-  fastify.post('/api/v1/clinical/rcm/t1dm-v2/enrich-import', async (request) => {
+  fastify.post('/api/v1/clinical/rcm/t1dm-v2/enrich-import', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'นำเข้าและเสริมข้อมูล HOSxP ให้ทะเบียน T1DM/GDM/PDM (V2)' } }, async (request) => {
     const body = request.body || {}
     const cids = Array.isArray(body.cids) ? body.cids.filter(Boolean) : []
     const hospCodes = Array.isArray(body.hospCodes) ? body.hospCodes.filter(Boolean) : []
@@ -432,7 +432,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     return { success: true, data: { patients, hospNames, existingFileRowCount } }
   })
 
-  fastify.post('/api/v1/clinical/rcm/t1dm-v2/persist-mirror', async (request) => {
+  fastify.post('/api/v1/clinical/rcm/t1dm-v2/persist-mirror', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'บันทึกข้อมูล T1DM/GDM/PDM ลงตาราง Mirror ใน Website DB' } }, async (request) => {
     const rows = Array.isArray(request.body?.rows) ? request.body.rows : []
     if (rows.length === 0) return { success: true, savedCount: 0 }
 
@@ -469,7 +469,7 @@ export default async function rcmImportsV2Routes(fastify, { pools }) {
     }
   })
 
-  fastify.delete('/api/v1/clinical/rcm/t1dm-v2/delete-mirror', async (request) => {
+  fastify.delete('/api/v1/clinical/rcm/t1dm-v2/delete-mirror', { schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ลบข้อมูล T1DM/GDM/PDM ในตาราง Mirror' } }, async (request) => {
     const body = request.body || {}
     const mode = body.mode
     const myHospCode = String(body.myHospCode || DEFAULT_HOSPCODE).trim()

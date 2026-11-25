@@ -888,7 +888,7 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds-rep-reconcile', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รวมผลตอบรับ REP ข้ามกองทุน (repdata + repeclaim + seamless) พร้อมจำแนกกองทุนอัตโนมัติ (Optimized Gateway API)',
     }
   }, async (req, reply) => {
@@ -1006,7 +1006,7 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds-rep-reconcile/vn-details', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายละเอียดรายการเวชระเบียน ADP และ REP ทั้ง 3 แหล่ง (repdata/repeclaim/seamless) สำหรับ VN/AN เดียว',
     }
   }, async (req, reply) => {

@@ -2,11 +2,11 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
 import fastifySwagger from '@fastify/swagger'
-import fastifySwaggerUi from '@fastify/swagger-ui'
 import mysql from 'mysql2/promise'
 import 'dotenv/config'
 
 // Route Plugins
+import docsPortalRoutes from './routes/docsPortal.js'
 import healthRoutes from './routes/health.js'
 import auditRoutes from './routes/audit.js'
 import clinicalRoutes from './routes/clinical.js'
@@ -60,6 +60,20 @@ await fastify.register(fastifySwagger, {
     servers: [
       { url: '/', description: 'Current Gateway Server' }
     ],
+    tags: [
+      { name: '01. Health & Audit', description: 'ตรวจสอบสถานะและความเร็วฐานข้อมูลทั้ง 3 ระบบ (/health) และบันทึกประวัติ Audit Log' },
+      { name: '02. Clinical — ER, IPD, Lab & Appointments', description: 'ข้อมูลบริการคลินิก HOSxP (อ่านอย่างเดียว): ห้องฉุกเฉิน ER, เตียง IPD/OR, แล็บ, นัดหมาย, ห้องยา, TB และคัดกรอง' },
+      { name: '03. Clinical — Chronic, Palliative & LTC', description: 'คลินิกโรคเรื้อรังและดูแลต่อเนื่อง: DM Remission, เยี่ยมบ้าน FCT, Palliative Care, LTC และหมออนามัยครอบครัว (มอค.)' },
+      { name: '04. RCM — Dashboard, OPD/IPD & Debt', description: 'แดชบอร์ดศูนย์จัดเก็บรายได้ (RCM), สรุป OPD/IPD AdjRW, ทะเบียนตั้งหนี้ และรายละเอียด Invoice/VN/AN' },
+      { name: '05. RCM — Funds & REP Reconcile', description: 'รายงานกองทุนเฉพาะโรค/ยา สปสช., ADP Mapping, กองทุนเสริม (แพทย์แผนไทย/ธาลัสซีเมีย/ไวรัสตับอักเสบ) และกระทบยอด REP' },
+      { name: '06. RCM — Seamless, T1DM, CCS & Family Planning', description: 'นำเข้าและตรวจสอบ Seamless Claim, ทะเบียน T1DM/GDM/PDM, คัดกรองมะเร็งปากมดลูก (CCS) และวางแผนครอบครัว (FP)' },
+      { name: '07. Salary & Finance Portal', description: 'ระบบสลิปเงินเดือน, ค่าล่วงเวลา (OT), รอบจ่ายเงินเดือน และการอัปโหลด/ลบรอบบัญชีสำหรับเจ้าหน้าที่การเงิน' },
+      { name: '08. Auth, Members & Permissions', description: 'ยืนยันตัวตน OTP/ThaID, ทะเบียนสมาชิกบุคลากร, ลายเซ็นอิเล็กทรอนิกส์, สิทธิ์รายบุคคล/ตำแหน่ง และคำขอสมัครสมาชิก' },
+      { name: '09. Operations — Assets, Borrow & Events', description: 'ทะเบียนครุภัณฑ์, เชื่อมต่อ Gotowin (GTW), ระบบยืม-คืนอุปกรณ์/วัสดุ และปฏิทินกิจกรรม/Leaderboard' },
+      { name: '10. Operations — Task Inbox, Projects & KPI', description: 'ระบบงานสารบรรณ/แจ้งซ่อม (Unified Task Inbox), แผนงาน/โครงการ, ตัวชี้วัด KPI และหนังสือส่งออก' },
+      { name: '11. CMS, RDU, Ethics & Directory', description: 'ข่าวประชาสัมพันธ์, สไลด์, อัลบั้มภาพ, สื่อออนไลน์, ITA, RDU, เอกสารจริยธรรม, โครงสร้างหน่วยงาน และสมุดโทรศัพท์ภายใน' },
+      { name: '12. System Settings, Audit Admin & Telegram', description: 'ตั้งค่าระบบเว็บไซต์, ค้นหา/ส่งออก/ล้าง Audit Logs และเชื่อมต่อ Telegram Bot แจ้งเตือนงานซ่อม' }
+    ],
     components: {
       securitySchemes: {
         ApiKeyAuth: {
@@ -74,14 +88,7 @@ await fastify.register(fastifySwagger, {
   }
 })
 
-await fastify.register(fastifySwaggerUi, {
-  routePrefix: '/docs',
-  uiConfig: {
-    docExpansion: 'list',
-    deepLinking: false
-  },
-  staticCSP: false
-})
+await fastify.register(docsPortalRoutes)
 
 // ------------------------------------------------------------------
 // Database Connection Pools (3 Databases)

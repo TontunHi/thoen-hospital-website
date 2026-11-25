@@ -68,7 +68,7 @@ export default async function palliativeLtcV2Routes(fastify, { pools }) {
   // 1. LTC: Lookup patient from HOSxP + check existing LTC & Palliative status
   fastify.get('/api/v1/app/ltc/lookup/:hn', {
     schema: {
-      tags: ['3. Website Application (Members & CMS)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ค้นหาข้อมูลผู้ป่วยจาก HOSxP พร้อมตรวจสถานะ LTC และ Palliative Care',
     }
   }, async (req, reply) => {
@@ -132,7 +132,7 @@ export default async function palliativeLtcV2Routes(fastify, { pools }) {
   // 2. LTC: Sync CID & verify names against HOSxP
   fastify.post('/api/v1/app/ltc/sync-hosxp', {
     schema: {
-      tags: ['3. Website Application (Members & CMS)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ซิงค์และตรวจสอบเลข CID ทะเบียน LTC กับฐานข้อมูล HOSxP',
     }
   }, async (req, reply) => {
@@ -236,7 +236,7 @@ export default async function palliativeLtcV2Routes(fastify, { pools }) {
   // 3. Palliative Care: Lookup patient demographics, Clinic 47, ICD10 principal diagnosis, and LTC/Registry status
   fastify.get('/api/v1/app/palliative-care/lookup/:hn', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ค้นหาข้อมูลผู้ป่วย Palliative Care จาก HOSxP (รองรับ HN หรือ AN 9 หลัก)',
     }
   }, async (req, reply) => {
@@ -421,7 +421,7 @@ export default async function palliativeLtcV2Routes(fastify, { pools }) {
   // 4. Palliative Care: Full HOSxP Clinic 47 + ADP 30001 Sync
   fastify.post('/api/v1/app/palliative-care/sync-hosxp', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ซิงค์ทะเบียน Palliative Care จากคลินิก 47 และประวัติเยี่ยมบ้าน ADP 30001 ใน HOSxP',
     }
   }, async (req, reply) => {
@@ -817,7 +817,7 @@ export default async function palliativeLtcV2Routes(fastify, { pools }) {
   // 5. Palliative Care: Raw bundle (registries + visits) from App DB
   fastify.get('/api/v1/app/palliative-care/raw-bundle', {
     schema: {
-      tags: ['3. Website Application (Members & CMS)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'ดึงข้อมูลทะเบียน Palliative Care และประวัติเยี่ยมบ้านทั้งหมด',
     }
   }, async (_req, reply) => {
@@ -853,7 +853,7 @@ export default async function palliativeLtcV2Routes(fastify, { pools }) {
   // 6. Palliative Care: Batch HOSxP + RCM REP enrichment by HN list
   fastify.post('/api/v1/clinical/palliative-care/enrich-hns', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['03. Clinical — Chronic, Palliative & LTC'],
       summary: 'จับคู่ข้อมูล Clinic 47, AN ล่าสุด, และชดเชย REP (repeclaim/repdata) ตามรายการ HN',
     }
   }, async (req, reply) => {

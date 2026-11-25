@@ -6,7 +6,7 @@ export default async function clinicalCoreV2Routes(fastify, { pools, getCached }
   // 1. ER Live Dashboard (active patients + 3 monthly stats + error status list)
   fastify.get('/api/v1/clinical/er/live-dashboard', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
       summary: 'ข้อมูลสถานะห้องฉุกเฉิน ER แบบครบชุด (activePatients, errorStatusList, summary, stats)',
     }
   }, async (_req, reply) => {
@@ -113,7 +113,7 @@ export default async function clinicalCoreV2Routes(fastify, { pools, getCached }
   // 2. IPD Bed Status Raw Aggregates (consolidates 26 parallel queries into 1 Gateway call)
   fastify.get('/api/v1/clinical/ipd/bed-status-raw', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
       summary: 'ข้อมูลเตียงผู้ป่วยใน ICNP และสัดส่วนแผนกทั้งหมดในคำขอเดียว',
     }
   }, async (_req, reply) => {
@@ -186,7 +186,7 @@ export default async function clinicalCoreV2Routes(fastify, { pools, getCached }
   // 3. Operating Room Status
   fastify.get('/api/v1/clinical/ipd/or-status', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
       summary: 'สถานะห้องผ่าตัดวันนี้ (รอผ่าตัด / กำลังผ่าตัด / พักฟื้น)',
     }
   }, async (_req, reply) => {
@@ -229,7 +229,7 @@ export default async function clinicalCoreV2Routes(fastify, { pools, getCached }
   // 4. Lab Tracker Report (by doctorCode or all)
   fastify.get('/api/v1/clinical/lab/tracker-report', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
       summary: 'ติดตามสถานะผลแล็บ OPD วันนี้แยกตามแพทย์ผู้สั่งตรวจ',
     }
   }, async (req, reply) => {
@@ -289,7 +289,7 @@ export default async function clinicalCoreV2Routes(fastify, { pools, getCached }
   // 5. Lab Tracker Doctors
   fastify.get('/api/v1/clinical/lab/tracker-doctors', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['02. Clinical — ER, IPD, Lab & Appointments'],
       summary: 'รายชื่อแพทย์และเจ้าหน้าที่ผู้สั่งแล็บ OPD วันนี้',
     }
   }, async (_req, reply) => {
@@ -316,7 +316,7 @@ export default async function clinicalCoreV2Routes(fastify, { pools, getCached }
   // 6. Member direct permission check (replaces raw SQL in memberAuth.ts)
   fastify.post('/api/v1/app/members/check-member-permission', {
     schema: {
-      tags: ['3. Website Application (Members & CMS)'],
+      tags: ['08. Auth, Members & Permissions'],
       summary: 'ตรวจสอบสิทธิ์เฉพาะบุคคลใน member_permissions',
     }
   }, async (req, reply) => {

@@ -33,7 +33,7 @@ async function withUtf8Tx(pool, fn) {
 export default async function appTasksV2Routes(fastify, opts) {
   const appPool = opts.appPool || opts.pools?.appPool
 
-  fastify.post('/api/v1/app/v2/inbox/audit-log', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/inbox/audit-log', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'บันทึกประวัติการทำรายการของใบงาน (Inbox Audit Log)' } }, async (req, reply) => {
     try {
       const { id, taskId, action, performedBy, performerName, details } = req.body || {}
       const auditId = id || crypto.randomUUID()
@@ -51,7 +51,7 @@ export default async function appTasksV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/inbox/task-bundle/:taskId', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/inbox/task-bundle/:taskId', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงชุดข้อมูลใบงานสำหรับแก้ไขโดยหัวหน้างาน (Task Bundle)' } }, async (req, reply) => {
     try {
       const taskId = String(req.params?.taskId || '').trim()
       const [[tasks], [repairs], [steps]] = await Promise.all([
@@ -72,7 +72,7 @@ export default async function appTasksV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/inbox/manager-edit/:taskId', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/inbox/manager-edit/:taskId', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'แก้ไขรายละเอียดใบงานโดยหัวหน้างานพร้อมบันทึก Field Diff' } }, async (req, reply) => {
     try {
       const taskId = String(req.params?.taskId || '').trim()
       const { taskUpdates = {}, repairUpdates = null, stepSync = null, auditEntry = null } = req.body || {}
@@ -174,7 +174,7 @@ export default async function appTasksV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/inbox/telegram-targets', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/inbox/telegram-targets', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงรายชื่อ Telegram Chat ID เป้าหมายสำหรับแจ้งเตือนใบงาน' } }, async (req, reply) => {
     try {
       const { memberId, username, prRole, rolePattern } = req.query || {}
       let rows = []

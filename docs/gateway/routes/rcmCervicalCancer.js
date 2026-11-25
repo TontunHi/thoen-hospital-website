@@ -66,7 +66,7 @@ export default async function rcmCervicalCancerRoutes(fastify, { pools, getCache
   }
 
   fastify.post('/api/v1/clinical/rcm/ccs/lookup-persons', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'ค้นหาข้อมูลประชากรจากรายการ CID (CCS)' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ค้นหาข้อมูลประชากรจากรายการ CID (CCS)' }
   }, async (req, reply) => {
     try {
       const rawCids = Array.isArray(req.body?.cids) ? req.body.cids : []
@@ -92,7 +92,7 @@ export default async function rcmCervicalCancerRoutes(fastify, { pools, getCache
   })
 
   fastify.get('/api/v1/clinical/rcm/ccs/target-population', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'ดึงข้อมูลดิบกลุ่มเป้าหมายคัดกรองมะเร็งปากมดลูก 30-60 ปี' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ดึงข้อมูลดิบกลุ่มเป้าหมายคัดกรองมะเร็งปากมดลูก 30-60 ปี' }
   }, async (req, reply) => {
     try {
       const { startDate: ds1, endDate: ds2, refresh } = req.query || {}
@@ -170,7 +170,7 @@ export default async function rcmCervicalCancerRoutes(fastify, { pools, getCache
   })
 
   fastify.get('/api/v1/clinical/rcm/ccs/screened-recipients', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก (1.2)' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก (1.2)' }
   }, async (req, reply) => {
     try {
       const { startDate: ds1, endDate: ds2, refresh } = req.query || {}
@@ -300,7 +300,7 @@ export default async function rcmCervicalCancerRoutes(fastify, { pools, getCache
   })
 
   fastify.get('/api/v1/clinical/rcm/ccs/adp-mapping/:code', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'ตรวจสอบการจับคู่รหัส ADP มะเร็งปากมดลูก' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'ตรวจสอบการจับคู่รหัส ADP มะเร็งปากมดลูก' }
   }, async (req, reply) => {
     try {
       const codeKey = String(req.params.code || '').toUpperCase()
@@ -315,7 +315,7 @@ export default async function rcmCervicalCancerRoutes(fastify, { pools, getCache
   })
 
   fastify.get('/api/v1/clinical/rcm/ccs/service/:code', {
-    schema: { tags: ['1. Clinical & HOSxP (Read-Only)'], summary: 'รายงานบริการคัดกรองมะเร็งปากมดลูกตามรหัส ADP (1B004N/1B004P/1B004_0N/1B005)' }
+    schema: { tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'], summary: 'รายงานบริการคัดกรองมะเร็งปากมดลูกตามรหัส ADP (1B004N/1B004P/1B004_0N/1B005)' }
   }, async (req, reply) => {
     try {
       const codeKey = String(req.params.code || '').toUpperCase()

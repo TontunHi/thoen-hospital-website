@@ -8,7 +8,7 @@ export default async function healthRoutes(fastify, options) {
 
 fastify.get('/health', {
   schema: {
-    tags: ['0. Health & Monitoring'],
+    tags: ['01. Health & Audit'],
     summary: 'ตรวจสอบสถานะและความเร็ว Latency ของทั้ง 3 ฐานข้อมูล'
   }
 }, async (req, reply) => {

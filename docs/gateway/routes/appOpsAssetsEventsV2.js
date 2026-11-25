@@ -82,7 +82,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
   // 1. HOSPITAL ASSETS V2
   // =========================================================================
 
-  fastify.get('/api/v1/app/v2/assets', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/assets', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายการครุภัณฑ์ทั้งหมดพร้อมตัวกรองและค้นหา (V2)' } }, async (req, reply) => {
     try {
       const { search, category, warrantyStatus, department, status, sortBy = 'receivedDate', sortOrder = 'desc' } = req.query || {}
       const page = Math.max(1, Number(req.query?.page || 1))
@@ -125,7 +125,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/assets/stats', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/assets/stats', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'สรุปสถิติครุภัณฑ์แยกตามหมวดหมู่และสถานะ' } }, async (_req, reply) => {
     try {
       const [rows] = await appPool.query(`
         SELECT
@@ -143,7 +143,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/assets/by-article', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/assets/by-article', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ค้นหาครุภัณฑ์ตามเลขที่ครุภัณฑ์ (Article Number)' } }, async (req, reply) => {
     try {
       const articleNum = String(req.query?.articleNum || '').trim()
       if (!articleNum) return { success: true, data: null }
@@ -154,7 +154,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/assets/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/assets/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายละเอียดครุภัณฑ์ตาม ID' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(`${ASSET_SELECT_SQL} WHERE a.id = ? LIMIT 1`, [Number(req.params.id)])
       return { success: true, data: rows?.[0] ?? null }
@@ -163,7 +163,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/assets', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/assets', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'เพิ่มรายการครุภัณฑ์ใหม่' } }, async (req, reply) => {
     try {
       const d = req.body || {}
       const created = await withUtf8Conn(appPool, async (conn) => {
@@ -192,7 +192,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/assets/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/assets/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'แก้ไขข้อมูลครุภัณฑ์ตาม ID' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const d = req.body || {}
@@ -225,7 +225,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/assets/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/assets/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ลบรายการครุภัณฑ์ตาม ID' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       await appPool.query('DELETE FROM hospital_assets WHERE id = ?', [id])
@@ -239,7 +239,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
   // 2. EQUIPMENT BORROWING V2
   // =========================================================================
 
-  fastify.get('/api/v1/app/v2/equipment-borrow/materials', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/equipment-borrow/materials', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายการวัสดุสิ้นเปลือง/อุปกรณ์ยืม-คืน' } }, async (req, reply) => {
     try {
       const { search, category, materialType, isActive } = req.query || {}
       const page = Math.max(1, Number(req.query?.page || 1))
@@ -269,7 +269,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/equipment-borrow/materials', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/equipment-borrow/materials', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'เพิ่มรายการวัสดุ/อุปกรณ์สำหรับระบบยืม-คืน' } }, async (req, reply) => {
     try {
       const d = req.body || {}
       const created = await withUtf8Conn(appPool, async (conn) => {
@@ -287,7 +287,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/equipment-borrow/materials/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/equipment-borrow/materials/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'แก้ไขข้อมูลหรือปรับจำนวนคงเหลือวัสดุยืม-คืน' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [existingRows] = await appPool.query('SELECT * FROM hospital_materials WHERE id = ? LIMIT 1', [id])
@@ -338,7 +338,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/equipment-borrow/materials/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/equipment-borrow/materials/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ลบรายการวัสดุยืม-คืน' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [existingRows] = await appPool.query('SELECT * FROM hospital_materials WHERE id = ? LIMIT 1', [id])
@@ -355,7 +355,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/equipment-borrow/assets/:assetId/loanable', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/equipment-borrow/assets/:assetId/loanable', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ตั้งค่าสถานะอนุญาตให้ยืมครุภัณฑ์' } }, async (req, reply) => {
     try {
       const assetId = Number(req.params.assetId)
       const isLoanable = Boolean(req.body?.isLoanable)
@@ -371,7 +371,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/equipment-borrow/loanable-assets', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/equipment-borrow/loanable-assets', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายการครุภัณฑ์ที่เปิดให้ยืมได้' } }, async (req, reply) => {
     try {
       const { search, category } = req.query || {}
       const isLoanable = req.query?.isLoanable !== 'false'
@@ -400,7 +400,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/equipment-borrow/catalog', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/equipment-borrow/catalog', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงแคตตาล็อกครุภัณฑ์และวัสดุที่พร้อมให้ยืม' } }, async (req, reply) => {
     try {
       const { search, category, type = 'ALL' } = req.query || {}
       let assets = []
@@ -440,7 +440,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/equipment-borrow/requests', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/equipment-borrow/requests', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'สร้างคำขอยืมครุภัณฑ์/วัสดุ' } }, async (req, reply) => {
     try {
       const { input, requester } = req.body || {}
       for (const item of input.items || []) {
@@ -503,7 +503,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/equipment-borrow/requests', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/equipment-borrow/requests', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายการคำขอยืม-คืนอุปกรณ์ตามตัวกรอง' } }, async (req, reply) => {
     try {
       const { requesterId, status, search, overdueOnly, activeOnly } = req.query || {}
       const page = Math.max(1, Number(req.query?.page || 1))
@@ -536,7 +536,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/equipment-borrow/requests/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/equipment-borrow/requests/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายละเอียดคำขอยืม-คืนอุปกรณ์ตาม ID' } }, async (req, reply) => {
     try {
       const full = await loadBorrowRequestFull(appPool, Number(req.params.id))
       return { success: true, data: full }
@@ -545,7 +545,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/equipment-borrow/requests/:id/approve', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/equipment-borrow/requests/:id/approve', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'อนุมัติคำขอยืมอุปกรณ์และตัดยอดคงเหลือ' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const { actor = {} } = req.body || {}
@@ -611,7 +611,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/equipment-borrow/requests/:id/reject', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/equipment-borrow/requests/:id/reject', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ไม่อนุมัติ/ปฏิเสธคำขอยืมอุปกรณ์' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const { reason = '', actor = {} } = req.body || {}
@@ -632,7 +632,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/equipment-borrow/requests/:id/return', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/equipment-borrow/requests/:id/return', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'บันทึกการคืนอุปกรณ์และคืนยอดคงเหลือ' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const { returns = [], actor = {} } = req.body || {}
@@ -675,7 +675,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/equipment-borrow/stats', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/equipment-borrow/stats', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'สรุปสถิติการยืม-คืนอุปกรณ์และรายการเกินกำหนด' } }, async (_req, reply) => {
     try {
       const [[loanableRows], [matAgg], [borrowedRows], [overdueRows]] = await Promise.all([
         appPool.query("SELECT COUNT(*) AS cnt FROM hospital_assets WHERE is_loanable = 1 AND status = 'ACTIVE'"),
@@ -711,7 +711,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/equipment-borrow/overdue-targets', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/equipment-borrow/overdue-targets', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายชื่อคำขอยืมที่เกินกำหนดส่งคืนสำหรับแจ้งเตือน' } }, async (_req, reply) => {
     try {
       const [reqs] = await appPool.query(`
         SELECT r.id, r.request_no, r.requester_id, r.requester_name, r.requester_dept,
@@ -750,7 +750,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
   // 3. HOSPITAL EVENTS & LEADERBOARD V2
   // =========================================================================
 
-  fastify.post('/api/v1/app/v2/events/sync-statuses', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/events/sync-statuses', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'อัปเดตสถานะกิจกรรมตามวันเวลาปัจจุบันอัตโนมัติ' } }, async (req, reply) => {
     try {
       const dbNow = String(req.body?.dbNow || '')
       const [[compRes], [onRes]] = await Promise.all([
@@ -775,7 +775,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายการกิจกรรมโรงพยาบาลทั้งหมด (V2)' } }, async (req, reply) => {
     try {
       const { status, search, fiscalYear, memberId, onlyUpcoming, onlyCompleted, onlyMyEvents, onlyMyRegistrations, dbNow } = req.query || {}
       const page = Math.max(1, Number(req.query?.page || 1))
@@ -851,7 +851,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/events', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/events', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'สร้างกิจกรรมโรงพยาบาลใหม่' } }, async (req, reply) => {
     try {
       const { payload, actor, borrowItems = [], coOrganizerMemberIds = [] } = req.body || {}
       const result = await withUtf8Tx(appPool, async (conn) => {
@@ -892,7 +892,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/preload', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events/preload', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'โหลดข้อมูลตั้งต้นสำหรับสร้าง/จัดการกิจกรรม' } }, async (req, reply) => {
     try {
       const [[materials], [assets], [members]] = await Promise.all([
         appPool.query('SELECT id, name, category, available_qty AS availableQty, unit FROM hospital_materials WHERE is_active = 1 ORDER BY name ASC'),
@@ -905,7 +905,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/members-picker', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/events/members-picker', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายชื่อบุคลากรสำหรับเลือกผู้เข้าร่วมกิจกรรม' } }, async (_req, reply) => {
     try {
       const [rows] = await appPool.query('SELECT id, name, department, position FROM members ORDER BY name ASC')
       return { success: true, data: rows || [] }
@@ -914,7 +914,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/by-qr/:token', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events/by-qr/:token', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ค้นหากิจกรรมจาก QR Token สำหรับเช็กอิน' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
         `SELECT id, title, location, qr_token AS qrToken, checkin_open_time AS checkinOpenTime, checkin_close_time AS checkinCloseTime
@@ -927,7 +927,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/member-stats/:memberId', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events/member-stats/:memberId', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงสถิติการเข้าร่วมกิจกรรมและคะแนนสะสมรายบุคคล' } }, async (req, reply) => {
     try {
       const mId = Number(req.params.memberId)
       const [[pRows], [rRows]] = await Promise.all([
@@ -940,7 +940,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/leaderboard/individual', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events/leaderboard/individual', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'จัดอันดับคะแนนกิจกรรมรายบุคคล (Leaderboard)' } }, async (req, reply) => {
     try {
       const { fiscalYear, timeframe } = req.query || {}
       const where = []
@@ -965,7 +965,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/leaderboard/department', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events/leaderboard/department', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'จัดอันดับคะแนนกิจกรรมรายหน่วยงาน (Department Leaderboard)' } }, async (req, reply) => {
     try {
       const { fiscalYear, timeframe } = req.query || {}
       const where = []
@@ -992,7 +992,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/fiscal-years', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/events/fiscal-years', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายการปีงบประมาณที่มีกิจกรรม' } }, async (_req, reply) => {
     try {
       const [rows] = await appPool.query('SELECT DISTINCT fiscal_year AS fiscalYear FROM hospital_events WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC')
       return { success: true, data: (rows || []).map((r) => r.fiscalYear).filter(Boolean) }
@@ -1001,7 +1001,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายละเอียดกิจกรรม รายชื่อผู้ลงทะเบียน และผู้เช็กอิน' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [rows] = await appPool.query(
@@ -1030,7 +1030,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/events/:id/status', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/events/:id/status', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'เปลี่ยนสถานะกิจกรรม (เปิด/ปิด/เสร็จสิ้น)' } }, async (req, reply) => {
     try {
       await appPool.query('UPDATE hospital_events SET status = ?, updated_at = NOW() WHERE id = ?', [req.body?.status, Number(req.params.id)])
       return { success: true, data: { updated: true } }
@@ -1039,7 +1039,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/events/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/events/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'แก้ไขรายละเอียดกิจกรรม' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const { fields = {}, coOrganizerMemberIds, actor = {} } = req.body || {}
@@ -1082,7 +1082,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/events/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/events/:id', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ลบกิจกรรมและข้อมูลที่เกี่ยวข้อง' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const actor = req.body?.actor || {}
@@ -1106,7 +1106,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/events/:id/register', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/events/:id/register', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ลงทะเบียนเข้าร่วมกิจกรรม' } }, async (req, reply) => {
     try {
       const eventId = Number(req.params.id)
       const memberId = Number(req.body?.memberId)
@@ -1124,7 +1124,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/events/:id/register/:memberId', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/events/:id/register/:memberId', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ยกเลิกการลงทะเบียนเข้าร่วมกิจกรรม' } }, async (req, reply) => {
     try {
       await appPool.query('DELETE FROM event_registrations WHERE event_id = ? AND member_id = ?', [Number(req.params.id), Number(req.params.memberId)])
       return { success: true, data: { cancelled: true } }
@@ -1133,7 +1133,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/events/checkin-thaid', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/events/checkin-thaid', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'บันทึกการเช็กอินเข้าร่วมกิจกรรมด้วย ThaID' } }, async (req, reply) => {
     try {
       const { eventId, citizenId, checkedInAt } = req.body || {}
       const [memberRows] = await appPool.query('SELECT id, name, department, position, username FROM members WHERE username = ? LIMIT 1', [citizenId])
@@ -1155,7 +1155,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/events/:id/attendances', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/events/:id/attendances', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'บันทึกการเข้าร่วมกิจกรรม (Attendance Check-in)' } }, async (req, reply) => {
     try {
       const eventId = Number(req.params.id)
       const { memberId, pointsAwarded = 1, checkedInAt, actor = {} } = req.body || {}
@@ -1185,7 +1185,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/events/:id/attendances/:attendanceId', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/events/:id/attendances/:attendanceId', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'แก้ไขบันทึกการเข้าร่วมกิจกรรม' } }, async (req, reply) => {
     try {
       const eventId = Number(req.params.id)
       const attendanceId = Number(req.params.attendanceId)
@@ -1221,7 +1221,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/events/:id/attendances/:attendanceId', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/events/:id/attendances/:attendanceId', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ลบบันทึกการเข้าร่วมกิจกรรม' } }, async (req, reply) => {
     try {
       const eventId = Number(req.params.id)
       const attendanceId = Number(req.params.attendanceId)
@@ -1243,7 +1243,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/events/:id/attachments', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/events/:id/attachments', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ดึงรายการไฟล์แนบ/รูปภาพของกิจกรรม (V2)' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
         `SELECT a.id, a.event_id AS eventId, a.attachment_type AS attachmentType, a.title, a.file_path AS filePath,
@@ -1261,7 +1261,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/events/:id/attachments', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/events/:id/attachments', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'เพิ่มไฟล์แนบหรือรูปภาพของกิจกรรม (V2)' } }, async (req, reply) => {
     try {
       const eventId = Number(req.params.id)
       const d = req.body || {}
@@ -1279,7 +1279,7 @@ export default async function appOpsAssetsEventsV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/events/:id/attachments/:attachmentId', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/events/:id/attachments/:attachmentId', { schema: { tags: ['09. Operations — Assets, Borrow & Events'], summary: 'ลบไฟล์แนบของกิจกรรม (V2)' } }, async (req, reply) => {
     try {
       const eventId = Number(req.params.id)
       const attachmentId = Number(req.params.attachmentId)

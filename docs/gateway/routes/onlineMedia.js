@@ -166,7 +166,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 1. List Categories
   fastify.get('/api/v1/app/online-media/categories', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ดึงรายการหมวดหมู่คลังสื่อออนไลน์',
       querystring: {
         type: 'object',
@@ -224,7 +224,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 2. Create or Update Category
   fastify.post('/api/v1/app/online-media/categories', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'สร้างหรือแก้ไขหมวดหมู่คลังสื่อออนไลน์',
       body: {
         type: 'object',
@@ -292,7 +292,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 3. Delete Category
   fastify.delete('/api/v1/app/online-media/categories/:id', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ลบหมวดหมู่คลังสื่อออนไลน์',
     },
   }, async (req, reply) => {
@@ -329,7 +329,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 4. List Media Items
   fastify.get('/api/v1/app/online-media/items', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ดึงรายการสื่อออนไลน์ตามสิทธิ์และตัวกรอง',
     },
   }, async (req, reply) => {
@@ -427,7 +427,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 5. Get Media Item by Slug or ID (Viewer)
   fastify.get('/api/v1/app/online-media/items/:slugOrId', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ดึงรายละเอียดสื่อออนไลน์ตาม slug หรือ id',
     },
   }, async (req, reply) => {
@@ -502,7 +502,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 6. Get Media Item for Manage
   fastify.get('/api/v1/app/online-media/items/:id/manage', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ดึงข้อมูลสื่อออนไลน์ฉบับเต็มสำหรับหน้าจัดการ',
     },
   }, async (req, reply) => {
@@ -524,7 +524,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 7. Get Stream Target (raw bucket + s3Key + profile_path)
   fastify.get('/api/v1/app/online-media/items/:id/stream-target', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ดึงข้อมูล MinIO Bucket/Key และไฟล์โปรไฟล์ผู้อัปโหลดสำหรับสตรีมมิง',
     },
   }, async (req, reply) => {
@@ -576,7 +576,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 8. Create Media Item (Transactional)
   fastify.post('/api/v1/app/online-media/items', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'สร้างรายการสื่อออนไลน์ใหม่พร้อมไฟล์แนบ',
     },
   }, async (req, reply) => {
@@ -660,7 +660,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 9. Update Media Item (Transactional)
   fastify.put('/api/v1/app/online-media/items/:id', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'แก้ไขรายการสื่อออนไลน์และไฟล์แนบ',
     },
   }, async (req, reply) => {
@@ -736,7 +736,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 10. Delete Media Item
   fastify.delete('/api/v1/app/online-media/items/:id', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ลบรายการสื่อออนไลน์',
     },
   }, async (req, reply) => {
@@ -754,7 +754,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 11. Record Media View
   fastify.post('/api/v1/app/online-media/items/:id/view', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'บันทึกสถิติการเข้าชมสื่อออนไลน์และประวัติบุคลากร',
     },
   }, async (req, reply) => {
@@ -793,7 +793,7 @@ export default async function onlineMediaRoutes(fastify, options) {
   // 12. List Media Viewers
   fastify.get('/api/v1/app/online-media/items/:id/viewers', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['11. CMS, RDU, Ethics & Directory'],
       summary: 'ดึงรายชื่อบุคลากรที่เข้าชมสื่อออนไลน์',
     },
   }, async (req, reply) => {

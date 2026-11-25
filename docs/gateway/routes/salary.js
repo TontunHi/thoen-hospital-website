@@ -9,7 +9,7 @@ export default async function salaryRoutes(fastify, options) {
 // 2.1 Verify Login
 fastify.post('/api/v1/salary/verify-login', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ตรวจสอบสิทธิ์การเข้าสู่ระบบเงินเดือน (username & password)',
     body: {
       type: 'object',
@@ -40,7 +40,7 @@ fastify.post('/api/v1/salary/verify-login', {
 // 2.2 Get Slips
 fastify.get('/api/v1/salary/records/:username', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ดึงประวัติสลิปเงินเดือนและค่าล่วงเวลา (OT) ตามเลขบัตรประชาชน',
     params: {
       type: 'object',
@@ -61,7 +61,7 @@ fastify.get('/api/v1/salary/records/:username', {
 // 2.3 Periods
 fastify.get('/api/v1/salary/periods', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ดึงรายการรอบการจ่ายเงินเดือน (datein)'
   }
 }, async (req, reply) => {
@@ -75,7 +75,7 @@ fastify.get('/api/v1/salary/periods', {
 
 fastify.post('/api/v1/salary/periods', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'สร้างรอบการจ่ายเงินเดือนใหม่ (สำหรับเจ้าหน้าที่การเงิน)',
     body: {
       type: 'object',
@@ -100,7 +100,7 @@ fastify.post('/api/v1/salary/periods', {
 
 fastify.put('/api/v1/salary/periods/:id', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'แก้ไขรอบการจ่ายเงินเดือน',
     params: {
       type: 'object',
@@ -132,7 +132,7 @@ fastify.put('/api/v1/salary/periods/:id', {
 
 fastify.delete('/api/v1/salary/periods/:id', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ลบรอบการจ่ายเงินเดือน',
     params: {
       type: 'object',
@@ -152,7 +152,7 @@ fastify.delete('/api/v1/salary/periods/:id', {
 // 2.4 Batch Upload Salary/OT
 fastify.post('/api/v1/salary/upload-batch', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'อัปโหลดชุดข้อมูลเงินเดือน/OT แบบหลายแถว (สำหรับงานการเงิน)',
     body: {
       type: 'object',
@@ -187,7 +187,7 @@ fastify.post('/api/v1/salary/upload-batch', {
 // 2.5 Get Latest Batch Summary
 fastify.get('/api/v1/salary/batch/summary/:type', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ดึงข้อมูลสรุปของชุดงวดเงินเดือนหรือ OT ล่าสุดที่อัปโหลดเข้าตาราง',
     params: {
       type: 'object',
@@ -248,7 +248,7 @@ fastify.get('/api/v1/salary/batch/summary/:type', {
 // 2.6 Delete Latest Batch with Confirmed Date
 fastify.delete('/api/v1/salary/batch/latest/:type', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ลบชุดงวดเงินเดือนหรือ OT ล่าสุดแบบปลอดภัย (ต้องยืนยันวันที่ confirmedDate)',
     params: {
       type: 'object',
@@ -317,7 +317,7 @@ fastify.delete('/api/v1/salary/batch/latest/:type', {
 // 2.7 Get Salary Users Credentials for Sync
 fastify.get('/api/v1/salary/users', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ดึงรายชื่อ user_name และ user_pass สำหรับซิงค์กับระบบสมาชิก'
   }
 }, async (req, reply) => {
@@ -332,7 +332,7 @@ fastify.get('/api/v1/salary/users', {
 // 2.8 Get Calendar for Current Month
 fastify.get('/api/v1/salary/calendar', {
   schema: {
-    tags: ['2. Salary Services'],
+    tags: ['07. Salary & Finance Portal'],
     summary: 'ดึงตารางกำหนดการเงินเดือนประจำเดือนปัจจุบัน (datein)'
   }
 }, async (req, reply) => {

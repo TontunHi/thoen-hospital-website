@@ -8,7 +8,7 @@ export default async function auditRoutes(fastify, options) {
 
 fastify.post('/api/v1/audit/log', {
   schema: {
-    tags: ['0. Health & Monitoring'],
+    tags: ['01. Health & Audit'],
     summary: 'บันทึกประวัติการทำรายการความปลอดภัย (Audit Log)',
     body: {
       type: 'object',

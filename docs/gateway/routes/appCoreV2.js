@@ -9,7 +9,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   // =========================================================================
 
   fastify.put('/api/v1/app/members/profile-path', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'อัปเดต path รูปโปรไฟล์สมาชิก' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'อัปเดต path รูปโปรไฟล์สมาชิก' }
   }, async (req, reply) => {
     try {
       const { username, profilePath } = req.body || {}
@@ -24,7 +24,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/members/profile-path', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'อ่าน path รูปโปรไฟล์สมาชิกจาก username หรือ userId' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'อ่าน path รูปโปรไฟล์สมาชิกจาก username หรือ userId' }
   }, async (req, reply) => {
     try {
       let targetUsername = String(req.query?.username || '').trim()
@@ -47,7 +47,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/members/by-username/:username', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ดึงข้อมูลสมาชิกและสิทธิ์ประจำตำแหน่งจาก username' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ดึงข้อมูลสมาชิกและสิทธิ์ประจำตำแหน่งจาก username' }
   }, async (req, reply) => {
     try {
       const username = String(req.params?.username || '').trim()
@@ -75,7 +75,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.put('/api/v1/app/system-settings', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'บันทึกการตั้งค่าระบบสมาชิก' }
+    schema: { tags: ['12. System Settings, Audit Admin & Telegram'], summary: 'บันทึกการตั้งค่าระบบสมาชิก' }
   }, async (req, reply) => {
     try {
       const settings = req.body?.settings || {}
@@ -94,7 +94,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/members/sync-salary-credentials', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ซิงค์บัญชีเงินเดือนเข้ากับตารางสมาชิก' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ซิงค์บัญชีเงินเดือนเข้ากับตารางสมาชิก' }
   }, async (req, reply) => {
     try {
       const salaryUsers = Array.isArray(req.body?.salaryUsers) ? req.body.salaryUsers : []
@@ -131,7 +131,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/admin/members', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'รายชื่อสมาชิกทั้งหมดสำหรับผู้ดูแลระบบ (masked salary_pass)' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'รายชื่อสมาชิกทั้งหมดสำหรับผู้ดูแลระบบ (masked salary_pass)' }
   }, async (_req, reply) => {
     try {
       const [rows] = await appPool.query(
@@ -144,7 +144,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/admin/members', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'สร้างสมาชิกใหม่โดยผู้ดูแลระบบ' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'สร้างสมาชิกใหม่โดยผู้ดูแลระบบ' }
   }, async (req, reply) => {
     try {
       const { username, email, name, department, position, salary_user, salary_pass, role } = req.body || {}
@@ -181,7 +181,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.put('/api/v1/app/admin/members/:id', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'แก้ไขข้อมูลสมาชิกโดยผู้ดูแลระบบ' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'แก้ไขข้อมูลสมาชิกโดยผู้ดูแลระบบ' }
   }, async (req, reply) => {
     try {
       const id = req.params.id
@@ -232,7 +232,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.delete('/api/v1/app/admin/members/:id', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ลบสมาชิกโดยผู้ดูแลระบบ' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ลบสมาชิกโดยผู้ดูแลระบบ' }
   }, async (req, reply) => {
     try {
       const id = req.params.id
@@ -254,7 +254,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   // =========================================================================
 
   fastify.get('/api/v1/app/screening-queues', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ดึงรายการคิวตรวจคัดกรองนอกพื้นที่' }
+    schema: { tags: ['02. Clinical — ER, IPD, Lab & Appointments'], summary: 'ดึงรายการคิวตรวจคัดกรองนอกพื้นที่' }
   }, async (req, reply) => {
     try {
       const { startSql, endSql, status, search, includePhoto, includeRawPayload, limit } = req.query || {}
@@ -295,7 +295,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/screening-queues/:id', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ดึงรายละเอียดคิวตรวจคัดกรองตาม ID' }
+    schema: { tags: ['02. Clinical — ER, IPD, Lab & Appointments'], summary: 'ดึงรายละเอียดคิวตรวจคัดกรองตาม ID' }
   }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
@@ -313,7 +313,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/screening-queues/upsert', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'เพิ่มหรืออัปเดตคิวตรวจคัดกรองประจำวัน' }
+    schema: { tags: ['02. Clinical — ER, IPD, Lab & Appointments'], summary: 'เพิ่มหรืออัปเดตคิวตรวจคัดกรองประจำวัน' }
   }, async (req, reply) => {
     try {
       const b = req.body || {}
@@ -382,7 +382,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.patch('/api/v1/app/screening-queues/:id/status', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'อัปเดตสถานะและ VN ของคิวตรวจคัดกรอง' }
+    schema: { tags: ['02. Clinical — ER, IPD, Lab & Appointments'], summary: 'อัปเดตสถานะและ VN ของคิวตรวจคัดกรอง' }
   }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
@@ -412,7 +412,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/screening-queues/batch-status', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'อัปเดตสถานะคิวหลายรายการพร้อมกัน' }
+    schema: { tags: ['02. Clinical — ER, IPD, Lab & Appointments'], summary: 'อัปเดตสถานะคิวหลายรายการพร้อมกัน' }
   }, async (req, reply) => {
     try {
       const updates = Array.isArray(req.body?.updates) ? req.body.updates : []
@@ -430,7 +430,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.delete('/api/v1/app/screening-queues/cleanup', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ลบคิวตรวจคัดกรองเก่าเกินกำหนด' }
+    schema: { tags: ['02. Clinical — ER, IPD, Lab & Appointments'], summary: 'ลบคิวตรวจคัดกรองเก่าเกินกำหนด' }
   }, async (req, reply) => {
     try {
       const days = Math.max(1, Number(req.query?.retentionDays || 30))
@@ -449,7 +449,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   // =========================================================================
 
   fastify.get('/api/v1/app/kpi/fiscal-years', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'รายการปีงบประมาณ KPI ที่เปิดใช้งาน' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'รายการปีงบประมาณ KPI ที่เปิดใช้งาน' }
   }, async (_req, reply) => {
     try {
       const [rows] = await appPool.query(
@@ -462,7 +462,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/kpi/topics', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'รายการหัวข้อ KPI ตามปีงบประมาณ' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'รายการหัวข้อ KPI ตามปีงบประมาณ' }
   }, async (req, reply) => {
     try {
       const fiscalYear = req.query?.fiscalYear
@@ -485,7 +485,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/kpi/topics/:topicId/categories', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'หมวดหมู่ตัวชี้วัดทั้งหมดในหัวข้อ KPI' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'หมวดหมู่ตัวชี้วัดทั้งหมดในหัวข้อ KPI' }
   }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
@@ -499,7 +499,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/kpi/topics/:topicId/responsible-persons', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'รายชื่อผู้รับผิดชอบตัวชี้วัดในหัวข้อ KPI' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'รายชื่อผู้รับผิดชอบตัวชี้วัดในหัวข้อ KPI' }
   }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
@@ -513,7 +513,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/kpi/indicators', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ดึงรายการตัวชี้วัด KPI พร้อมผลบันทึกแต่ละงวด' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงรายการตัวชี้วัด KPI พร้อมผลบันทึกแต่ละงวด' }
   }, async (req, reply) => {
     try {
       const { topicId, fiscalYear, category, frequency, responsibleName, search } = req.query || {}
@@ -560,7 +560,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/kpi/indicators/:id', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ดึงรายละเอียดตัวชี้วัด KPI และผลบันทึกทั้งหมดตาม ID' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงรายละเอียดตัวชี้วัด KPI และผลบันทึกทั้งหมดตาม ID' }
   }, async (req, reply) => {
     try {
       const id = req.params.id
@@ -593,7 +593,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/kpi/entries/save', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'บันทึกหรือแก้ไขผลตัวชี้วัด KPI ประจำงวด' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'บันทึกหรือแก้ไขผลตัวชี้วัด KPI ประจำงวด' }
   }, async (req, reply) => {
     try {
       const b = req.body || {}
@@ -642,7 +642,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.put('/api/v1/app/kpi/indicators/:id/target', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'อัปเดตค่าเป้าหมายตัวชี้วัดและปรับสถานะ entries' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'อัปเดตค่าเป้าหมายตัวชี้วัดและปรับสถานะ entries' }
   }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
@@ -661,7 +661,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/kpi/indicators', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'สร้างตัวชี้วัด KPI ใหม่' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'สร้างตัวชี้วัด KPI ใหม่' }
   }, async (req, reply) => {
     try {
       const b = req.body || {}
@@ -686,7 +686,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.put('/api/v1/app/kpi/indicators/:id', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'แก้ไขตัวชี้วัด KPI และปรับสถานะ entries' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'แก้ไขตัวชี้วัด KPI และปรับสถานะ entries' }
   }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
@@ -715,7 +715,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.delete('/api/v1/app/kpi/indicators/:id', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ลบตัวชี้วัด KPI' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ลบตัวชี้วัด KPI' }
   }, async (req, reply) => {
     try {
       await appPool.query('DELETE FROM kpi_indicators WHERE id = ?', [req.params.id])
@@ -726,7 +726,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/kpi/topics/upsert-for-import', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'สร้างหรือล้างหัวข้อ KPI เพื่อนำเข้าข้อมูลชุดใหม่' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'สร้างหรือล้างหัวข้อ KPI เพื่อนำเข้าข้อมูลชุดใหม่' }
   }, async (req, reply) => {
     try {
       const { fiscalYear, code, title, description } = req.body || {}
@@ -760,7 +760,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   // =========================================================================
 
   fastify.get('/api/v1/app/tasks/work-summary', {
-    schema: { tags: ['4. Website Application Services'], summary: 'สรุปยอดงานค้างและคำขอสมัครสมาชิกค้างอนุมัติของบุคลากร' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'สรุปยอดงานค้างและคำขอสมัครสมาชิกค้างอนุมัติของบุคลากร' }
   }, async (req, reply) => {
     try {
       const memberId = Number(req.query?.memberId || 0)
@@ -799,7 +799,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/tasks/media-requests', {
-    schema: { tags: ['4. Website Application Services'], summary: 'ดึงรายการคำขอผลิตสื่อประชาสัมพันธ์' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงรายการคำขอผลิตสื่อประชาสัมพันธ์' }
   }, async (req, reply) => {
     try {
       const { requesterId, status, search, limit } = req.query || {}
@@ -841,7 +841,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/tasks/preload-repair-form', {
-    schema: { tags: ['4. Website Application Services'], summary: 'โหลดข้อมูลตั้งต้นสำหรับฟอร์มแจ้งซ่อม (สมาชิก + สถานที่)' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'โหลดข้อมูลตั้งต้นสำหรับฟอร์มแจ้งซ่อม (สมาชิก + สถานที่)' }
   }, async (req, reply) => {
     try {
       const username = String(req.query?.username || '').trim()
@@ -869,7 +869,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.get('/api/v1/app/members/by-id/:id', {
-    schema: { tags: ['3. Website Application (Members & CMS)'], summary: 'ดึงข้อมูลสมาชิกจาก ID' }
+    schema: { tags: ['08. Auth, Members & Permissions'], summary: 'ดึงข้อมูลสมาชิกจาก ID' }
   }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
@@ -883,7 +883,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/tasks/workflow-action-v2', {
-    schema: { tags: ['4. Website Application Services'], summary: 'ดำเนินการ Workflow Action V2 (Parity 100%)' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดำเนินการ Workflow Action V2 (Parity 100%)' }
   }, async (req, reply) => {
     const {
       taskId, action, comment, nextAssigneeId, partialEdits,
@@ -1087,7 +1087,7 @@ export default async function appCoreV2Routes(fastify, { pools }) {
   })
 
   fastify.post('/api/v1/app/tasks/repair-action-v2', {
-    schema: { tags: ['4. Website Application Services'], summary: 'ดำเนินการงานซ่อม V2 (Parity 100%)' }
+    schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดำเนินการงานซ่อม V2 (Parity 100%)' }
   }, async (req, reply) => {
     const { taskId, action, performer, payload = {} } = req.body || {}
     if (!taskId || !action || !performer?.id) {

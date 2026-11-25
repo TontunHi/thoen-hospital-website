@@ -8,7 +8,7 @@ export default async function gtwRoutes(fastify, options) {
 
 fastify.get('/api/v1/gtw/articles', {
   schema: {
-    tags: ['5. GTW Integration Services'],
+    tags: ['09. Operations — Assets, Borrow & Events'],
     summary: 'ดึงข้อมูลครุภัณฑ์จากฐานข้อมูล Gotowin (GTW Articles)',
     querystring: {
       type: 'object',

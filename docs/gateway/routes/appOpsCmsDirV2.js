@@ -151,7 +151,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
   // 1. KPI AUDITS & TOPIC LOOKUP V2
   // =========================================================================
 
-  fastify.post('/api/v1/app/v2/kpi/audits/ensure-table', async (_req, reply) => {
+  fastify.post('/api/v1/app/v2/kpi/audits/ensure-table', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ตรวจสอบและเตรียมตารางเก็บผลตรวจประเมิน KPI (Audit)' } }, async (_req, reply) => {
     try {
       await withUtf8Conn(appPool, async (conn) => {
         await conn.query(`
@@ -188,7 +188,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/kpi/audits/upsert-batch', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/kpi/audits/upsert-batch', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'บันทึกผลการตรวจประเมิน KPI หลายรายการพร้อมกัน' } }, async (req, reply) => {
     try {
       const { fiscalYear, periodKey, auditedAtSql = null, items = [] } = req.body || {}
       await withUtf8Conn(appPool, async (conn) => {
@@ -262,7 +262,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/kpi/audits', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/kpi/audits', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงประวัติผลการตรวจประเมิน KPI' } }, async (req, reply) => {
     try {
       const rawTopicId = req.query?.topicId
       const { fiscalYear, periodKey } = req.query || {}
@@ -303,7 +303,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/kpi/topics/:topicId', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/kpi/topics/:topicId', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงรายละเอียดหัวข้อ KPI ตาม ID' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
         'SELECT id, fiscal_year AS fiscalYear, code, title, description FROM kpi_topics WHERE id = ? LIMIT 1',
@@ -319,7 +319,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
   // 2. PROJECT TRACKER V2
   // =========================================================================
 
-  fastify.post('/api/v1/app/v2/projects/ensure-schema', async (_req, reply) => {
+  fastify.post('/api/v1/app/v2/projects/ensure-schema', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ตรวจสอบและเตรียมโครงสร้างตารางแผนงาน/โครงการ' } }, async (_req, reply) => {
     try {
       await ensureProjectTables()
       return { success: true, data: { ensured: true } }
@@ -328,7 +328,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/projects/bundle', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/projects/bundle', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ดึงข้อมูลชุดรวมแผนงาน/โครงการทั้งหมด' } }, async (req, reply) => {
     try {
       await ensureProjectTables()
       const rawFy = req.query?.fiscalYear
@@ -357,7 +357,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/projects', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/projects', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'สร้างรายการแผนงาน/โครงการใหม่' } }, async (req, reply) => {
     try {
       await ensureProjectTables()
       const { fields = {}, actorKey = null } = req.body || {}
@@ -385,7 +385,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/projects/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/projects/:id', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'แก้ไขข้อมูลแผนงาน/โครงการตาม ID' } }, async (req, reply) => {
     try {
       await ensureProjectTables()
       const id = Number(req.params.id)
@@ -410,7 +410,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/projects/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/projects/:id', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'ลบรายการแผนงาน/โครงการตาม ID' } }, async (req, reply) => {
     try {
       await ensureProjectTables()
       const id = Number(req.params.id)
@@ -425,7 +425,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/projects/batch-import', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/projects/batch-import', { schema: { tags: ['10. Operations — Task Inbox, Projects & KPI'], summary: 'นำเข้าข้อมูลแผนงาน/โครงการแบบหลายรายการ (Batch Import)' } }, async (req, reply) => {
     try {
       await ensureProjectTables()
       const { fiscalYear, rows = [], mode = 'append', actorKey = null } = req.body || {}
@@ -477,7 +477,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
   // 3. ETHICS CMS V2
   // =========================================================================
 
-  fastify.get('/api/v1/app/v2/ethics/tree-raw', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/ethics/tree-raw', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงข้อมูลดิบโครงสร้างเอกสารชมรมจริยธรรมแยกตามปี' } }, async (req, reply) => {
     try {
       const activeOnly = req.query?.activeOnly === 'true'
       const ySql = activeOnly
@@ -493,7 +493,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/ethics/years/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/ethics/years/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงข้อมูลปีงบประมาณเอกสารจริยธรรมตาม ID' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query('SELECT id, year FROM ethics_years WHERE id = ? LIMIT 1', [Number(req.params.id)])
       return { success: true, data: rows?.[0] ?? null }
@@ -502,7 +502,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/ethics/years', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/ethics/years', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'เพิ่มปีงบประมาณเอกสารจริยธรรมใหม่' } }, async (req, reply) => {
     try {
       const { year, displayOrder = 0, isActive = true } = req.body || {}
       const [dup] = await appPool.query('SELECT id FROM ethics_years WHERE year = ? LIMIT 1', [year])
@@ -517,7 +517,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.put('/api/v1/app/v2/ethics/years/:id', async (req, reply) => {
+  fastify.put('/api/v1/app/v2/ethics/years/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'แก้ไขข้อมูลปีงบประมาณเอกสารจริยธรรม' } }, async (req, reply) => {
     try {
       const { year, displayOrder = 0, isActive = true } = req.body || {}
       await withUtf8Conn(appPool, async (conn) => {
@@ -529,7 +529,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/ethics/years/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/ethics/years/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ลบปีงบประมาณเอกสารจริยธรรมและเอกสารภายใน' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [rows] = await appPool.query('SELECT id, year FROM ethics_years WHERE id = ? LIMIT 1', [id])
@@ -545,7 +545,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/ethics/documents/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/ethics/documents/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงรายละเอียดเอกสารจริยธรรมตาม ID' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
         `SELECT d.id, d.title, d.file_path AS filePath, d.file_size AS fileSize, d.display_order AS displayOrder, d.is_active AS isActive, y.year
@@ -558,7 +558,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/ethics/documents', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/ethics/documents', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'เพิ่มเอกสารจริยธรรมใหม่' } }, async (req, reply) => {
     try {
       const d = req.body || {}
       const id = await withUtf8Conn(appPool, async (conn) => {
@@ -575,7 +575,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.put('/api/v1/app/v2/ethics/documents/:id', async (req, reply) => {
+  fastify.put('/api/v1/app/v2/ethics/documents/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'แก้ไขข้อมูลเอกสารจริยธรรม' } }, async (req, reply) => {
     try {
       const d = req.body || {}
       await withUtf8Conn(appPool, async (conn) => {
@@ -590,7 +590,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/ethics/documents/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/ethics/documents/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ลบเอกสารจริยธรรม' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [rows] = await appPool.query('SELECT id, title, file_path AS filePath FROM ethics_documents WHERE id = ? LIMIT 1', [id])
@@ -611,7 +611,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
   // 4. DEPARTMENTS & ORG CHART V2
   // =========================================================================
 
-  fastify.get('/api/v1/app/v2/departments/groups', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/departments/groups', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงรายการกลุ่มงาน/ฝ่ายทั้งหมด' } }, async (req, reply) => {
     try {
       const activeOnly = req.query?.activeOnly === 'true'
       const [rows] = await appPool.query(
@@ -623,7 +623,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/departments/groups/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/departments/groups/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงรายละเอียดกลุ่มงาน/ฝ่ายตาม ID' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query('SELECT id, name, parent_id, order_index, is_active FROM department_groups WHERE id = ? LIMIT 1', [Number(req.params.id)])
       return { success: true, data: rows?.[0] ?? null }
@@ -632,7 +632,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/departments/groups', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/departments/groups', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'สร้างกลุ่มงาน/ฝ่ายใหม่' } }, async (req, reply) => {
     try {
       const { name, parentId = null, orderIndex = 0 } = req.body || {}
       const id = await withUtf8Conn(appPool, async (conn) => {
@@ -645,7 +645,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/departments/groups/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/departments/groups/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'แก้ไขข้อมูลกลุ่มงาน/ฝ่าย' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const d = req.body || {}
@@ -667,7 +667,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/departments/groups/reorder', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/departments/groups/reorder', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'จัดเรียงลำดับกลุ่มงาน/ฝ่าย' } }, async (req, reply) => {
     try {
       const ids = req.body?.groupIds || []
       if (ids.length > 0) {
@@ -682,7 +682,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/departments/groups/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/departments/groups/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ลบกลุ่มงาน/ฝ่าย' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [[subRows], [memRows]] = await Promise.all([
@@ -698,7 +698,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/departments/roles', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/departments/roles', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงรายการตำแหน่ง/บทบาทในโครงสร้างหน่วยงาน' } }, async (_req, reply) => {
     try {
       await ensureDeptRolesTable()
       const [rows] = await appPool.query('SELECT id, name, order_index, is_default FROM department_roles ORDER BY order_index ASC, id ASC')
@@ -708,7 +708,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/departments/roles', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/departments/roles', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'สร้างตำแหน่ง/บทบาทในโครงสร้างหน่วยงานใหม่' } }, async (req, reply) => {
     try {
       await ensureDeptRolesTable()
       const { name, orderIndex, isDefault = false } = req.body || {}
@@ -728,7 +728,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/departments/roles/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/departments/roles/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'แก้ไขตำแหน่ง/บทบาทในโครงสร้างหน่วยงาน' } }, async (req, reply) => {
     try {
       await ensureDeptRolesTable()
       const id = Number(req.params.id)
@@ -753,7 +753,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/departments/roles/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/departments/roles/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ลบตำแหน่ง/บทบาทในโครงสร้างหน่วยงาน' } }, async (req, reply) => {
     try {
       await ensureDeptRolesTable()
       const [cnt] = await appPool.query('SELECT COUNT(*) AS count FROM department_roles')
@@ -765,7 +765,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/departments/roles/reorder', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/departments/roles/reorder', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'จัดเรียงลำดับตำแหน่งในโครงสร้างหน่วยงาน' } }, async (req, reply) => {
     try {
       await ensureDeptRolesTable()
       const ids = req.body?.roleIds || []
@@ -781,7 +781,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/departments/groups/:groupId/members', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/departments/groups/:groupId/members', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงรายชื่อบุคลากรในกลุ่มงาน/ฝ่าย' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(
         'SELECT id, group_id, name, position, role, order_index, image_path, phone, member_id FROM department_members WHERE group_id = ? ORDER BY order_index ASC, id ASC',
@@ -793,7 +793,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/departments/members', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/departments/members', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'เพิ่มบุคลากรเข้ากลุ่มงาน/ฝ่าย' } }, async (req, reply) => {
     try {
       const d = req.body || {}
       const id = await withUtf8Conn(appPool, async (conn) => {
@@ -809,7 +809,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/departments/members/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/departments/members/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'แก้ไขข้อมูลบุคลากรในกลุ่มงาน/ฝ่าย' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const d = req.body || {}
@@ -831,7 +831,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/departments/members/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/departments/members/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ลบบุคลากรออกจากกลุ่มงาน/ฝ่าย' } }, async (req, reply) => {
     try {
       await appPool.query('DELETE FROM department_members WHERE id = ?', [Number(req.params.id)])
       return { success: true, data: { deleted: true } }
@@ -840,7 +840,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/departments/groups/:groupId/members/reorder', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/departments/groups/:groupId/members/reorder', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'จัดเรียงลำดับบุคลากรภายในกลุ่มงาน' } }, async (req, reply) => {
     try {
       const groupId = Number(req.params.groupId)
       const ids = req.body?.memberIds || []
@@ -856,7 +856,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/departments/search-staff', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/departments/search-staff', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ค้นหารายชื่อบุคลากรสำหรับจัดผังหน่วยงาน' } }, async (req, reply) => {
     try {
       const kw = `%${String(req.query?.keyword || '').trim()}%`
       const [rows] = await appPool.query(
@@ -871,7 +871,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/departments/public-org-chart', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/departments/public-org-chart', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงผังโครงสร้างองค์กรและบุคลากรสำหรับหน้าสาธารณะ' } }, async (_req, reply) => {
     try {
       const [[groups], [members]] = await Promise.all([
         appPool.query('SELECT id, name, parent_id, order_index FROM department_groups WHERE is_active = 1 ORDER BY order_index ASC, id ASC'),
@@ -887,7 +887,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
   // 5. INTERNAL PHONES V2
   // =========================================================================
 
-  fastify.post('/api/v1/app/v2/internal-phones/ensure-and-seed', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/internal-phones/ensure-and-seed', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ตรวจสอบตารางและเติมข้อมูลตั้งต้นสมุดโทรศัพท์ภายใน' } }, async (req, reply) => {
     try {
       const { seedKey = 'initial_seed_v2', initialItems = [] } = req.body || {}
       await withUtf8Conn(appPool, async (conn) => {
@@ -942,7 +942,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/internal-phones', async (_req, reply) => {
+  fastify.get('/api/v1/app/v2/internal-phones', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงรายการเบอร์โทรศัพท์ภายในทั้งหมด' } }, async (_req, reply) => {
     try {
       const [rows] = await appPool.query(`${PHONE_SELECT_SQL} ORDER BY display_order ASC, id ASC`)
       return { success: true, data: rows || [] }
@@ -951,7 +951,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.get('/api/v1/app/v2/internal-phones/:id', async (req, reply) => {
+  fastify.get('/api/v1/app/v2/internal-phones/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ดึงข้อมูลเบอร์โทรศัพท์ภายในตาม ID' } }, async (req, reply) => {
     try {
       const [rows] = await appPool.query(`${PHONE_SELECT_SQL} WHERE id = ? LIMIT 1`, [Number(req.params.id)])
       if (!rows.length) return reply.code(404).send({ success: false, error: 'ไม่พบข้อมูลเบอร์โทรภายในรายการนี้' })
@@ -961,7 +961,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.post('/api/v1/app/v2/internal-phones', async (req, reply) => {
+  fastify.post('/api/v1/app/v2/internal-phones', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'เพิ่มเบอร์โทรศัพท์ภายในใหม่' } }, async (req, reply) => {
     try {
       const d = req.body || {}
       let displayOrder = d.displayOrder
@@ -984,7 +984,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.patch('/api/v1/app/v2/internal-phones/:id', async (req, reply) => {
+  fastify.patch('/api/v1/app/v2/internal-phones/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'แก้ไขข้อมูลเบอร์โทรศัพท์ภายใน' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [existing] = await appPool.query(`${PHONE_SELECT_SQL} WHERE id = ? LIMIT 1`, [id])
@@ -1010,7 +1010,7 @@ export default async function appOpsCmsDirV2Routes(fastify, opts) {
     }
   })
 
-  fastify.delete('/api/v1/app/v2/internal-phones/:id', async (req, reply) => {
+  fastify.delete('/api/v1/app/v2/internal-phones/:id', { schema: { tags: ['11. CMS, RDU, Ethics & Directory'], summary: 'ลบรายการเบอร์โทรศัพท์ภายใน' } }, async (req, reply) => {
     try {
       const id = Number(req.params.id)
       const [existing] = await appPool.query(`${PHONE_SELECT_SQL} WHERE id = ? LIMIT 1`, [id])

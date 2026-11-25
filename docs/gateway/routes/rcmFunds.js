@@ -15,7 +15,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/adp-mapping/:adpCode', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'ตรวจสอบการแมปรายการยากับรหัส ADP ของ สปสช.',
       params: {
         type: 'object',
@@ -81,7 +81,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/dental-implant', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการกองทุนรากฟันเทียม (DENSUR) อายุ 25-59 ปี',
       querystring: {
         type: 'object',
@@ -224,7 +224,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/fluoride-varnish', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-59 ปี ADP (15001)',
       querystring: {
         type: 'object',
@@ -353,7 +353,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/oral-cancer', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการคัดกรองรอยโรคเสี่ยงมะเร็งและมะเร็งช่องปาก (90004) อายุ >= 40 ปี',
       querystring: {
         type: 'object',
@@ -479,7 +479,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/streptokinase', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการกองทุนยา Streptokinase สำหรับผู้ป่วยกล้ามเนื้อหัวใจขาดเลือดเฉียบพลัน',
       querystring: {
         type: 'object',
@@ -618,7 +618,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/telemed-drug', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการกองทุนระบบ Telemedicine & Drug (TELMED/export_code 5)',
       querystring: {
         type: 'object',
@@ -759,7 +759,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/pregnancy-test', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการการทดสอบการตั้งครรภ์ (8.1) ADP 31101, 30014',
       querystring: {
         type: 'object',
@@ -889,7 +889,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/family-planning', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการวางแผนครอบครัว (Family Planning 9.1 - 9.7) OPD/IPD',
       querystring: {
         type: 'object',
@@ -1158,7 +1158,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/anemia-screening', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก อายุ 13-24 ปี ADP (13001)',
       querystring: {
         type: 'object',
@@ -1308,7 +1308,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/iron-supplements', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการยาเม็ดเสริมธาตุเหล็ก หญิงอายุ 13-45 ปี ADP (14001) + 25 DIDs',
       querystring: {
         type: 'object',
@@ -1495,7 +1495,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/colorectal-cancer', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายงานบริการตรวจคัดกรองมะเร็งลำไส้ใหญ่และลำไส้ตรง (Fit test) อายุ 50-70 ปี (21.2 ADP 90005)',
       querystring: {
         type: 'object',
@@ -1665,7 +1665,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/funds/:fundKey', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'API ศูนย์กลางสำหรับดึงข้อมูลรายงานกองทุนเฉพาะโรค/ยา (Named API)',
       params: {
         type: 'object',
@@ -2023,7 +2023,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/rep-funds/years', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายการปีงบประมาณที่มีข้อมูลใน rcmdb.repdata / repeclaim / seamless',
       querystring: {
         type: 'object',
@@ -2066,7 +2066,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/rep-funds/summary', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'สรุปภาพรวม KPI และรายการกองทุน จาก rcmdb.repdata / rcmdb.repeclaim / rcmdb.seamless',
       querystring: {
         type: 'object',
@@ -2174,7 +2174,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/rep-funds/cases', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'รายการเคสผู้ป่วยรายบุคคลตามแหล่งข้อมูล (repdata / repeclaim / seamless)',
       querystring: {
         type: 'object',
@@ -2271,7 +2271,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.get('/api/v1/clinical/rcm/rep-funds/lookup', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['05. RCM — Funds & REP Reconcile'],
       summary: 'ค้นหาประวัติการเคลมผู้ป่วยรายบุคคลด้วย HN, ชื่อ หรือวันที่รับบริการ',
       querystring: {
         type: 'object',
@@ -2354,7 +2354,7 @@ export default async function rcmFundsRoutes(fastify, options) {
 
   fastify.get('/api/v1/clinical/rcm/t1dm/registries', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'],
       summary: 'ดึงข้อมูลทะเบียนผู้ป่วย T1DM/GDM/PDM จากตาราง rcmdb.t1dm',
       querystring: {
         type: 'object',
@@ -2402,7 +2402,7 @@ export default async function rcmFundsRoutes(fastify, options) {
 
   fastify.post('/api/v1/clinical/rcm/t1dm/import', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'],
       summary: 'นำเข้าข้อมูลทะเบียนผู้ป่วย T1DM/GDM/PDM ลงตาราง rcmdb.t1dm',
       body: {
         type: 'object',
@@ -2471,7 +2471,7 @@ export default async function rcmFundsRoutes(fastify, options) {
 
   fastify.delete('/api/v1/clinical/rcm/t1dm/registries', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'],
       summary: 'ลบข้อมูลทะเบียน T1DM/GDM/PDM (ต่าง รพ., ตามชื่อไฟล์, หรือทั้งหมด)',
       body: {
         type: 'object',
@@ -2533,7 +2533,7 @@ export default async function rcmFundsRoutes(fastify, options) {
 
   fastify.post('/api/v1/clinical/rcm/seamless/import', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'],
       summary: 'นำเข้าข้อมูล Seamless Claim Rep ลงตาราง rcmdb.seamless (รองรับอัปเดตทับหรือข้ามรายการซ้ำ)',
       body: {
         type: 'object',
@@ -2811,7 +2811,7 @@ export default async function rcmFundsRoutes(fastify, options) {
   // ------------------------------------------------------------------
   fastify.delete('/api/v1/clinical/rcm/seamless/records', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'],
       summary: 'ลบข้อมูล Seamless ใน rcmdb.seamless (ตามชื่อไฟล์, หลายไฟล์, ต่างหน่วยบริการ, หรือทั้งหมด)',
       body: {
         type: 'object',
@@ -2865,7 +2865,7 @@ export default async function rcmFundsRoutes(fastify, options) {
 
   fastify.post('/api/v1/clinical/rcm/seamless/sync-payment', {
     schema: {
-      tags: ['1. Clinical Services (HOSxP)'],
+      tags: ['06. RCM — Seamless, T1DM, CCS & Family Planning'],
       summary: 'ซิงค์วันที่โอนเงิน (PayDate) และ CodeAccount จาก nhso_budget รวมถึงคำนวณ YYMM / YearBudget ให้ครบถ้วน',
       body: {
         type: 'object',

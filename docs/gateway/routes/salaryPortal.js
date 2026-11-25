@@ -7,7 +7,7 @@ export default async function salaryPortalRoutes(fastify, { pools }) {
   // 1. Lookup member by username or salary_user (omits password fields)
   fastify.get('/api/v1/salary/member-lookup', {
     schema: {
-      tags: ['2. Salary Services'],
+      tags: ['07. Salary & Finance Portal'],
       summary: 'ค้นหาข้อมูลสมาชิกสำหรับสลิปเงินเดือนด้วย username หรือ salary_user',
     }
   }, async (req, reply) => {
@@ -31,7 +31,7 @@ export default async function salaryPortalRoutes(fastify, { pools }) {
   // 2. Fetch stored salary credentials for a verified member session
   fastify.post('/api/v1/salary/member-credentials', {
     schema: {
-      tags: ['2. Salary Services'],
+      tags: ['07. Salary & Finance Portal'],
       summary: 'ดึง salary_user / salary_pass ที่ผูกกับสมาชิก',
     }
   }, async (req, reply) => {
@@ -56,7 +56,7 @@ export default async function salaryPortalRoutes(fastify, { pools }) {
   // 3. Verify finance upload access (admin, finance position, or upload_salary permission)
   fastify.post('/api/v1/salary/verify-finance-access', {
     schema: {
-      tags: ['2. Salary Services'],
+      tags: ['07. Salary & Finance Portal'],
       summary: 'ตรวจสอบสิทธิ์อัปโหลดข้อมูลเงินเดือน/ค่าเวร',
     }
   }, async (req, reply) => {
@@ -99,7 +99,7 @@ export default async function salaryPortalRoutes(fastify, { pools }) {
   // 4. Check whether feature_salary is enabled in member_system_settings
   fastify.get('/api/v1/salary/feature-enabled', {
     schema: {
-      tags: ['2. Salary Services'],
+      tags: ['07. Salary & Finance Portal'],
       summary: 'ตรวจสอบสถานะเปิดใช้งานระบบสลิปเงินเดือน',
     }
   }, async (_req, reply) => {

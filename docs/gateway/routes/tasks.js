@@ -12,7 +12,7 @@ export default async function tasksRoutes(fastify, options) {
   // 1. Generate Next Task No by Thai Fiscal Year
   fastify.post('/api/v1/app/tasks/generate-no', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['10. Operations — Task Inbox, Projects & KPI'],
       summary: 'สร้างเลขที่ใบงานตามปีงบประมาณไทย (Format: [PREFIX]-[YEAR]-[MONTH]-[RUNNING 4 DIGITS])',
       body: {
         type: 'object',
@@ -43,7 +43,7 @@ export default async function tasksRoutes(fastify, options) {
   // 2. Fetch Full Task Details (Task, Steps, Repair Detail, Audit Logs in 1 atomic roundtrip)
   fastify.get('/api/v1/app/tasks/:id/full-details', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['10. Operations — Task Inbox, Projects & KPI'],
       summary: 'ดึงข้อมูลใบงานครบวงจร (Task, Steps, Repair Detail, Audit Logs) ใน 1 คำขอ',
       params: {
         type: 'object',
@@ -117,7 +117,7 @@ export default async function tasksRoutes(fastify, options) {
   // 3. Centralized Workflow Action (APPROVE, REJECT, SEND_BACK, HOLD, RESUME, COMPLETE)
   fastify.post('/api/v1/app/tasks/workflow-action', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['10. Operations — Task Inbox, Projects & KPI'],
       summary: 'ดำเนินการเปลี่ยนสถานะขั้นตอน Workflow (APPROVE, REJECT, SEND_BACK, HOLD, RESUME, COMPLETE)',
       body: {
         type: 'object',
@@ -472,7 +472,7 @@ export default async function tasksRoutes(fastify, options) {
   // 4. Centralized Repair Action (ACCEPT_JOB, UPDATE_COWORKERS, SAVE_REPAIR_PROGRESS, COMPLETE_REPAIR, CANCEL_JOB)
   fastify.post('/api/v1/app/tasks/repair-action', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['10. Operations — Task Inbox, Projects & KPI'],
       summary: 'ดำเนินการเกี่ยวกับงานซ่อม (ช่างรับงาน, อัปเดตช่างร่วม, บันทึกความคืบหน้า, ซ่อมเสร็จ, ยกเลิก)',
       body: {
         type: 'object',
@@ -700,7 +700,7 @@ export default async function tasksRoutes(fastify, options) {
   // 5. Manager Edit Task Details with Diff Tracking
   fastify.put('/api/v1/app/tasks/:id/manager-edit', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['10. Operations — Task Inbox, Projects & KPI'],
       summary: 'แก้ไขข้อมูลงานโดยหัวหน้างานหรือผู้ดูแลระบบ (พร้อมบันทึก Audit Diff)',
       params: {
         type: 'object',
@@ -786,7 +786,7 @@ export default async function tasksRoutes(fastify, options) {
   // 6. Fetch Inbox Tasks with Filters, Badges, and Stats
   fastify.get('/api/v1/app/tasks/inbox', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['10. Operations — Task Inbox, Projects & KPI'],
       summary: 'ดึงรายการใบงานสำหรับ Unified Inbox พร้อมการแบ่งแท็บ สิทธิ์ และตัวนับสถิติ',
       querystring: {
         type: 'object',
@@ -1018,7 +1018,7 @@ export default async function tasksRoutes(fastify, options) {
   // 7. Create New Task with Workflow Steps, Optional Repair Details, and Audit Log in 1 Atomic Transaction
   fastify.post('/api/v1/app/tasks/create', {
     schema: {
-      tags: ['4. Website Application Services'],
+      tags: ['10. Operations — Task Inbox, Projects & KPI'],
       summary: 'สร้างใบงานใหม่พร้อมกำหนดขั้นตอน (Steps), ข้อมูลงานซ่อม (Repair Details) และบันทึก Audit Log ใน 1 Transaction',
       body: {
         type: 'object',
