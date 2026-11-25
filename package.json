@@ -23,6 +23,7 @@
     "tunnel:start": "tsx scripts/devTunnel.ts start",
     "tunnel:stop": "tsx scripts/devTunnel.ts stop",
     "tunnel:status": "tsx scripts/devTunnel.ts status",
+    "prepare": "git config core.hooksPath .githooks || exit 0",
     "precommit": "lint-staged"
   },
   "dependencies": {
@@ -44,11 +45,13 @@
     "react-dom": "19.2.4",
     "read-excel-file": "^9.3.12",
     "recharts": "^3.10.1",
+    "sanitize-html": "^2.18.2",
     "three": "^0.187.0",
     "xls-reader": "^0.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^16.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/bcryptjs": "^2.4.6",
@@ -58,14 +61,16 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
     "@types/three": "^0.187.0",
     "eslint": "^10.8.0",
-    "eslint-config-next": "^0.2.4",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^30.0.1",
     "lint-staged": "^17.5.1",
     "pm2": "^7.1.2",
     "tsx": "^4.22.3",
     "typescript": "^5",
+    "typescript-eslint": "^8.74.0",
     "vitest": "^5.0.1"
   },
   "prisma": {

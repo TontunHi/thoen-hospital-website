@@ -55,7 +55,7 @@ export interface CreateAssetInput {
   notes?: string | null
 }
 
-export interface UpdateAssetInput extends Partial<CreateAssetInput> {}
+export type UpdateAssetInput = Partial<CreateAssetInput>
 
 function mapDbRowToAsset(row: any) {
   return {
@@ -553,8 +553,8 @@ export class HospitalAssetService {
           })
           summary.inserted++
         }
-      } catch (err: any) {
-        logger.error({ error: err.message, articleNum }, 'Failed to sync GTW article')
+      } catch (err: unknown) {
+        logger.error({ error: err instanceof Error ? err.message : String(err), articleNum }, 'Failed to sync GTW article')
         summary.errors++
       }
     }

@@ -10,6 +10,7 @@ import {
   NotAProviderError,
 } from '@/lib/providerIdAuth'
 import { getSafeBaseUrl } from '@/lib/auth/urlHelper'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +37,9 @@ export async function GET(request: Request) {
         `พยายามเข้าสู่ระบบด้วย ${serviceLabel} แต่ถูกปฏิเสธหรือยกเลิก (Error: ${oauthError}${errorDescription ? ` - ${errorDescription}` : ''})`,
         { username: `${serviceLabel.toUpperCase().replace(/\s+/g, '_')}_CANCELLED`, email: '' }
       )
-    } catch {}
+    } catch (auditErr: unknown) {
+      logger.warn({ auditErr }, 'Provider ID audit log write failed')
+    }
     return NextResponse.redirect(new URL(`/member/login?error=${errorParamPrefix}_denied`, baseUrl))
   }
 
@@ -48,7 +51,9 @@ export async function GET(request: Request) {
         `พยายามเข้าสู่ระบบด้วย ${serviceLabel} แต่คำขอไม่ถูกต้อง (Missing code or state)`,
         { username: `${serviceLabel.toUpperCase().replace(/\s+/g, '_')}_INVALID_REQUEST`, email: '' }
       )
-    } catch {}
+    } catch (auditErr: unknown) {
+      logger.warn({ auditErr }, 'Provider ID audit log write failed')
+    }
     return NextResponse.redirect(new URL(`/member/login?error=${errorParamPrefix}_invalid_request`, baseUrl))
   }
 
@@ -74,7 +79,9 @@ export async function GET(request: Request) {
         `พยายามเข้าสู่ระบบด้วย ${serviceLabel} แต่ State Token หมดอายุหรือไม่ตรงกัน (CSRF Token Mismatch / Expired)`,
         { username: `${serviceLabel.toUpperCase().replace(/\s+/g, '_')}_STATE_MISMATCH`, email: '' }
       )
-    } catch {}
+    } catch (auditErr: unknown) {
+      logger.warn({ auditErr }, 'Provider ID audit log write failed')
+    }
     return NextResponse.redirect(new URL(`/member/login?error=${errorParamPrefix}_invalid_state`, baseUrl))
   }
 
@@ -91,14 +98,15 @@ export async function GET(request: Request) {
     } else {
       sessionPayload = await authService.exchangeProviderIdCode(code, state)
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error, serviceLabel }, `${serviceLabel} exchange failed`)
-    if (error instanceof NotAProviderError || error?.message?.includes('provider id')) {
+    const errMsg = getErrorMessage(error, '')
+    if (error instanceof NotAProviderError || errMsg.includes('provider id')) {
       return NextResponse.redirect(new URL('/member/login?error=provider_id_not_provider', baseUrl))
     }
     if (
-      error?.message === 'Provider ID citizen ID not registered in hospital members' ||
-      error?.message === 'Health ID citizen ID not registered in hospital members'
+      errMsg === 'Provider ID citizen ID not registered in hospital members' ||
+      errMsg === 'Health ID citizen ID not registered in hospital members'
     ) {
       return NextResponse.redirect(new URL('/member/login?error=not_registered', baseUrl))
     }

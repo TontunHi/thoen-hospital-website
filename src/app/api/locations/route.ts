@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
+import { logger } from '@/lib/logger'
 
 // GET /api/locations?search=...&buildingId=...
 export async function GET(request: Request) {
@@ -27,8 +28,8 @@ export async function GET(request: Request) {
       success: true,
       data: res.data || res || [],
     })
-  } catch (error: any) {
-    console.error('Fetch locations error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Fetch locations error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสถานที่' }, { status: 500 })
   }
 }

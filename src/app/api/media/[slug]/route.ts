@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMemberSession, fetchAuthenticatedMember } from '@/lib/memberAuth'
 import { OnlineMediaService } from '@/lib/media/onlineMediaService'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,7 +45,7 @@ export async function GET(
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (error) {
-    console.error('Fetch media detail error:', error)
+    logger.error({ error }, 'Fetch media detail error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสื่อออนไลน์' },
       { status: 500 }
@@ -92,7 +93,7 @@ export async function POST(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Record media view error:', error)
+    logger.error({ error }, 'Record media view error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการบันทึกสถิติการเข้าชม' },
       { status: 500 }

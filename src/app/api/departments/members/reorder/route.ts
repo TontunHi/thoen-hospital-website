@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const reorderSchema = z.object({
   groupId: z.coerce.number().int().positive(),
@@ -28,9 +29,9 @@ export async function PATCH(request: Request) {
     })
 
     return NextResponse.json({ success: true, message: 'บันทึกลำดับสมาชิกสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการจัดลำดับสมาชิก' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการจัดลำดับสมาชิก') },
       { status: 500 }
     )
   }

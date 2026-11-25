@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import FluorideVarnish201Client from '../FluorideVarnish201Client'
 
@@ -201,6 +201,10 @@ describe('FluorideVarnish201Client Component', () => {
     const fiscalTab = screen.getByRole('tab', { name: 'ปีงบประมาณ' })
     fireEvent.click(fiscalTab)
     expect(screen.getByLabelText('เลือกปีงบประมาณ')).toBeInTheDocument()
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
   })
 
   it('displays warning banner when ADP 15001 is unmapped', () => {

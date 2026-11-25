@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
@@ -39,7 +40,6 @@ export async function POST(request: Request) {
       : (isPdf ? 25 * 1024 * 1024 : 20 * 1024 * 1024)
 
     // Derive safe baseName from file name itself, not from the news/slide headline title
-    const origExt = file.name && file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : ''
     const rawFileBase = file.name && file.name.includes('.')
       ? file.name.slice(0, file.name.lastIndexOf('.'))
       : (file.name || (isPdf ? 'doc' : isVideo ? 'video' : 'slide'))
@@ -97,11 +97,11 @@ export async function POST(request: Request) {
       { success: true, url: saved.publicUrl, filename: saved.fileName, isPdf, isVideo },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof StorageValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    console.error('Upload error:', error)
+    logger.error({ error }, 'Upload error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' },
       { status: 500 }
@@ -135,8 +135,8 @@ export async function DELETE(request: Request) {
     )
 
     return NextResponse.json({ success: true, message: 'ลบไฟล์เรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Delete upload error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Delete upload error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการลบไฟล์อัปโหลด' },
       { status: 500 }

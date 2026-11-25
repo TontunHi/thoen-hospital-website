@@ -7,6 +7,7 @@ const DOM_TEST_TS_FILES = [
   'src/app/api/service/dashboard-rcm/t1dm-import/__tests__/route.test.ts',
   'src/app/api/v2/oauth2/auth/__tests__/fallbackRoute.test.ts',
   'src/components/seasonal/__tests__/HalloweenScene.test.ts',
+  'src/hooks/__tests__/useRcmDateRange.test.ts',
   'src/lib/clinical/__tests__/dmRemissionDomain.test.ts',
   'src/lib/clinical/__tests__/rcmExcelExport.test.ts',
   'src/lib/events/__tests__/eventTimeUtils.test.ts',

@@ -6,6 +6,7 @@ import {
   verifyMemberSession,
 } from '@/lib/memberAuth'
 import { MemberAuthService } from '@/lib/auth/MemberAuthService'
+import { logger } from '@/lib/logger'
 
 const authService = new MemberAuthService()
 
@@ -60,8 +61,8 @@ export async function POST() {
     })
 
     return response
-  } catch (error: any) {
-    console.error('Session refresh error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Session refresh error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการต่ออายุเซสชัน' },
       { status: 500 }

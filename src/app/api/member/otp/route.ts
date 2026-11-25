@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { memberOtpRequestSchema } from '@/lib/schemas/member'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { MemberAuthService } from '@/lib/auth/MemberAuthService'
+import { logger } from '@/lib/logger'
 
 const authService = new MemberAuthService()
 
@@ -39,8 +40,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, message: result.message })
-  } catch (error: any) {
-    console.error('Member OTP Request error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Member OTP Request error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการประมวลผลระบบสมาชิก' },
       { status: 500 }

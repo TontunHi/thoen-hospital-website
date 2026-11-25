@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { KpiExportService } from '@/lib/kpi/kpiExportService'
 import { logAudit } from '@/lib/audit'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(req: NextRequest) {
   try {
@@ -74,9 +75,9 @@ export async function GET(req: NextRequest) {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: { code: 'EXPORT_FAILED', message: err.message || 'ส่งออกไฟล์ Excel ไม่สำเร็จ' } },
+      { success: false, error: { code: 'EXPORT_FAILED', message: getErrorMessage(err, 'ส่งออกไฟล์ Excel ไม่สำเร็จ') } },
       { status: 500 }
     )
   }

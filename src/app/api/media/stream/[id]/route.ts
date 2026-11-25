@@ -6,6 +6,7 @@ import {
   resolveBucketForVisibility,
   resolveDownloadFileName,
 } from '@/lib/media/onlineMediaService'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +61,7 @@ export async function GET(
 
       try {
         const fileBuffer = await DocumentStorage.readBuffer(item.createdByProfilePath)
-        return new Response(fileBuffer as any, {
+        return new Response(new Uint8Array(fileBuffer), {
           headers: {
             'Content-Type': contentType,
             'Cache-Control': 'public, max-age=3600, s-maxage=3600',
@@ -113,7 +114,7 @@ export async function GET(
       isPrivate: item.visibility === 'INTERNAL' || !item.isPublished,
     })
   } catch (error) {
-    console.error('Stream online media error:', error)
+    logger.error({ error }, 'Stream online media error')
     return new Response('Internal server error', { status: 500 })
   }
 }

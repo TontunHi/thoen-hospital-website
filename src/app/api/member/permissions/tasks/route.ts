@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/roles'
 import { TaskPermissionService } from '@/lib/permissions/taskPermissionService'
 import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,10 +21,10 @@ export async function GET() {
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Fetch task-centric permissions error')
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสิทธิ์ตามงาน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลสิทธิ์ตามงาน') },
       { status: 500 }
     )
   }

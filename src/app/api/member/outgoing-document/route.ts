@@ -3,6 +3,7 @@ import { requireMemberApi } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 const documentSchema = z.object({
   year: z.string().trim().min(1, 'กรุณาระบุปีงบประมาณ (เช่น 2569)').max(10),
@@ -26,8 +27,8 @@ export async function GET() {
       success: true,
       documents
     })
-  } catch (error: any) {
-    console.error('Member fetch outgoing documents error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Member fetch outgoing documents error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลหนังสือส่งออก' }, { status: 500 })
   }
 }
@@ -71,8 +72,8 @@ export async function POST(request: Request) {
       document: res.document,
       message: 'บันทึกข้อมูลลิงก์หนังสือส่งออกสำเร็จ'
     })
-  } catch (error: any) {
-    console.error('Create outgoing document error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Create outgoing document error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' }, { status: 500 })
   }
 }
@@ -121,8 +122,8 @@ export async function PUT(request: Request) {
       document: res.document || { id, year, label },
       message: 'อัปเดตข้อมูลสำเร็จ'
     })
-  } catch (error: any) {
-    console.error('Update outgoing document error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Update outgoing document error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' }, { status: 500 })
   }
 }
@@ -155,8 +156,8 @@ export async function DELETE(request: Request) {
       success: true,
       message: 'ลบรายการสำเร็จ'
     })
-  } catch (error: any) {
-    console.error('Delete outgoing document error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Delete outgoing document error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการลบรายการ' }, { status: 500 })
   }
 }

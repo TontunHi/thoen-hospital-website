@@ -5,6 +5,7 @@ import {
   OnlineMediaValidationError,
   OnlineMediaNotFoundError,
 } from '@/lib/media/onlineMediaService'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +37,7 @@ export async function GET(
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (error) {
-    console.error('Get online media detail/viewers error:', error)
+    logger.error({ error }, 'Get online media detail/viewers error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสื่อออนไลน์' },
       { status: 500 }
@@ -67,16 +68,20 @@ export async function PUT(
     })
 
     return NextResponse.json({ success: true, data: { item } })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errObj = error as { name?: string; message?: string; status?: number }
     if (
       error instanceof OnlineMediaValidationError ||
       error instanceof OnlineMediaNotFoundError ||
-      error?.name === 'OnlineMediaValidationError' ||
-      error?.name === 'OnlineMediaNotFoundError'
+      errObj?.name === 'OnlineMediaValidationError' ||
+      errObj?.name === 'OnlineMediaNotFoundError'
     ) {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.status || 400 })
+      return NextResponse.json(
+        { success: false, error: errObj?.message || 'ข้อมูลสื่อออนไลน์ไม่ถูกต้อง' },
+        { status: errObj?.status || 400 }
+      )
     }
-    console.error('Update online media error:', error)
+    logger.error({ error }, 'Update online media error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลสื่อออนไลน์' },
       { status: 500 }
@@ -114,16 +119,20 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errObj = error as { name?: string; message?: string; status?: number }
     if (
       error instanceof OnlineMediaValidationError ||
       error instanceof OnlineMediaNotFoundError ||
-      error?.name === 'OnlineMediaValidationError' ||
-      error?.name === 'OnlineMediaNotFoundError'
+      errObj?.name === 'OnlineMediaValidationError' ||
+      errObj?.name === 'OnlineMediaNotFoundError'
     ) {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.status || 400 })
+      return NextResponse.json(
+        { success: false, error: errObj?.message || 'ข้อมูลสื่อออนไลน์ไม่ถูกต้อง' },
+        { status: errObj?.status || 400 }
+      )
     }
-    console.error('Delete online media error:', error)
+    logger.error({ error }, 'Delete online media error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการลบข้อมูล' },
       { status: 500 }

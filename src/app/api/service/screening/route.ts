@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { screeningQueueService } from '@/lib/screening/screeningService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const createQueueSchema = z.object({
   cid: z.string().min(13, 'เลขประจำตัวประชาชนต้องมี 13 หลัก').max(20),
@@ -48,13 +49,13 @@ export async function GET(req: NextRequest) {
       success: true,
       data: result,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'FETCH_QUEUES_ERROR',
-          message: error?.message || 'เกิดข้อผิดพลาดในการดึงรายการคิว',
+          message: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงรายการคิว'),
         },
       },
       { status: 500 }
@@ -134,13 +135,13 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'CREATE_QUEUE_ERROR',
-          message: error?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลคิว',
+          message: getErrorMessage(error, 'เกิดข้อผิดพลาดในการบันทึกข้อมูลคิว'),
         },
       },
       { status: 500 }

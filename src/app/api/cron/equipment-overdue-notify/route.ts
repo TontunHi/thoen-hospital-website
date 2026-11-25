@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
 import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 /**
  * Automated Equipment Overdue Notification Cron Endpoint
@@ -40,10 +41,10 @@ export async function POST(request: Request) {
     )
 
     return NextResponse.json(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Equipment overdue notification cron job failed')
     return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error in overdue notification job' },
+      { success: false, error: getErrorMessage(error, 'Internal server error in overdue notification job') },
       { status: 500 }
     )
   }

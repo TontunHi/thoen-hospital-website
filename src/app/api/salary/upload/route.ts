@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/roles'
 import { SalaryBatchService } from '@/lib/salary/salaryBatchService'
+import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function POST(request: Request) {
   try {
@@ -29,10 +31,10 @@ export async function POST(request: Request) {
       message: `นำเข้าข้อมูลเรียบร้อยแล้ว ทั้งหมด ${insertedCount} รายการ`,
       count: insertedCount,
     })
-  } catch (error: any) {
-    console.error('CSV upload error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'CSV upload error')
     return NextResponse.json(
-      { error: error?.message || 'เกิดข้อผิดพลาดในการประมวลผลไฟล์และบันทึกข้อมูล' },
+      { error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการประมวลผลไฟล์และบันทึกข้อมูล') },
       { status: 500 }
     )
   }

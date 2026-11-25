@@ -3,6 +3,8 @@ import { requireMemberApi } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
 import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
 import path from 'path'
+import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 // POST: Upload PDF file to a folder
 export async function POST(request: Request) {
@@ -53,12 +55,12 @@ export async function POST(request: Request) {
       message: 'อัปโหลดไฟล์ PDF เรียบร้อยแล้ว',
       file: res.file
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof StorageValidationError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+      return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 400 })
     }
-    console.error('Error in POST /api/member/rdu/files:', error)
-    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' }, { status: 500 })
+    logger.error({ error }, 'Error in POST /api/member/rdu/files')
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์') }, { status: 500 })
   }
 }
 
@@ -92,9 +94,9 @@ export async function PUT(request: Request) {
     })
 
     return NextResponse.json({ success: true, message: 'แก้ไขชื่อแสดงผลสำเร็จ' })
-  } catch (error: any) {
-    console.error('Error in PUT /api/member/rdu/files:', error)
-    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการแก้ไขไฟล์' }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error in PUT /api/member/rdu/files')
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขไฟล์') }, { status: 500 })
   }
 }
 
@@ -121,8 +123,8 @@ export async function DELETE(request: Request) {
     }
 
     return NextResponse.json({ success: true, message: 'ลบไฟล์เรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Error in DELETE /api/member/rdu/files:', error)
-    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบไฟล์' }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error in DELETE /api/member/rdu/files')
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบไฟล์') }, { status: 500 })
   }
 }

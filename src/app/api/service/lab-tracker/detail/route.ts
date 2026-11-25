@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       success: true,
       ...details,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'HPH Lab Tracker Detail API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียดผล LAB' },

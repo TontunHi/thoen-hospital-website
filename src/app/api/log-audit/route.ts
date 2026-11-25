@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
@@ -24,8 +25,8 @@ export async function POST(request: Request) {
     )
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    console.error('Audit log API error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Audit log API error')
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

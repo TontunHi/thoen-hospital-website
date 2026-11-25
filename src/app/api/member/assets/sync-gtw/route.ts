@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/roles'
 import { hospitalAssetService } from '@/lib/assets/assetService'
 import { logAudit } from '@/lib/audit'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 // POST: Trigger GTW sync to hospital_assets
 export async function POST(request: Request) {
@@ -26,9 +27,9 @@ export async function POST(request: Request) {
       message: `ซิงค์ข้อมูลจาก GTW เรียบร้อยแล้ว (เพิ่มใหม่: ${result.inserted}, ปรับปรุง: ${result.updated})`,
       data: result,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการซิงค์ข้อมูลจาก GTW: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการซิงค์ข้อมูลจาก GTW: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }

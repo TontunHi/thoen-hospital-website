@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/roles'
-import { hospitalAssetService } from '@/lib/assets/assetService'
+import { hospitalAssetService, type AssetFilterOptions } from '@/lib/assets/assetService'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const CreateAssetSchema = z.object({
   articleNum: z.string().min(1, 'กรุณาระบุเลขครุภัณฑ์'),
@@ -43,8 +44,8 @@ export async function GET(request: Request) {
     const status = searchParams.get('status') || undefined
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
-    const sortBy = (searchParams.get('sortBy') as any) || 'receivedDate'
-    const sortOrder = (searchParams.get('sortOrder') as any) || 'desc'
+    const sortBy = (searchParams.get('sortBy') as AssetFilterOptions['sortBy']) || 'receivedDate'
+    const sortOrder = (searchParams.get('sortOrder') as AssetFilterOptions['sortOrder']) || 'desc'
 
     const result = await hospitalAssetService.getAssets({
       search,
@@ -63,9 +64,9 @@ export async function GET(request: Request) {
       data: result.items,
       pagination: result.pagination,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลครุภัณฑ์: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลครุภัณฑ์: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }
@@ -113,9 +114,9 @@ export async function POST(request: Request) {
       message: 'บันทึกข้อมูลครุภัณฑ์สำเร็จ',
       data: created,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการเพิ่มครุภัณฑ์: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการเพิ่มครุภัณฑ์: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }

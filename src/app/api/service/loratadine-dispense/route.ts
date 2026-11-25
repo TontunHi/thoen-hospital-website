@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { ClinicalRecordsService } from '@/lib/clinical/clinicalRecordsService'
 import { verifyMemberSession, attachRenewedMemberSessionCookie } from '@/lib/memberAuth'
 import { logThrottledAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
@@ -32,8 +33,8 @@ export async function GET(request: Request) {
     })
 
     return attachRenewedMemberSessionCookie(response, memberSession)
-  } catch (error: any) {
-    console.error('Loratadine Dispense API Error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Loratadine Dispense API Error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลการจ่ายยาจากระบบหลัก' },
       { status: 500 }

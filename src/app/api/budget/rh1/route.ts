@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { Rh1BudgetService, THOEN_HOSPITAL_CODE, PeerScope } from '@/lib/budget/rh1BudgetService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(request: Request) {
   const session = await verifyMemberSession()
@@ -52,9 +53,9 @@ export async function GET(request: Request) {
         summary,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: error?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลงบประมาณ' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลงบประมาณ') } },
       { status: 500 }
     )
   }

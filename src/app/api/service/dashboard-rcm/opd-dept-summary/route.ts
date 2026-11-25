@@ -34,7 +34,6 @@ export async function GET(request: Request) {
     const defaultRange = getDefaultFiscalYearDateRange()
     const ds1 = validation.data.ds1 || defaultRange.startDate
     const ds2 = validation.data.ds2 || defaultRange.endDate
-    const spclty = validation.data.spclty
 
     logThrottledAudit(
       'READ',

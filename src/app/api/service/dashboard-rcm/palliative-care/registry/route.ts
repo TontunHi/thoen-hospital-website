@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedMember } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { PalliativeRegistryService } from '@/lib/clinical/palliativeRegistryService'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const createSchema = z.object({
   hn: z.string().min(1, 'กรุณาระบุ HN'),
@@ -34,16 +35,11 @@ const createSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const member = await getAuthenticatedMember()
-    if (!member) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Unauthorized: กรุณาเข้าสู่ระบบสมาชิกเพื่อดูข้อมูลทะเบียน Palliative Care',
-        },
-        { status: 401 }
-      )
+    const auth = await requireMemberApi()
+    if (auth.error) {
+      return auth.error
     }
+    const { member } = auth
 
     const canView =
       member.isAdmin ||
@@ -123,12 +119,12 @@ export async function GET(req: NextRequest) {
         },
       }
     )
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'GET /api/service/dashboard-rcm/palliative-care/registry Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'GET /api/service/dashboard-rcm/palliative-care/registry Error')
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลทะเบียน Palliative Care',
+        error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลทะเบียน Palliative Care'),
       },
       { status: 500 }
     )
@@ -137,13 +133,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const member = await getAuthenticatedMember()
-    if (!member) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
+    const auth = await requireMemberApi()
+    if (auth.error) {
+      return auth.error
     }
+    const { member } = auth
 
     const canEdit =
       member.isAdmin ||
@@ -178,8 +172,8 @@ export async function POST(req: NextRequest) {
       success: true,
       data: created,
     })
-  } catch (error: any) {
-    const errorMsg = error?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+  } catch (error: unknown) {
+    const errorMsg = getErrorMessage(error, 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
     const isConflict = errorMsg.includes('มีข้อมูลในทะเบียน') || errorMsg.includes('ห้ามลงข้อมูลซ้ำ')
     logger.error({ error: errorMsg }, 'POST /api/service/dashboard-rcm/palliative-care/registry Error')
     return NextResponse.json(

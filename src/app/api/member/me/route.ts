@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
+import { logger } from '@/lib/logger'
 
 export async function GET() {
   try {
@@ -31,8 +32,8 @@ export async function GET() {
         canCreateWork
       },
     })
-  } catch (error: any) {
-    console.error('Member me route error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Member me route error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการตรวจสอบเซสชัน' },
       { status: 500 }

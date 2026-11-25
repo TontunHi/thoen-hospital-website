@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { smartCardBridgeHub } from '@/lib/screening/smartCardBridgeHub'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const cardSchema = z.object({
   cid: z.string().min(13),
@@ -51,9 +52,9 @@ export async function POST(req: NextRequest) {
 
     const result = smartCardBridgeHub.handlePush(parsed.data)
     return NextResponse.json({ success: result.success })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: err.message || 'Error processing bridge push' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: getErrorMessage(err, 'Error processing bridge push') } },
       { status: 500 }
     )
   }

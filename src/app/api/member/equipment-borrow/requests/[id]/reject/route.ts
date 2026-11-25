@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const RejectSchema = z.object({
   reason: z.string().min(1, 'กรุณาระบุเหตุผลในการไม่อนุมัติ'),
@@ -32,7 +33,7 @@ export async function POST(
     })
 
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.issues[0]?.message || 'ข้อมูลไม่ถูกต้อง' },
@@ -40,7 +41,7 @@ export async function POST(
       )
     }
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการปฏิเสธคำขอ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการปฏิเสธคำขอ') },
       { status: 400 }
     )
   }

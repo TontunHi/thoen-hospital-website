@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const CreateMaterialSchema = z.object({
   name: z.string().min(1, 'กรุณาระบุชื่อวัสดุ'),
@@ -40,9 +41,9 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการโหลดรายการวัสดุ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการโหลดรายการวัสดุ') },
       { status: 500 }
     )
   }
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ success: true, data: material }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.issues[0]?.message || 'ข้อมูลไม่ถูกต้อง' },
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
       )
     }
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการสร้างวัสดุ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการสร้างวัสดุ') },
       { status: 500 }
     )
   }

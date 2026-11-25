@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET } from '../route'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 vi.mock('@/lib/memberAuth', () => ({
-  getAuthenticatedMember: vi.fn(),
+  requireMemberApi: vi.fn(),
 }))
 
 vi.mock('@/lib/clinical/palliativeRegistryService', () => ({
@@ -16,7 +16,7 @@ vi.mock('@/lib/audit', () => ({
   logThrottledAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { getAuthenticatedMember } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { PalliativeRegistryService } from '@/lib/clinical/palliativeRegistryService'
 
 describe('Palliative Registry [id] API Route GET', () => {
@@ -25,17 +25,21 @@ describe('Palliative Registry [id] API Route GET', () => {
   })
 
   it('GET returns 401 when unauthenticated', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue(null as any)
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      error: NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 }),
+    } as any)
     const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry/1')
     const res = await GET(req, { params: Promise.resolve({ id: '1' }) })
     expect(res.status).toBe(401)
   })
 
   it('GET returns 403 when member lacks palliative registry permissions', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: false,
-      role: 'member',
-      can: vi.fn().mockReturnValue(false),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: false,
+        role: 'member',
+        can: vi.fn().mockReturnValue(false),
+      },
     } as any)
     const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry/1')
     const res = await GET(req, { params: Promise.resolve({ id: '1' }) })
@@ -43,15 +47,17 @@ describe('Palliative Registry [id] API Route GET', () => {
   })
 
   it('GET returns 200 when member has view_palliative_registry permission', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: false,
-      username: 'viewer_pc',
-      role: 'member',
-      email: 'viewer_pc@hospital.local',
-      can: vi.fn((perms: string | string[]) => {
-        const list = Array.isArray(perms) ? perms : [perms]
-        return list.includes('view_palliative_registry')
-      }),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: false,
+        username: 'viewer_pc',
+        role: 'member',
+        email: 'viewer_pc@hospital.local',
+        can: vi.fn((perms: string | string[]) => {
+          const list = Array.isArray(perms) ? perms : [perms]
+          return list.includes('view_palliative_registry')
+        }),
+      },
     } as any)
     vi.mocked(PalliativeRegistryService.getRegistryById).mockResolvedValue({
       id: 1,

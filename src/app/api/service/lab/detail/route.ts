@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { ClinicalRecordsService } from '@/lib/clinical/clinicalRecordsService'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
@@ -45,8 +46,8 @@ export async function GET(request: Request) {
     )
 
     return NextResponse.json(details)
-  } catch (error: any) {
-    console.error('Patient detail API error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Patient detail API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียด' },
       { status: 500 }

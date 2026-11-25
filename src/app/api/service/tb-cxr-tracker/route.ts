@@ -3,6 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { verifyMemberSession, attachRenewedMemberSessionCookie } from '@/lib/memberAuth'
 import { logThrottledAudit } from '@/lib/audit'
 import { getCachedData } from '@/lib/cache'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,12 +36,25 @@ export async function GET(request: Request) {
       15_000
     )
 
-    let rows: any[] = []
+    interface TbCxrRow {
+      cxr_status?: string
+      status?: string
+      [key: string]: unknown
+    }
+    interface TbCxrSummary {
+      total: number
+      doneCount: number
+      missingCount: number
+      coveragePercentage: number
+      statusBreakdown: Record<string, number>
+    }
+
+    let rows: TbCxrRow[] = []
     let count = 0
-    let summary: any = null
+    let summary: TbCxrSummary | null = null
 
     if (Array.isArray(result)) {
-      rows = result
+      rows = result as TbCxrRow[]
       count = rows.length
       let done = 0
       let missing = 0
@@ -59,9 +73,15 @@ export async function GET(request: Request) {
         statusBreakdown: breakdown
       }
     } else if (result && typeof result === 'object') {
-      rows = (result as any).items || (result as any).data || []
-      count = (result as any).count ?? rows.length
-      summary = (result as any).summary ?? null
+      const objResult = result as {
+        items?: TbCxrRow[]
+        data?: TbCxrRow[]
+        count?: number
+        summary?: TbCxrSummary | null
+      }
+      rows = objResult.items || objResult.data || []
+      count = objResult.count ?? rows.length
+      summary = objResult.summary ?? null
     }
 
     await logThrottledAudit(
@@ -79,8 +99,8 @@ export async function GET(request: Request) {
     })
 
     return attachRenewedMemberSessionCookie(response, memberSession)
-  } catch (error: any) {
-    console.error('TB CXR Tracker API Error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'TB CXR Tracker API Error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการดึงข้อมูลการติดตาม CXR จาก API Gateway' },
       { status: 500 }

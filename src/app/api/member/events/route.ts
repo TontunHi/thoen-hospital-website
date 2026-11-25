@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const eventService = new HospitalEventService()
 
@@ -55,9 +56,9 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'ไม่สามารถดึงข้อมูลกิจกรรมได้' },
+      { success: false, error: getErrorMessage(error, 'ไม่สามารถดึงข้อมูลกิจกรรมได้') },
       { status: 500 }
     )
   }
@@ -95,9 +96,9 @@ export async function POST(request: Request) {
     const event = await eventService.createEvent(parsed.data, actor)
 
     return NextResponse.json({ success: true, data: event })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการสร้างกิจกรรม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการสร้างกิจกรรม') },
       { status: 400 }
     )
   }

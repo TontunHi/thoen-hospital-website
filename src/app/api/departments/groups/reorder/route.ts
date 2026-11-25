@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const reorderGroupsSchema = z.object({
   groupIds: z.array(z.coerce.number().int()).min(1, 'ต้องมีรหัสกลุ่มงานอย่างน้อย 1 รายการ'),
@@ -27,9 +28,9 @@ export async function PATCH(request: Request) {
     })
 
     return NextResponse.json({ success: true, message: 'บันทึกลำดับกลุ่มงานสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการจัดลำดับกลุ่มงาน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการจัดลำดับกลุ่มงาน') },
       { status: 500 }
     )
   }

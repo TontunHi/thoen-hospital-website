@@ -5,6 +5,7 @@ import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
 import { toDbSqlDateTime } from '@/lib/events/eventTimeUtils'
+import { logger } from '@/lib/logger'
 
 interface RouteProps {
   params: Promise<{ id: string }>
@@ -38,8 +39,8 @@ export async function DELETE(request: Request, props: RouteProps) {
     )
 
     return NextResponse.json({ success: true, message: 'ลบสไลด์ภาพเรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Delete slide error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Delete slide error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการลบสไลด์ภาพ' },
       { status: 500 }
@@ -98,8 +99,8 @@ export async function PUT(request: Request, props: RouteProps) {
     )
 
     return NextResponse.json({ success: true, slide })
-  } catch (error: any) {
-    console.error('Update slide error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Update slide error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการแก้ไขสไลด์ภาพ' },
       { status: 500 }

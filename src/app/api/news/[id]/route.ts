@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { apiGateway } from '@/lib/apiGateway'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
-import { adaptNewsItem } from '../route'
+import { adaptNewsItem, type RawNewsItem } from '../route'
 import {
   buildNewsAttachmentsPayload,
   calculateNewsDates,
@@ -16,8 +16,12 @@ export async function GET(
 ) {
   try {
     const { id } = await ctx.params
-    const rawRes: any = await apiGateway.app.getNewsById(id)
-    const news = rawRes?.data || rawRes
+    const rawRes: unknown = await apiGateway.app.getNewsById(id)
+    const news = (
+      rawRes && typeof rawRes === 'object' && 'data' in rawRes
+        ? (rawRes as { data?: RawNewsItem | null }).data
+        : (rawRes as RawNewsItem | null)
+    )
     if (!news || !news.id) {
       return NextResponse.json({ error: 'ไม่พบข่าวที่ต้องการ' }, { status: 404 })
     }

@@ -2,6 +2,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import crypto from 'crypto'
 import { logger } from '@/lib/logger'
 import { logAudit } from '@/lib/audit'
+import { safeJsonParse } from '@/lib/utils/safeJson'
 
 export interface TelegramLinkStatus {
   isLinked: boolean
@@ -113,13 +114,16 @@ export async function sendTelegramMessage(
     }
 
     return { success: true, result: data.result }
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
       logger.error('Telegram sendMessage request timed out')
       return { success: false, error: 'Telegram request timed out' }
     }
     logger.error({ err }, 'Error sending Telegram message')
-    return { success: false, error: err?.message || 'Unknown error sending Telegram message' }
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error sending Telegram message',
+    }
   } finally {
     clearTimeout(timeoutId)
   }
@@ -489,14 +493,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
         return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: 'Already cancelled' }
       }
 
-      let coWorkers: any[] = []
-      try {
-        coWorkers = repair?.co_workers
-          ? typeof repair.co_workers === 'string'
-            ? JSON.parse(repair.co_workers)
-            : repair.co_workers
-          : []
-      } catch {}
+      const coWorkers = safeJsonParse<any[]>(repair?.co_workers, [])
 
       const isAssignee =
         task.current_assignee === currentMember.id || repair?.assigned_technician_id === currentMember.id

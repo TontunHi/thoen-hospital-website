@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { OnlineMediaService } from '@/lib/media/onlineMediaService'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (error) {
-    console.error('Fetch online media list error:', error)
+    logger.error({ error }, 'Fetch online media list error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการโหลดคลังสื่อออนไลน์' },
       { status: 500 }

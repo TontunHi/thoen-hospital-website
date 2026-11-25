@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getAuthenticatedMember } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { PalliativeRegistryService } from '@/lib/clinical/palliativeRegistryService'
 import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const updateSchema = z.object({
   hn: z.string().optional(),
@@ -37,13 +38,11 @@ interface RouteParams {
 
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
-    const member = await getAuthenticatedMember()
-    if (!member) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: กรุณาเข้าสู่ระบบสมาชิก' },
-        { status: 401 }
-      )
+    const auth = await requireMemberApi()
+    if (auth.error) {
+      return auth.error
     }
+    const { member } = auth
 
     const canView =
       member.isAdmin ||
@@ -72,10 +71,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     }
 
     return NextResponse.json({ success: true, data: item })
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'GET [id] Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'GET [id] Error')
     return NextResponse.json(
-      { success: false, error: error?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูล') },
       { status: 500 }
     )
   }
@@ -83,13 +82,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
 export async function PUT(req: NextRequest, { params }: RouteParams) {
   try {
-    const member = await getAuthenticatedMember()
-    if (!member) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
+    const auth = await requireMemberApi()
+    if (auth.error) {
+      return auth.error
     }
+    const { member } = auth
 
     const canEdit =
       member.isAdmin ||
@@ -128,10 +125,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     )
 
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'PUT [id] Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'PUT [id] Error')
     return NextResponse.json(
-      { success: false, error: error?.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล') },
       { status: 500 }
     )
   }
@@ -139,13 +136,11 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
-    const member = await getAuthenticatedMember()
-    if (!member) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
+    const auth = await requireMemberApi()
+    if (auth.error) {
+      return auth.error
     }
+    const { member } = auth
 
     const canManage =
       member.isAdmin || member.can('manage_palliative_registry')
@@ -169,10 +164,10 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     )
 
     return NextResponse.json({ success: true, message: 'ลบข้อมูลเรียบร้อยแล้ว' })
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'DELETE [id] Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'DELETE [id] Error')
     return NextResponse.json(
-      { success: false, error: error?.message || 'เกิดข้อผิดพลาดในการลบข้อมูล' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบข้อมูล') },
       { status: 500 }
     )
   }

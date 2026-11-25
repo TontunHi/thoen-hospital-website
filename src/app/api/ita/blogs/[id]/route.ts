@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
+import { sanitizeRichHtml } from '@/lib/cms/htmlSanitizer'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 const UpdateBlogSchema = z.object({
   title: z.string().min(1, 'กรุณากรอกชื่อเรื่อง').max(255, 'ชื่อเรื่องยาวเกินไป'),
@@ -46,8 +48,8 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data: blog })
-  } catch (error: any) {
-    console.error('Failed to fetch ITA blog details:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to fetch ITA blog details')
     return NextResponse.json(
       { success: false, error: { code: 'SERVER_ERROR', message: 'เกิดข้อผิดพลาดภายในระบบ' } },
       { status: 500 }
@@ -88,7 +90,7 @@ export async function PUT(
     }
 
     const members = await apiGateway.app.getMembers({ search: session.username, limit: 5 })
-    const member = members.find((m: any) => m.username === session.username)
+    const member = members.find((m) => m.username === session.username)
 
     if (!member) {
       return NextResponse.json(
@@ -116,13 +118,14 @@ export async function PUT(
     }
 
     const { title, content } = parsed.data
+    const sanitizedContent = sanitizeRichHtml(content)
     const slug = generateSlug(title)
 
-    await apiGateway.app.updateItaBlog(id, { title, slug, content })
+    await apiGateway.app.updateItaBlog(id, { title, slug, content: sanitizedContent })
 
     return NextResponse.json({ success: true, message: 'แก้ไขบทความสำเร็จแล้ว' })
-  } catch (error: any) {
-    console.error('Failed to update ITA blog:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to update ITA blog')
     return NextResponse.json(
       { success: false, error: { code: 'SERVER_ERROR', message: 'เกิดข้อผิดพลาดในการแก้ไขบทความ' } },
       { status: 500 }
@@ -163,7 +166,7 @@ export async function DELETE(
     }
 
     const members = await apiGateway.app.getMembers({ search: session.username, limit: 5 })
-    const member = members.find((m: any) => m.username === session.username)
+    const member = members.find((m) => m.username === session.username)
 
     if (!member) {
       return NextResponse.json(
@@ -183,8 +186,8 @@ export async function DELETE(
     await apiGateway.app.deleteItaBlog(id)
 
     return NextResponse.json({ success: true, message: 'ลบบทความสำเร็จแล้ว' })
-  } catch (error: any) {
-    console.error('Failed to delete ITA blog:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to delete ITA blog')
     return NextResponse.json(
       { success: false, error: { code: 'SERVER_ERROR', message: 'เกิดข้อผิดพลาดในการลบบทความ' } },
       { status: 500 }

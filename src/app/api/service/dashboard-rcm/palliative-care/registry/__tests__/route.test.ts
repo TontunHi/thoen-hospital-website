@@ -3,7 +3,7 @@ import { GET, POST } from '../route'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/memberAuth', () => ({
-  getAuthenticatedMember: vi.fn(),
+  requireMemberApi: vi.fn(),
 }))
 
 vi.mock('@/lib/clinical/palliativeRegistryService', () => ({
@@ -17,7 +17,8 @@ vi.mock('@/lib/audit', () => ({
   logThrottledAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { getAuthenticatedMember } from '@/lib/memberAuth'
+import { NextResponse } from 'next/server'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { PalliativeRegistryService } from '@/lib/clinical/palliativeRegistryService'
 
 describe('Palliative Care Registry API Route', () => {
@@ -26,7 +27,9 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('GET returns 401 when unauthenticated', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue(null as any)
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      error: NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 }),
+    } as any)
 
     const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry')
     const res = await GET(req)
@@ -37,10 +40,12 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('GET returns 403 when user has no permission', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: false,
-      role: 'guest',
-      can: vi.fn().mockReturnValue(false),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: false,
+        role: 'guest',
+        can: vi.fn().mockReturnValue(false),
+      },
     } as any)
 
     const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry')
@@ -52,12 +57,14 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('GET returns data and permissions for authorized user', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: true,
-      username: 'admin',
-      role: 'admin',
-      email: 'admin@thoen.moph.go.th',
-      can: vi.fn().mockReturnValue(true),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: true,
+        username: 'admin',
+        role: 'admin',
+        email: 'admin@thoen.moph.go.th',
+        can: vi.fn().mockReturnValue(true),
+      },
     } as any)
 
     vi.mocked(PalliativeRegistryService.listRegistries).mockResolvedValue({
@@ -93,12 +100,14 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('GET passes forceSync=true when refresh=true query param is present', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: true,
-      username: 'admin',
-      role: 'admin',
-      email: 'admin@thoen.moph.go.th',
-      can: vi.fn().mockReturnValue(true),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: true,
+        username: 'admin',
+        role: 'admin',
+        email: 'admin@thoen.moph.go.th',
+        can: vi.fn().mockReturnValue(true),
+      },
     } as any)
 
     vi.mocked(PalliativeRegistryService.listRegistries).mockResolvedValue({
@@ -122,9 +131,11 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('POST returns 400 on invalid input', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: true,
-      can: vi.fn().mockReturnValue(true),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: true,
+        can: vi.fn().mockReturnValue(true),
+      },
     } as any)
 
     const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry', {
@@ -139,11 +150,13 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('POST creates new record when authorized and valid', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: false,
-      username: 'nurse_joy',
-      name: 'พว. จอย',
-      can: vi.fn().mockImplementation((perm) => perm === 'edit_palliative_registry'),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: false,
+        username: 'nurse_joy',
+        name: 'พว. จอย',
+        can: vi.fn().mockImplementation((perm) => perm === 'edit_palliative_registry'),
+      },
     } as any)
 
     vi.mocked(PalliativeRegistryService.createRegistry).mockResolvedValue({
@@ -169,9 +182,11 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('POST returns 409 when duplicate patient is registered', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue({
-      isAdmin: true,
-      can: vi.fn().mockReturnValue(true),
+    vi.mocked(requireMemberApi).mockResolvedValue({
+      member: {
+        isAdmin: true,
+        can: vi.fn().mockReturnValue(true),
+      },
     } as any)
 
     vi.mocked(PalliativeRegistryService.createRegistry).mockRejectedValue(

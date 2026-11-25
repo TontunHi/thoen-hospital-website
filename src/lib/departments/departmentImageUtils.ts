@@ -1,5 +1,6 @@
 import path from 'path'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
+import { logger } from '@/lib/logger'
 
 /**
  * Resolves a member's profile image path to a public URL.
@@ -32,8 +33,8 @@ export async function resolvePublicProfilePath(
         allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
       })
       return saved.publicUrl
-    } catch (err: any) {
-      console.warn(`Failed to resolve storage profile image for "${rawPath}":`, err?.message || err)
+    } catch (err: unknown) {
+      logger.warn({ rawPath, err }, 'Failed to resolve storage profile image')
       return null
     }
   }

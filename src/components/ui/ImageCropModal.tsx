@@ -578,7 +578,7 @@ export default function ImageCropModal({
     const deltaY_rel = deltaY_px / dragAction.layout.displayH
     const init = dragAction.initialCrop
 
-    let nextCrop = { ...init }
+    const nextCrop = { ...init }
 
     if (dragAction.type === 'move') {
       // Moving whole crop box

@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'All salary API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสลิปเงินเดือน' },

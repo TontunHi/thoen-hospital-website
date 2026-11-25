@@ -1,22 +1,17 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { logger } from './logger'
-import { MemberAuthService } from './auth/MemberAuthService'
+import {
+  MemberAuthService,
+  SESSION_MAX_AGE,
+  ABSOLUTE_MAX_AGE,
+  verifySignedMemberToken,
+} from './auth/MemberAuthService'
 import { getSwrCachedData } from './cache'
 
-function getSecret(): string {
-  const secret = process.env.MEMBER_SESSION_SECRET
-  if (!secret) {
-    throw new Error('MEMBER_SESSION_SECRET environment variable is required')
-  }
-  return secret
-}
-
 export const COOKIE_NAME = 'member_session'
-export const SESSION_MAX_AGE = 1800 // 30 minutes in seconds
-export const ABSOLUTE_MAX_AGE = 43200 // 12 hours in seconds (hard limit cap)
+export { SESSION_MAX_AGE, ABSOLUTE_MAX_AGE }
 export const SLIDE_THRESHOLD = 900 // Slide/renew if token has aged >= 15 minutes (or < 15 mins remaining)
 
 export interface MemberSessionPayload {
@@ -127,59 +122,10 @@ export interface MemberAuthOptions {
   redirectTo?: string
 }
 
-function sign(value: string): string {
-  const hmac = crypto.createHmac('sha256', getSecret())
-  hmac.update(value)
-  return hmac.digest('hex')
-}
-
 const authService = new MemberAuthService()
 
-export function createToken(
-  payloadData: { username: string; email: string; role: string },
-  customIat?: number,
-  customExp?: number
-): string {
-  throw new Error("createToken is deprecated. Use MemberAuthService.buildSession instead.")
-}
-
 export function verifyToken(token: string): (MemberSessionPayload & { username: string; email: string; role: string }) | null {
-  try {
-    const [encoded, signature] = token.split('.')
-    if (!encoded || !signature) return null
-
-    const expectedSignature = sign(encoded)
-
-    const sigBuffer = Buffer.from(signature, 'hex')
-    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
-    if (sigBuffer.length !== expectedBuffer.length) return null
-    if (!crypto.timingSafeEqual(sigBuffer, expectedBuffer)) return null
-
-    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
-
-    if (payload.aud !== 'member') return null
-    
-    const now = Date.now()
-    // Check 30-minute inactivity expiration
-    if (payload.exp < now) return null
-
-    // Check 12-hour absolute session cap (if iat is present)
-    const iat = typeof payload.iat === 'number' ? payload.iat : payload.exp - SESSION_MAX_AGE * 1000
-    if (now - iat > ABSOLUTE_MAX_AGE * 1000) {
-      return null
-    }
-
-    return {
-      username: payload.username,
-      email: payload.email,
-      role: payload.role || 'member',
-      aud: payload.aud,
-      iat,
-      exp: payload.exp,
-    }
-  } catch {
-    return null
-  }
+  return verifySignedMemberToken(token) as (MemberSessionPayload & { username: string; email: string; role: string }) | null
 }
 
 /**
@@ -195,13 +141,6 @@ export function shouldRenewSession(payload: { iat: number; exp: number }): boole
   // Renew if remaining validity is less than SLIDE_THRESHOLD (e.g. 15 minutes)
   const remainingSeconds = Math.floor((payload.exp - now) / 1000)
   return remainingSeconds <= SLIDE_THRESHOLD
-}
-
-/**
- * Generates a renewed token preserving the original `iat` while extending `exp` by SESSION_MAX_AGE.
- */
-export function renewToken(payload: { username: string; email: string; role: string; iat: number }): string {
-  throw new Error("renewToken is deprecated. Use MemberAuthService.buildSession instead.")
 }
 
 export async function createMemberSession(

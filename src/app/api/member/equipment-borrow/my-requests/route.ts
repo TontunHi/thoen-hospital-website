@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 /**
  * Task-based Route: Fetch Current Member's Borrow Requests
@@ -23,9 +24,9 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการโหลดคำขอยืมของฉัน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการโหลดคำขอยืมของฉัน') },
       { status: 500 }
     )
   }

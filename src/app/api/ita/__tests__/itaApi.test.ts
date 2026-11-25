@@ -81,6 +81,38 @@ describe('ITA Blogs API Routes (Named Gateway Integration)', () => {
     )
   })
 
+  it('POST /api/ita/blogs sanitizes malicious XSS payloads in HTML content', async () => {
+    vi.mocked(verifyMemberSession).mockResolvedValue({
+      id: 5,
+      username: 'somchai',
+      role: 'member',
+      email: 'somchai@hospital.go.th',
+    } as any)
+
+    vi.mocked(apiGateway.app.getMembers).mockResolvedValue([
+      { id: 5, username: 'somchai', name: 'สมชาย ใจดี', position: 'นักวิชาการคอมพิวเตอร์' }
+    ])
+
+    vi.mocked(apiGateway.app.createItaBlog).mockResolvedValue({ success: true, id: 100 })
+
+    const req = new Request('http://localhost:3000/api/ita/blogs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'ITA 2569 Safe Check',
+        content: '<p>เนื้อหา</p><script>alert(1)</script><a href="javascript:alert(2)">link</a>',
+      }),
+    })
+
+    const res = await createBlog(req)
+    expect(res.status).toBe(200)
+    expect(apiGateway.app.createItaBlog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: '<p>เนื้อหา</p><a>link</a>',
+      })
+    )
+  })
+
   it('GET /api/ita/blogs/[id] returns single blog', async () => {
     vi.mocked(apiGateway.app.getItaBlogById).mockResolvedValue({
       id: 10,

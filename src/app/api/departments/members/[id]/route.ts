@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const updateMemberSchema = z.object({
   name: z.string().trim().min(1, 'กรุณาระบุชื่อ-นามสกุล').max(255).optional(),
@@ -42,9 +43,9 @@ export async function PUT(
     })
 
     return NextResponse.json({ success: true, message: 'อัปเดตข้อมูลสมาชิกสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลสมาชิก' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลสมาชิก') },
       { status: 500 }
     )
   }
@@ -70,9 +71,9 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true, message: 'ลบสมาชิกสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบสมาชิก' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบสมาชิก') },
       { status: 400 }
     )
   }

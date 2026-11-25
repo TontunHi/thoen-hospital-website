@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import EventDetailClient from '../EventDetailClient'
 
 vi.mock('qrcode', () => ({
@@ -110,6 +110,8 @@ describe('EventDetailClient - Member Photo Upload & Permissions', () => {
     // Once modal is open, modal submit button is present (along with the trigger buttons)
     const allUploadBtns = screen.getAllByRole('button', { name: /อัปโหลดภาพกิจกรรม/i })
     expect(allUploadBtns.length).toBe(3)
+
+    await act(async () => {})
   })
 
   it('allows regular member to delete only their own uploaded photo', async () => {
@@ -132,6 +134,8 @@ describe('EventDetailClient - Member Photo Upload & Permissions', () => {
     // Check delete buttons: only 1 delete button should be visible (for my photo)
     const deleteButtons = screen.getAllByTitle('ลบรูปภาพ')
     expect(deleteButtons).toHaveLength(1)
+
+    await act(async () => {})
   })
 
   it('allows organizer to see full management controls and delete all attachments', async () => {
@@ -167,6 +171,8 @@ describe('EventDetailClient - Member Photo Upload & Permissions', () => {
     expect(screen.getByText('📄 เอกสาร/PDF')).toBeDefined()
     expect(screen.getByText('📝 ข้อความบันทึก')).toBeDefined()
     expect(screen.getByRole('button', { name: /บันทึกสิ่งที่แนบ/i })).toBeDefined()
+
+    await act(async () => {})
   })
 
   it('renders print standee sheet and triggers window.print when clicking "พิมพ์ป้ายตั้งหน้างาน"', async () => {
@@ -199,9 +205,10 @@ describe('EventDetailClient - Member Photo Upload & Permissions', () => {
     expect(window.print).toHaveBeenCalledTimes(1)
 
     window.print = originalPrint
+    await act(async () => {})
   })
 
-  it('opens the attachments tab directly when initialTab is "attachments"', () => {
+  it('opens the attachments tab directly when initialTab is "attachments"', async () => {
     render(
       <EventDetailClient
         event={baseEvent}
@@ -215,5 +222,7 @@ describe('EventDetailClient - Member Photo Upload & Permissions', () => {
     expect(attachTabBtn).toHaveClass('active')
     expect(screen.getByText('ภาพจากเพื่อนร่วมงาน')).toBeInTheDocument()
     expect(document.getElementById('attachments-section')).toBeInTheDocument()
+
+    await act(async () => {})
   })
 })

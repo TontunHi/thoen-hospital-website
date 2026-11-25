@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { registrationService } from '@/lib/registration/registrationService.default'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,7 @@ export async function GET(request: Request, props: RouteParams) {
 
     return NextResponse.json({ success: true, data: registration })
   } catch (err) {
-    console.error('Get registration error:', err)
+    logger.error({ err }, 'Get registration error')
     return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' }, { status: 500 })
   }
 }
@@ -54,7 +55,7 @@ export async function PUT(request: Request, props: RouteParams) {
 
     return NextResponse.json({ success: true, message: 'บันทึกการแก้ไขเรียบร้อยแล้ว' })
   } catch (err) {
-    console.error('Update registration error:', err)
+    logger.error({ err }, 'Update registration error')
     return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' }, { status: 500 })
   }
 }
@@ -81,7 +82,7 @@ export async function DELETE(request: Request, props: RouteParams) {
 
     return NextResponse.json({ success: true, message: 'ลบคำขอสมัครเรียบร้อยแล้ว' })
   } catch (err) {
-    console.error('Delete registration error:', err)
+    logger.error({ err }, 'Delete registration error')
     return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการลบคำขอ' }, { status: 500 })
   }
 }

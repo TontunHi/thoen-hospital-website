@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const createGroupSchema = z.object({
   name: z.string().trim().min(1, 'กรุณาระบุชื่อกลุ่มงาน').max(200),
@@ -13,9 +14,9 @@ export async function GET() {
   try {
     const tree = await departmentService.getGroupTree()
     return NextResponse.json({ success: true, data: tree })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลกลุ่มงาน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลกลุ่มงาน') },
       { status: 500 }
     )
   }
@@ -41,9 +42,9 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ success: true, data: group }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการสร้างกลุ่มงาน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการสร้างกลุ่มงาน') },
       { status: 500 }
     )
   }

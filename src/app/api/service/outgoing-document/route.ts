@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
+import { logger } from '@/lib/logger'
 
 export async function GET() {
   try {
@@ -23,8 +24,8 @@ export async function GET() {
       canManage,
       documents
     })
-  } catch (error: any) {
-    console.error('Fetch outgoing documents error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Fetch outgoing documents error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลหนังสือส่งออก' }, { status: 500 })
   }
 }

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
+import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 // GET: List all folders with their files for the manager
 export async function GET() {
@@ -11,8 +13,8 @@ export async function GET() {
 
     const folders = await apiGateway.app.getRduTree({ includeInactive: true })
     return NextResponse.json({ success: true, folders })
-  } catch (error: any) {
-    console.error('Error in GET /api/member/rdu/folders:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error in GET /api/member/rdu/folders')
     return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการดึงข้อมูลโฟลเดอร์' }, { status: 500 })
   }
 }
@@ -33,9 +35,9 @@ export async function POST(request: Request) {
     await DocumentStorage.createDirectory(`public/documents/rdu/${sanitizedFolderName}`)
 
     return NextResponse.json({ success: true, message: 'สร้างโฟลเดอร์เรียบร้อยแล้ว', folderId: res.folderId })
-  } catch (error: any) {
-    console.error('Error in POST /api/member/rdu/folders:', error)
-    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการสร้างโฟลเดอร์' }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error in POST /api/member/rdu/folders')
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการสร้างโฟลเดอร์') }, { status: 500 })
   }
 }
 
@@ -69,9 +71,9 @@ export async function PUT(request: Request) {
     }
 
     return NextResponse.json({ success: true, message: res.message || 'แก้ไขชื่อโฟลเดอร์เรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Error in PUT /api/member/rdu/folders:', error)
-    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการแก้ไขโฟลเดอร์' }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error in PUT /api/member/rdu/folders')
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขโฟลเดอร์') }, { status: 500 })
   }
 }
 
@@ -93,8 +95,8 @@ export async function DELETE(request: Request) {
     }
 
     return NextResponse.json({ success: true, message: 'ลบโฟลเดอร์และไฟล์ทั้งหมดเรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Error in DELETE /api/member/rdu/folders:', error)
-    return NextResponse.json({ success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบโฟลเดอร์' }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error in DELETE /api/member/rdu/folders')
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบโฟลเดอร์') }, { status: 500 })
   }
 }

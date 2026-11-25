@@ -4,18 +4,22 @@ import { requireNewsPermission } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 import { logAudit } from '@/lib/audit'
 import { toDbSqlDateTime } from '@/lib/events/eventTimeUtils'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const all = searchParams.get('all') === 'true'
 
-    const res: any = await apiGateway.app.getSlides(all)
+    const res: unknown = await apiGateway.app.getSlides(all)
+    const objRes = (res && typeof res === 'object' && !Array.isArray(res))
+      ? (res as { slides?: unknown; data?: unknown; slideDuration?: unknown })
+      : null
     const slides = Array.isArray(res)
       ? res
-      : (Array.isArray(res?.slides) ? res.slides : (Array.isArray(res?.data) ? res.data : []))
-    const slideDuration = (!Array.isArray(res) && typeof res?.slideDuration === 'number')
-      ? res.slideDuration
+      : (Array.isArray(objRes?.slides) ? objRes.slides : (Array.isArray(objRes?.data) ? objRes.data : []))
+    const slideDuration = (objRes && typeof objRes.slideDuration === 'number')
+      ? objRes.slideDuration
       : 6
 
     return NextResponse.json({
@@ -23,8 +27,8 @@ export async function GET(request: Request) {
       slides,
       slideDuration,
     })
-  } catch (error: any) {
-    console.error('Fetch slides error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Fetch slides error')
     return NextResponse.json(
       { error: 'ไม่สามารถดึงข้อมูลสไลด์ภาพได้' },
       { status: 500 }
@@ -58,8 +62,8 @@ export async function PATCH(request: Request) {
     )
 
     return NextResponse.json({ success: true, slideDuration: res.slideDuration || durationNum })
-  } catch (error: any) {
-    console.error('Update slide duration error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Update slide duration error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการบันทึกการตั้งค่าความเร็วสไลด์' },
       { status: 500 }
@@ -115,8 +119,8 @@ export async function POST(request: Request) {
     )
 
     return NextResponse.json({ success: true, slide }, { status: 201 })
-  } catch (error: any) {
-    console.error('Create slide error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Create slide error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการบันทึกสไลด์ภาพ' },
       { status: 500 }

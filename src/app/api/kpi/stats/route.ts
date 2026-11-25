@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { KpiService } from '@/lib/kpi/kpiService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,9 +31,9 @@ export async function GET(req: NextRequest) {
       success: true,
       data: stats,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: err.message || 'เกิดข้อผิดพลาดในการคำนวณสถิติ' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: getErrorMessage(err, 'เกิดข้อผิดพลาดในการคำนวณสถิติ') } },
       { status: 500 }
     )
   }

@@ -16,15 +16,28 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import crypto from 'crypto'
 import path from 'path'
+import { logger } from '@/lib/logger'
 
-// Configuration with sensible defaults for Thoen Hospital Storage CT (192.168.1.24)
+// Fail-closed S3/MinIO configuration read from environment variables
 export const S3_CONFIG = {
-  endpoint: process.env.S3_ENDPOINT || 'http://192.168.1.24:9000',
-  region: process.env.S3_REGION || 'us-east-1',
-  accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
-  secretAccessKey: process.env.S3_SECRET_KEY || 'thlp@thoen',
-  publicBucket: process.env.S3_BUCKET_PUBLIC || 'public-assets',
-  privateBucket: process.env.S3_BUCKET_PRIVATE || 'private-documents',
+  get endpoint(): string {
+    return process.env.S3_ENDPOINT || ''
+  },
+  get region(): string {
+    return process.env.S3_REGION || 'us-east-1'
+  },
+  get accessKeyId(): string {
+    return process.env.S3_ACCESS_KEY || ''
+  },
+  get secretAccessKey(): string {
+    return process.env.S3_SECRET_KEY || ''
+  },
+  get publicBucket(): string {
+    return process.env.S3_BUCKET_PUBLIC || 'public-assets'
+  },
+  get privateBucket(): string {
+    return process.env.S3_BUCKET_PRIVATE || 'private-documents'
+  },
   forcePathStyle: true, // Crucial for MinIO/Silo S3 compatibility
 }
 
@@ -63,15 +76,19 @@ export function normalizeS3Key(key: string): string {
  * Get or initialize singleton S3 client.
  */
 export function getS3Client(): S3Client {
+  const { endpoint, region, accessKeyId, secretAccessKey, forcePathStyle } = S3_CONFIG
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error('S3_ENDPOINT, S3_ACCESS_KEY, and S3_SECRET_KEY environment variables are required')
+  }
   if (!s3ClientInstance) {
     s3ClientInstance = new S3Client({
-      endpoint: S3_CONFIG.endpoint,
-      region: S3_CONFIG.region,
+      endpoint,
+      region,
       credentials: {
-        accessKeyId: S3_CONFIG.accessKeyId,
-        secretAccessKey: S3_CONFIG.secretAccessKey,
+        accessKeyId,
+        secretAccessKey,
       },
-      forcePathStyle: S3_CONFIG.forcePathStyle,
+      forcePathStyle,
     })
   }
   return s3ClientInstance
@@ -279,8 +296,8 @@ export async function deleteFromS3(params: {
     })
     await client.send(command)
     return true
-  } catch (err) {
-    console.warn(`[S3] Failed to delete ${bucket}/${normalizedKey}:`, err)
+  } catch (err: unknown) {
+    logger.warn({ bucket, normalizedKey, err }, '[S3] Failed to delete object')
     return false
   }
 }
@@ -316,8 +333,9 @@ export async function checkMinioHealth(): Promise<{ healthy: boolean; error?: st
     const client = getS3Client()
     await client.send(new ListBucketsCommand({}))
     return { healthy: true, endpoint: S3_CONFIG.endpoint }
-  } catch (err: any) {
-    return { healthy: false, error: err?.message || String(err), endpoint: S3_CONFIG.endpoint }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { healthy: false, error: message, endpoint: S3_CONFIG.endpoint }
   }
 }
 
@@ -352,8 +370,9 @@ export async function ensureStorageBucketsExist(): Promise<{
       try {
         await client.send(new CreateBucketCommand({ Bucket: b.name }))
         created.push(b.name)
-      } catch (createErr: any) {
-        if (createErr?.name !== 'BucketAlreadyOwnedByYou' && createErr?.name !== 'BucketAlreadyExists') {
+      } catch (createErr: unknown) {
+        const errName = createErr instanceof Error ? createErr.name : ''
+        if (errName !== 'BucketAlreadyOwnedByYou' && errName !== 'BucketAlreadyExists') {
           throw createErr
         }
       }
@@ -374,8 +393,8 @@ export async function ensureStorageBucketsExist(): Promise<{
       })
       try {
         await client.send(new PutBucketPolicyCommand({ Bucket: b.name, Policy: publicPolicy }))
-      } catch (policyErr) {
-        console.warn(`[S3] Warning: Failed to set public policy on ${b.name}:`, policyErr)
+      } catch (policyErr: unknown) {
+        logger.warn({ bucket: b.name, policyErr }, '[S3] Failed to set public bucket policy')
       }
     }
   }

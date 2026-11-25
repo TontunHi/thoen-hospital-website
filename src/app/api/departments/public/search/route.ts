@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { departmentService } from '@/lib/departments/departmentService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(request: Request) {
   try {
@@ -12,9 +13,9 @@ export async function GET(request: Request) {
 
     const staffList = await departmentService.searchStaff(q)
     return NextResponse.json({ success: true, data: staffList })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการค้นหาบุคลากร' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการค้นหาบุคลากร') },
       { status: 500 }
     )
   }

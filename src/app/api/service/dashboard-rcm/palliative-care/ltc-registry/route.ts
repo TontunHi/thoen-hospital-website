@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession, fetchAuthenticatedMember } from '@/lib/memberAuth'
 import { LtcRegistryService } from '@/lib/clinical/ltcRegistryService'
-import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(request: Request) {
   try {
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     })
   } catch (error: unknown) {
     const err = error as Error
-    logger.error({ error: err.message }, 'API GET /api/service/dashboard-rcm/palliative-care/ltc-registry Error')
+    logger.error({ error: getErrorMessage(err) }, 'API GET /api/service/dashboard-rcm/palliative-care/ltc-registry Error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการดึงข้อมูลทะเบียน LTC' },
       { status: 500 }
@@ -126,10 +126,10 @@ export async function POST(request: Request) {
       success: true,
       data: record,
     })
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'API POST /api/service/dashboard-rcm/palliative-care/ltc-registry Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'API POST /api/service/dashboard-rcm/palliative-care/ltc-registry Error')
     return NextResponse.json(
-      { success: false, error: error?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล LTC' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการบันทึกข้อมูล LTC') },
       { status: 400 }
     )
   }

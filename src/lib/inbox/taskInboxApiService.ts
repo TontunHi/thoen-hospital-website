@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { apiGateway } from '@/lib/apiGateway'
+import { safeJsonParse } from '@/lib/utils/safeJson'
 import { resolveTaskPermissions } from '@/lib/taskPermissionResolver'
 import {
   executeRepairAction,
@@ -126,46 +127,18 @@ export const TaskInboxApiService = {
     const auditLogs: any[] = fullData.auditLogs || []
     const rawRepairRow: any = fullData.repairDetail
 
-    let customPayload = null
-    try {
-      customPayload = task.custom_payload
-        ? typeof task.custom_payload === 'string'
-          ? JSON.parse(task.custom_payload)
-          : task.custom_payload
-        : null
-    } catch {}
+    const customPayload = safeJsonParse<Record<string, unknown> | null>(task.custom_payload, null)
 
     const parsedAuditLogs = auditLogs.map((log: any) => {
-      let details = log.details
-      try {
-        details = log.details
-          ? typeof log.details === 'string'
-            ? JSON.parse(log.details)
-            : log.details
-          : null
-      } catch {}
+      const details = safeJsonParse<unknown>(log.details, log.details)
       return { ...log, details }
     })
 
     let repairDetail = null
     if (rawRepairRow) {
       const row = rawRepairRow
-      let photos = []
-      let coWorkers = []
-      try {
-        photos = row.photos
-          ? typeof row.photos === 'string'
-            ? JSON.parse(row.photos)
-            : row.photos
-          : []
-      } catch {}
-      try {
-        coWorkers = row.co_workers
-          ? typeof row.co_workers === 'string'
-            ? JSON.parse(row.co_workers)
-            : row.co_workers
-          : []
-      } catch {}
+      const photos = safeJsonParse<unknown[]>(row.photos, [])
+      const coWorkers = safeJsonParse<unknown[]>(row.co_workers, [])
       repairDetail = {
         ...row,
         photos,
@@ -386,7 +359,9 @@ export const TaskInboxApiService = {
         if (authCtx && authCtx.member) {
           currentMember = authCtx.member
         }
-      } catch {}
+      } catch (err: unknown) {
+        logger.debug({ err }, 'getMemberAuthContext fallback to getMemberByUsernameWithPermissions')
+      }
     }
 
     if (!currentMember && typeof apiGateway.app.getMemberByUsernameWithPermissions === 'function') {

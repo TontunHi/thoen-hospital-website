@@ -11,8 +11,8 @@ export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 export async function queryGtwDb(sql: string, params: any[] = []): Promise<any[]> {
   try {
     return await apiGateway.gtw.getArticles()
-  } catch (error: any) {
-    logger.error({ error: error.message, sql }, 'Failed to query GTW Database via Gateway')
+  } catch (error: unknown) {
+    logger.error({ error: error instanceof Error ? error.message : String(error), sql }, 'Failed to query GTW Database via Gateway')
     throw error
   }
 }

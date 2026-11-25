@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyMemberSession, fetchAuthenticatedMember } from '@/lib/memberAuth'
 import { LtcRegistryService } from '@/lib/clinical/ltcRegistryService'
 import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function POST(request: Request) {
   try {
@@ -42,10 +43,10 @@ export async function POST(request: Request) {
       data: result,
       message: `ซิงค์และตรวจสอบข้อมูลกับ HOSxP เรียบร้อยแล้ว (ตรวจสอบ ${result.totalChecked} ราย, อัปเดต ${result.updatedCount} ราย)`,
     })
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'API POST sync-hosxp Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'API POST sync-hosxp Error')
     return NextResponse.json(
-      { success: false, error: error?.message || 'เกิดข้อผิดพลาดในการซิงค์ข้อมูลกับ HOSxP' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการซิงค์ข้อมูลกับ HOSxP') },
       { status: 500 }
     )
   }

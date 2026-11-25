@@ -33,7 +33,7 @@ export async function GET() {
       success: true,
       data,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Drug status API error')
     return NextResponse.json(
       {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { registrationService } from '@/lib/registration/registrationService.default'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +34,7 @@ export async function POST(request: Request, props: RouteParams) {
       message: 'อนุมัติคำขอและสร้างบัญชีสมาชิกสำเร็จแล้ว',
     })
   } catch (err) {
-    console.error('Approve registration error:', err)
+    logger.error({ err }, 'Approve registration error')
     return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการอนุมัติคำขอ' }, { status: 500 })
   }
 }

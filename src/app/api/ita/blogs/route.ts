@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
+import { sanitizeRichHtml } from '@/lib/cms/htmlSanitizer'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 const CreateBlogSchema = z.object({
   title: z.string().min(1, 'กรุณากรอกชื่อเรื่อง').max(255, 'ชื่อเรื่องยาวเกินไป'),
@@ -25,8 +27,8 @@ export async function GET() {
   try {
     const blogs = await apiGateway.app.getItaBlogs()
     return NextResponse.json({ success: true, data: blogs })
-  } catch (error: any) {
-    console.error('Failed to fetch ITA blogs:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to fetch ITA blogs')
     return NextResponse.json(
       { success: false, error: { code: 'DB_ERROR', message: 'เกิดข้อผิดพลาดในการดึงข้อมูลบทความ' } },
       { status: 500 }
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     const members = await apiGateway.app.getMembers({ search: session.username, limit: 5 })
-    const author = members.find((m: any) => m.username === session.username)
+    const author = members.find((m) => m.username === session.username)
 
     if (!author) {
       return NextResponse.json(
@@ -66,6 +68,7 @@ export async function POST(request: Request) {
     }
 
     const { title, content } = parsed.data
+    const sanitizedContent = sanitizeRichHtml(content)
     const authorName = typeof author.name === 'string' ? author.name : session.username
     const authorPosition = author.position ? String(author.position).trim() : 'เจ้าพนักงานเครื่องคอมพิวเตอร์'
     const slug = generateSlug(title)
@@ -73,15 +76,15 @@ export async function POST(request: Request) {
     const result = await apiGateway.app.createItaBlog({
       title,
       slug,
-      content,
+      content: sanitizedContent,
       authorId: author.id as number,
       authorName,
       authorPosition,
     })
 
     return NextResponse.json({ success: true, data: { id: result.id } })
-  } catch (error: any) {
-    console.error('Failed to create ITA blog:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Failed to create ITA blog')
     return NextResponse.json(
       { success: false, error: { code: 'SERVER_ERROR', message: 'เกิดข้อผิดพลาดในการเขียนบทความ' } },
       { status: 500 }

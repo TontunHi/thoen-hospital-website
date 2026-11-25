@@ -26,7 +26,7 @@ export async function GET() {
       success: true,
       data,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Systems ward status summary API error')
     return NextResponse.json(
       {

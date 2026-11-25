@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { SmtBudgetService } from '@/lib/budget/smtBudgetService'
 import { logAudit } from '@/lib/audit'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const SmtQuerySchema = z.object({
   budgetYears: z.array(z.string()).optional(),
@@ -53,11 +54,11 @@ export async function POST(request: Request) {
       success: true,
       data: result,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
-        error: { code: 'SMT_UPSTREAM_ERROR', message: error?.message || 'ไม่สามารถดึงข้อมูลงบประมาณ สปสช. ได้ในขณะนี้' },
+        error: { code: 'SMT_UPSTREAM_ERROR', message: getErrorMessage(error, 'ไม่สามารถดึงข้อมูลงบประมาณ สปสช. ได้ในขณะนี้') },
       },
       { status: 502 }
     )
@@ -97,11 +98,11 @@ export async function GET(request: Request) {
       success: true,
       data: result,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
-        error: { code: 'SMT_UPSTREAM_ERROR', message: error?.message || 'ไม่สามารถดึงข้อมูลงบประมาณ สปสช. ได้ในขณะนี้' },
+        error: { code: 'SMT_UPSTREAM_ERROR', message: getErrorMessage(error, 'ไม่สามารถดึงข้อมูลงบประมาณ สปสช. ได้ในขณะนี้') },
       },
       { status: 502 }
     )

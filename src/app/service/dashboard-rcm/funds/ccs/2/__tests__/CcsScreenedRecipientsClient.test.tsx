@@ -175,7 +175,7 @@ describe('CcsScreenedRecipientsClient (CCS 1.2 — UI Style Brief)', () => {
     expect(screen.queryByRole('button', { name: /ซ่อนเลขบัตร/ })).not.toBeInTheDocument()
   })
 
-  it('renders date tabs in order: กำหนดเอง -> รายเดือน -> ปีงบประมาณ with custom active by default', () => {
+  it('renders date tabs in order: กำหนดเอง -> รายเดือน -> ปีงบประมาณ with custom active by default', async () => {
     render(<CcsScreenedRecipientsClient />)
 
     const tabs = screen.getAllByRole('tab')
@@ -187,6 +187,10 @@ describe('CcsScreenedRecipientsClient (CCS 1.2 — UI Style Brief)', () => {
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
     expect(tabs[1]).toHaveAttribute('aria-selected', 'false')
     expect(tabs[2]).toHaveAttribute('aria-selected', 'false')
+
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
+    })
   })
 
   it('filters by clicking on KPI summary cards', async () => {
@@ -256,18 +260,26 @@ describe('CcsScreenedRecipientsClient (CCS 1.2 — UI Style Brief)', () => {
   it('does not render redundant date range badge (Pass 7 Smart Subtraction)', async () => {
     render(<CcsScreenedRecipientsClient />)
 
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
+    })
+
     // The date badge "1 ต.ค. ... — 30 ก.ย. ..." should not be displayed
     expect(screen.queryByText(/— 30 ก\.ย\./)).not.toBeInTheDocument()
     expect(screen.queryByText(/1 ต\.ค\..*—/)).not.toBeInTheDocument()
   })
 
-  it('renders quiet breadcrumbs navigation', () => {
+  it('renders quiet breadcrumbs navigation', async () => {
     render(<CcsScreenedRecipientsClient />)
 
     expect(screen.getByRole('navigation', { name: 'แถบนำทาง' })).toBeInTheDocument()
     expect(screen.getByText('Dashboard RCM')).toBeInTheDocument()
     expect(screen.getByText('กองทุนมะเร็งปากมดลูก (CCS)')).toBeInTheDocument()
     expect(screen.getByText('1.2 รายชื่อผู้รับบริการคัดกรอง')).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
+    })
   })
 
   it('opens patient modal when clicking anywhere on the table row', async () => {

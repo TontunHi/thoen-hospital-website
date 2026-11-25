@@ -3,6 +3,7 @@ import { ClinicalRecordsService } from '@/lib/clinical/clinicalRecordsService'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
@@ -55,8 +56,8 @@ export async function POST(request: Request) {
       success: true,
       patients,
     })
-  } catch (error: any) {
-    console.error('Patient search API error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Patient search API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลจากระบบหลัก' },
       { status: 500 }

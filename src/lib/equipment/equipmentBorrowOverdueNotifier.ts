@@ -115,7 +115,7 @@ export async function dispatchOverdueBorrowNotifications(
           remainingItemsCount: remainingItems.length,
           status: 'SENT',
         })
-      } catch (err: any) {
+      } catch (err: unknown) {
         result.failedCount += 1
         result.details.push({
           requestId: req.id,
@@ -127,7 +127,7 @@ export async function dispatchOverdueBorrowNotifications(
           expectedReturnDate: req.expectedReturnDate ? new Date(req.expectedReturnDate).toISOString().slice(0, 10) : '-',
           remainingItemsCount: remainingItems.length,
           status: 'FAILED',
-          error: err.message || String(err),
+          error: err instanceof Error ? err.message : String(err),
         })
         logger.error(
           { error: err, requestId: req.id, requestNo: req.requestNo },
@@ -226,7 +226,7 @@ export async function dispatchOverdueBorrowNotifications(
         remainingItemsCount: remainingItems.length,
         status: 'SENT',
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       result.failedCount += 1
       result.details.push({
         requestId: req.id,
@@ -238,7 +238,7 @@ export async function dispatchOverdueBorrowNotifications(
         expectedReturnDate: req.expected_return_date ? String(req.expected_return_date).slice(0, 10) : '-',
         remainingItemsCount: remainingItems.length,
         status: 'FAILED',
-        error: err.message || String(err),
+        error: err instanceof Error ? err.message : String(err),
       })
       logger.error(
         { error: err, requestId: req.id, requestNo: req.request_no },

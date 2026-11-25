@@ -2,6 +2,7 @@ import { Calendar, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { apiGateway } from '@/lib/apiGateway'
+import { sanitizeRichHtml } from '@/lib/cms/htmlSanitizer'
 import '../page.css'
 
 export const dynamic = 'force-dynamic'
@@ -62,7 +63,7 @@ export default async function ItaBlogDetailPage(props: Props) {
           {/* Safe Render HTML Content */}
           <div 
             className="blog-content font-sarabun"
-            dangerouslySetInnerHTML={{ __html: blog.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(blog.content) }}
           />
         </article>
 

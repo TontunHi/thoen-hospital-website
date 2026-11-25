@@ -1,5 +1,6 @@
 import { apiGateway } from '@/lib/apiGateway'
 import { resolveTaskPermissions, MemberLike } from '@/lib/taskPermissionResolver'
+import { safeJsonParse } from '@/lib/utils/safeJson'
 import { getMediaRequestWorkflowSteps } from './taskDefinitionsAndRepairAction'
 
 export interface UpdateTaskManagerPayload {
@@ -69,14 +70,8 @@ export async function updateTaskByManager(
   let repairDetail: any = null
   if (bundle?.repairDetail) {
     const row: any = bundle.repairDetail
-    let photos = []
-    let coWorkers = []
-    try {
-      photos = row.photos ? (typeof row.photos === 'string' ? JSON.parse(row.photos) : row.photos) : []
-    } catch {}
-    try {
-      coWorkers = row.co_workers ? (typeof row.co_workers === 'string' ? JSON.parse(row.co_workers) : row.co_workers) : []
-    } catch {}
+    const photos = safeJsonParse<unknown[]>(row.photos, [])
+    const coWorkers = safeJsonParse<unknown[]>(row.co_workers, [])
     repairDetail = {
       ...row,
       photos,
@@ -95,10 +90,7 @@ export async function updateTaskByManager(
   const isMediaTask = task.task_type === 'MEDIA_REQUEST'
   const isRepairTask = ['IT_REPAIR', 'GENERAL_REPAIR', 'MEDICAL_REPAIR'].includes(task.task_type)
 
-  let customPayload: Record<string, any> = {}
-  try {
-    customPayload = task.custom_payload ? JSON.parse(task.custom_payload) : {}
-  } catch {}
+  const customPayload = safeJsonParse<Record<string, any>>(task.custom_payload, {})
 
   const diff: Record<string, { from: any; to: any }> = {}
   const updatedTaskFields: Record<string, any> = {}

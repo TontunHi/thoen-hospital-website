@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/roles'
 import { hospitalAssetService } from '@/lib/assets/assetService'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const UpdateAssetSchema = z.object({
   articleNum: z.string().min(1, 'กรุณาระบุเลขครุภัณฑ์').optional(),
@@ -50,9 +51,9 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data: asset })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลครุภัณฑ์: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลครุภัณฑ์: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }
@@ -117,9 +118,9 @@ export async function PUT(
       message: 'แก้ไขข้อมูลครุภัณฑ์สำเร็จ',
       data: updated,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการแก้ไขครุภัณฑ์: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการแก้ไขครุภัณฑ์: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }
@@ -158,9 +159,9 @@ export async function DELETE(
       success: true,
       message: `ลบข้อมูลครุภัณฑ์ "${existing.name}" (${existing.articleNum}) สำเร็จ`,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการลบครุภัณฑ์: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการลบครุภัณฑ์: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }

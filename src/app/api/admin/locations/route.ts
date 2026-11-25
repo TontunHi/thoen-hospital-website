@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
+import { logger } from '@/lib/logger'
 
 // GET: Fetch locations for admin management (with pagination, filters, and stats)
 export async function GET(request: Request) {
@@ -36,8 +37,8 @@ export async function GET(request: Request) {
       success: true,
       data,
     })
-  } catch (error: any) {
-    console.error('Admin locations GET error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Admin locations GET error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสถานที่' }, { status: 500 })
   }
 }
@@ -72,14 +73,19 @@ export async function POST(request: Request) {
       is_active,
     })
 
+    const resMessage = (r: unknown): string | undefined =>
+      r && typeof r === 'object' && 'message' in r && typeof (r as { message?: unknown }).message === 'string'
+        ? (r as { message: string }).message
+        : undefined
+
     const payload = res && typeof res === 'object' && 'success' in res
       ? res
-      : { success: true, message: (res as any)?.message || 'เพิ่มข้อมูลสถานที่สำเร็จ', data: res }
+      : { success: true, message: resMessage(res) || 'เพิ่มข้อมูลสถานที่สำเร็จ', data: res }
 
     return NextResponse.json(payload)
-  } catch (error: any) {
-    console.error('Admin locations POST error:', error)
-    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Admin locations POST error')
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' }, { status: 500 })
   }
 }
 
@@ -107,14 +113,19 @@ export async function PATCH(request: Request) {
       building_name,
     })
 
+    const resMessage =
+      res && typeof res === 'object' && 'message' in res && typeof (res as { message?: unknown }).message === 'string'
+        ? (res as { message: string }).message
+        : undefined
+
     const payload = res && typeof res === 'object' && 'success' in res
       ? res
-      : { success: true, message: (res as any)?.message || 'แก้ไขข้อมูลสถานที่สำเร็จ', data: res }
+      : { success: true, message: resMessage || 'แก้ไขข้อมูลสถานที่สำเร็จ', data: res }
 
     return NextResponse.json(payload)
-  } catch (error: any) {
-    console.error('Admin locations PATCH error:', error)
-    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล: ' + error.message }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Admin locations PATCH error')
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล' }, { status: 500 })
   }
 }
 
@@ -135,13 +146,18 @@ export async function DELETE(request: Request) {
 
     const res = await apiGateway.app.deleteLocation(id)
 
+    const resMessage =
+      res && typeof res === 'object' && 'message' in res && typeof (res as { message?: unknown }).message === 'string'
+        ? (res as { message: string }).message
+        : undefined
+
     const payload = res && typeof res === 'object' && 'success' in res
       ? res
-      : { success: true, message: (res as any)?.message || 'ลบข้อมูลสถานที่สำเร็จ', data: res }
+      : { success: true, message: resMessage || 'ลบข้อมูลสถานที่สำเร็จ', data: res }
 
     return NextResponse.json(payload)
-  } catch (error: any) {
-    console.error('Admin locations DELETE error:', error)
-    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการลบข้อมูล: ' + error.message }, { status: 500 })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Admin locations DELETE error')
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการลบข้อมูล' }, { status: 500 })
   }
 }

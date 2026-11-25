@@ -944,7 +944,7 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
   })
 
   it('updates targetRaw and table display when editing and saving an indicator target', async () => {
-    let putPayloads: any[] = []
+    const putPayloads: any[] = []
     let currentTarget = {
       targetOperator: '>=',
       targetValue: 80,

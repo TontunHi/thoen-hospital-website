@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function DELETE(
   request: Request,
@@ -21,9 +22,9 @@ export async function DELETE(
     const eventService = new HospitalEventService()
     const result = await eventService.deleteAttachment(eventId, attId, auth.member)
     return NextResponse.json(result)
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: err.message || 'เกิดข้อผิดพลาดในการลบไฟล์แนบ' },
+      { success: false, error: getErrorMessage(err, 'เกิดข้อผิดพลาดในการลบไฟล์แนบ') },
       { status: 500 }
     )
   }

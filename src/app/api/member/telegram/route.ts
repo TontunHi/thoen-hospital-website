@@ -16,7 +16,7 @@ export async function GET() {
     const status = await getMemberTelegramLink(member.id)
 
     return NextResponse.json({ success: true, data: status })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Error getting telegram link status')
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
   }
@@ -61,7 +61,7 @@ export async function POST() {
         expiresAt: challenge.expiresAt.toISOString(),
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Error creating telegram link challenge')
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
   }
@@ -85,7 +85,7 @@ export async function DELETE() {
     )
 
     return NextResponse.json({ success: true, message: 'Unlinked successfully' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Error unlinking telegram')
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
   }

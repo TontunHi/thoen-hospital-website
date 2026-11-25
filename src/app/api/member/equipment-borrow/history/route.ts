@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 /**
  * Task-based Route: Fetch All Borrow Requests History
@@ -19,9 +20,9 @@ export async function GET(request: Request) {
 
     const result = await equipmentBorrowService.getAllBorrowRequests({ status, search, page, limit })
     return NextResponse.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการโหลดประวัติคำขอยืม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการโหลดประวัติคำขอยืม') },
       { status: 500 }
     )
   }

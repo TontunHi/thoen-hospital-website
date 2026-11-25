@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/roles'
 import { TaskPermissionService } from '@/lib/permissions/taskPermissionService'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const revokeSchema = z.object({
   type: z.enum(['member', 'position']),
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error
     const session = auth.session
 
-    let body: any
+    let body: unknown
     try {
       body = await request.json()
     } catch {
@@ -61,10 +62,10 @@ export async function POST(request: Request) {
       success: true,
       message: result.message,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Revoke permission error')
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการปลดสิทธิ์' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการปลดสิทธิ์') },
       { status: 500 }
     )
   }

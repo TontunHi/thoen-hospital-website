@@ -93,8 +93,8 @@ export async function fetchGtwArticles(
     try {
       const rows = await apiGateway.gtw.getArticles<GtwRawArticle>(options)
       return rows
-    } catch (err: any) {
-      logger.error({ error: err.message }, 'Failed to fetch articles from GTW via Gateway')
+    } catch (err: unknown) {
+      logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Failed to fetch articles from GTW via Gateway')
       throw err
     }
   }
@@ -148,8 +148,8 @@ export async function fetchGtwArticles(
   try {
     const rows = await executor(sql, params)
     return rows as GtwRawArticle[]
-  } catch (err: any) {
-    logger.error({ error: err.message }, 'Failed to fetch articles from GTW')
+  } catch (err: unknown) {
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Failed to fetch articles from GTW')
     throw err
   }
 }

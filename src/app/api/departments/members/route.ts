@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const createMemberSchema = z.object({
   groupId: z.coerce.number().int().positive('กรุณาระบุกลุ่มงาน'),
@@ -37,9 +38,9 @@ export async function GET(request: Request) {
 
     const members = await departmentService.getMembersByGroupId(groupId, { isPublic: !isInternal })
     return NextResponse.json({ success: true, data: members })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสมาชิก' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลสมาชิก') },
       { status: 500 }
     )
   }
@@ -65,9 +66,9 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ success: true, data: created }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการเพิ่มสมาชิก' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการเพิ่มสมาชิก') },
       { status: 500 }
     )
   }

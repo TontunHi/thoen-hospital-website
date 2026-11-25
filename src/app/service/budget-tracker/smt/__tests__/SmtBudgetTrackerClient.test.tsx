@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import SmtBudgetTrackerClient from '../SmtBudgetTrackerClient'
 import { SmtBudgetSearchResult } from '@/lib/budget/smtBudgetService'
 
@@ -15,7 +15,10 @@ vi.mock('recharts', async () => {
 describe('SmtBudgetTrackerClient Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    global.fetch = vi.fn()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: mockInitialData }),
+    })
   })
 
   const mockInitialData: SmtBudgetSearchResult = {
@@ -67,7 +70,7 @@ describe('SmtBudgetTrackerClient Component', () => {
     ],
   }
 
-  it('renders vendor name, multi-year buttons, and 4 KPI summary cards', () => {
+  it('renders vendor name, multi-year buttons, and 4 KPI summary cards', async () => {
     render(
       <SmtBudgetTrackerClient
         initialData={mockInitialData}
@@ -89,9 +92,11 @@ describe('SmtBudgetTrackerClient Component', () => {
 
     expect(screen.getByText('รอดำเนินการโอน (Wait)')).toBeDefined()
     expect(screen.getByText('฿10,000.00')).toBeDefined()
+
+    await act(async () => {})
   })
 
-  it('renders transactions table with correct columns and downloads', () => {
+  it('renders transactions table with correct columns and downloads', async () => {
     render(
       <SmtBudgetTrackerClient
         initialData={mockInitialData}
@@ -112,9 +117,11 @@ describe('SmtBudgetTrackerClient Component', () => {
     // Download PAYM buttons
     const paymButtons = screen.getAllByText('PAYM')
     expect(paymButtons.length).toBe(2)
+
+    await act(async () => {})
   })
 
-  it('filters records using search text input', () => {
+  it('filters records using search text input', async () => {
     render(
       <SmtBudgetTrackerClient
         initialData={mockInitialData}
@@ -130,5 +137,7 @@ describe('SmtBudgetTrackerClient Component', () => {
     expect(screen.getByText('B2570-01')).toBeDefined()
     // DOC-222 should be filtered out
     expect(screen.queryByText('B2570-02')).toBeNull()
+
+    await act(async () => {})
   })
 })

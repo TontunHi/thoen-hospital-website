@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const auditExportSchema = z.object({
   count: z.number().int().nonnegative(),
@@ -30,13 +31,13 @@ export async function POST(req: NextRequest) {
     )
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'AUDIT_LOG_ERROR',
-          message: error?.message || 'เกิดข้อผิดพลาดในการบันทึก Audit Log',
+          message: getErrorMessage(error, 'เกิดข้อผิดพลาดในการบันทึก Audit Log'),
         },
       },
       { status: 500 }

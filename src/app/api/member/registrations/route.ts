@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { registrationService } from '@/lib/registration/registrationService.default'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
       limit,
     })
   } catch (err) {
-    console.error('List registrations error:', err)
+    logger.error({ err }, 'List registrations error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการดึงข้อมูลคำขอสมัคร' },
       { status: 500 }

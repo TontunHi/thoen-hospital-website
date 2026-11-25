@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { apiGateway } from '@/lib/apiGateway'
 import { resolvePublicProfilePath } from '@/lib/departments/departmentImageUtils'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(request: Request) {
   try {
@@ -18,13 +19,19 @@ export async function GET(request: Request) {
     const rows = await apiGateway.app.getMembers({ search: q, limit: 20 })
 
     const data = await Promise.all(
-      (rows || []).map(async (r: any) => {
-        const publicProfile = await resolvePublicProfilePath(r.profilePath || r.profile_path, Number(r.id))
+      (rows || []).map(async (r: Record<string, unknown>) => {
+        const rawProfile =
+          typeof r.profilePath === 'string'
+            ? r.profilePath
+            : typeof r.profile_path === 'string'
+              ? r.profile_path
+              : null
+        const publicProfile = await resolvePublicProfilePath(rawProfile, Number(r.id))
         return {
           id: Number(r.id),
-          name: r.name ? String(r.name).trim() : '',
-          position: r.position ? String(r.position).trim() : '',
-          department: r.department ? String(r.department).trim() : '',
+          name: typeof r.name === 'string' ? r.name.trim() : (r.name ? String(r.name).trim() : ''),
+          position: typeof r.position === 'string' ? r.position.trim() : (r.position ? String(r.position).trim() : ''),
+          department: typeof r.department === 'string' ? r.department.trim() : (r.department ? String(r.department).trim() : ''),
           profilePath: publicProfile,
         }
       })
@@ -34,9 +41,9 @@ export async function GET(request: Request) {
       success: true,
       data,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการค้นหาบุคลากรในระบบ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการค้นหาบุคลากรในระบบ') },
       { status: 500 }
     )
   }

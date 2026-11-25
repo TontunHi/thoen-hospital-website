@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { destroyMemberSession, verifyMemberSession } from '@/lib/memberAuth'
 import { destroySalarySession } from '@/lib/salaryAuth'
+import { logger } from '@/lib/logger'
 
 export async function POST() {
   try {
@@ -15,14 +16,14 @@ export async function POST() {
           session
         )
       } catch (auditErr) {
-        console.error('Failed to log logout event:', auditErr)
+        logger.error({ auditErr }, 'Failed to log logout event')
       }
     }
     await destroyMemberSession()
     await destroySalarySession()
     return NextResponse.json({ success: true, message: 'ออกจากระบบเรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Member logout error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Member logout error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการออกจากระบบ' },
       { status: 500 }

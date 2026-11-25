@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import TelemedClient from '../TelemedClient'
 
@@ -124,7 +124,7 @@ describe('TelemedClient Component', () => {
     expect(screen.getByText('AUTH_TEL_01')).toBeInTheDocument()
   })
 
-  it('switches date selector modes between custom, monthly, and fiscal year cleanly', () => {
+  it('switches date selector modes between custom, monthly, and fiscal year cleanly', async () => {
     render(<TelemedClient initialData={mockInitialData} />)
 
     const monthlyTab = screen.getByRole('tab', { name: 'รายเดือน' })
@@ -134,6 +134,10 @@ describe('TelemedClient Component', () => {
     const fiscalTab = screen.getByRole('tab', { name: 'ปีงบประมาณ' })
     fireEvent.click(fiscalTab)
     expect(fiscalTab).toHaveClass('active')
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
   })
 
   it('filters data when clicking on a summary KPI card', async () => {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { hospitalAssetService } from '@/lib/assets/assetService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 // GET: Fast lookup for assets by number or name (used by repair forms)
 export async function GET(request: Request) {
@@ -24,7 +25,24 @@ export async function GET(request: Request) {
 
     const now = new Date()
 
-    const mapped = result.items.map((item: any) => {
+    interface LookupAssetItem {
+      id: number | string
+      articleNum: string
+      name: string
+      brand?: string | null
+      model?: string | null
+      serialNo?: string | null
+      category?: string | null
+      department?: string | null
+      locationId?: number | null
+      locationFullName?: string | null
+      warrantyStartDate?: string | Date | null
+      warrantyEndDate?: string | Date | null
+      expireDate?: string | Date | null
+      status?: string | null
+    }
+
+    const mapped = (result.items as LookupAssetItem[]).map((item) => {
       const isUnderWarranty =
         (item.warrantyEndDate && new Date(item.warrantyEndDate) >= now) ||
         (!item.warrantyEndDate && item.expireDate && new Date(item.expireDate) >= now)
@@ -52,9 +70,9 @@ export async function GET(request: Request) {
       success: true,
       data: mapped,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการค้นหาครุภัณฑ์: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการค้นหาครุภัณฑ์: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }

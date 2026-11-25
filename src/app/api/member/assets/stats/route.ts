@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/roles'
 import { hospitalAssetService } from '@/lib/assets/assetService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 // GET: Retrieve summary statistics for asset dashboard
 export async function GET() {
@@ -13,9 +14,9 @@ export async function GET() {
       success: true,
       data: stats,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการดึงสถิติครุภัณฑ์: ' + error.message },
+      { error: 'เกิดข้อผิดพลาดในการดึงสถิติครุภัณฑ์: ' + getErrorMessage(error) },
       { status: 500 }
     )
   }

@@ -37,7 +37,7 @@ describe('EquipmentBorrowClient Component', () => {
     }))
   })
 
-  it('renders stats cards and title for hospital staff', () => {
+  it('renders stats cards and title for hospital staff', async () => {
     render(<EquipmentBorrowClient initialStats={initialStats} currentUser={staffUser} />)
 
     expect(screen.getByText('ระบบยืม-คืนอุปกรณ์และพัสดุ')).toBeInTheDocument()
@@ -53,16 +53,20 @@ describe('EquipmentBorrowClient Component', () => {
     // Staff does NOT see admin tabs
     expect(screen.queryByText(/จัดการคำขอ & รับคืน/)).not.toBeInTheDocument()
     expect(screen.queryByText('จัดการข้อมูลคลัง')).not.toBeInTheDocument()
+
+    await screen.findByText('ไม่พบรายการอุปกรณ์ที่พร้อมให้ยืมในขณะนี้')
   })
 
-  it('renders admin tabs when user has canManageBorrow permission', () => {
+  it('renders admin tabs when user has canManageBorrow permission', async () => {
     render(<EquipmentBorrowClient initialStats={initialStats} currentUser={adminUser} />)
 
     expect(screen.getByText(/จัดการคำขอ & รับคืน/)).toBeInTheDocument()
     expect(screen.getByText('จัดการข้อมูลคลัง')).toBeInTheDocument()
+
+    await screen.findByText('ไม่พบรายการอุปกรณ์ที่พร้อมให้ยืมในขณะนี้')
   })
 
-  it('opens borrow request modal when clicking quick borrow button', () => {
+  it('opens borrow request modal when clicking quick borrow button', async () => {
     render(<EquipmentBorrowClient initialStats={initialStats} currentUser={staffUser} />)
 
     const borrowBtn = screen.getByRole('button', { name: 'ขอยืมอุปกรณ์' })
@@ -71,6 +75,8 @@ describe('EquipmentBorrowClient Component', () => {
     expect(screen.getByText(/แบบฟอร์มขอยืมอุปกรณ์และวัสดุ/)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/เช่น เพื่อใช้ในงานสัมมนา/)).toBeInTheDocument()
     expect(screen.getByText(/วันที่คาดว่าจะส่งคืน/)).toBeInTheDocument()
+
+    await screen.findByText('ไม่พบรายการอุปกรณ์ที่พร้อมให้ยืมในขณะนี้')
   })
 
   it('renders request detail modal when clicking view details on a request', async () => {

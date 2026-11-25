@@ -1,46 +1,31 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import {
   Package,
-  Search,
   Plus,
-  RefreshCw,
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
   X,
-  Calendar,
   Clock,
-  Phone,
-  MapPin,
-  FileText,
   Trash2,
-  Edit2,
   Check,
   RotateCcw,
   ShoppingBag,
   Layers,
-  AlertTriangle,
   User,
   ShieldCheck,
-  ChevronRight,
   SlidersHorizontal,
-  FolderOpen,
-  Eye,
-  Building2,
-  Power,
-  ImagePlus,
 } from 'lucide-react'
-import { getInitials } from '@/lib/formatters'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 import './equipment-borrow.css'
 import type {
   BorrowDashboardStats,
   CurrentUser,
   CatalogItem,
   BasketItem,
-  BorrowItemDetail,
   BorrowRequestRecord,
   MaterialRecord,
   LoanableAssetRecord,
@@ -48,6 +33,10 @@ import type {
 import { EquipmentBorrowModals } from './components/EquipmentBorrowModals'
 import { EquipmentItemThumbnail } from './components/EquipmentItemThumbnail'
 import { ItemImageLightboxModal, type PreviewableEquipmentItem } from './components/ItemImageLightboxModal'
+import { EquipmentCatalogTab } from './components/EquipmentCatalogTab'
+import { EquipmentMyRequestsTab } from './components/EquipmentMyRequestsTab'
+import { EquipmentApprovalsTab } from './components/EquipmentApprovalsTab'
+import { EquipmentInventoryTab } from './components/EquipmentInventoryTab'
 interface EquipmentBorrowClientProps {
   initialStats: BorrowDashboardStats
   currentUser: CurrentUser
@@ -662,8 +651,8 @@ export default function EquipmentBorrowClient({
           setErrorMsg(json.error || 'ไม่สามารถแก้ไขวัสดุได้')
         }
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'เกิดข้อผิดพลาดในการบันทึกวัสดุ')
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err, 'เกิดข้อผิดพลาดในการบันทึกวัสดุ'))
     } finally {
       setLoading(false)
     }
@@ -698,8 +687,8 @@ export default function EquipmentBorrowClient({
       } else {
         setErrorMsg(json.error || 'ไม่สามารถบันทึกรูปภาพครุภัณฑ์ได้')
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'เกิดข้อผิดพลาดในการบันทึกรูปภาพครุภัณฑ์')
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err, 'เกิดข้อผิดพลาดในการบันทึกรูปภาพครุภัณฑ์'))
     } finally {
       setLoading(false)
     }
@@ -972,785 +961,109 @@ export default function EquipmentBorrowClient({
 
       {/* ── TAB 1: Available Catalog ── */}
       {activeTab === 'catalog' && (
-        <section>
-          {/* Toolbar & Filters */}
-          <div className="toolbarRow">
-            <div className="searchBox">
-              <Search size={18} strokeWidth={1.5} className="searchIconMuted" />
-              <input
-                type="text"
-                placeholder="ค้นหาชื่ออุปกรณ์, รหัสครุภัณฑ์, สถานที่…"
-                value={catalogSearch}
-                onChange={(e) => setCatalogSearch(e.target.value)}
-              />
-              {catalogSearch && (
-                <button
-                  type="button"
-                  onClick={() => setCatalogSearch('')}
-                  className="modalCloseBtn"
-                  aria-label="ล้างคำค้นหา"
-                >
-                  <X size={16} strokeWidth={1.5} />
-                </button>
-              )}
-            </div>
-
-            <div className="filterSelectGroup">
-              <select
-                className="filterSelect"
-                value={catalogType}
-                onChange={(e) => setCatalogType(e.target.value as 'ALL' | 'ASSET' | 'MATERIAL')}
-              >
-                <option value="ALL">ทุกประเภท (ครุภัณฑ์ & วัสดุ)</option>
-                <option value="ASSET">เฉพาะ ครุภัณฑ์</option>
-                <option value="MATERIAL">เฉพาะ วัสดุ</option>
-              </select>
-
-              <select
-                className="filterSelect"
-                value={catalogCategory}
-                onChange={(e) => setCatalogCategory(e.target.value)}
-              >
-                <option value="ALL">ทุกหมวดหมู่</option>
-                <option value="IT">ไอที / คอมพิวเตอร์</option>
-                <option value="ELECTRICAL">ไฟฟ้า / โสตทัศนูปกรณ์</option>
-                <option value="MEDICAL">เครื่องมือแพทย์</option>
-                <option value="GENERAL">ทั่วไป / อุปกรณ์สำนักงาน</option>
-              </select>
-
-              <button type="button" onClick={fetchCatalog} className="secondaryButton" title="รีเฟรชข้อมูล" aria-label="รีเฟรชข้อมูล">
-                <RefreshCw size={16} strokeWidth={1.5} className={loading ? 'animate-spin' : ''} />
-              </button>
-            </div>
-          </div>
-
-          {/* Cards Grid */}
-          {loading ? (
-            <div className="emptyState">
-              <RefreshCw size={32} strokeWidth={1.5} className="animate-spin emptyStateSpinner" />
-              <p>กำลังโหลดข้อมูลอุปกรณ์พร้อมยืม…</p>
-            </div>
-          ) : catalogItems.length === 0 ? (
-            <div className="emptyState">
-              <FolderOpen size={44} strokeWidth={1.5} className="emptyStateIcon" />
-              <p>ไม่พบรายการอุปกรณ์ที่พร้อมให้ยืมในขณะนี้</p>
-            </div>
-          ) : (
-            <div className="catalogGrid">
-              {catalogItems.map((item) => (
-                <div key={`${item.itemType}-${item.id}`} className="catalogCard">
-                  <div className="catalogCardBody">
-                    <EquipmentItemThumbnail
-                      imageUrl={item.imageUrl}
-                      name={item.name}
-                      category={item.category}
-                      variant="card"
-                      onClick={() => setPreviewItem(item)}
-                      ariaLabel={`ดูรูปภาพและรายละเอียด ${item.name}`}
-                    />
-
-                    <div className="catalogCardTop">
-                      <span
-                        className={`categoryPill ${
-                          item.itemType === 'ASSET'
-                            ? 'pillAsset'
-                            : item.subType === 'วัสดุสิ้นเปลือง'
-                            ? 'pillConsumable'
-                            : 'pillReusable'
-                        }`}
-                      >
-                        {item.subType || (item.itemType === 'ASSET' ? 'ครุภัณฑ์' : 'วัสดุ')}
-                      </span>
-                      <span className={`stockBadge ${item.availableQty > 0 ? 'stockAvail' : 'stockZero'}`}>
-                        {item.availableQty > 0 ? `พร้อมยืม ${item.availableQty} ${item.unit}` : 'ถูกยืมหมดแล้ว'}
-                      </span>
-                    </div>
-
-                    <h3 className="catalogCardTitle">{item.name}</h3>
-                    <div className="catalogCardCode">รหัส: {item.code}</div>
-
-                    <div className="catalogCardMeta">
-                      {item.location && (
-                        <div className="catalogMetaLine">
-                          <MapPin size={14} strokeWidth={1.5} className="metaIconMuted" />
-                          <span>{item.location}</span>
-                        </div>
-                      )}
-                      <div className="catalogMetaLine">
-                        <Layers size={14} strokeWidth={1.5} className="metaIconMuted" />
-                        <span>หมวดหมู่: {item.category}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleAddToBasket(item)}
-                    className="addToBasketBtn"
-                    disabled={item.availableQty <= 0}
-                  >
-                    <Plus size={16} strokeWidth={1.5} />
-                    {item.availableQty > 0 ? 'หยิบใส่รายการขอยืม' : 'อยู่ระหว่างถูกยืม'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        <EquipmentCatalogTab
+          catalogSearch={catalogSearch}
+          onCatalogSearchChange={setCatalogSearch}
+          catalogType={catalogType}
+          onCatalogTypeChange={setCatalogType}
+          catalogCategory={catalogCategory}
+          onCatalogCategoryChange={setCatalogCategory}
+          loading={loading}
+          catalogItems={catalogItems}
+          onRefresh={fetchCatalog}
+          onPreviewItem={setPreviewItem}
+          onAddToBasket={handleAddToBasket}
+        />
       )}
 
       {/* ── TAB 2: My Requests ── */}
       {activeTab === 'my-requests' && (
-        <section>
-          <div className="toolbarRow">
-            <h2 className="sectionHeading">
-              ประวัติและสถานะคำขอยืมของฉัน ({myRequests.length})
-            </h2>
-            <button type="button" onClick={fetchMyRequests} className="secondaryButton">
-              <RefreshCw size={16} strokeWidth={1.5} className={loading ? 'animate-spin' : ''} /> รีเฟรช
-            </button>
-          </div>
-
-          <div className="tableContainer">
-            {myRequests.length === 0 ? (
-              <div className="emptyState">
-                <FileText size={44} strokeWidth={1.5} className="emptyStateIcon" />
-                <p>คุณยังไม่มีประวัติการยื่นคำขอยืมอุปกรณ์</p>
-                <button type="button" onClick={() => setIsBorrowModalOpen(true)} className="primaryButton emptyStateCta">
-                  <Plus size={16} strokeWidth={1.5} /> ยื่นคำขอยืมตอนนี้
-                </button>
-              </div>
-            ) : (
-              <table className="styledTable">
-                <thead>
-                  <tr>
-                    <th>เลขที่คำขอ</th>
-                    <th>วัตถุประสงค์ / สถานที่</th>
-                    <th>รายการอุปกรณ์ที่ยืม</th>
-                    <th>วันที่เริ่มยืม</th>
-                    <th>กำหนดส่งคืน</th>
-                    <th>สถานะ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myRequests.map((req) => (
-                    <tr key={req.id}>
-                      <td className="fontSemibold detailMetaValueHighlight tabularNums">{req.requestNo}</td>
-                      <td>
-                        <div className="fontMedium">{req.purpose}</div>
-                        {req.location && (
-                          <div className="tableSubMeta inlineIconRow">
-                            <MapPin size={12} strokeWidth={1.5} /> {req.location}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <ul className="tableItemList">
-                          {req.items.map((it) => (
-                            <li key={it.id}>
-                              {it.itemName} × {it.quantity}
-                              {it.returnedQty > 0 && <span className="textSuccess returnedInlineTag">(คืนแล้ว {it.returnedQty})</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      </td>
-                      <td className="tabularNums">{new Date(req.borrowDate).toLocaleDateString('th-TH')}</td>
-                      <td className="tabularNums">
-                        {req.expectedReturnDate ? (
-                          <span className={new Date(req.expectedReturnDate) < new Date() && req.status !== 'RETURNED' ? 'textDanger fontSemibold' : ''}>
-                            {new Date(req.expectedReturnDate).toLocaleDateString('th-TH')}
-                          </span>
-                        ) : (
-                          <span className="textMuted">-</span>
-                        )}
-                      </td>
-                      <td>
-                        {renderStatusBadge(req.status)}
-                        {req.rejectReason && (
-                          <div className="rejectReasonText">
-                            เหตุผล: {req.rejectReason}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
+        <EquipmentMyRequestsTab
+          myRequests={myRequests}
+          loading={loading}
+          onRefresh={fetchMyRequests}
+          onOpenBorrowModal={() => setIsBorrowModalOpen(true)}
+          renderStatusBadge={renderStatusBadge}
+        />
       )}
 
       {/* ── TAB 3: Admin Approvals & Active Loans ── */}
       {activeTab === 'approvals' && currentUser.canManageBorrow && (
-        <section>
-          {/* Subtabs Bar */}
-          <div className="approvalsNavPills">
-            <button
-              type="button"
-              onClick={() => setApprovalsSubTab('pending')}
-              className={`approvalsNavPill ${approvalsSubTab === 'pending' ? 'active' : ''}`}
-            >
-              <Clock size={15} strokeWidth={1.5} />
-              <span>รายการรออนุมัติ</span>
-              <span className={`pillCount ${pendingRequests.length > 0 ? 'pillCountUrgent' : ''}`}>
-                {pendingRequests.length}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setApprovalsSubTab('active')}
-              className={`approvalsNavPill ${approvalsSubTab === 'active' ? 'active' : ''}`}
-            >
-              <RotateCcw size={15} strokeWidth={1.5} />
-              <span>รายการกำลังยืม & ตรวจรับคืน</span>
-              <span className={`pillCount ${activeLoans.length > 0 ? 'pillCountInfo' : ''}`}>
-                {activeLoans.length}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setApprovalsSubTab('all')}
-              className={`approvalsNavPill ${approvalsSubTab === 'all' ? 'active' : ''}`}
-            >
-              <FileText size={15} strokeWidth={1.5} />
-              <span>ประวัติทุกคำขอ</span>
-              <span className="pillCount">{allRequests.length}</span>
-            </button>
-          </div>
-
-          <div className="toolbarRow">
-            <div className="searchBox">
-              <Search size={18} strokeWidth={1.5} className="searchIconMuted" />
-              <input
-                type="text"
-                placeholder="ค้นหาเลขที่คำขอ, ชื่อผู้ขอ, วัตถุประสงค์…"
-                value={approvalSearch}
-                onChange={(e) => setApprovalSearch(e.target.value)}
-              />
-            </div>
-            {approvalsSubTab === 'all' && (
-              <select
-                value={allRequestsStatusFilter}
-                onChange={(e) => setAllRequestsStatusFilter(e.target.value)}
-                className="selectInput filterSelectAuto"
-              >
-                <option value="ALL">ทุกสถานะ</option>
-                <option value="PENDING">รออนุมัติ</option>
-                <option value="APPROVED">กำลังยืม</option>
-                <option value="PARTIAL_RETURNED">คืนบางส่วน</option>
-                <option value="RETURNED">ส่งคืนครบแล้ว</option>
-                <option value="REJECTED">ไม่อนุมัติ</option>
-              </select>
-            )}
-            <button
-              type="button"
-              onClick={approvalsSubTab === 'pending' ? fetchPendingRequests : approvalsSubTab === 'active' ? fetchActiveLoans : fetchAllRequests}
-              className="secondaryButton"
-            >
-              <RefreshCw size={16} strokeWidth={1.5} className={loading ? 'animate-spin' : ''} /> รีเฟรช
-            </button>
-          </div>
-
-          <div className="tableContainer">
-            {approvalsSubTab === 'pending' ? (
-              pendingRequests.length === 0 ? (
-                <div className="emptyState">
-                  <CheckCircle2 size={44} strokeWidth={1.5} className="emptyStateSuccessIcon" />
-                  <p>ไม่มีคำขอยืมที่รออนุมัติในขณะนี้</p>
-                </div>
-              ) : (
-                <table className="styledTable">
-                  <thead>
-                    <tr>
-                      <th>เลขที่คำขอ</th>
-                      <th>ผู้ขอยืม / แผนก</th>
-                      <th>รายการอุปกรณ์</th>
-                      <th>วัตถุประสงค์ & สถานที่</th>
-                      <th>วันที่ยืม - กำหนดคืน</th>
-                      <th className="textRight">ดำเนินการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingRequests.map((req) => (
-                      <tr key={req.id}>
-                        <td className="fontSemibold detailMetaValueHighlight tabularNums">{req.requestNo}</td>
-                        <td>
-                          <div className="fontMedium">{req.requesterName}</div>
-                          <div className="tableSubMeta">{req.requesterDept || '-'}</div>
-                          {req.phone && (
-                            <div className="tableSubMeta textSuccess inlineIconRow tabularNums">
-                              <Phone size={12} strokeWidth={1.5} /> {req.phone}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <ul className="tableItemList">
-                            {req.items.map((it) => (
-                              <li key={it.id}>
-                                {it.itemName} × {it.quantity}
-                              </li>
-                            ))}
-                          </ul>
-                        </td>
-                        <td>
-                          <div className="fontMedium">{req.purpose}</div>
-                          {req.location && (
-                            <div className="tableSubMeta inlineIconRow">
-                              <MapPin size={12} strokeWidth={1.5} /> {req.location}
-                            </div>
-                          )}
-                        </td>
-                        <td className="tabularNums">
-                          <div>เริ่ม: {new Date(req.borrowDate).toLocaleDateString('th-TH')}</div>
-                          <div className="tableSubMeta">
-                            คืน: {req.expectedReturnDate ? new Date(req.expectedReturnDate).toLocaleDateString('th-TH') : '-'}
-                          </div>
-                        </td>
-                        <td className="textRight">
-                          <div className="inlineActions">
-                            <button
-                              type="button"
-                              onClick={() => handleApproveRequest(req.id)}
-                              className="actionBtn actionBtnApprove"
-                            >
-                              <Check size={14} strokeWidth={1.5} /> อนุมัติ & จ่ายของ
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRejectModalData({ id: req.id, requestNo: req.requestNo })}
-                              className="actionBtn actionBtnReject"
-                            >
-                              <X size={14} strokeWidth={1.5} /> ปฏิเสธ
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            ) : approvalsSubTab === 'active' ? (
-              activeLoans.length === 0 ? (
-                <div className="emptyState">
-                  <Package size={44} strokeWidth={1.5} className="emptyStateIcon" />
-                  <p>ไม่มีรายการอุปกรณ์ที่กำลังถูกยืมในขณะนี้</p>
-                </div>
-              ) : (
-                <table className="styledTable">
-                  <thead>
-                    <tr>
-                      <th>เลขที่คำขอ</th>
-                      <th>ผู้ขอยืม</th>
-                      <th>รายการอุปกรณ์ (ยืม/คืนแล้ว)</th>
-                      <th>กำหนดส่งคืน</th>
-                      <th>สถานะ</th>
-                      <th className="textRight">ดำเนินการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeLoans.map((req) => {
-                      const isOverdue = req.expectedReturnDate && new Date(req.expectedReturnDate) < new Date()
-                      return (
-                        <tr key={req.id}>
-                          <td className="fontSemibold detailMetaValueHighlight tabularNums">{req.requestNo}</td>
-                          <td>
-                            <div className="fontMedium">{req.requesterName}</div>
-                            {req.phone && (
-                              <div className="tableSubMeta inlineIconRow tabularNums">
-                                <Phone size={12} strokeWidth={1.5} />
-                                {req.phone}
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <ul className="tableItemList">
-                              {req.items.map((it) => (
-                                <li key={it.id}>
-                                  {it.itemName} : ยืม {it.quantity} (คืนแล้ว {it.returnedQty})
-                                </li>
-                              ))}
-                            </ul>
-                          </td>
-                          <td className="tabularNums">
-                            <div className={isOverdue ? 'textDanger fontSemibold' : ''}>
-                              {req.expectedReturnDate ? new Date(req.expectedReturnDate).toLocaleDateString('th-TH') : '-'}
-                            </div>
-                            {isOverdue && <span className="statusBadge statusOverdue">เกินกำหนด</span>}
-                          </td>
-                          <td>{renderStatusBadge(req.status)}</td>
-                          <td className="textRight">
-                            <button
-                              type="button"
-                              onClick={() => openReturnInspectionModal(req)}
-                              className="actionBtn actionBtnReturn"
-                            >
-                              <RotateCcw size={14} strokeWidth={1.5} /> ตรวจรับคืนของ
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              )
-            ) : (
-              allRequests.length === 0 ? (
-                <div className="emptyState">
-                  <FileText size={44} strokeWidth={1.5} className="emptyStateIcon" />
-                  <p>ไม่พบประวัติคำขอยืมตามเงื่อนไขที่เลือก</p>
-                </div>
-              ) : (
-                <table className="styledTable">
-                  <thead>
-                    <tr>
-                      <th>เลขที่คำขอ</th>
-                      <th>ผู้ขอยืม / แผนก</th>
-                      <th>รายการอุปกรณ์</th>
-                      <th>วัตถุประสงค์ & สถานที่</th>
-                      <th>วันที่ยืม - กำหนดคืน</th>
-                      <th>วันที่คืนจริง</th>
-                      <th>สถานะ</th>
-                      <th className="textRight">ดำเนินการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allRequests.map((req) => (
-                      <tr key={req.id}>
-                        <td className="fontSemibold detailMetaValueHighlight tabularNums">{req.requestNo}</td>
-                        <td>
-                          <div className="fontMedium">{req.requesterName}</div>
-                          <div className="tableSubMeta">{req.requesterDept || '-'}</div>
-                          {req.phone && (
-                            <div className="tableSubMeta inlineIconRow tabularNums">
-                              <Phone size={12} strokeWidth={1.5} />
-                              {req.phone}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <ul className="tableItemList">
-                            {req.items.map((it) => (
-                              <li key={it.id}>
-                                {it.itemName} : ยืม {it.quantity} (คืนแล้ว {it.returnedQty})
-                              </li>
-                            ))}
-                          </ul>
-                        </td>
-                        <td>
-                          <div className="fontMedium">{req.purpose}</div>
-                          {req.location && (
-                            <div className="tableSubMeta inlineIconRow">
-                              <MapPin size={12} strokeWidth={1.5} /> {req.location}
-                            </div>
-                          )}
-                        </td>
-                        <td className="tabularNums">
-                          <div>เริ่ม: {new Date(req.borrowDate).toLocaleDateString('th-TH')}</div>
-                          <div className="tableSubMeta">
-                            คืน: {req.expectedReturnDate ? new Date(req.expectedReturnDate).toLocaleDateString('th-TH') : '-'}
-                          </div>
-                        </td>
-                        <td className="tabularNums">
-                          {req.actualReturnDate ? (
-                            <span className="textSuccess inlineIconRow">
-                              <CheckCircle2 size={14} strokeWidth={1.5} /> {new Date(req.actualReturnDate).toLocaleDateString('th-TH')}
-                            </span>
-                          ) : (
-                            <span className="textMuted">-</span>
-                          )}
-                        </td>
-                        <td>{renderStatusBadge(req.status)}</td>
-                        <td className="textRight">
-                          <button
-                            type="button"
-                            onClick={() => setViewDetailModalData(req)}
-                            className="secondaryButton compactActionBtn"
-                          >
-                            <Eye size={14} strokeWidth={1.5} /> ดูรายละเอียด
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
-            )}
-          </div>
-        </section>
+        <EquipmentApprovalsTab
+          approvalsSubTab={approvalsSubTab}
+          onSubTabChange={setApprovalsSubTab}
+          pendingRequests={pendingRequests}
+          activeLoans={activeLoans}
+          allRequests={allRequests}
+          approvalSearch={approvalSearch}
+          onApprovalSearchChange={setApprovalSearch}
+          allRequestsStatusFilter={allRequestsStatusFilter}
+          onAllRequestsStatusFilterChange={setAllRequestsStatusFilter}
+          loading={loading}
+          onRefreshPending={fetchPendingRequests}
+          onRefreshActive={fetchActiveLoans}
+          onRefreshAll={fetchAllRequests}
+          onApproveRequest={handleApproveRequest}
+          onOpenRejectModal={setRejectModalData}
+          onOpenReturnInspectionModal={openReturnInspectionModal}
+          onOpenViewDetailModal={setViewDetailModalData}
+          renderStatusBadge={renderStatusBadge}
+        />
       )}
 
       {/* ── TAB 4: Inventory Management (Admin) ── */}
       {activeTab === 'inventory' && currentUser.canManageBorrow && (
-        <section>
-          {/* Subtab Bar */}
-          <div className="inventorySubtabsRow">
-            <div className="inventoryNavPills">
-              <button
-                type="button"
-                onClick={() => setInventoryType('materials')}
-                className={`inventoryNavPill ${inventoryType === 'materials' ? 'active' : ''}`}
-              >
-                <Package size={15} />
-                <span>คลังพัสดุและวัสดุ (Materials)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setInventoryType('assets')}
-                className={`inventoryNavPill ${inventoryType === 'assets' ? 'active' : ''}`}
-              >
-                <Building2 size={15} />
-                <span>ครุภัณฑ์พร้อมให้ยืม (Assets)</span>
-              </button>
-            </div>
-
-            {inventoryType === 'materials' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingMaterial(null)
-                  setPendingMaterialImageFile(null)
-                  setMaterialForm({
-                    name: '',
-                    category: 'GENERAL',
-                    materialType: 'REUSABLE',
-                    totalQty: 1,
-                    unit: 'ชิ้น',
-                    location: '',
-                    imageUrl: null,
-                    notes: '',
-                    isActive: true,
-                  })
-                  setMaterialModalMode('create')
-                }}
-                className="primaryButton"
-              >
-                <Plus size={16} strokeWidth={1.5} /> เพิ่มวัสดุใหม่
-              </button>
-            )}
-          </div>
-
-          <div className="toolbarRow">
-            <div className="searchBox">
-              <Search size={18} strokeWidth={1.5} className="searchIconMuted" />
-              <input
-                type="text"
-                placeholder={inventoryType === 'materials' ? 'ค้นหาชื่อวัสดุ, ที่เก็บ…' : 'ค้นหาเลขครุภัณฑ์, ชื่อ…'}
-                value={inventorySearch}
-                onChange={(e) => setInventorySearch(e.target.value)}
-              />
-            </div>
-            <button type="button" onClick={fetchInventory} className="secondaryButton">
-              <RefreshCw size={16} strokeWidth={1.5} className={loading ? 'animate-spin' : ''} /> รีเฟรช
-            </button>
-          </div>
-
-          <div className="tableContainer">
-            {inventoryType === 'materials' ? (
-              <table className="styledTable">
-                <thead>
-                  <tr>
-                    <th className="colThumb">รูปภาพ</th>
-                    <th>ชื่อวัสดุ</th>
-                    <th>หมวดหมู่</th>
-                    <th>ประเภทการใช้งาน</th>
-                    <th>จำนวนรวม</th>
-                    <th>พร้อมยืม</th>
-                    <th>สถานที่จัดเก็บ</th>
-                    <th>สถานะ</th>
-                    <th className="textRight">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        <EquipmentItemThumbnail
-                          imageUrl={m.imageUrl}
-                          name={m.name}
-                          category={m.category}
-                          variant="thumb"
-                          onClick={() => {
-                            if (m.imageUrl) {
-                              setPreviewItem({
-                                id: m.id,
-                                itemType: 'MATERIAL',
-                                name: m.name,
-                                code: `MAT-${m.id.toString().padStart(4, '0')}`,
-                                category: m.category,
-                                subType: m.materialType === 'REUSABLE' ? 'วัสดุยืม-คืน' : 'วัสดุสิ้นเปลือง',
-                                availableQty: m.availableQty,
-                                unit: m.unit,
-                                location: m.location,
-                                imageUrl: m.imageUrl,
-                              })
-                            } else {
-                              setEditingMaterial(m)
-                              setPendingMaterialImageFile(null)
-                              setMaterialForm({
-                                name: m.name,
-                                category: m.category,
-                                materialType: m.materialType,
-                                totalQty: m.totalQty,
-                                unit: m.unit,
-                                location: m.location || '',
-                                imageUrl: m.imageUrl || null,
-                                notes: m.notes || '',
-                                isActive: m.isActive,
-                              })
-                              setMaterialModalMode('edit')
-                            }
-                          }}
-                          ariaLabel={m.imageUrl ? `ดูรูปภาพ ${m.name}` : `แนบรูปภาพ ${m.name}`}
-                        />
-                      </td>
-                      <td className="fontSemibold textPrimary">{m.name}</td>
-                      <td>{m.category}</td>
-                      <td>
-                        <span className={`categoryPill ${m.materialType === 'REUSABLE' ? 'pillReusable' : 'pillConsumable'}`}>
-                          {m.materialType === 'REUSABLE' ? 'ยืม-คืน' : 'สิ้นเปลือง (ตัดยอด)'}
-                        </span>
-                      </td>
-                      <td className="tabularNums">{m.totalQty} {m.unit}</td>
-                      <td className={`fontSemibold tabularNums ${m.availableQty > 0 ? 'textSuccess' : 'textDanger'}`}>
-                        {m.availableQty} {m.unit}
-                      </td>
-                      <td>{m.location || '-'}</td>
-                      <td>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleMaterialActive(m.id, m.isActive, m.name)}
-                          className={`statusTogglePill ${m.isActive ? 'statusToggleActive' : 'statusToggleInactive'}`}
-                          title={m.isActive ? 'คลิกเพื่อปิดใช้งาน' : 'คลิกเพื่อเปิดใช้งาน'}
-                        >
-                          <span className={`statusToggleDot ${m.isActive ? 'dotActive' : 'dotInactive'}`} />
-                          {m.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                        </button>
-                      </td>
-                      <td className="textRight">
-                        <div className="inlineActions">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingMaterial(m)
-                              setPendingMaterialImageFile(null)
-                              setMaterialForm({
-                                name: m.name,
-                                category: m.category,
-                                materialType: m.materialType,
-                                totalQty: m.totalQty,
-                                unit: m.unit,
-                                location: m.location || '',
-                                imageUrl: m.imageUrl || null,
-                                notes: m.notes || '',
-                                isActive: m.isActive,
-                              })
-                              setMaterialModalMode('edit')
-                            }}
-                            className="secondaryButton iconActionBtn"
-                            title="แก้ไขและแนบรูปภาพ"
-                            aria-label={`แก้ไข ${m.name}`}
-                          >
-                            <Edit2 size={14} strokeWidth={1.5} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleMaterialActive(m.id, m.isActive, m.name)}
-                            className={`secondaryButton iconActionBtn ${m.isActive ? 'textWarning' : 'textSuccess'}`}
-                            title={m.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
-                            aria-label={m.isActive ? `ปิดใช้งาน ${m.name}` : `เปิดใช้งาน ${m.name}`}
-                          >
-                            <Power size={14} strokeWidth={1.5} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMaterial(m.id, m.name)}
-                            className="secondaryButton iconActionBtn textDanger"
-                            title="ลบ"
-                            aria-label={`ลบ ${m.name}`}
-                          >
-                            <Trash2 size={14} strokeWidth={1.5} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <table className="styledTable">
-                <thead>
-                  <tr>
-                    <th className="colThumb">รูปภาพ</th>
-                    <th>เลขครุภัณฑ์</th>
-                    <th>ชื่อครุภัณฑ์</th>
-                    <th>ยี่ห้อ</th>
-                    <th>หมวดหมู่</th>
-                    <th>สถานที่ติดตั้ง</th>
-                    <th>สถานะเปิดให้ยืม</th>
-                    <th className="textRight">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loanableAssets.map((asset) => (
-                    <tr key={asset.id}>
-                      <td>
-                        <EquipmentItemThumbnail
-                          imageUrl={asset.imageUrl}
-                          name={asset.name}
-                          category={asset.category}
-                          variant="thumb"
-                          onClick={() => {
-                            setAssetImageModalData(asset)
-                            setAssetImageDraftUrl(asset.imageUrl || null)
-                            setPendingAssetImageFile(null)
-                          }}
-                          ariaLabel={`แนบหรือแก้ไขรูปภาพ ${asset.name}`}
-                        />
-                      </td>
-                      <td className="fontSemibold textInfo tabularNums">{asset.articleNum}</td>
-                      <td className="fontMedium textPrimary">{asset.name}</td>
-                      <td>{asset.brand || '-'}</td>
-                      <td>{asset.category}</td>
-                      <td>{asset.locationFullName || '-'}</td>
-                      <td>
-                        {asset.isLoanable ? (
-                          <span className="statusBadge statusReturned">เปิดให้ยืมแล้ว</span>
-                        ) : (
-                          <span className="statusBadge statusNeutral">ไม่ได้เปิดให้ยืม</span>
-                        )}
-                      </td>
-                      <td className="textRight">
-                        <div className="inlineActions">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAssetImageModalData(asset)
-                              setAssetImageDraftUrl(asset.imageUrl || null)
-                              setPendingAssetImageFile(null)
-                            }}
-                            className="secondaryButton compactActionBtn"
-                            title={asset.imageUrl ? 'เปลี่ยนรูปภาพ' : 'แนบรูปภาพ'}
-                          >
-                            <ImagePlus size={14} strokeWidth={1.5} />
-                            {asset.imageUrl ? 'แก้ไขรูป' : 'แนบรูป'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleAssetLoanable(asset.id, asset.isLoanable)}
-                            className={asset.isLoanable ? 'actionBtn actionBtnReject' : 'actionBtn actionBtnApprove'}
-                          >
-                            {asset.isLoanable ? 'ปิดการให้ยืม' : 'เปิดให้ยืม'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
+        <EquipmentInventoryTab
+          inventoryType={inventoryType}
+          onInventoryTypeChange={setInventoryType}
+          inventorySearch={inventorySearch}
+          onInventorySearchChange={setInventorySearch}
+          loading={loading}
+          materials={materials}
+          loanableAssets={loanableAssets}
+          onRefresh={fetchInventory}
+          onOpenCreateMaterialModal={() => {
+            setEditingMaterial(null)
+            setPendingMaterialImageFile(null)
+            setMaterialForm({
+              name: '',
+              category: 'GENERAL',
+              materialType: 'REUSABLE',
+              totalQty: 1,
+              unit: 'ชิ้น',
+              location: '',
+              imageUrl: null,
+              notes: '',
+              isActive: true,
+            })
+            setMaterialModalMode('create')
+          }}
+          onOpenEditMaterialModal={(m) => {
+            setEditingMaterial(m)
+            setPendingMaterialImageFile(null)
+            setMaterialForm({
+              name: m.name,
+              category: m.category,
+              materialType: m.materialType,
+              totalQty: m.totalQty,
+              unit: m.unit,
+              location: m.location || '',
+              imageUrl: m.imageUrl || null,
+              notes: m.notes || '',
+              isActive: m.isActive,
+            })
+            setMaterialModalMode('edit')
+          }}
+          onPreviewItem={setPreviewItem}
+          onToggleMaterialActive={handleToggleMaterialActive}
+          onDeleteMaterial={handleDeleteMaterial}
+          onOpenAssetImageModal={(asset) => {
+            setAssetImageModalData(asset)
+            setAssetImageDraftUrl(asset.imageUrl || null)
+            setPendingAssetImageFile(null)
+          }}
+          onToggleAssetLoanable={handleToggleAssetLoanable}
+        />
       )}
 
       {/* ── Floating Basket Trigger Pill ── */}

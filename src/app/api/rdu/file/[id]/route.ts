@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiGateway } from '@/lib/apiGateway'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
+import { logger } from '@/lib/logger'
 
 export async function GET(
   request: Request,
@@ -12,9 +13,16 @@ export async function GET(
 
     if (isNaN(fileId)) return NextResponse.json({ error: 'รหัสไฟล์ไม่ถูกต้อง' }, { status: 400 })
 
-    const res: any = await apiGateway.app.getRduFileById(fileId)
-    const fileRow = (res && typeof res === 'object')
-      ? (res.data ? res.data : (res.file_name ? res : null))
+    interface RduFileRow {
+      file_name?: string | null
+      folder_name?: string | null
+      display_name?: string | null
+      file_path?: string | null
+    }
+    const res: unknown = await apiGateway.app.getRduFileById(fileId)
+    const resObj = (res && typeof res === 'object') ? (res as { data?: RduFileRow } & RduFileRow) : null
+    const fileRow: RduFileRow | null = resObj
+      ? (resObj.data ? resObj.data : (resObj.file_name ? resObj : null))
       : null
 
     if (!fileRow) return NextResponse.json({ error: 'ไม่พบไฟล์ที่ระบุในฐานข้อมูล' }, { status: 404 })
@@ -27,7 +35,7 @@ export async function GET(
       `public/documents/rdu/${sanitizedFolder}/${file_name}`,
       `public/uploads/rdu/${sanitizedFolder}/${file_name}`,
       `public/uploads/rdu/${String(folder_name)}/${file_name}`,
-    ].filter(Boolean)
+    ].filter((p): p is string => Boolean(p))
 
     let fileBuffer: Buffer | null = null
     for (const p of candidates) {
@@ -48,9 +56,9 @@ export async function GET(
     headers.set('Content-Disposition', `inline; filename="${encodedDisplayName}.pdf"; filename*=UTF-8''${encodedDisplayName}.pdf`)
     headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
 
-    return new NextResponse(fileBuffer as any, { status: 200, headers })
-  } catch (error: any) {
-    console.error('Error streaming RDU PDF file:', error)
+    return new NextResponse(new Uint8Array(fileBuffer), { status: 200, headers })
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error streaming RDU PDF file')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการโหลดไฟล์' }, { status: 500 })
   }
 }

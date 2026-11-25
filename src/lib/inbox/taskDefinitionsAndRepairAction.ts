@@ -1,5 +1,6 @@
 import { apiGateway } from '@/lib/apiGateway'
 import { logger } from '@/lib/logger'
+import { safeJsonParse } from '@/lib/utils/safeJson'
 import crypto from 'crypto'
 
 export interface WorkflowStepDefinition {
@@ -361,14 +362,7 @@ export async function executeRepairAction(
     return { success: false, error: 'ไม่พบรายละเอียดงานซ่อม', statusCode: 404 }
   }
 
-  let coWorkers: any[] = []
-  try {
-    coWorkers = repairDetail.co_workers
-      ? typeof repairDetail.co_workers === 'string'
-        ? JSON.parse(repairDetail.co_workers)
-        : repairDetail.co_workers
-      : []
-  } catch {}
+  const coWorkers = safeJsonParse<any[]>(repairDetail.co_workers, [])
 
   const isAssignee = task.current_assignee === performer.id
   const isCoWorker = coWorkers.some((cw: any) => cw.id === performer.id)

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
@@ -29,7 +30,6 @@ export async function POST(request: Request) {
     const dateStr = DocumentStorage.formatDateDirectory('', publishedAt, 'daily')
 
     const isPdf = file.type === 'application/pdf'
-    const origExt = file.name && file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : ''
     const rawFileBase = file.name && file.name.includes('.')
       ? file.name.slice(0, file.name.lastIndexOf('.'))
       : (file.name || 'file')
@@ -60,11 +60,11 @@ export async function POST(request: Request) {
       { success: true, url: saved.publicUrl, filename: file.name, isPdf },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof StorageValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    console.error('Member upload error:', error)
+    logger.error({ error }, 'Member upload error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' },
       { status: 500 }
@@ -98,8 +98,8 @@ export async function DELETE(request: Request) {
     )
 
     return NextResponse.json({ success: true, message: 'ลบไฟล์เรียบร้อยแล้ว' })
-  } catch (error: any) {
-    console.error('Delete member upload error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Delete member upload error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการลบไฟล์อัปโหลด' },
       { status: 500 }

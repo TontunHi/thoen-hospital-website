@@ -46,7 +46,21 @@ describe('s3Client normalizeS3Key', () => {
 })
 
 describe('s3Client MinIO pure API management', () => {
+  it('fails closed when S3_ENDPOINT or credentials are missing', async () => {
+    vi.stubEnv('S3_ENDPOINT', '')
+    vi.stubEnv('S3_ACCESS_KEY', '')
+    vi.stubEnv('S3_SECRET_KEY', '')
+    vi.stubEnv('ENABLE_TEST_S3', '')
+
+    const { getS3Client, isS3Configured } = await import('../s3Client')
+    expect(isS3Configured()).toBe(false)
+    expect(() => getS3Client()).toThrow(/S3_ENDPOINT/)
+  })
+
   it('checks MinIO health successfully when S3 endpoint is reachable', async () => {
+    vi.stubEnv('S3_ENDPOINT', 'http://minio.test:9000')
+    vi.stubEnv('S3_ACCESS_KEY', 'test_access_key')
+    vi.stubEnv('S3_SECRET_KEY', 'test_secret_key')
     const { checkMinioHealth, getS3Client } = await import('../s3Client')
     const client = getS3Client()
     const sendSpy = vi.spyOn(client, 'send').mockResolvedValueOnce({ Buckets: [] } as any)
@@ -58,6 +72,9 @@ describe('s3Client MinIO pure API management', () => {
   })
 
   it('reports unhealthy when MinIO connection fails', async () => {
+    vi.stubEnv('S3_ENDPOINT', 'http://minio.test:9000')
+    vi.stubEnv('S3_ACCESS_KEY', 'test_access_key')
+    vi.stubEnv('S3_SECRET_KEY', 'test_secret_key')
     const { checkMinioHealth, getS3Client } = await import('../s3Client')
     const client = getS3Client()
     const sendSpy = vi.spyOn(client, 'send').mockRejectedValueOnce(new Error('Connection refused'))
@@ -69,6 +86,9 @@ describe('s3Client MinIO pure API management', () => {
   })
 
   it('ensures storage buckets exist by creating missing ones and setting public policy', async () => {
+    vi.stubEnv('S3_ENDPOINT', 'http://minio.test:9000')
+    vi.stubEnv('S3_ACCESS_KEY', 'test_access_key')
+    vi.stubEnv('S3_SECRET_KEY', 'test_secret_key')
     const { ensureStorageBucketsExist, getS3Client } = await import('../s3Client')
     const client = getS3Client()
     

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const eventService = new HospitalEventService()
 
@@ -39,9 +40,9 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data: event })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลกิจกรรม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลกิจกรรม') },
       { status: 500 }
     )
   }
@@ -80,9 +81,9 @@ export async function PUT(
 
     const updated = await eventService.updateEvent(eventId, parsed.data, actor)
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการแก้ไขกิจกรรม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขกิจกรรม') },
       { status: 400 }
     )
   }
@@ -112,9 +113,9 @@ export async function DELETE(
 
     const result = await eventService.deleteEvent(eventId, actor)
     return NextResponse.json(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบกิจกรรม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบกิจกรรม') },
       { status: 400 }
     )
   }

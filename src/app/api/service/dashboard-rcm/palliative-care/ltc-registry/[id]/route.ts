@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyMemberSession, fetchAuthenticatedMember } from '@/lib/memberAuth'
 import { LtcRegistryService } from '@/lib/clinical/ltcRegistryService'
 import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function PUT(
   request: Request,
@@ -48,10 +49,10 @@ export async function PUT(
       success: true,
       data: updated,
     })
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'API PUT /api/service/dashboard-rcm/palliative-care/ltc-registry/[id] Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'API PUT /api/service/dashboard-rcm/palliative-care/ltc-registry/[id] Error')
     return NextResponse.json(
-      { success: false, error: error?.message || 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล LTC' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล LTC') },
       { status: 400 }
     )
   }
@@ -97,10 +98,10 @@ export async function DELETE(
       success: true,
       message: 'ลบข้อมูลทะเบียน LTC สำเร็จ',
     })
-  } catch (error: any) {
-    logger.error({ error: error?.message }, 'API DELETE /api/service/dashboard-rcm/palliative-care/ltc-registry/[id] Error')
+  } catch (error: unknown) {
+    logger.error({ error: getErrorMessage(error) }, 'API DELETE /api/service/dashboard-rcm/palliative-care/ltc-registry/[id] Error')
     return NextResponse.json(
-      { success: false, error: error?.message || 'เกิดข้อผิดพลาดในการลบข้อมูล LTC' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบข้อมูล LTC') },
       { status: 400 }
     )
   }

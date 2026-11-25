@@ -1,5 +1,6 @@
 import { apiGateway } from '@/lib/apiGateway'
 import { logger } from '@/lib/logger'
+import { safeJsonParse } from '@/lib/utils/safeJson'
 import { resolveTaskPermissions, MemberLike } from '@/lib/taskPermissionResolver'
 import {
   WorkflowStepDefinition,
@@ -227,14 +228,7 @@ export async function executeWorkflowAction(
     },
   })
 
-  let parsedPayload: Record<string, any> = {}
-  try {
-    parsedPayload = task.custom_payload
-      ? typeof task.custom_payload === 'string'
-        ? JSON.parse(task.custom_payload)
-        : task.custom_payload
-      : {}
-  } catch {}
+  const parsedPayload = safeJsonParse<Record<string, any>>(task.custom_payload, {})
 
   if (action === 'HOLD') {
     const selectedReason = holdReason || comment || 'รอการจัดสรรงบ'

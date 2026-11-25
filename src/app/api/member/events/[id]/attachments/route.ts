@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
 import { handleEventAttachmentUpload } from '@/lib/events/eventAttachmentUploadHelper'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(
   _request: Request,
@@ -20,9 +21,9 @@ export async function GET(
     const eventService = new HospitalEventService()
     const attachments = await eventService.getAttachments(eventId)
     return NextResponse.json({ success: true, attachments })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลไฟล์แนบ' },
+      { success: false, error: getErrorMessage(err, 'เกิดข้อผิดพลาดในการดึงข้อมูลไฟล์แนบ') },
       { status: 500 }
     )
   }
@@ -43,9 +44,9 @@ export async function POST(
     }
 
     return await handleEventAttachmentUpload(request, eventId, auth.member)
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: err.message || 'เกิดข้อผิดพลาดในการบันทึกสิ่งที่แนบ' },
+      { success: false, error: getErrorMessage(err, 'เกิดข้อผิดพลาดในการบันทึกสิ่งที่แนบ') },
       { status: 500 }
     )
   }

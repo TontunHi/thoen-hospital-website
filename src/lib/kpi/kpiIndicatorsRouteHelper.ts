@@ -92,13 +92,13 @@ export async function handleKpiIndicatorsGet(req: NextRequest) {
         responsiblePersons,
       },
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลตัวชี้วัด',
+          message: err instanceof Error && err.message ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลตัวชี้วัด',
         },
       },
       { status: 500 }
@@ -149,13 +149,13 @@ export async function handleKpiIndicatorsPost(req: NextRequest) {
       success: true,
       data: { id: newId },
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'CREATE_FAILED',
-          message: err.message || 'เพิ่มตัวชี้วัดไม่สำเร็จ',
+          message: err instanceof Error && err.message ? err.message : 'เพิ่มตัวชี้วัดไม่สำเร็จ',
         },
       },
       { status: 500 }
@@ -214,13 +214,13 @@ export async function handleKpiIndicatorsPut(req: NextRequest) {
       success: true,
       message: 'บันทึกการแก้ไขเรียบร้อยแล้ว',
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'UPDATE_FAILED',
-          message: err.message || 'แก้ไขตัวชี้วัดไม่สำเร็จ',
+          message: err instanceof Error && err.message ? err.message : 'แก้ไขตัวชี้วัดไม่สำเร็จ',
         },
       },
       { status: 500 }
@@ -271,13 +271,13 @@ export async function handleKpiIndicatorsDelete(req: NextRequest) {
       success: true,
       message: 'ลบตัวชี้วัดเรียบร้อยแล้ว',
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'DELETE_FAILED',
-          message: err.message || 'ลบตัวชี้วัดไม่สำเร็จ',
+          message: err instanceof Error && err.message ? err.message : 'ลบตัวชี้วัดไม่สำเร็จ',
         },
       },
       { status: 500 }

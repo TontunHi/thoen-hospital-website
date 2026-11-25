@@ -8,7 +8,7 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __thoen_telegram_poller_active__: boolean | undefined
 }
 
@@ -65,8 +65,8 @@ export function startTelegramPolling() {
       // 2. Ensure webhook is removed so getUpdates does not 409 Conflict
       try {
         await callTelegram('deleteWebhook', { drop_pending_updates: false })
-      } catch (err: any) {
-        logger.warn({ err: err?.message }, 'Could not delete webhook (might already be deleted)')
+      } catch (err: unknown) {
+        logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'Could not delete webhook (might already be deleted)')
       }
 
       // 3. Polling loop
@@ -92,18 +92,18 @@ export function startTelegramPolling() {
                   },
                   'Processed incoming Telegram update'
                 )
-              } catch (updateErr: any) {
-                logger.error({ err: updateErr?.message }, 'Error processing Telegram update item')
+              } catch (updateErr: unknown) {
+                logger.error({ err: updateErr instanceof Error ? updateErr.message : String(updateErr) }, 'Error processing Telegram update item')
               }
             }
           }
-        } catch (pollErr: any) {
-          logger.warn({ err: pollErr?.message }, 'Telegram polling cycle encountered error, retrying in 5s')
+        } catch (pollErr: unknown) {
+          logger.warn({ err: pollErr instanceof Error ? pollErr.message : String(pollErr) }, 'Telegram polling cycle encountered error, retrying in 5s')
           await new Promise((resolve) => setTimeout(resolve, 5000))
         }
       }
-    } catch (initErr: any) {
-      logger.error({ err: initErr?.message }, 'Failed to initialize Telegram background poller')
+    } catch (initErr: unknown) {
+      logger.error({ err: initErr instanceof Error ? initErr.message : String(initErr) }, 'Failed to initialize Telegram background poller')
     }
   })()
 }

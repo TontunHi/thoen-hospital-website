@@ -9,7 +9,7 @@ import {
   type ProviderIdProfile,
   type HealthIdUser,
 } from '@/lib/providerIdAuth'
-import { logAudit } from '@/lib/audit'
+import { logAudit, type AuditActionType } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { apiGateway } from '@/lib/apiGateway'
 import { getSwrCachedData } from '@/lib/cache'
@@ -46,8 +46,8 @@ function getSecret(): string {
   return secret
 }
 
-const SESSION_MAX_AGE = 1800 // 30 minutes in seconds
-const ABSOLUTE_MAX_AGE = 43200 // 12 hours in seconds
+export const SESSION_MAX_AGE = 1800 // 30 minutes in seconds
+export const ABSOLUTE_MAX_AGE = 43200 // 12 hours in seconds
 
 function sign(value: string): string {
   const hmac = crypto.createHmac('sha256', getSecret())
@@ -55,11 +55,74 @@ function sign(value: string): string {
   return hmac.digest('hex')
 }
 
+export interface VerifiedMemberTokenPayload extends MemberSessionPayload {
+  aud: 'member'
+  iat: number
+  exp: number
+}
+
+/**
+ * Synchronously verifies an HMAC-signed member session token (signature, audience, expiry, absolute cap).
+ * Returns null when the token is malformed, invalid, or expired.
+ */
+export function verifySignedMemberToken(token: string): VerifiedMemberTokenPayload | null {
+  try {
+    const [encoded, signature] = token.split('.')
+    if (!encoded || !signature) return null
+
+    const expectedSignature = sign(encoded)
+    const sigBuffer = Buffer.from(signature, 'hex')
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+
+    if (
+      sigBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+    ) {
+      return null
+    }
+
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
+    if (payload.aud !== 'member') return null
+
+    const now = Date.now()
+    if (typeof payload.exp !== 'number' || payload.exp < now) return null
+
+    const iat = typeof payload.iat === 'number' ? payload.iat : payload.exp - SESSION_MAX_AGE * 1000
+    if (now - iat > ABSOLUTE_MAX_AGE * 1000) {
+      return null
+    }
+
+    return {
+      username: payload.username,
+      email: payload.email,
+      role: payload.role || 'member',
+      aud: 'member',
+      iat,
+      exp: payload.exp,
+    }
+  } catch {
+    return null
+  }
+}
+
 export class MemberAuthService {
   private readonly customGw?: Partial<MemberAuthGatewayDeps>
 
   constructor(gwDeps?: Partial<MemberAuthGatewayDeps>) {
     this.customGw = gwDeps
+  }
+
+  private async safeLogAudit(
+    actionType: AuditActionType,
+    targetTable: string,
+    actionDetails: string,
+    sessionData: { username: string; email: string }
+  ): Promise<void> {
+    try {
+      await logAudit(actionType, targetTable, actionDetails, sessionData)
+    } catch (auditErr: unknown) {
+      logger.warn({ actionType, targetTable, auditErr }, 'Auth audit log write failed')
+    }
   }
 
   private get gw(): MemberAuthGatewayDeps {
@@ -102,7 +165,7 @@ export class MemberAuthService {
 
     await this.gw.setMemberOtp(user.id, otp)
 
-    console.log('[MEMBER OTP] OTP generated successfully and dispatching to registered email')
+    logger.info('[MEMBER OTP] OTP generated successfully and dispatching to registered email')
 
     const isBrevoConfigured = Boolean(process.env.BREVO_SMTP_USER && process.env.BREVO_SMTP_PASS)
     const transporter = nodemailer.createTransport(
@@ -157,7 +220,7 @@ export class MemberAuthService {
         },
       })
     } catch (mailError: unknown) {
-      console.error('Failed to send member OTP email:', mailError)
+      logger.error({ mailError }, 'Failed to send member OTP email')
       return { success: false, error: 'ไม่สามารถส่งอีเมลยืนยัน OTP ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' }
     }
 
@@ -176,38 +239,32 @@ export class MemberAuthService {
     })
 
     if (!user) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: User not found or email mismatch`,
-          { username: formatMaskedCitizenId(trimmedUsername), email: trimmedEmail || 'unknown' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: User not found or email mismatch`,
+        { username: formatMaskedCitizenId(trimmedUsername), email: trimmedEmail || 'unknown' }
+      )
       throw new Error('ข้อมูลผู้ใช้งานหรืออีเมลไม่ถูกต้อง')
     }
 
     if (!user.otp_code || user.otp_code !== trimmedOtp) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: Incorrect OTP`,
-          { username: formatMaskedCitizenId(trimmedUsername), email: user.email }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: Incorrect OTP`,
+        { username: formatMaskedCitizenId(trimmedUsername), email: user.email }
+      )
       throw new Error('รหัส OTP ไม่ถูกต้อง')
     }
 
     if (!user.is_valid) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: OTP expired`,
-          { username: formatMaskedCitizenId(trimmedUsername), email: user.email }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: OTP expired`,
+        { username: formatMaskedCitizenId(trimmedUsername), email: user.email }
+      )
       throw new Error('รหัส OTP หมดอายุการใช้งานแล้ว กรุณาขอรหัสใหม่')
     }
 
@@ -241,14 +298,12 @@ export class MemberAuthService {
     const signature = sign(encoded)
 
     if (!isRenewal && !options?.skipAudit) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `User ${formatMaskedCitizenId(payload.username)} logged in successfully`,
-          { username: formatMaskedCitizenId(payload.username), email: payload.email }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `User ${formatMaskedCitizenId(payload.username)} logged in successfully`,
+        { username: formatMaskedCitizenId(payload.username), email: payload.email }
+      )
     }
 
     return `${encoded}.${signature}`
@@ -328,14 +383,12 @@ export class MemberAuthService {
 
     const userInfo = await exchangeThaidAuthorizationCode(code, config)
     if (!userInfo || !userInfo.pid) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          'พยายามเข้าสู่ระบบด้วย ThaID แต่การแลกเปลี่ยน Token ล้มเหลว (DOPA Token Exchange Failed/Expired)',
-          { username: 'THAID_EXCHANGE_ERROR', email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        'พยายามเข้าสู่ระบบด้วย ThaID แต่การแลกเปลี่ยน Token ล้มเหลว (DOPA Token Exchange Failed/Expired)',
+        { username: 'THAID_EXCHANGE_ERROR', email: '' }
+      )
       throw new Error('Failed to obtain citizen ID from ThaID')
     }
 
@@ -346,25 +399,21 @@ export class MemberAuthService {
     const user = await this.gw.getAuthMemberByUsername({ username: userInfo.pid })
 
     if (!user) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `เข้าสู่ระบบ ThaID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(userInfo.pid)}) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
-          { username: formatMaskedCitizenId(userInfo.pid), email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `เข้าสู่ระบบ ThaID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(userInfo.pid)}) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
+        { username: formatMaskedCitizenId(userInfo.pid), email: '' }
+      )
       throw new Error('ThaID citizen ID not registered in hospital members')
     }
 
-    try {
-      await logAudit(
-        'LOGIN',
-        'members',
-        `เข้าสู่ระบบสำเร็จผ่าน ThaID: ${user.name || fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(user.username)})`,
-        { username: formatMaskedCitizenId(user.username), email: user.email }
-      )
-    } catch {}
+    await this.safeLogAudit(
+      'LOGIN',
+      'members',
+      `เข้าสู่ระบบสำเร็จผ่าน ThaID: ${user.name || fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(user.username)})`,
+      { username: formatMaskedCitizenId(user.username), email: user.email }
+    )
 
     return {
       username: user.username,
@@ -382,37 +431,31 @@ export class MemberAuthService {
       profile = await authenticateWithProviderId(code, config)
     } catch (authErr: unknown) {
       if (authErr instanceof NotAProviderError) {
-        try {
-          await logAudit(
-            'LOGIN',
-            'members',
-            'พยายามเข้าสู่ระบบด้วย Provider ID แต่ไม่พบข้อมูลการเป็นบุคลากรสาธารณสุข (User is not a Provider)',
-            { username: 'NOT_A_PROVIDER', email: '' }
-          )
-        } catch {}
+        await this.safeLogAudit(
+          'LOGIN',
+          'members',
+          'พยายามเข้าสู่ระบบด้วย Provider ID แต่ไม่พบข้อมูลการเป็นบุคลากรสาธารณสุข (User is not a Provider)',
+          { username: 'NOT_A_PROVIDER', email: '' }
+        )
         throw authErr
       }
       const errMsg = authErr instanceof Error ? authErr.message : 'Token Exchange Failed'
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `พยายามเข้าสู่ระบบด้วย Provider ID แต่การแลกเปลี่ยน Token ล้มเหลว (${errMsg})`,
-          { username: 'PROVIDER_ID_EXCHANGE_ERROR', email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `พยายามเข้าสู่ระบบด้วย Provider ID แต่การแลกเปลี่ยน Token ล้มเหลว (${errMsg})`,
+        { username: 'PROVIDER_ID_EXCHANGE_ERROR', email: '' }
+      )
       throw authErr
     }
 
     if (!profile || !profile.hash_cid) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          'พยายามเข้าสู่ระบบด้วย Provider ID แต่ไม่ได้รับ hash_cid จากระบบ สธ.',
-          { username: 'PROVIDER_ID_MISSING_HASH_CID', email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        'พยายามเข้าสู่ระบบด้วย Provider ID แต่ไม่ได้รับ hash_cid จากระบบ สธ.',
+        { username: 'PROVIDER_ID_MISSING_HASH_CID', email: '' }
+      )
       throw new Error('Failed to obtain identity hash from Provider ID')
     }
 
@@ -429,25 +472,21 @@ export class MemberAuthService {
     const user = await this.gw.getAuthMemberByHashCid(profile.hash_cid.toLowerCase())
 
     if (!user) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `เข้าสู่ระบบ Provider ID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (PID: ${profile.provider_id || '-'}, hash_cid: ${profile.hash_cid.slice(0, 10)}...) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
-          { username: 'NOT_REGISTERED', email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `เข้าสู่ระบบ Provider ID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (PID: ${profile.provider_id || '-'}, hash_cid: ${profile.hash_cid.slice(0, 10)}...) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
+        { username: 'NOT_REGISTERED', email: '' }
+      )
       throw new Error('Provider ID citizen ID not registered in hospital members')
     }
 
-    try {
-      await logAudit(
-        'LOGIN',
-        'members',
-        `เข้าสู่ระบบสำเร็จผ่าน Provider ID: ${user.name || fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(user.username)}, PID: ${profile.provider_id || '-'})`,
-        { username: formatMaskedCitizenId(user.username), email: user.email }
-      )
-    } catch {}
+    await this.safeLogAudit(
+      'LOGIN',
+      'members',
+      `เข้าสู่ระบบสำเร็จผ่าน Provider ID: ${user.name || fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(user.username)}, PID: ${profile.provider_id || '-'})`,
+      { username: formatMaskedCitizenId(user.username), email: user.email }
+    )
 
     return {
       username: user.username,
@@ -465,26 +504,22 @@ export class MemberAuthService {
       user = await authenticateWithHealthId(code, config)
     } catch (authErr: unknown) {
       const errMsg = authErr instanceof Error ? authErr.message : 'Token Exchange Failed'
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `พยายามเข้าสู่ระบบด้วย Health ID แต่การแลกเปลี่ยน Token ล้มเหลว (${errMsg})`,
-          { username: 'HEALTH_ID_EXCHANGE_ERROR', email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `พยายามเข้าสู่ระบบด้วย Health ID แต่การแลกเปลี่ยน Token ล้มเหลว (${errMsg})`,
+        { username: 'HEALTH_ID_EXCHANGE_ERROR', email: '' }
+      )
       throw authErr
     }
 
     if (!user.citizenId && !user.hashCid) {
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          'พยายามเข้าสู่ระบบด้วย Health ID แต่ไม่พบเลขบัตรประชาชนหรือ hash_cid ในข้อมูล Token',
-          { username: 'HEALTH_ID_MISSING_ID', email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        'พยายามเข้าสู่ระบบด้วย Health ID แต่ไม่พบเลขบัตรประชาชนหรือ hash_cid ในข้อมูล Token',
+        { username: 'HEALTH_ID_MISSING_ID', email: '' }
+      )
       throw new Error('Failed to obtain identity from Health ID')
     }
 
@@ -496,25 +531,21 @@ export class MemberAuthService {
       const maskedId = user.citizenId
         ? formatMaskedCitizenId(user.citizenId)
         : `${user.hashCid?.slice(0, 10)}...`
-      try {
-        await logAudit(
-          'LOGIN',
-          'members',
-          `เข้าสู่ระบบ Health ID สำเร็จแต่ไม่มีบัญชีในระบบ: ${user.name || 'ไม่ระบุชื่อ'} (${maskedId}) ไม่พบในฐานข้อมูลบุคลากร`,
-          { username: 'NOT_REGISTERED', email: '' }
-        )
-      } catch {}
+      await this.safeLogAudit(
+        'LOGIN',
+        'members',
+        `เข้าสู่ระบบ Health ID สำเร็จแต่ไม่มีบัญชีในระบบ: ${user.name || 'ไม่ระบุชื่อ'} (${maskedId}) ไม่พบในฐานข้อมูลบุคลากร`,
+        { username: 'NOT_REGISTERED', email: '' }
+      )
       throw new Error('Health ID citizen ID not registered in hospital members')
     }
 
-    try {
-      await logAudit(
-        'LOGIN',
-        'members',
-        `เข้าสู่ระบบสำเร็จผ่าน Health ID: ${member.name || user.name || 'บุคลากร'} (เลขบัตรประชาชน ${formatMaskedCitizenId(member.username)})`,
-        { username: formatMaskedCitizenId(member.username), email: member.email }
-      )
-    } catch {}
+    await this.safeLogAudit(
+      'LOGIN',
+      'members',
+      `เข้าสู่ระบบสำเร็จผ่าน Health ID: ${member.name || user.name || 'บุคลากร'} (เลขบัตรประชาชน ${formatMaskedCitizenId(member.username)})`,
+      { username: formatMaskedCitizenId(member.username), email: member.email }
+    )
 
     return {
       username: member.username,

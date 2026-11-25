@@ -3,6 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { z } from 'zod'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { logThrottledAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 const searchSchema = z.object({
   q: z
@@ -103,8 +104,18 @@ export async function GET(request: Request) {
       return fullResult.replace(/\s+/g, ' ').trim()
     }
 
+    interface AppointmentRow {
+      hn?: string
+      ptname?: string | null
+      appoint_date?: string | Date
+      appoint_time?: string | null
+      clinic_name?: string | null
+      doctor_name?: string | null
+      appoint_note?: string | null
+    }
+
     // Clean up dates and times for JSON response
-    const formatted = appointments.map((app: any) => {
+    const formatted = (appointments as AppointmentRow[]).map((app) => {
       let formattedDate = app.appoint_date
       if (app.appoint_date instanceof Date) {
         // Correct timezone offset for Date object conversion
@@ -114,7 +125,7 @@ export async function GET(request: Request) {
       }
       return {
         hn: app.hn,
-        ptname: maskPatientName(app.ptname),
+        ptname: maskPatientName(app.ptname ?? null),
         appoint_date: formattedDate,
         appoint_time: app.appoint_time,
         clinic_name: app.clinic_name || 'ไม่ระบุห้องตรวจ',
@@ -124,8 +135,8 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({ success: true, appointments: formatted })
-  } catch (error: any) {
-    console.error('Appointment Query Error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Appointment Query Error')
     // Do not return raw SQL database errors to the client to prevent schema information leakage
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลนัดหมาย กรุณาลองใหม่อีกครั้งในภายหลัง' },

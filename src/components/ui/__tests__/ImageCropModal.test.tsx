@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
 import ImageCropModal from '../ImageCropModal'
 
@@ -126,7 +126,9 @@ describe('ImageCropModal Component', () => {
     )
 
     // Wait for image onload
-    await new Promise((r) => setTimeout(r, 50))
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
 
     const saveBtn = screen.getByText('ตกลงและบันทึกรูปภาพ')
     fireEvent.click(saveBtn)
@@ -147,7 +149,9 @@ describe('ImageCropModal Component', () => {
       />
     )
 
-    await new Promise((r) => setTimeout(r, 50))
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+    })
 
     const canvas = container.querySelector('canvas') as HTMLCanvasElement
     expect(canvas).toBeDefined()

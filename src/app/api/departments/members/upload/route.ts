@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { DocumentStorage, StorageValidationError } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -75,12 +76,12 @@ export async function POST(request: Request) {
         fileName: saved.fileName
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof StorageValidationError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+      return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 400 })
     }
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ') },
       { status: 500 }
     )
   }

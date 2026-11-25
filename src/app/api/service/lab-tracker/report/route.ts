@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ClinicalRecordsService } from '@/lib/clinical/clinicalRecordsService'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
@@ -21,8 +22,8 @@ export async function GET(request: Request) {
       success: true,
       ...report,
     })
-  } catch (error: any) {
-    console.error('HPH Lab Tracker Report API error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'HPH Lab Tracker Report API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงรายการความคืบหน้าของ LAB' },
       { status: 500 }

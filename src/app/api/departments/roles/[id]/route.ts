@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const updateRoleSchema = z.object({
   name: z.string().trim().min(1, 'ชื่อบทบาทไม่สามารถเว้นว่างได้').max(100).optional(),
@@ -38,9 +39,9 @@ export async function PUT(
     })
 
     return NextResponse.json({ success: true, message: 'อัปเดตบทบาทสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการแก้ไขบทบาท' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขบทบาท') },
       { status: 500 }
     )
   }
@@ -66,9 +67,9 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true, message: 'ลบบทบาทสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบบทบาท' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบบทบาท') },
       { status: 500 }
     )
   }

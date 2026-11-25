@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function POST(
   _request: Request,
@@ -24,9 +25,9 @@ export async function POST(
     })
 
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการอนุมัติคำขอ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการอนุมัติคำขอ') },
       { status: 400 }
     )
   }

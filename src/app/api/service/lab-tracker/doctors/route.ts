@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ClinicalRecordsService } from '@/lib/clinical/clinicalRecordsService'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { logger } from '@/lib/logger'
 
 export async function GET() {
   try {
@@ -18,8 +19,8 @@ export async function GET() {
       success: true,
       ...data,
     })
-  } catch (error: any) {
-    console.error('HPH Lab Tracker Doctors API error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'HPH Lab Tracker Doctors API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายชื่อผู้สั่งตรวจ LAB' },
       { status: 500 }

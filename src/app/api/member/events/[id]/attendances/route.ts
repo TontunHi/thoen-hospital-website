@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const eventService = new HospitalEventService()
 
@@ -54,9 +55,9 @@ export async function POST(
 
     const attendance = await eventService.addManualAttendance(eventId, parsed.data, actor)
     return NextResponse.json({ success: true, data: attendance }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการเพิ่มผู้เข้าร่วม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการเพิ่มผู้เข้าร่วม') },
       { status: 400 }
     )
   }
@@ -102,9 +103,9 @@ export async function PUT(
       actor
     )
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลผู้เข้าร่วม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลผู้เข้าร่วม') },
       { status: 400 }
     )
   }
@@ -142,9 +143,9 @@ export async function DELETE(
 
     const result = await eventService.deleteAttendance(eventId, parsed.data.attendanceId, actor)
     return NextResponse.json(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบผู้เข้าร่วม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบผู้เข้าร่วม') },
       { status: 400 }
     )
   }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const updateGroupSchema = z.object({
   name: z.string().trim().min(1, 'กรุณาระบุชื่อกลุ่มงาน').max(200).optional(),
@@ -39,9 +40,9 @@ export async function PUT(
     })
 
     return NextResponse.json({ success: true, message: 'อัปเดตข้อมูลกลุ่มงานสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัปเดตกลุ่มงาน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการอัปเดตกลุ่มงาน') },
       { status: 500 }
     )
   }
@@ -67,9 +68,9 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true, message: 'ลบกลุ่มงานสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบกลุ่มงาน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบกลุ่มงาน') },
       { status: 400 }
     )
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { EventLeaderboardService } from '@/lib/events/eventLeaderboardService'
+import { EventLeaderboardService, type LeaderboardFilterOptions } from '@/lib/events/eventLeaderboardService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const leaderboardService = new EventLeaderboardService()
 
@@ -11,7 +12,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const fiscalYear = searchParams.get('fiscalYear') || undefined
-    const timeframe = (searchParams.get('timeframe') as any) || 'fiscal_year'
+    const rawTimeframe = searchParams.get('timeframe')
+    const timeframe: LeaderboardFilterOptions['timeframe'] =
+      rawTimeframe === 'monthly' || rawTimeframe === 'all' ? rawTimeframe : 'fiscal_year'
     const search = searchParams.get('search') || undefined
 
     const [individual, department, fiscalYears] = await Promise.all([
@@ -28,9 +31,9 @@ export async function GET(request: Request) {
         fiscalYears,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลกระดานอันดับ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลกระดานอันดับ') },
       { status: 500 }
     )
   }

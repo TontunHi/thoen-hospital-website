@@ -400,8 +400,8 @@ export class RcmOralCancerService {
 
     // Apply Sorting
     filtered.sort((a, b) => {
-      let valA: string | number = a[sortBy] ?? ''
-      let valB: string | number = b[sortBy] ?? ''
+      const valA: string | number = a[sortBy] ?? ''
+      const valB: string | number = b[sortBy] ?? ''
 
       if (typeof valA === 'string' && typeof valB === 'string') {
         const comp = valA.localeCompare(valB, 'th')

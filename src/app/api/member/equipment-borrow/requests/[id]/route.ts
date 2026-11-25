@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(
   _request: Request,
@@ -29,9 +30,9 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data: item })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการโหลดรายละเอียดคำขอยืม' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการโหลดรายละเอียดคำขอยืม') },
       { status: 500 }
     )
   }

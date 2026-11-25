@@ -244,8 +244,8 @@ export async function handleOnlineMediaUploadPost(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true, data: saved }, { status: 201 })
-  } catch (error: any) {
-    if (error instanceof StorageValidationError || error?.name === 'StorageValidationError') {
+  } catch (error: unknown) {
+    if (error instanceof StorageValidationError || (error instanceof Error && error.name === 'StorageValidationError')) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 })
     }
     logger.error({ err: error }, 'Online media upload error')

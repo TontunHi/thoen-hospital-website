@@ -41,7 +41,7 @@ export interface CreateMaterialInput {
   isActive?: boolean
 }
 
-export interface UpdateMaterialInput extends Partial<CreateMaterialInput> {}
+export type UpdateMaterialInput = Partial<CreateMaterialInput>
 
 export interface BorrowBasketItemInput {
   itemType: 'ASSET' | 'MATERIAL'

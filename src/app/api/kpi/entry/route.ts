@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { KpiService } from '@/lib/kpi/kpiService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const entrySchema = z.object({
   indicatorId: z.number().int().positive(),
@@ -43,9 +44,9 @@ export async function POST(req: NextRequest) {
       success: true,
       data: entry,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: { code: 'SAVE_FAILED', message: err.message || 'บันทึกข้อมูลไม่สำเร็จ' } },
+      { success: false, error: { code: 'SAVE_FAILED', message: getErrorMessage(err, 'บันทึกข้อมูลไม่สำเร็จ') } },
       { status: 400 }
     )
   }

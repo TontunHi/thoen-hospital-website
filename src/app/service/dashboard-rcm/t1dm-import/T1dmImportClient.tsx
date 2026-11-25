@@ -810,7 +810,7 @@ export default function T1dmImportClient({
                 type="button"
                 className="t1dm-import-btn danger sm"
                 onClick={() => setIsDeleteOtherHospModalOpen(true)}
-                title="ลบรายการต่าง รพ. (delete from rcmdb.t1dm where hospmain <> 11152)"
+                title="ลบรายการต่าง รพ. (hospmain ไม่ใช่ 11152)"
               >
                 <Trash2 size={14} />
                 <span>ลบรายการต่าง รพ. ({summary.otherHospCount})</span>

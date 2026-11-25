@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,8 +15,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Path parameter is required' }, { status: 400 })
     }
     return await DocumentStorage.serveFile(rawPath, request, ALLOWED_STREAM_ROOTS)
-  } catch (err: any) {
-    console.error('Stream route error:', err)
+  } catch (err: unknown) {
+    logger.error({ err }, 'Stream route error')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

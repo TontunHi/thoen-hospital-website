@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiGateway } from '@/lib/apiGateway'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
+import { logger } from '@/lib/logger'
 
 function generateSlug(title: string): string {
   return title
@@ -14,18 +15,38 @@ function generateSlug(title: string): string {
     .substring(0, 200) + '-' + Date.now().toString(36)
 }
 
-export function adaptNewsItem(item: any, now: Date = new Date()) {
+export interface RawNewsAttachment {
+  id: number | string
+  fileType?: string | null
+  filePath?: string | null
+}
+
+export interface RawNewsItem {
+  id: number | string
+  title: string
+  slug: string
+  youtubeLink?: string | null
+  category?: string | null
+  viewCount?: number | null
+  startDate: string | Date
+  endDate: string | Date
+  createdAt?: string | Date
+  updatedAt?: string | Date
+  attachments?: RawNewsAttachment[] | null
+}
+
+export function adaptNewsItem(item: RawNewsItem, now: Date = new Date()) {
   const atts = item.attachments || []
-  const imageAttachments = atts.filter((att: any) => 
-    att.fileType && att.fileType.startsWith('image/')
+  const imageAttachments = atts.filter((att) =>
+    Boolean(att.fileType && att.fileType.startsWith('image/'))
   )
-  const images = imageAttachments.map((att: any) => ({
+  const images = imageAttachments.map((att) => ({
     id: att.id,
     imageUrl: att.filePath,
     order: 0,
   }))
 
-  const pdfAttachment = atts.find((att: any) => 
+  const pdfAttachment = atts.find((att) =>
     att.fileType === 'application/pdf'
   )
 
@@ -66,7 +87,7 @@ export async function GET(request: Request) {
     const category = url.searchParams.get('category') || undefined
     const search = url.searchParams.get('search') || undefined
 
-    const res: any = await apiGateway.app.getNews({
+    const res: unknown = await apiGateway.app.getNews({
       page,
       limit,
       category,
@@ -74,23 +95,27 @@ export async function GET(request: Request) {
       search,
     })
 
-    const rawList: any[] = Array.isArray(res) ? res : (res?.data || [])
-    const pagination = (!Array.isArray(res) && res?.pagination) ? res.pagination : {
+    const resObj = (res && typeof res === 'object' && !Array.isArray(res))
+      ? (res as { data?: RawNewsItem[]; pagination?: unknown; total?: unknown })
+      : null
+    const rawList: RawNewsItem[] = Array.isArray(res) ? (res as RawNewsItem[]) : (resObj?.data || [])
+    const totalCount = resObj && typeof resObj.total === 'number' ? resObj.total : rawList.length
+    const pagination = resObj?.pagination ? resObj.pagination : {
       page,
       limit,
-      total: (!Array.isArray(res) && typeof res?.total === 'number') ? res.total : rawList.length,
-      totalPages: Math.ceil(((!Array.isArray(res) && typeof res?.total === 'number' ? res.total : rawList.length)) / limit) || 1,
+      total: totalCount,
+      totalPages: Math.ceil(totalCount / limit) || 1,
     }
 
     const now = new Date()
-    const adaptedNews = rawList.map((item: any) => adaptNewsItem(item, now))
+    const adaptedNews = rawList.map((item) => adaptNewsItem(item, now))
 
     return NextResponse.json({
       news: adaptedNews,
       pagination,
     })
   } catch (error) {
-    console.error('News list error:', error)
+    logger.error({ error }, 'News list error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการโหลดข่าว' },
       { status: 500 }
@@ -160,7 +185,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, news: res.data || { id: res.insertId, title, slug } }, { status: 201 })
   } catch (error) {
-    console.error('News create error:', error)
+    logger.error({ error }, 'News create error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการสร้างข่าว' },
       { status: 500 }

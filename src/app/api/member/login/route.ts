@@ -3,6 +3,8 @@ import { createMemberSession } from '@/lib/memberAuth'
 import { memberLoginSchema } from '@/lib/schemas/member'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { MemberAuthService } from '@/lib/auth/MemberAuthService'
+import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const authService = new MemberAuthService()
 
@@ -34,9 +36,9 @@ export async function POST(request: Request) {
     let sessionPayload
     try {
       sessionPayload = await authService.verifyOtp(trimmedUsername, trimmedOtp, trimmedEmail)
-    } catch (e: any) {
+    } catch (e: unknown) {
       return NextResponse.json(
-        { error: e.message },
+        { error: getErrorMessage(e) },
         { status: 400 }
       )
     }
@@ -52,8 +54,8 @@ export async function POST(request: Request) {
         role: sessionPayload.role,
       },
     })
-  } catch (error: any) {
-    console.error('Member login error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Member login error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์เข้าสู่ระบบ' },
       { status: 500 }

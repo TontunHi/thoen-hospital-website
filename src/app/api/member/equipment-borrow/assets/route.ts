@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const ToggleLoanableSchema = z.object({
   assetId: z.number().int().positive('รหัสครุภัณฑ์ไม่ถูกต้อง'),
@@ -42,9 +43,9 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการโหลดครุภัณฑ์' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการโหลดครุภัณฑ์') },
       { status: 500 }
     )
   }
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.issues[0]?.message || 'ข้อมูลไม่ถูกต้อง' },
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
       )
     }
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการปรับสถานะครุภัณฑ์' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการปรับสถานะครุภัณฑ์') },
       { status: 500 }
     )
   }
@@ -96,7 +97,7 @@ export async function PATCH(request: Request) {
     })
 
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.issues[0]?.message || 'ข้อมูลไม่ถูกต้อง' },
@@ -104,7 +105,7 @@ export async function PATCH(request: Request) {
       )
     }
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการอัปเดตรูปภาพครุภัณฑ์' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการอัปเดตรูปภาพครุภัณฑ์') },
       { status: 500 }
     )
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { KpiService } from '@/lib/kpi/kpiService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const targetSchema = z.object({
   indicatorId: z.number().int().positive(),
@@ -44,9 +45,9 @@ export async function PUT(req: NextRequest) {
       success: true,
       message: 'บันทึกเป้าหมายเรียบร้อยแล้ว',
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: { code: 'UPDATE_FAILED', message: err.message || 'แก้ไขเป้าหมายไม่สำเร็จ' } },
+      { success: false, error: { code: 'UPDATE_FAILED', message: getErrorMessage(err, 'แก้ไขเป้าหมายไม่สำเร็จ') } },
       { status: 500 }
     )
   }

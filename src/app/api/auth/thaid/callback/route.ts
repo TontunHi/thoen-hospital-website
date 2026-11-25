@@ -27,6 +27,7 @@ function cleanExpiredCompletedExchanges() {
 }
 
 import { getSafeBaseUrl } from '@/lib/auth/urlHelper'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -80,10 +81,10 @@ export async function GET(request: Request) {
       target.searchParams.set('time', toBangkokIsoString(result.checkedInAt) || String(result.checkedInAt))
 
       return NextResponse.redirect(target)
-    } catch (err: any) {
+    } catch (err: unknown) {
       const target = new URL('/member/events/checkin-status', baseUrl)
       target.searchParams.set('status', 'error')
-      target.searchParams.set('message', err.message || 'เช็คอินไม่สำเร็จ')
+      target.searchParams.set('message', getErrorMessage(err, 'เช็คอินไม่สำเร็จ'))
       return NextResponse.redirect(target)
     }
   }
@@ -97,7 +98,9 @@ export async function GET(request: Request) {
         `พยายามเข้าสู่ระบบด้วย ThaID แต่ถูกปฏิเสธหรือยกเลิกจาก ThaID App (Error: ${thaidError}${errorDescription ? ` - ${errorDescription}` : ''})`,
         { username: 'THAID_CANCELLED', email: '' }
       )
-    } catch {}
+    } catch (auditErr: unknown) {
+      logger.warn({ auditErr }, 'ThaID audit log write failed')
+    }
     return NextResponse.redirect(new URL('/member/login?error=thaid_denied', baseUrl))
   }
 
@@ -109,7 +112,9 @@ export async function GET(request: Request) {
         'พยายามเข้าสู่ระบบด้วย ThaID แต่คำขอไม่ถูกต้อง (Missing code or state)',
         { username: 'THAID_INVALID_REQUEST', email: '' }
       )
-    } catch {}
+    } catch (auditErr: unknown) {
+      logger.warn({ auditErr }, 'ThaID audit log write failed')
+    }
     return NextResponse.redirect(new URL('/member/login?error=thaid_invalid_request', baseUrl))
   }
 
@@ -134,7 +139,9 @@ export async function GET(request: Request) {
         'พยายามเข้าสู่ระบบด้วย ThaID แต่ State Token หมดอายุหรือไม่ตรงกัน (CSRF Token Mismatch / Expired)',
         { username: 'THAID_STATE_MISMATCH', email: '' }
       )
-    } catch {}
+    } catch (auditErr: unknown) {
+      logger.warn({ auditErr }, 'ThaID audit log write failed')
+    }
     return NextResponse.redirect(new URL('/member/login?error=thaid_invalid_state', baseUrl))
   }
 
@@ -165,9 +172,9 @@ export async function GET(request: Request) {
         inFlightExchanges.delete(code)
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'ThaID exchange failed')
-    if (error.message === 'ThaID citizen ID not registered in hospital members') {
+    if (getErrorMessage(error) === 'ThaID citizen ID not registered in hospital members') {
       return NextResponse.redirect(new URL('/member/login?error=not_registered', baseUrl))
     }
     return NextResponse.redirect(new URL('/member/login?error=thaid_exchange_failed', baseUrl))

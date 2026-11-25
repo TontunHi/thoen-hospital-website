@@ -22,7 +22,7 @@ export async function GET() {
       success: true,
       data,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'OR status API error')
     return NextResponse.json(
       {

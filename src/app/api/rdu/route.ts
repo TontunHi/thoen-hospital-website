@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiGateway } from '@/lib/apiGateway'
 import { getSwrCachedData } from '@/lib/cache'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,8 +36,8 @@ export async function GET() {
     )
 
     return NextResponse.json({ success: true, folders: result })
-  } catch (error: any) {
-    console.error('Error fetching public RDU data:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Error fetching public RDU data')
     return NextResponse.json({ success: false, error: 'Failed to fetch RDU data' }, { status: 500 })
   }
 }

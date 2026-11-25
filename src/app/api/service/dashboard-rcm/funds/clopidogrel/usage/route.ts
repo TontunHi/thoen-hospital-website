@@ -49,7 +49,7 @@ export async function GET(request: Request) {
     })
   } catch (error: unknown) {
     const err = error as Error
-    console.error('CLOPIDOGREL USAGE API ROUTE ERROR:', err)
+    logger.error({ err }, 'CLOPIDOGREL USAGE API ROUTE ERROR')
     logger.error({ error: err.message, stack: err.stack }, 'GET /api/service/dashboard-rcm/funds/clopidogrel/usage Error')
     return NextResponse.json(
       {

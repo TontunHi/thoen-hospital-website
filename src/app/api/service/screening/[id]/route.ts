@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { screeningQueueService } from '@/lib/screening/screeningService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const updateQueueSchema = z.object({
   status: z.enum(['WAITING', 'VISIT_OPENED', 'NO_RECORD', 'CANCELLED']),
@@ -37,13 +38,13 @@ export async function GET(
       success: true,
       data: item,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'FETCH_QUEUE_ERROR',
-          message: error?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลคิว',
+          message: getErrorMessage(error, 'เกิดข้อผิดพลาดในการดึงข้อมูลคิว'),
         },
       },
       { status: 500 }
@@ -95,13 +96,13 @@ export async function PATCH(
       success: true,
       data: updated,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'UPDATE_QUEUE_ERROR',
-          message: error?.message || 'เกิดข้อผิดพลาดในการปรับปรุงสถานะคิว',
+          message: getErrorMessage(error, 'เกิดข้อผิดพลาดในการปรับปรุงสถานะคิว'),
         },
       },
       { status: 500 }
@@ -150,13 +151,13 @@ export async function DELETE(
       success: true,
       data: updated,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'CANCEL_QUEUE_ERROR',
-          message: error?.message || 'เกิดข้อผิดพลาดในการยกเลิกคิว',
+          message: getErrorMessage(error, 'เกิดข้อผิดพลาดในการยกเลิกคิว'),
         },
       },
       { status: 500 }

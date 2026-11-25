@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     await processTelegramUpdate(update)
 
     return NextResponse.json({ ok: true })
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, 'Error processing Telegram webhook')
     return NextResponse.json({ ok: true }) // Always return 200 to avoid Telegram webhook retry storms
   }

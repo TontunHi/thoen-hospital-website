@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const eventService = new HospitalEventService()
 
@@ -20,9 +21,9 @@ export async function POST(
   try {
     const result = await eventService.registerForEvent(eventId, auth.member.id)
     return NextResponse.json(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลงทะเบียน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลงทะเบียน') },
       { status: 400 }
     )
   }
@@ -44,9 +45,9 @@ export async function DELETE(
   try {
     const result = await eventService.cancelRegistration(eventId, auth.member.id)
     return NextResponse.json(result)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการยกเลิกการลงทะเบียน' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการยกเลิกการลงทะเบียน') },
       { status: 400 }
     )
   }

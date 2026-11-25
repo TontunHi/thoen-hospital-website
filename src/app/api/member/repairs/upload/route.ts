@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { DocumentStorage, StorageValidationError } from '@/lib/storage/documentStorage'
+import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function POST(request: Request) {
   try {
@@ -40,13 +42,13 @@ export async function POST(request: Request) {
         urls: uploadedUrls,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof StorageValidationError) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
     }
-    console.error('Repair photo upload error:', error)
+    logger.error({ error }, 'Repair photo upload error')
     return NextResponse.json(
-      { error: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + (error.message || 'Unknown error') },
+      { error: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + (getErrorMessage(error, 'Unknown error')) },
       { status: 500 }
     )
   }

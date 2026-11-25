@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requirePermission } from '@/lib/roles'
 import { SalaryBatchService } from '@/lib/salary/salaryBatchService'
+import { logger } from '@/lib/logger'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 export async function GET(request: Request) {
   try {
@@ -25,8 +27,8 @@ export async function GET(request: Request) {
       success: true,
       latestBatch,
     })
-  } catch (error: any) {
-    console.error('Fetch latest salary batch error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Fetch latest salary batch error')
     return NextResponse.json(
       { error: 'ไม่สามารถดึงข้อมูลชุดข้อมูลล่าสุดได้' },
       { status: 500 }
@@ -70,11 +72,11 @@ export async function DELETE(request: Request) {
       deletedCount: result.deletedCount,
       deletedDate: result.deletedDate,
     })
-  } catch (error: any) {
-    console.error('Delete salary batch error:', error)
+  } catch (error: unknown) {
+    logger.error({ error }, 'Delete salary batch error')
     return NextResponse.json(
-      { error: error?.message || 'เกิดข้อผิดพลาดในการลบชุดข้อมูล' },
-      { status: error?.message?.includes('ข้อมูลมีการเปลี่ยนแปลง') ? 409 : 500 }
+      { error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบชุดข้อมูล') },
+      { status: getErrorMessage(error)?.includes('ข้อมูลมีการเปลี่ยนแปลง') ? 409 : 500 }
     )
   }
 }

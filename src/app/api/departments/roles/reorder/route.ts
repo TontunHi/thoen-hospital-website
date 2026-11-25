@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { departmentService } from '@/lib/departments/departmentService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const reorderRolesSchema = z.object({
   roleIds: z.array(z.coerce.number().int()).min(1, 'ต้องมีรหัสบทบาทอย่างน้อย 1 รายการ'),
@@ -27,9 +28,9 @@ export async function PATCH(request: Request) {
     })
 
     return NextResponse.json({ success: true, message: 'บันทึกลำดับระดับบทบาทสำเร็จ' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการจัดลำดับบทบาท' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการจัดลำดับบทบาท') },
       { status: 500 }
     )
   }

@@ -44,8 +44,10 @@ export class ApiGatewayClient {
   private readonly fetchFn: typeof fetch
 
   constructor(config?: ApiGatewayConfig) {
-    this.baseUrl = (config?.baseUrl || process.env.API_GATEWAY_URL || 'http://192.168.1.208:8443').replace(/\/+$/, '')
-    this.apiKey = config?.apiKey || process.env.API_GATEWAY_KEY || 'thoen_gw_sec_7a8b9c2d1e0f3456'
+    const rawBaseUrl = config?.baseUrl ?? process.env.API_GATEWAY_URL ?? ''
+    const rawApiKey = config?.apiKey ?? process.env.API_GATEWAY_KEY ?? ''
+    this.baseUrl = rawBaseUrl.replace(/\/+$/, '')
+    this.apiKey = rawApiKey
     this.timeoutMs = config?.timeoutMs || (process.env.API_GATEWAY_TIMEOUT_MS ? parseInt(process.env.API_GATEWAY_TIMEOUT_MS, 10) : 30000)
     this.fetchFn = config?.fetchFn || fetch
   }
@@ -63,6 +65,12 @@ export class ApiGatewayClient {
     body?: unknown,
     options?: RequestOptions
   ): Promise<T> {
+    if (!this.baseUrl || !this.apiKey) {
+      throw new GatewayUnavailableError(
+        'API_GATEWAY_URL and API_GATEWAY_KEY environment variables are required.'
+      )
+    }
+
     const cleanPath = path.startsWith('/') ? path : `/${path}`
     const url = `${this.baseUrl}${cleanPath}`
     const timeoutMs = options?.timeoutMs ?? this.timeoutMs

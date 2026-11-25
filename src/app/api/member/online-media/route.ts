@@ -5,6 +5,7 @@ import {
   OnlineMediaValidationError,
   OnlineMediaNotFoundError,
 } from '@/lib/media/onlineMediaService'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +38,7 @@ export async function GET() {
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (error) {
-    console.error('Fetch admin online media error:', error)
+    logger.error({ error }, 'Fetch admin online media error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการโหลดข้อมูลจัดการสื่อออนไลน์' },
       { status: 500 }
@@ -65,16 +66,20 @@ export async function POST(request: NextRequest) {
 
     const item = await OnlineMediaService.createMediaItem(body, actor)
     return NextResponse.json({ success: true, data: { item } }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errObj = error as { name?: string; message?: string; status?: number }
     if (
       error instanceof OnlineMediaValidationError ||
       error instanceof OnlineMediaNotFoundError ||
-      error?.name === 'OnlineMediaValidationError' ||
-      error?.name === 'OnlineMediaNotFoundError'
+      errObj?.name === 'OnlineMediaValidationError' ||
+      errObj?.name === 'OnlineMediaNotFoundError'
     ) {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.status || 400 })
+      return NextResponse.json(
+        { success: false, error: errObj?.message || 'ข้อมูลสื่อออนไลน์ไม่ถูกต้อง' },
+        { status: errObj?.status || 400 }
+      )
     }
-    console.error('Create online media error:', error)
+    logger.error({ error }, 'Create online media error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการบันทึกสื่อออนไลน์' },
       { status: 500 }

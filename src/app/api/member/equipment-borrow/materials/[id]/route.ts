@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
 import { z } from 'zod'
+import { getErrorMessage } from '@/lib/http/apiResponse'
 
 const UpdateMaterialSchema = z.object({
   name: z.string().min(1, 'กรุณาระบุชื่อวัสดุ').optional(),
@@ -41,7 +42,7 @@ export async function PUT(
     })
 
     return NextResponse.json({ success: true, data: updated })
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: error.issues[0]?.message || 'ข้อมูลไม่ถูกต้อง' },
@@ -49,7 +50,7 @@ export async function PUT(
       )
     }
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการแก้ไขวัสดุ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการแก้ไขวัสดุ') },
       { status: 500 }
     )
   }
@@ -77,9 +78,9 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true, data: result })
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบวัสดุ' },
+      { success: false, error: getErrorMessage(error, 'เกิดข้อผิดพลาดในการลบวัสดุ') },
       { status: 500 }
     )
   }

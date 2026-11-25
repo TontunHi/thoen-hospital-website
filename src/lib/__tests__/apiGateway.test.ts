@@ -14,6 +14,17 @@ describe('ApiGatewayClient (Ticket 01)', () => {
 
   beforeEach(() => {
     mockFetch = vi.fn()
+    vi.stubEnv('API_GATEWAY_URL', 'http://gateway.test:8443')
+    vi.stubEnv('API_GATEWAY_KEY', 'test_gateway_key')
+  })
+
+  it('fails closed with GatewayUnavailableError when API_GATEWAY_URL or API_GATEWAY_KEY is missing', async () => {
+    vi.stubEnv('API_GATEWAY_URL', '')
+    vi.stubEnv('API_GATEWAY_KEY', '')
+
+    const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+    await expect(client.get('/health')).rejects.toThrow(GatewayUnavailableError)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('initializes with default or custom configuration and strips trailing slashes', () => {

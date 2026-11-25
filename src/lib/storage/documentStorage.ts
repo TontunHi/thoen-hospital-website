@@ -1,6 +1,7 @@
 import fs from 'fs/promises'
 import fsSync from 'fs'
 import path from 'path'
+import { logger } from '@/lib/logger'
 import {
   isS3Configured,
   uploadToS3,
@@ -235,8 +236,9 @@ export const MAX_MULTIPART_MEDIA_SIZE_BYTES = 10 * 1024 * 1024 * 1024 // 10GB
 async function withBucketEnsureRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn()
-  } catch (err: any) {
-    if (err?.name === 'NoSuchBucket' || err?.Code === 'NoSuchBucket') {
+  } catch (err: unknown) {
+    const errObj = err as { name?: string; Code?: string }
+    if (errObj?.name === 'NoSuchBucket' || errObj?.Code === 'NoSuchBucket') {
       await ensureStorageBucketsExist()
       return await fn()
     }
@@ -412,8 +414,8 @@ export const DocumentStorage = {
           body: buffer,
           contentType: mimeType,
         })
-      } catch (s3Err) {
-        console.warn(`[DocumentStorage] S3 upload failed for ${relativePath}, kept on local disk:`, s3Err)
+      } catch (s3Err: unknown) {
+        logger.warn({ relativePath, s3Err }, '[DocumentStorage] S3 upload failed, kept on local disk')
       }
     }
 
@@ -460,8 +462,8 @@ export const DocumentStorage = {
         const bucket = isPrivate ? S3_CONFIG.privateBucket : S3_CONFIG.publicBucket
         const s3Key = relPath.startsWith('public/') ? relPath.substring('public/'.length) : relPath
         await deleteFromS3({ bucket, key: s3Key })
-      } catch (s3Err) {
-        console.warn(`[DocumentStorage] S3 delete failed for ${relPath}:`, s3Err)
+      } catch (s3Err: unknown) {
+        logger.warn({ relPath, s3Err }, '[DocumentStorage] S3 delete failed')
       }
     }
 
@@ -576,9 +578,10 @@ export const DocumentStorage = {
             return Buffer.from(bytes)
           }
         }
-      } catch (s3Err: any) {
-        if (s3Err?.name !== 'NoSuchKey' && s3Err?.$metadata?.httpStatusCode !== 404) {
-          console.warn(`[DocumentStorage] S3 readBuffer failed for ${relPath}:`, s3Err?.message || s3Err)
+      } catch (s3Err: unknown) {
+        const errObj = s3Err as { name?: string; $metadata?: { httpStatusCode?: number } }
+        if (errObj?.name !== 'NoSuchKey' && errObj?.$metadata?.httpStatusCode !== 404) {
+          logger.warn({ relPath, s3Err }, '[DocumentStorage] S3 readBuffer failed')
         }
       }
     }
@@ -588,8 +591,10 @@ export const DocumentStorage = {
       const stat = await fs.stat(absolutePath)
       if (!stat.isFile()) throw new StorageValidationError('Not a file', 'FILE_NOT_FOUND')
       return await fs.readFile(absolutePath)
-    } catch (e: any) {
-      if (e.code === 'ENOENT') throw new StorageValidationError('File not found', 'FILE_NOT_FOUND')
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code === 'ENOENT') {
+        throw new StorageValidationError('File not found', 'FILE_NOT_FOUND')
+      }
       throw e
     }
   },
@@ -641,9 +646,10 @@ export const DocumentStorage = {
             headers,
           })
         }
-      } catch (s3Err: any) {
-        if (s3Err?.name !== 'NoSuchKey' && s3Err?.$metadata?.httpStatusCode !== 404) {
-          console.warn(`[DocumentStorage] S3 serveFile failed for ${relPath}:`, s3Err?.message || s3Err)
+      } catch (s3Err: unknown) {
+        const errObj = s3Err as { name?: string; $metadata?: { httpStatusCode?: number } }
+        if (errObj?.name !== 'NoSuchKey' && errObj?.$metadata?.httpStatusCode !== 404) {
+          logger.warn({ relPath, s3Err }, '[DocumentStorage] S3 serveFile failed')
         }
       }
     }
@@ -653,7 +659,7 @@ export const DocumentStorage = {
     try {
       stat = await fs.stat(absolutePath)
       if (!stat.isFile()) return new Response('Not Found', { status: 404 })
-    } catch (e: any) {
+    } catch (_e: unknown) {
       return new Response('Not Found', { status: 404 })
     }
 
@@ -1010,15 +1016,16 @@ export const DocumentStorage = {
         status: isPartial ? 206 : 200,
         headers,
       })
-    } catch (s3Err: any) {
-      const status = s3Err?.$metadata?.httpStatusCode
-      if (s3Err?.name === 'NoSuchKey' || status === 404) {
+    } catch (s3Err: unknown) {
+      const errObj = s3Err as { name?: string; $metadata?: { httpStatusCode?: number } }
+      const status = errObj?.$metadata?.httpStatusCode
+      if (errObj?.name === 'NoSuchKey' || status === 404) {
         return new Response('Not Found', { status: 404 })
       }
       if (status === 416) {
         return new Response('Range Not Satisfiable', { status: 416 })
       }
-      console.error(`[DocumentStorage] serveS3Object failed for ${bucket}/${params.s3Key}:`, s3Err)
+      logger.error({ bucket, s3Key: params.s3Key, s3Err }, '[DocumentStorage] serveS3Object failed')
       return new Response('Failed to stream media', { status: 502 })
     }
   }
