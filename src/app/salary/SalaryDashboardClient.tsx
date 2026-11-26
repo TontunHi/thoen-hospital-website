@@ -444,7 +444,7 @@ export default function SalaryDashboardPage() {
                       <li><span>ธนาคารกรุงไทย</span><strong>{salaryData.c23 || '0.00'}</strong></li>
                       <li><span>ธ.ก.ส.</span><strong>{salaryData.c21 || '0.00'}</strong></li>
                       <li><span>ธนาคารอิสลาม</span><strong>{salaryData.c22 || '0.00'}</strong></li>
-                      <li><span>เงินสวัสดิการ รพ.</span><strong>{salaryData.c24 || '0.00'}</strong></li>
+                      <li><span>เก็บเพิ่มกองทุนสำรองเลี้ยงชีพ</span><strong>{salaryData.c24 || '0.00'}</strong></li>
                       <li><span>กยศ.</span><strong>{salaryData.c20 || '0.00'}</strong></li>
                       <li><span>ค่าทำความสะอาด</span><strong>{salaryData.c19 || '0.00'}</strong></li>
                       <li><span>ค่าไฟฟ้า</span><strong>{salaryData.c17 || '0.00'}</strong></li>
@@ -658,7 +658,7 @@ export default function SalaryDashboardPage() {
                       {salaryData.c23 && <tr><td>ธนาคารกรุงไทย</td><td className="numCol">{salaryData.c23}</td></tr>}
                       {salaryData.c21 && <tr><td>ธ.ก.ส.</td><td className="numCol">{salaryData.c21}</td></tr>}
                       {salaryData.c22 && <tr><td>ธนาคารอิสลาม</td><td className="numCol">{salaryData.c22}</td></tr>}
-                      {salaryData.c24 && <tr><td>เงินสวัสดิการ รพ.</td><td className="numCol">{salaryData.c24}</td></tr>}
+                      {salaryData.c24 && <tr><td>เก็บเพิ่มกองทุนสำรองเลี้ยงชีพ</td><td className="numCol">{salaryData.c24}</td></tr>}
                       {salaryData.c20 && <tr><td>กยศ.</td><td className="numCol">{salaryData.c20}</td></tr>}
                       {salaryData.c19 && <tr><td>ค่าทำความสะอาด</td><td className="numCol">{salaryData.c19}</td></tr>}
                       {salaryData.c17 && <tr><td>ค่าไฟฟ้า</td><td className="numCol">{salaryData.c17}</td></tr>}

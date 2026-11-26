@@ -717,7 +717,7 @@ export default function AllSalaryClient() {
                       <li><span>ธนาคารกรุงไทย</span><strong>{salaryData.c23 || '0.00'}</strong></li>
                       <li><span>ธ.ก.ส.</span><strong>{salaryData.c21 || '0.00'}</strong></li>
                       <li><span>ธนาคารอิสลาม</span><strong>{salaryData.c22 || '0.00'}</strong></li>
-                      <li><span>เงินสวัสดิการ รพ.</span><strong>{salaryData.c24 || '0.00'}</strong></li>
+                      <li><span>เก็บเพิ่มกองทุนสำรองเลี้ยงชีพ</span><strong>{salaryData.c24 || '0.00'}</strong></li>
                       <li><span>กยศ.</span><strong>{salaryData.c20 || '0.00'}</strong></li>
                       <li><span>ค่าทำความสะอาด</span><strong>{salaryData.c19 || '0.00'}</strong></li>
                       <li><span>ค่าไฟฟ้า</span><strong>{salaryData.c17 || '0.00'}</strong></li>
