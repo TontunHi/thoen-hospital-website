@@ -262,6 +262,10 @@ describe('RepReconcileClient Component', () => {
     expect(screen.getByLabelText('จำนวนแสดงผลต่อหน้า')).toHaveValue('50')
     expect(screen.getByText('691000204')).toBeInTheDocument()
     expect(screen.getByText('DCCS69010001')).toBeInTheDocument()
+    expect(screen.getByText('repdata')).toBeInTheDocument()
+    expect(screen.getByText('repeclaim')).toBeInTheDocument()
+    expect(screen.getByText('seamless')).toBeInTheDocument()
+    expect(screen.queryByText('+1')).not.toBeInTheDocument()
     expect(global.fetch).not.toHaveBeenCalled()
   })
 

@@ -1647,7 +1647,7 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
   const ds1 = (q.ds1 || `${fiscalYear - 1}-10-01`).trim()
   const ds2 = (q.ds2 || `${fiscalYear}-09-30`).trim()
   const includeAdmitted = q.includeAdmitted === 'true' || q.includeAdmitted === '1'
-  const cardFilter = ['ALL', 'WITH_DEBIT', 'WITH_RCPT', 'WITH_AUTHEN', 'NO_AUTHEN'].includes(q.cardFilter) ? q.cardFilter : 'ALL'
+  const cardFilter = ['ALL', 'WITH_DEBIT', 'WITH_RCPT', 'WITH_AUTHEN', 'NO_AUTHEN', 'WITH_REP', 'NO_REP'].includes(q.cardFilter) ? q.cardFilter : 'ALL'
   const eclaimFilter = (q.eclaimFilter || '').trim()
   const accountFilter = (q.accountFilter || '').trim()
   const pttypeFilter = (q.pttypeFilter || '').trim()
@@ -1697,11 +1697,46 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
     OR EXISTS (SELECT 1 FROM visit_pttype vt WHERE vt.vn = o.vn AND (NULLIF(TRIM(vt.auth_code), '') IS NOT NULL OR NULLIF(TRIM(vt.claim_code), '') IS NOT NULL))
   )`
 
+  const REP_EXISTS_SQL = `(
+    EXISTS (SELECT 1 FROM rcmdb.repdata rr WHERE rr.VN = o.vn AND IFNULL(TRIM(rr.Rep), '') <> '')
+    OR EXISTS (SELECT 1 FROM rcmdb.repeclaim re WHERE re.VN = o.vn AND IFNULL(TRIM(re.Rep), '') <> '')
+    OR EXISTS (SELECT 1 FROM rcmdb.seamless rs WHERE rs.VN = o.vn AND IFNULL(TRIM(rs.Rep), '') <> '')
+  )`
+
+  const REP_SOURCE_LABELS = {
+    repdata: 'REP หลัก',
+    repeclaim: 'e-Claim',
+    seamless: 'Seamless',
+  }
+
+  const extractRepPrefix = (rep) => {
+    const clean = String(rep || '').trim().toUpperCase()
+    const m = clean.match(/^([A-Z]{2,8})\d/)
+    return m ? m[1] : ''
+  }
+
+  const formatOpdRepType = (source, rep, fund, subfund, txType) => {
+    const srcLabel = REP_SOURCE_LABELS[source] || source
+    const cleanFund = String(fund || '').trim()
+    const cleanSubFund = String(subfund || '').trim()
+    const cleanTx = String(txType || '').trim()
+    const prefix = extractRepPrefix(rep)
+    const detailParts = []
+    if (cleanFund) detailParts.push(cleanFund)
+    if (cleanSubFund && cleanSubFund.toUpperCase() !== cleanFund.toUpperCase()) detailParts.push(cleanSubFund)
+    if (detailParts.length === 0 && cleanTx) detailParts.push(cleanTx)
+    if (prefix && !detailParts.some((p) => p.toUpperCase().includes(prefix))) {
+      detailParts.unshift(prefix)
+    }
+    return detailParts.length > 0 ? `${srcLabel} (${detailParts.join('/')})` : srcLabel
+  }
+
   try {
     const anClause = includeAdmitted ? '' : "AND IFNULL(o.an, '') = ''"
 
     const loadTier1 = async () => {
       const dateParams = [ds1, ds2]
+      const repDateParams = [ds1, ds2, ds1, ds2, ds1, ds2]
       const summarySql = `
         SELECT
           COUNT(DISTINCT o.hn) AS total_cases,
@@ -1797,12 +1832,62 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
         ORDER BY code DESC
       `
 
-      const [[summaryRows], [eclaimRows], [accountRows], [pttypeRows], [vstdateRows]] = await Promise.all([
+      const repSummarySql = `
+        SELECT
+          COUNT(DISTINCT d.vn) AS with_rep_count,
+          ROUND(COALESCE(SUM(d.compensated), 0), 2) AS total_rep_compensated
+        FROM (
+          SELECT
+            u.vn,
+            u.rep_key,
+            MAX(u.compensated) AS compensated
+          FROM (
+            SELECT o.vn AS vn, UPPER(TRIM(rr.Rep)) AS rep_key, SUM(COALESCE(rr.Compensated, 0)) AS compensated
+            FROM rcmdb.repdata rr
+            INNER JOIN ovst o ON o.vn = rr.VN
+            WHERE o.vstdate BETWEEN ? AND ?
+              ${anClause}
+              AND IFNULL(TRIM(rr.VN), '') <> ''
+              AND IFNULL(TRIM(rr.Rep), '') <> ''
+            GROUP BY o.vn, UPPER(TRIM(rr.Rep))
+            UNION ALL
+            SELECT o.vn AS vn, UPPER(TRIM(re.Rep)) AS rep_key, SUM(COALESCE(re.Compensated, 0)) AS compensated
+            FROM rcmdb.repeclaim re
+            INNER JOIN ovst o ON o.vn = re.VN
+            WHERE o.vstdate BETWEEN ? AND ?
+              ${anClause}
+              AND IFNULL(TRIM(re.VN), '') <> ''
+              AND IFNULL(TRIM(re.Rep), '') <> ''
+            GROUP BY o.vn, UPPER(TRIM(re.Rep))
+            UNION ALL
+            SELECT o.vn AS vn, UPPER(TRIM(rs.Rep)) AS rep_key, SUM(COALESCE(rs.Compensated, 0)) AS compensated
+            FROM rcmdb.seamless rs
+            INNER JOIN ovst o ON o.vn = rs.VN
+            WHERE o.vstdate BETWEEN ? AND ?
+              ${anClause}
+              AND IFNULL(TRIM(rs.VN), '') <> ''
+              AND IFNULL(TRIM(rs.Rep), '') <> ''
+            GROUP BY o.vn, UPPER(TRIM(rs.Rep))
+          ) u
+          GROUP BY u.vn, u.rep_key
+        ) d
+      `
+      const safeRepSummaryQuery = async () => {
+        try {
+          const [rRows] = await hosPool.query(repSummarySql, repDateParams)
+          return rRows?.[0] || {}
+        } catch {
+          return {}
+        }
+      }
+
+      const [[summaryRows], [eclaimRows], [accountRows], [pttypeRows], [vstdateRows], repSr] = await Promise.all([
         hosPool.query(summarySql, dateParams),
         hosPool.query(eclaimSql, dateParams),
         hosPool.query(accountSql, dateParams),
         hosPool.query(pttypeSql, dateParams),
         hosPool.query(vstdateSql, dateParams),
+        safeRepSummaryQuery(),
       ])
 
       const sr = summaryRows?.[0] || {}
@@ -1810,6 +1895,10 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
       const withAuthenCount = Number(sr.with_authen_count ?? 0)
       const withoutAuthenCount = Math.max(0, totalVisits - withAuthenCount)
       const authenRate = totalVisits > 0 ? Math.round((withAuthenCount / totalVisits) * 1000) / 10 : 0
+      const withRepCount = Number(repSr.with_rep_count ?? 0)
+      const withoutRepCount = Math.max(0, totalVisits - withRepCount)
+      const repRate = totalVisits > 0 ? Math.round((withRepCount / totalVisits) * 1000) / 10 : 0
+      const totalRepCompensated = round2(repSr.total_rep_compensated)
 
       const mapBreakdown = (rows, fallbackName) =>
         (rows || []).map((r) => {
@@ -1844,6 +1933,10 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
           withAuthenCount,
           withoutAuthenCount,
           authenRate,
+          withRepCount,
+          withoutRepCount,
+          repRate,
+          totalRepCompensated,
         },
         breakdowns: {
           eclaim: mapBreakdown(eclaimRows, 'ไม่ระบุสิทธิ e-Claim'),
@@ -1885,6 +1978,10 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
       whereClauses.push(AUTHEN_EXISTS_SQL)
     } else if (cardFilter === 'NO_AUTHEN') {
       whereClauses.push(`NOT ${AUTHEN_EXISTS_SQL}`)
+    } else if (cardFilter === 'WITH_REP') {
+      whereClauses.push(REP_EXISTS_SQL)
+    } else if (cardFilter === 'NO_REP') {
+      whereClauses.push(`NOT ${REP_EXISTS_SQL}`)
     }
     if (search) {
       const like = `%${search}%`
@@ -1893,9 +1990,12 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
         CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) LIKE ? OR
         ptt.name LIKE ? OR e.name LIKE ? OR e.ar_opd LIKE ? OR v.pdx LIKE ? OR v.rcpno_list LIKE ? OR
         EXISTS (SELECT 1 FROM rcmdb.authencode cc WHERE cc.vn = o.vn AND cc.AuthenCode LIKE ?) OR
-        EXISTS (SELECT 1 FROM visit_pttype vt WHERE vt.vn = o.vn AND (vt.auth_code LIKE ? OR vt.claim_code LIKE ?))
+        EXISTS (SELECT 1 FROM visit_pttype vt WHERE vt.vn = o.vn AND (vt.auth_code LIKE ? OR vt.claim_code LIKE ?)) OR
+        EXISTS (SELECT 1 FROM rcmdb.repdata rr WHERE rr.VN = o.vn AND rr.Rep LIKE ?) OR
+        EXISTS (SELECT 1 FROM rcmdb.repeclaim re WHERE re.VN = o.vn AND re.Rep LIKE ?) OR
+        EXISTS (SELECT 1 FROM rcmdb.seamless rs WHERE rs.VN = o.vn AND rs.Rep LIKE ?)
       )`)
-      for (let i = 0; i < 13; i++) whereParams.push(like)
+      for (let i = 0; i < 16; i++) whereParams.push(like)
     }
 
     const whereSql = whereClauses.join(' AND ')
@@ -1962,6 +2062,7 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
     const rcptMap = new Map()
     const authenMap = new Map()
     const vtMap = new Map()
+    const repMap = new Map()
 
     if (rows.length > 0) {
       const vns = Array.from(new Set(rows.map((r) => String(r.vn || '').trim()).filter(Boolean)))
@@ -1976,14 +2077,83 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
             return []
           }
         }
-        const [rcptRows, authenRows, vtRows] = await Promise.all([
+        const [rcptRows, authenRows, vtRows, repdataRows, repeclaimRows, seamlessRows] = await Promise.all([
           safeExec(`SELECT b.vn, GROUP_CONCAT(CONCAT(b.rcpno, '#', FORMAT(IFNULL(b.total_amount, 0), 2)) ORDER BY b.finance_number SEPARATOR ', ') AS rcpno, GROUP_CONCAT(DATE_FORMAT(b.bill_date_time, '%Y-%m-%d %H:%i') ORDER BY b.finance_number SEPARATOR ', ') AS rcpnodate FROM rcpt_print b WHERE b.vn IN (${ph}) AND IFNULL(b.status, '') NOT REGEXP 'Abort' GROUP BY b.vn`),
           safeExec(`SELECT cc.vn, MAX(NULLIF(TRIM(cc.AuthenCode), '')) AS authencode, MAX(NULLIF(TRIM(cc.AuthenMethod), '')) AS authen_method FROM rcmdb.authencode cc WHERE cc.vn IN (${ph}) GROUP BY cc.vn`),
-          safeExec(`SELECT vt.vn, MAX(NULLIF(TRIM(vt.auth_code), '')) AS auth_code, MAX(NULLIF(TRIM(vt.claim_code), '')) AS claim_code, MAX(vt.max_debt_amount) AS max_debt_amount FROM visit_pttype vt WHERE vt.vn IN (${ph}) GROUP BY vt.vn`)
+          safeExec(`SELECT vt.vn, MAX(NULLIF(TRIM(vt.auth_code), '')) AS auth_code, MAX(NULLIF(TRIM(vt.claim_code), '')) AS claim_code, MAX(vt.max_debt_amount) AS max_debt_amount FROM visit_pttype vt WHERE vt.vn IN (${ph}) GROUP BY vt.vn`),
+          safeExec(`SELECT TRIM(VN) AS vn, TRIM(Rep) AS rep, TRIM(Fund) AS fund, TRIM(SubFund) AS subfund, TRIM(TransactionType) AS tx_type, SUM(COALESCE(Compensated, 0)) AS compensated, MAX(NULLIF(TRIM(ErrorCode), '')) AS error_code FROM rcmdb.repdata WHERE VN IN (${ph}) AND IFNULL(TRIM(Rep), '') <> '' GROUP BY TRIM(VN), TRIM(Rep), TRIM(Fund), TRIM(SubFund), TRIM(TransactionType)`),
+          safeExec(`SELECT TRIM(VN) AS vn, TRIM(Rep) AS rep, TRIM(Fund) AS fund, TRIM(SubFund) AS subfund, SUM(COALESCE(Compensated, 0)) AS compensated, MAX(NULLIF(TRIM(ErrorCode), '')) AS error_code FROM rcmdb.repeclaim WHERE VN IN (${ph}) AND IFNULL(TRIM(Rep), '') <> '' GROUP BY TRIM(VN), TRIM(Rep), TRIM(Fund), TRIM(SubFund)`),
+          safeExec(`SELECT TRIM(VN) AS vn, TRIM(Rep) AS rep, TRIM(Fund) AS fund, TRIM(Type) AS subfund, SUM(COALESCE(Compensated, 0)) AS compensated, MAX(NULLIF(TRIM(Note), '')) AS error_code FROM rcmdb.seamless WHERE VN IN (${ph}) AND IFNULL(TRIM(Rep), '') <> '' GROUP BY TRIM(VN), TRIM(Rep), TRIM(Fund), TRIM(Type)`)
         ])
         for (const r of rcptRows) { if (r.vn) rcptMap.set(String(r.vn).trim(), { rcpno: String(r.rcpno || '').trim(), rcpnodate: String(r.rcpnodate || '').trim() }) }
         for (const r of authenRows) { if (r.vn) authenMap.set(String(r.vn).trim(), { authencode: r.authencode ? String(r.authencode).trim() : null, authenMethod: r.authen_method ? String(r.authen_method).trim() : null }) }
         for (const r of vtRows) { if (r.vn) vtMap.set(String(r.vn).trim(), { authCode: r.auth_code ? String(r.auth_code).trim() : null, claimCode: r.claim_code ? String(r.claim_code).trim() : null, maxDebtAmount: r.max_debt_amount != null ? Number(r.max_debt_amount) : null }) }
+
+        // Aggregate per (vn, rep) within each source first, then deduplicate across sources (repdata > repeclaim > seamless)
+        const mergeSourceRows = (sourceRows, sourceName) => {
+          const perSourceByVnRep = new Map()
+          for (const r of sourceRows) {
+            const rVn = String(r.vn || '').trim()
+            const rRep = String(r.rep || '').trim()
+            if (!rVn || !rRep) continue
+            const vrKey = `${rVn}::${rRep.toUpperCase()}`
+            const existing = perSourceByVnRep.get(vrKey)
+            const comp = round2(r.compensated)
+            const fund = r.fund ? String(r.fund).trim() : null
+            const subFund = r.subfund ? String(r.subfund).trim() : null
+            const txType = r.tx_type ? String(r.tx_type).trim() : null
+            const errCode = r.error_code ? String(r.error_code).trim() : null
+            if (!existing) {
+              perSourceByVnRep.set(vrKey, {
+                vn: rVn,
+                rep: rRep,
+                source: sourceName,
+                fund,
+                subFund,
+                txType,
+                compensated: comp,
+                errorCode: errCode,
+              })
+            } else {
+              existing.compensated = round2(existing.compensated + comp)
+              if (!existing.fund && fund) existing.fund = fund
+              if (!existing.subFund && subFund) existing.subFund = subFund
+              if (!existing.txType && txType) existing.txType = txType
+              if (!existing.errorCode && errCode) existing.errorCode = errCode
+            }
+          }
+
+          for (const entry of perSourceByVnRep.values()) {
+            let vnMap = repMap.get(entry.vn)
+            if (!vnMap) {
+              vnMap = new Map()
+              repMap.set(entry.vn, vnMap)
+            }
+            const repKey = entry.rep.toUpperCase()
+            const prev = vnMap.get(repKey)
+            if (!prev) {
+              vnMap.set(repKey, {
+                rep: entry.rep,
+                source: entry.source,
+                repType: formatOpdRepType(entry.source, entry.rep, entry.fund, entry.subFund, entry.txType),
+                fund: entry.fund,
+                subFund: entry.subFund,
+                compensated: entry.compensated,
+                errorCode: entry.errorCode,
+              })
+            } else {
+              // Keep primary source but fill missing metadata or non-zero compensated if primary had 0
+              if (prev.compensated === 0 && entry.compensated > 0) prev.compensated = entry.compensated
+              if (!prev.fund && entry.fund) prev.fund = entry.fund
+              if (!prev.subFund && entry.subFund) prev.subFund = entry.subFund
+              if (!prev.errorCode && entry.errorCode) prev.errorCode = entry.errorCode
+            }
+          }
+        }
+
+        mergeSourceRows(repdataRows, 'repdata')
+        mergeSourceRows(repeclaimRows, 'repeclaim')
+        mergeSourceRows(seamlessRows, 'seamless')
       }
     }
 
@@ -1992,6 +2162,11 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
       const rcptInfo = rcptMap.get(vn)
       const authenInfo = authenMap.get(vn)
       const vtInfo = vtMap.get(vn)
+      const vnRepMap = repMap.get(vn)
+      const repItems = vnRepMap ? Array.from(vnRepMap.values()) : []
+      const repStr = repItems.length > 0 ? repItems.map((e) => e.rep).join(', ') : null
+      const repTypeStr = repItems.length > 0 ? Array.from(new Set(repItems.map((e) => e.repType))).join(', ') : null
+      const repCompensated = round2(repItems.reduce((acc, e) => acc + e.compensated, 0))
       const ptSubtypeCode = r.pt_subtype != null ? String(r.pt_subtype).trim() : ''
       const rawRcpno = (rcptInfo && rcptInfo.rcpno) || r.rcpno_list || ''
       return {
@@ -2026,7 +2201,11 @@ fastify.get('/api/v1/clinical/rcm/opd-debt-registry', {
         rcpno: String(rawRcpno).replace(/["']/g, '').trim(),
         rcpnodate: String((rcptInfo && rcptInfo.rcpnodate) || '').trim(),
         debit: round2(r.debit),
-        max_debt_amount: vtInfo && vtInfo.maxDebtAmount != null ? round2(vtInfo.maxDebtAmount) : null
+        max_debt_amount: vtInfo && vtInfo.maxDebtAmount != null ? round2(vtInfo.maxDebtAmount) : null,
+        rep: repStr,
+        rep_type: repTypeStr,
+        rep_compensated: repCompensated,
+        rep_items: repItems,
       }
     })
 

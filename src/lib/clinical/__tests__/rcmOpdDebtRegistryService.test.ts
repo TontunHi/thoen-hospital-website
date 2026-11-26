@@ -33,6 +33,10 @@ const mockResult: OpdDebtRegistryResult = {
     withAuthenCount: 2,
     withoutAuthenCount: 1,
     authenRate: 66.7,
+    withRepCount: 1,
+    withoutRepCount: 2,
+    repRate: 33.3,
+    totalRepCompensated: 1450,
   },
   breakdowns: {
     eclaim: [
@@ -82,6 +86,20 @@ const mockResult: OpdDebtRegistryResult = {
       rcpnodate: '',
       debit: 1500,
       max_debt_amount: 3000,
+      rep: '691000123',
+      rep_type: 'e-Claim (OP01)',
+      rep_compensated: 1450,
+      rep_items: [
+        {
+          rep: '691000123',
+          source: 'repeclaim',
+          repType: 'e-Claim (OP01)',
+          fund: 'OP01',
+          subFund: null,
+          compensated: 1450,
+          errorCode: null,
+        },
+      ],
     },
     {
       no: 2,
@@ -116,6 +134,10 @@ const mockResult: OpdDebtRegistryResult = {
       rcpnodate: '2026-10-05 09:45',
       debit: 0,
       max_debt_amount: null,
+      rep: null,
+      rep_type: null,
+      rep_compensated: 0,
+      rep_items: [],
     },
   ],
 }
@@ -151,6 +173,10 @@ describe('RcmOpdDebtRegistryService (2.1.1.3 ทะเบียนตั้ง�
     expect(res.breakdowns.account[0].gfmis).toBe('GF-01')
     expect(res.items).toHaveLength(2)
     expect(res.items[0].authencode).toBe('AUTH-NHSO-01')
+    expect(res.items[0].rep).toBe('691000123')
+    expect(res.items[0].rep_type).toBe('e-Claim (OP01)')
+    expect(res.items[0].rep_compensated).toBe(1450)
+    expect(res.summary.totalRepCompensated).toBe(1450)
     expect(res.items[1].rcpno).toBe('R69/001#900.00')
   })
 
@@ -170,6 +196,48 @@ describe('RcmOpdDebtRegistryService (2.1.1.3 ทะเบียนตั้ง�
         pageSize: 50000,
       })
     )
+  })
+
+  it('normalizes missing REP fields defensively when Gateway omits them', async () => {
+    const legacyItem = { ...mockResult.items[1] } as Partial<typeof mockResult.items[1]>
+    delete legacyItem.rep
+    delete legacyItem.rep_type
+    delete legacyItem.rep_compensated
+    delete legacyItem.rep_items
+
+    const mockFetcher = vi.fn().mockResolvedValue({
+      data: {
+        ...mockResult,
+        summary: {
+          totalCases: 1,
+          totalVisits: 1,
+          totalIncome: 1000,
+          totalUcMoney: 0,
+          totalDiscountMoney: 100,
+          totalPaidMoney: 900,
+          totalRcptMoney: 900,
+          totalDebit: 0,
+          withDebitCount: 0,
+          withRcptCount: 1,
+          withAuthenCount: 1,
+          withoutAuthenCount: 0,
+          authenRate: 100,
+        },
+        items: [legacyItem],
+      },
+    })
+
+    const res = await RcmOpdDebtRegistryService.getReportData(
+      { ds1: '2026-10-01', ds2: '2026-10-31' },
+      mockFetcher
+    )
+
+    expect(res.summary.withRepCount).toBe(0)
+    expect(res.summary.totalRepCompensated).toBe(0)
+    expect(res.items[0].rep).toBeNull()
+    expect(res.items[0].rep_type).toBeNull()
+    expect(res.items[0].rep_compensated).toBe(0)
+    expect(res.items[0].rep_items).toEqual([])
   })
 
   it('throws GatewayNotFoundError when Gateway returns malformed payload', async () => {

@@ -11,6 +11,8 @@ export type OpdDebtCardFilter =
   | 'WITH_RCPT'
   | 'WITH_AUTHEN'
   | 'NO_AUTHEN'
+  | 'WITH_REP'
+  | 'NO_REP'
 
 export type OpdDebtBreakdownType = 'account' | 'eclaim' | 'pttype' | 'vstdate'
 
@@ -29,6 +31,16 @@ export type OpdDebtSortField =
   | 'paid_money'
   | 'rcpt_money'
   | 'debit'
+
+export interface OpdDebtRepItem {
+  rep: string
+  source: 'repdata' | 'repeclaim' | 'seamless'
+  repType: string
+  fund: string | null
+  subFund: string | null
+  compensated: number
+  errorCode: string | null
+}
 
 export interface OpdDebtRegistryItem {
   no: number
@@ -63,6 +75,10 @@ export interface OpdDebtRegistryItem {
   rcpnodate: string
   debit: number
   max_debt_amount: number | null
+  rep: string | null
+  rep_type: string | null
+  rep_compensated: number
+  rep_items?: OpdDebtRepItem[]
 }
 
 export interface OpdDebtSummary {
@@ -79,6 +95,10 @@ export interface OpdDebtSummary {
   withAuthenCount: number
   withoutAuthenCount: number
   authenRate: number
+  withRepCount: number
+  withoutRepCount: number
+  repRate: number
+  totalRepCompensated: number
 }
 
 export interface OpdDebtGroupBreakdownRow {
@@ -279,7 +299,32 @@ export class RcmOpdDebtRegistryService {
         if (!payload || !Array.isArray(payload.items) || !payload.summary) {
           throw new GatewayNotFoundError('Invalid Named API payload')
         }
-        return payload
+        const totalVisits = Number(payload.summary.totalVisits ?? 0)
+        const withRepCount = Number(payload.summary.withRepCount ?? 0)
+        const withoutRepCount = Number(
+          payload.summary.withoutRepCount ?? Math.max(0, totalVisits - withRepCount)
+        )
+        const repRate = Number(
+          payload.summary.repRate ??
+            (totalVisits > 0 ? Math.round((withRepCount / totalVisits) * 1000) / 10 : 0)
+        )
+        return {
+          ...payload,
+          summary: {
+            ...payload.summary,
+            withRepCount,
+            withoutRepCount,
+            repRate,
+            totalRepCompensated: Number(payload.summary.totalRepCompensated ?? 0),
+          },
+          items: payload.items.map((item) => ({
+            ...item,
+            rep: item.rep ?? null,
+            rep_type: item.rep_type ?? null,
+            rep_compensated: Number(item.rep_compensated ?? 0),
+            rep_items: Array.isArray(item.rep_items) ? item.rep_items : [],
+          })),
+        }
       },
       { staleTtlMs: 20_000, maxTtlMs: 60_000, forceRefresh: refresh || exportAll }
     )

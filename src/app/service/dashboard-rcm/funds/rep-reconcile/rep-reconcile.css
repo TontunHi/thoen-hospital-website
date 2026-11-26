@@ -826,10 +826,6 @@
   margin-top: var(--ds-space-2);
 }
 
-.rr-subline-inline {
-  margin-top: 0;
-}
-
 .rr-badge {
   display: inline-flex;
   align-items: center;

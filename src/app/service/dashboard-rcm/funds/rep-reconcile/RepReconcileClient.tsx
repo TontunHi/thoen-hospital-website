@@ -104,6 +104,19 @@ function formatMoney(val: number | null | undefined): string {
   })
 }
 
+function getSourceBadgeClass(source: RepSourceKind): string {
+  switch (source) {
+    case 'seamless':
+      return 'rr-badge-seamless'
+    case 'repeclaim':
+      return 'rr-badge-repeclaim'
+    case 'repdata':
+      return 'rr-badge-repdata'
+    default:
+      return 'rr-badge-source'
+  }
+}
+
 export default function RepReconcileClient({
   initialData,
   initialRange,
@@ -915,14 +928,9 @@ export default function RepReconcileClient({
               ) : (
                 items.map((row, idx) => {
                   const rowNum = (currentPage - 1) * query.pageSize + idx + 1
-                  const sourceBadgeClass =
-                    row.source === 'seamless'
-                      ? 'rr-badge-seamless'
-                      : row.source === 'repeclaim'
-                      ? 'rr-badge-repeclaim'
-                      : row.source === 'repdata'
-                      ? 'rr-badge-repdata'
-                      : 'rr-badge-source'
+                  const displaySources = Array.from(
+                    new Set(row.matchedSources?.length ? row.matchedSources : [row.source])
+                  )
 
                   const statusBadge =
                     row.status === 'pending_rep'
@@ -976,12 +984,14 @@ export default function RepReconcileClient({
                       </td>
                       <td>
                         <div className="rr-cell-stack">
-                          <span className={`rr-badge ${sourceBadgeClass}`}>{row.source}</span>
-                          {row.matchedSources.length > 1 && (
-                            <span className="rr-subline rr-subline-inline">
-                              +{row.matchedSources.length - 1}
+                          {displaySources.map((src) => (
+                            <span
+                              key={src}
+                              className={`rr-badge ${getSourceBadgeClass(src)}`}
+                            >
+                              {src}
                             </span>
-                          )}
+                          ))}
                         </div>
                         <div className="rr-subline">
                           {formatRepTypeLabel(row.repPrefix, row.repFund)}

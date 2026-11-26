@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import OpdDebtRegistryClient from '../OpdDebtRegistryClient'
 import type { OpdDebtRegistryResult } from '@/lib/clinical/rcmOpdDebtRegistryService'
@@ -33,6 +33,10 @@ const mockInitialData: OpdDebtRegistryResult = {
     withAuthenCount: 1,
     withoutAuthenCount: 1,
     authenRate: 50.0,
+    withRepCount: 1,
+    withoutRepCount: 1,
+    repRate: 50.0,
+    totalRepCompensated: 1450,
   },
   breakdowns: {
     account: [
@@ -120,6 +124,20 @@ const mockInitialData: OpdDebtRegistryResult = {
       rcpnodate: '',
       debit: 1500,
       max_debt_amount: 3000,
+      rep: '691000123',
+      rep_type: 'e-Claim (OP01)',
+      rep_compensated: 1450,
+      rep_items: [
+        {
+          rep: '691000123',
+          source: 'repeclaim',
+          repType: 'e-Claim (OP01)',
+          fund: 'OP01',
+          subFund: null,
+          compensated: 1450,
+          errorCode: null,
+        },
+      ],
     },
     {
       no: 2,
@@ -154,6 +172,10 @@ const mockInitialData: OpdDebtRegistryResult = {
       rcpnodate: '2026-10-05 09:45',
       debit: 0,
       max_debt_amount: null,
+      rep: null,
+      rep_type: null,
+      rep_compensated: 0,
+      rep_items: [],
     },
   ],
 }
@@ -226,6 +248,9 @@ describe('OpdDebtRegistryClient Component (2.1.1.3)', () => {
     expect(screen.getByText('นายทดสอบ ระบบ')).toBeInTheDocument()
     expect(screen.getByText(/9999999999999/)).toBeInTheDocument()
     expect(screen.getByText('AUTH-NHSO-01')).toBeInTheDocument()
+    expect(screen.getByText('691000123')).toBeInTheDocument()
+    expect(screen.getByText('e-Claim (OP01)')).toBeInTheDocument()
+    expect(screen.getAllByText(/1,450\.00/).length).toBeGreaterThan(0)
     expect(screen.getByText('R69/001#900.00')).toBeInTheDocument()
     expect(screen.queryByText(/1102050101\.201 ·/)).not.toBeInTheDocument()
     expect(screen.getAllByText('ลูกหนี้ค่ารักษา UC').length).toBeGreaterThan(0)
@@ -250,9 +275,12 @@ describe('OpdDebtRegistryClient Component (2.1.1.3)', () => {
 
     fireEvent.click(screen.getByText('นายทดสอบ ระบบ'))
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeInTheDocument()
     expect(screen.getByText('เพดานตั้งหนี้ (Max Debt)')).toBeInTheDocument()
     expect(screen.getByText('฿3,000.00')).toBeInTheDocument()
+    expect(within(dialog).getByText('ข้อมูลการชดเชย REP (อ้างอิงตาม VN)')).toBeInTheDocument()
+    expect(within(dialog).getAllByText('฿1,450.00').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('tab', { name: /ข้อมูลคลินิก/ }))
 
@@ -271,6 +299,19 @@ describe('OpdDebtRegistryClient Component (2.1.1.3)', () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/service/dashboard-rcm/opd-debt-registry?'),
+        expect.anything()
+      )
+    })
+  })
+
+  it('filters by WITH_REP when clicking ยอดชดเชยจาก REP KPI tile', async () => {
+    render(<OpdDebtRegistryClient initialData={mockInitialData} />)
+
+    fireEvent.click(screen.getByText('ยอดชดเชยจาก REP'))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('cardFilter=WITH_REP'),
         expect.anything()
       )
     })

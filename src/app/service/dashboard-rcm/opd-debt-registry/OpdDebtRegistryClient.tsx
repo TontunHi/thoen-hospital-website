@@ -72,6 +72,10 @@ const DEFAULT_SUMMARY: OpdDebtSummary = {
   withAuthenCount: 0,
   withoutAuthenCount: 0,
   authenRate: 0,
+  withRepCount: 0,
+  withoutRepCount: 0,
+  repRate: 0,
+  totalRepCompensated: 0,
 }
 
 const formatInt = (n?: number | null) => (n ?? 0).toLocaleString('th-TH')
@@ -385,6 +389,9 @@ export default function OpdDebtRegistryClient({
         'เพดานตั้งหนี้ (Max Debt)',
         'เลขที่ใบเสร็จ',
         'วันที่ออกใบเสร็จ',
+        'เลข REP',
+        'ประเภท REP',
+        'ยอดชดเชย REP (บาท)',
       ]
 
       const rows = (fullResult.items || []).map((it, idx) => [
@@ -419,6 +426,9 @@ export default function OpdDebtRegistryClient({
         it.max_debt_amount ?? '',
         it.rcpno || '',
         it.rcpnodate || '',
+        it.rep || '',
+        it.rep_type || '',
+        it.rep_compensated ?? 0,
       ])
 
       const sumIncome = fullResult.items.reduce((a, r) => a + (r.income ?? 0), 0)
@@ -427,6 +437,7 @@ export default function OpdDebtRegistryClient({
       const sumPaid = fullResult.items.reduce((a, r) => a + (r.paid_money ?? 0), 0)
       const sumRcpt = fullResult.items.reduce((a, r) => a + (r.rcpt_money ?? 0), 0)
       const sumDebit = fullResult.items.reduce((a, r) => a + (r.debit ?? 0), 0)
+      const sumRepCompensated = fullResult.items.reduce((a, r) => a + (r.rep_compensated ?? 0), 0)
 
       await exportRcmExcel({
         filename: `opd_debt_registry_${query.ds1}_to_${query.ds2}.xlsx`,
@@ -449,7 +460,8 @@ export default function OpdDebtRegistryClient({
             sumPaid,
             sumRcpt,
             sumDebit,
-            '', '', '',
+            '', '', '', '', '',
+            sumRepCompensated,
           ],
         ],
       })
@@ -547,6 +559,28 @@ export default function OpdDebtRegistryClient({
                 : prev.cardFilter === 'WITH_AUTHEN'
                   ? 'ALL'
                   : 'NO_AUTHEN',
+            page: 1,
+          })),
+      },
+      {
+        id: 'rep',
+        label: 'ยอดชดเชยจาก REP',
+        value: `฿${formatMoney(summary.totalRepCompensated)}`,
+        context: `มี REP ${formatInt(summary.withRepCount)} ครั้ง (${(summary.repRate ?? 0).toFixed(1)}%)`,
+        tooltip: 'ยอดชดเชยรวมจากตาราง REP (repdata / repeclaim / seamless อิงตาม VN) — คลิกเพื่อสลับกรองรายการที่มี/ไม่มี REP',
+        icon: <ReceiptText size={15} strokeWidth={1.5} />,
+        tone: 'money',
+        interactive: true,
+        selected: query.cardFilter === 'WITH_REP' || query.cardFilter === 'NO_REP',
+        onClick: () =>
+          setQuery((prev) => ({
+            ...prev,
+            cardFilter:
+              prev.cardFilter === 'WITH_REP'
+                ? 'NO_REP'
+                : prev.cardFilter === 'NO_REP'
+                  ? 'ALL'
+                  : 'WITH_REP',
             page: 1,
           })),
       },
@@ -952,7 +986,11 @@ export default function OpdDebtRegistryClient({
                       ? 'มีใบเสร็จรับเงิน'
                       : query.cardFilter === 'WITH_AUTHEN'
                         ? 'มี Authen Code'
-                        : 'ไม่มี Authen Code'}
+                        : query.cardFilter === 'NO_AUTHEN'
+                          ? 'ไม่มี Authen Code'
+                          : query.cardFilter === 'WITH_REP'
+                            ? 'มีเลข REP ชดเชย'
+                            : 'ยังไม่มีเลข REP'}
                 </span>
                 <button
                   type="button"
@@ -1088,13 +1126,15 @@ export default function OpdDebtRegistryClient({
                 <option value="WITH_RCPT">เฉพาะมีใบเสร็จ (Rcpt &gt; 0)</option>
                 <option value="WITH_AUTHEN">มี Authen Code</option>
                 <option value="NO_AUTHEN">ไม่มี Authen Code</option>
+                <option value="WITH_REP">มีเลข REP ชดเชย</option>
+                <option value="NO_REP">ยังไม่มีเลข REP</option>
               </select>
 
               <div className="dd-search-wrap">
                 <Search size={14} className="dd-search-icon" />
                 <input
                   type="text"
-                  placeholder="ค้นหา HN, VN, CID, ชื่อ, ใบเสร็จ..."
+                  placeholder="ค้นหา HN, VN, CID, ชื่อ, ใบเสร็จ, เลข REP..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   className="dd-search-input"
@@ -1276,6 +1316,9 @@ export default function OpdDebtRegistryClient({
                     </span>
                   </th>
                   <th className="is-left">เลขใบเสร็จ / วันที่</th>
+                  <th className="is-left">เลข REP</th>
+                  <th className="is-left">ประเภท REP</th>
+                  <th>ชดเชย REP</th>
                 </tr>
               </thead>
 
@@ -1283,14 +1326,14 @@ export default function OpdDebtRegistryClient({
                 {isInitialSkeleton ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <tr key={i}>
-                      <td colSpan={13}>
+                      <td colSpan={16}>
                         <div className="dd-skeleton" style={{ height: 22, width: '100%' }} />
                       </td>
                     </tr>
                   ))
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={13}>
+                    <td colSpan={16}>
                       <div className="dd-empty-box">
                         <AlertCircle size={22} />
                         <p className="dd-empty-title">ไม่พบรายการผู้รับบริการตามเงื่อนไขที่เลือก</p>
@@ -1401,6 +1444,43 @@ export default function OpdDebtRegistryClient({
                           <span className="dd-muted-zero">—</span>
                         )}
                       </td>
+                      <td className="is-left">
+                        {item.rep ? (
+                          <span
+                            className="odr-badge odr-badge-money font-mono dd-tnum"
+                            title={item.rep}
+                          >
+                            <span className="odr-ellipsis" style={{ maxWidth: 140 }}>
+                              {item.rep}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="dd-muted-zero">—</span>
+                        )}
+                      </td>
+                      <td className="is-left">
+                        {item.rep_type ? (
+                          <span
+                            className="odr-badge odr-badge-info"
+                            title={item.rep_type}
+                          >
+                            <span className="odr-ellipsis" style={{ maxWidth: 160 }}>
+                              {item.rep_type}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="dd-muted-zero">—</span>
+                        )}
+                      </td>
+                      <td
+                        style={
+                          (item.rep_compensated ?? 0) > 0
+                            ? { color: 'var(--dd-money)', fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {formatMoneyOrDash(item.rep_compensated)}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -1420,6 +1500,11 @@ export default function OpdDebtRegistryClient({
                     <td>{formatMoney(summary.totalRcptMoney)}</td>
                     <td>{formatMoney(summary.totalDebit)}</td>
                     <td className="is-left">—</td>
+                    <td className="is-left">—</td>
+                    <td className="is-left">—</td>
+                    <td style={{ color: 'var(--dd-money)', fontWeight: 600 }}>
+                      {formatMoney(summary.totalRepCompensated)}
+                    </td>
                   </tr>
                 </tfoot>
               )}
@@ -1666,6 +1751,75 @@ export default function OpdDebtRegistryClient({
                         </span>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="odr-detail-box">
+                    <h4 className="odr-detail-box-title">
+                      ข้อมูลการชดเชย REP (อ้างอิงตาม VN)
+                    </h4>
+                    <div className="odr-kv-row">
+                      <span className="odr-kv-label">เลข REP / ใบตอบรับ</span>
+                      <span className="odr-kv-val font-mono dd-tnum">
+                        {selectedItem.rep || '—'}
+                        {selectedItem.rep && (
+                          <button
+                            type="button"
+                            className="odr-copy-btn"
+                            onClick={() => copyValue(selectedItem.rep!, 'rep')}
+                            aria-label="คัดลอกเลข REP"
+                          >
+                            {copiedKey === 'rep' ? <Check size={11} /> : <Copy size={11} />}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                    <div className="odr-kv-row">
+                      <span className="odr-kv-label">ประเภท REP</span>
+                      <span className="odr-kv-val">{selectedItem.rep_type || '—'}</span>
+                    </div>
+                    <div className="odr-kv-row">
+                      <span className="odr-kv-label">ยอดชดเชยของ REP</span>
+                      <span
+                        className="odr-kv-val dd-tnum"
+                        style={{
+                          color:
+                            (selectedItem.rep_compensated ?? 0) > 0
+                              ? 'var(--dd-money)'
+                              : 'var(--dd-ink)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        ฿{formatMoney(selectedItem.rep_compensated)}
+                      </span>
+                    </div>
+                    {selectedItem.rep_items && selectedItem.rep_items.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          paddingTop: 6,
+                          borderTop: '1px solid var(--dd-line)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4,
+                        }}
+                      >
+                        {selectedItem.rep_items.map((rItem, idx) => (
+                          <div
+                            key={`${rItem.source}-${rItem.rep}-${idx}`}
+                            className="odr-kv-row"
+                            style={{ fontSize: 12 }}
+                          >
+                            <span className="font-mono dd-tnum">
+                              {rItem.rep} · {rItem.repType}
+                              {rItem.errorCode ? ` (Err: ${rItem.errorCode})` : ''}
+                            </span>
+                            <span className="dd-tnum" style={{ color: 'var(--dd-money)', fontWeight: 600 }}>
+                              ฿{formatMoney(rItem.compensated)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               ) : loadingDetails ? (

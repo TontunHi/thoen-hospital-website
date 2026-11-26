@@ -347,6 +347,12 @@
   }
 }
 
+@media (min-width: 1280px) {
+  .dd-kpi-grid[data-cols='6'] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 .dd-kpi-cell {
   position: relative;
   padding: 0.5rem;

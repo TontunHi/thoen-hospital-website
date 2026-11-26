@@ -183,6 +183,8 @@ const SOURCE_LABELS = {
 }
 const VALID_SOURCES = new Set(['repdata', 'repeclaim', 'seamless'])
 const THAI_MONTH_NAMES_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+const enCollator = new Intl.Collator('en')
+const thCollator = new Intl.Collator('th')
 
 function roundMoney(v) { return Math.round(Number(v || 0) * 100) / 100 }
 function normalizeStr(v) { return v == null ? '' : String(v).trim() }
@@ -344,14 +346,58 @@ function buildTargetAdpFilterSql() {
 
 const TARGET_ADP_WHERE = buildTargetAdpFilterSql()
 
-export default async function rcmFundsReconcileRoutes(fastify, { pools, getCached }) {
+function hasExplicitFundMatch(line) {
+  const repPrefix = (line.repPrefix || extractRepPrefixCode(line.rep) || '').toUpperCase()
+  const repTagText = [line.repFund, line.repSubFund, line.projectCode].filter(Boolean).join(' ').toUpperCase()
+  for (const fund of RCM_FUND_CATALOG) {
+    if (fund.id === 'general') continue
+    if (repPrefix && fund.seamlessPrefixes.includes(repPrefix)) return true
+    if (repTagText && fund.repFundKeywords.some((kw) => repTagText.includes(kw.toUpperCase()))) return true
+  }
+  return false
+}
+
+function sortRawDesc(rows) {
+  return [...(rows || [])].sort((a, b) => {
+    const da = normalizeStr(a.admdate)
+    const db = normalizeStr(b.admdate)
+    if (da !== db) return db < da ? -1 : 1
+    return (Number(b.id) || 0) - (Number(a.id) || 0)
+  })
+}
+
+function buildRepTableUnionSql(tableName, ybClause) {
+  const cols = `
+    ID AS id, TRIM(Rep) AS rep, TRIM(HN) AS hn, NULLIF(TRIM(VN), '') AS vn, NULLIF(TRIM(AN), '') AS an,
+    TRIM(EclaimNo) AS eclaim_no, TRIM(PtName) AS ptname,
+    CASE WHEN Department = 'IP' THEN 'IP' ELSE 'OP' END AS department,
+    TRIM(MainInscl) AS main_inscl, TRIM(Fund) AS fund, TRIM(SubFund) AS subfund, TRIM(ProjectCode) AS project_code,
+    COALESCE(Income, 0) AS income, COALESCE(Compensated, 0) AS compensated, TRIM(ErrorCode) AS error_code,
+    TRIM(Appeal) AS appeal, TRIM(FileName) AS file_name
+  `
+  return `
+    SELECT ${cols}, DATE_FORMAT(AdmDate, '%Y-%m-%d') AS admdate
+    FROM ${tableName}
+    WHERE AdmDate >= ? AND AdmDate < DATE_ADD(?, INTERVAL 1 DAY)
+      ${ybClause}
+    UNION ALL
+    SELECT ${cols}, DATE_FORMAT(DchDate, '%Y-%m-%d') AS admdate
+    FROM ${tableName}
+    WHERE AdmDate IS NULL AND DchDate >= ? AND DchDate < DATE_ADD(?, INTERVAL 1 DAY)
+      ${ybClause}
+  `
+}
+
+export default async function rcmFundsReconcileRoutes(fastify, { pools, getCached, enablePrewarm } = {}) {
   const { hosPool } = pools
 
   // Local SWR Cache for BaseDataset (3 min fresh, 20 min max stale, single-flight dedup)
   const datasetCache = new Map()
+  const filteredCache = new Map()
   const inFlightBuilds = new Map()
   const STALE_TTL_MS = 3 * 60_000
   const MAX_TTL_MS = 20 * 60_000
+  const MAX_FILTERED_CACHE = 64
 
   async function getTargetAdpIcodeMap() {
     return getCached('rcm-reconcile-target-adp-icodes-v1', 3600_000, async () => {
@@ -384,7 +430,12 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
     })
   }
 
-  async function fetchClinicalMetaOptimized(vns, ans, startDate, endDate) {
+  /**
+   * Selective Clinical Enrichment:
+   * - classifyVns / classifyAns: rows not yet matched to Funds 1-25 via REP prefix/keywords -> fetch full clinical meta + opitemrece ADP codes.
+   * - cidOnlyVns / cidOnlyAns: rows already matched to Funds 1-25 via REP prefix/keywords -> fetch lightweight cid/ptname only (no vn_stat/an_stat/opitemrece).
+   */
+  async function fetchClinicalMetaOptimized({ classifyVns, cidOnlyVns, classifyAns, cidOnlyAns, startDate, endDate }) {
     const metaMap = new Map()
     const ensure = (key) => {
       let cur = metaMap.get(key)
@@ -409,7 +460,11 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       }
     }
 
-    const { icodes: targetIcodes, icodeMap } = await getTargetAdpIcodeMap()
+    const needClassification = classifyVns.length > 0 || classifyAns.length > 0
+    const { icodes: targetIcodes, icodeMap } = needClassification
+      ? await getTargetAdpIcodeMap()
+      : { icodes: [], icodeMap: new Map() }
+
     const applyOpitemRows = (rows) => {
       for (const r of rows || []) {
         const key = normalizeStr(r.visit_key)
@@ -427,30 +482,11 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
 
     const tasks = []
 
-    if (vns.length > 0) {
-      if (vns.length <= 15000) {
-        tasks.push(
-          runChunked(vns, 2500, 4, async (chunk) => {
-            const ph = chunk.map(() => '?').join(',')
-            const [rows] = await hosPool.query(
-              `SELECT o.vn AS visit_key, IFNULL(pt.cid, '') AS cid,
-                CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
-                ptt.name AS pttype_name, IFNULL(ov.export_code, '') AS export_code,
-                v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5
-              FROM ovst o
-              LEFT JOIN ovstist ov ON ov.ovstist = o.ovstist
-              LEFT JOIN patient pt ON pt.hn = o.hn
-              LEFT JOIN vn_stat v ON v.vn = o.vn
-              LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-              WHERE o.vn IN (${ph})`,
-              chunk
-            )
-            return rows
-          }).then(applyVisitRows)
-        )
-      } else {
-        tasks.push(
-          hosPool.query(
+    if (classifyVns.length > 0) {
+      tasks.push(
+        runChunked(classifyVns, 2500, 4, async (chunk) => {
+          const ph = chunk.map(() => '?').join(',')
+          const [rows] = await hosPool.query(
             `SELECT o.vn AS visit_key, IFNULL(pt.cid, '') AS cid,
               CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
               ptt.name AS pttype_name, IFNULL(ov.export_code, '') AS export_code,
@@ -460,20 +496,21 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
             LEFT JOIN patient pt ON pt.hn = o.hn
             LEFT JOIN vn_stat v ON v.vn = o.vn
             LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            WHERE o.vstdate >= ? AND o.vstdate < DATE_ADD(?, INTERVAL 1 DAY)`,
-            [startDate, endDate]
-          ).then(([rows]) => applyVisitRows(rows))
-        )
-      }
+            WHERE o.vn IN (${ph})`,
+            chunk
+          )
+          return rows
+        }).then(applyVisitRows)
+      )
 
       if (targetIcodes.length > 0) {
         const icodePh = targetIcodes.map(() => '?').join(',')
-        if (vns.length <= 4000) {
+        if (classifyVns.length <= 4000) {
           tasks.push(
-            runChunked(vns, 2000, 3, async (chunk) => {
+            runChunked(classifyVns, 2000, 3, async (chunk) => {
               const vnPh = chunk.map(() => '?').join(',')
               const [rows] = await hosPool.query(
-                `SELECT DISTINCT oo.vn AS visit_key, oo.icode
+                `SELECT oo.vn AS visit_key, oo.icode
                 FROM opitemrece oo
                 WHERE oo.vn IN (${vnPh}) AND oo.icode IN (${icodePh})`,
                 [...chunk, ...targetIcodes]
@@ -484,7 +521,7 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
         } else {
           tasks.push(
             hosPool.query(
-              `SELECT DISTINCT oo.vn AS visit_key, oo.icode
+              `SELECT oo.vn AS visit_key, oo.icode
               FROM opitemrece oo
               WHERE oo.vstdate >= ? AND oo.vstdate < DATE_ADD(?, INTERVAL 1 DAY)
                 AND IFNULL(oo.vn, '') <> ''
@@ -496,9 +533,26 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       }
     }
 
-    if (ans.length > 0) {
+    if (cidOnlyVns.length > 0) {
       tasks.push(
-        runChunked(ans, 2000, 3, async (chunk) => {
+        runChunked(cidOnlyVns, 3000, 4, async (chunk) => {
+          const ph = chunk.map(() => '?').join(',')
+          const [rows] = await hosPool.query(
+            `SELECT o.vn AS visit_key, IFNULL(pt.cid, '') AS cid,
+              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname
+            FROM ovst o
+            LEFT JOIN patient pt ON pt.hn = o.hn
+            WHERE o.vn IN (${ph})`,
+            chunk
+          )
+          return rows
+        }).then(applyVisitRows)
+      )
+    }
+
+    if (classifyAns.length > 0) {
+      tasks.push(
+        runChunked(classifyAns, 2000, 3, async (chunk) => {
           const ph = chunk.map(() => '?').join(',')
           const [rows] = await hosPool.query(
             `SELECT i.an AS visit_key, IFNULL(pt.cid, '') AS cid,
@@ -519,10 +573,10 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       if (targetIcodes.length > 0) {
         const icodePh = targetIcodes.map(() => '?').join(',')
         tasks.push(
-          runChunked(ans, 2000, 3, async (chunk) => {
+          runChunked(classifyAns, 2000, 3, async (chunk) => {
             const anPh = chunk.map(() => '?').join(',')
             const [rows] = await hosPool.query(
-              `SELECT DISTINCT oo.an AS visit_key, oo.icode
+              `SELECT oo.an AS visit_key, oo.icode
               FROM opitemrece oo
               WHERE oo.an IN (${anPh}) AND oo.icode IN (${icodePh})`,
               [...chunk, ...targetIcodes]
@@ -533,13 +587,28 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       }
     }
 
+    if (cidOnlyAns.length > 0) {
+      tasks.push(
+        runChunked(cidOnlyAns, 3000, 4, async (chunk) => {
+          const ph = chunk.map(() => '?').join(',')
+          const [rows] = await hosPool.query(
+            `SELECT i.an AS visit_key, IFNULL(pt.cid, '') AS cid,
+              CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname
+            FROM ipt i
+            LEFT JOIN patient pt ON pt.hn = i.hn
+            WHERE i.an IN (${ph})`,
+            chunk
+          )
+          return rows
+        }).then(applyVisitRows)
+      )
+    }
+
     await Promise.all(tasks)
     return metaMap
   }
 
-  async function buildBaseDataset(startDate, endDate, includePendingRep) {
-    const repOnlyFilter = includePendingRep ? '' : "AND IFNULL(TRIM(Rep), '') <> ''"
-    const repOnlyAliasFilter = includePendingRep ? '' : "AND IFNULL(TRIM(rep), '') <> ''"
+  async function buildBaseDataset(startDate, endDate) {
     const ybList = getYearBudgetPruningList(startDate, endDate)
     const ybClause = ybList ? `AND YearBudget IN (${ybList.map(() => '?').join(',')})` : ''
     const ybParams = ybList || []
@@ -555,61 +624,19 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       FROM rcmdb.seamless
       WHERE AdmDate >= ? AND AdmDate < DATE_ADD(?, INTERVAL 1 DAY)
         ${ybClause}
-        ${repOnlyFilter}
-      ORDER BY AdmDate DESC, ID DESC
     `
 
-    const repDateClause = `((AdmDate >= ? AND AdmDate < DATE_ADD(?, INTERVAL 1 DAY)) OR (AdmDate IS NULL AND DchDate >= ? AND DchDate < DATE_ADD(?, INTERVAL 1 DAY)))`
-    const repdataSql = `
-      SELECT ID AS id, TRIM(Rep) AS rep, TRIM(HN) AS hn, NULLIF(TRIM(VN), '') AS vn, NULLIF(TRIM(AN), '') AS an,
-        TRIM(EclaimNo) AS eclaim_no, TRIM(PtName) AS ptname, DATE_FORMAT(COALESCE(AdmDate, DchDate), '%Y-%m-%d') AS admdate,
-        CASE WHEN Department = 'IP' THEN 'IP' ELSE 'OP' END AS department,
-        TRIM(MainInscl) AS main_inscl, TRIM(Fund) AS fund, TRIM(SubFund) AS subfund, TRIM(ProjectCode) AS project_code,
-        COALESCE(Income, 0) AS income, COALESCE(Compensated, 0) AS compensated, TRIM(ErrorCode) AS error_code,
-        TRIM(Appeal) AS appeal, TRIM(FileName) AS file_name
-      FROM rcmdb.repdata
-      WHERE ${repDateClause}
-        ${ybClause}
-        ${repOnlyAliasFilter}
-      ORDER BY AdmDate DESC, ID DESC
-    `
-
-    const repeclaimSql = `
-      SELECT ID AS id, TRIM(Rep) AS rep, TRIM(HN) AS hn, NULLIF(TRIM(VN), '') AS vn, NULLIF(TRIM(AN), '') AS an,
-        TRIM(EclaimNo) AS eclaim_no, TRIM(PtName) AS ptname, DATE_FORMAT(COALESCE(AdmDate, DchDate), '%Y-%m-%d') AS admdate,
-        CASE WHEN Department = 'IP' THEN 'IP' ELSE 'OP' END AS department,
-        TRIM(MainInscl) AS main_inscl, TRIM(Fund) AS fund, TRIM(SubFund) AS subfund, TRIM(ProjectCode) AS project_code,
-        COALESCE(Income, 0) AS income, COALESCE(Compensated, 0) AS compensated, TRIM(ErrorCode) AS error_code,
-        TRIM(Appeal) AS appeal, TRIM(FileName) AS file_name
-      FROM rcmdb.repeclaim
-      WHERE ${repDateClause}
-        ${ybClause}
-        ${repOnlyAliasFilter}
-      ORDER BY AdmDate DESC, ID DESC
-    `
+    const repdataSql = buildRepTableUnionSql('rcmdb.repdata', ybClause)
+    const repeclaimSql = buildRepTableUnionSql('rcmdb.repeclaim', ybClause)
 
     const seamlessParams = [startDate, endDate, ...ybParams]
-    const repParams = [startDate, endDate, startDate, endDate, ...ybParams]
+    const repParams = [startDate, endDate, ...ybParams, startDate, endDate, ...ybParams]
 
     const [[seamlessRows], [repdataRows], [repeclaimRows]] = await Promise.all([
       hosPool.query(seamlessSql, seamlessParams),
       hosPool.query(repdataSql, repParams),
       hosPool.query(repeclaimSql, repParams),
     ])
-
-    const vnSet = new Set()
-    const anSet = new Set()
-    const collectVisit = (r) => {
-      const vn = normalizeStr(r.vn)
-      const an = normalizeStr(r.an)
-      if (vn) vnSet.add(vn)
-      if (an) anSet.add(an)
-    }
-    ;(seamlessRows || []).forEach(collectVisit)
-    ;(repdataRows || []).forEach(collectVisit)
-    ;(repeclaimRows || []).forEach(collectVisit)
-
-    const clinicalMetaMap = await fetchClinicalMetaOptimized(Array.from(vnSet), Array.from(anSet), startDate, endDate)
 
     const lines = []
     const seenRepVisitIndex = new Map()
@@ -682,9 +709,38 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       if (dedupKey) seenRepVisitIndex.set(dedupKey, insertedIdx)
     }
 
-    ;(repdataRows || []).forEach((r, i) => upsertCompensationRow(r, 'repdata', i))
-    ;(repeclaimRows || []).forEach((r, i) => upsertCompensationRow(r, 'repeclaim', i))
-    ;(seamlessRows || []).forEach((r, i) => upsertCompensationRow(r, 'seamless', i))
+    sortRawDesc(repdataRows).forEach((r, i) => upsertCompensationRow(r, 'repdata', i))
+    sortRawDesc(repeclaimRows).forEach((r, i) => upsertCompensationRow(r, 'repeclaim', i))
+    sortRawDesc(seamlessRows).forEach((r, i) => upsertCompensationRow(r, 'seamless', i))
+
+    // Selective HOSxP enrichment:
+    // Only query opitemrece/vn_stat/an_stat for lines NOT explicitly matched to Funds 1-25,
+    // and only query lightweight patient cid/ptname for explicit-fund lines missing cid or ptname.
+    const classifyVnSet = new Set()
+    const classifyAnSet = new Set()
+    const cidVnSet = new Set()
+    const cidAnSet = new Set()
+
+    for (const line of lines) {
+      if (!hasExplicitFundMatch(line)) {
+        if (line.vn) classifyVnSet.add(line.vn)
+        else if (line.an) classifyAnSet.add(line.an)
+      } else if (!line.cid || !line.ptname) {
+        if (line.vn) cidVnSet.add(line.vn)
+        else if (line.an) cidAnSet.add(line.an)
+      }
+    }
+    for (const vn of classifyVnSet) cidVnSet.delete(vn)
+    for (const an of classifyAnSet) cidAnSet.delete(an)
+
+    const clinicalMetaMap = await fetchClinicalMetaOptimized({
+      classifyVns: Array.from(classifyVnSet),
+      cidOnlyVns: Array.from(cidVnSet),
+      classifyAns: Array.from(classifyAnSet),
+      cidOnlyAns: Array.from(cidAnSet),
+      startDate,
+      endDate,
+    })
 
     const prefixSet = new Set()
     const classifiedItems = lines.map((line) => {
@@ -723,17 +779,44 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       }
     })
 
+    // Pre-sort default order (admdate DESC, id DESC) so default queries avoid sorting per request
+    classifiedItems.sort((a, b) => {
+      if (a.admdate !== b.admdate) return b.admdate < a.admdate ? -1 : 1
+      return b.id < a.id ? -1 : b.id > a.id ? 1 : 0
+    })
+
+    const searchTexts = classifiedItems.map((item) =>
+      [
+        item.vn, item.an, item.hn, item.cid, item.ptname, item.rep,
+        item.repFund, item.repSubFund, item.primaryFundLabel, item.primaryFundCode,
+        item.eclaimNo, item.payNo, item.errorCode,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+    )
+
     return {
+      builtAt: Date.now(),
       items: classifiedItems,
+      searchTexts,
       dedupRemovedCount,
-      availableRepPrefixes: Array.from(prefixSet).sort((a, b) => a.localeCompare(b, 'en')),
+      availableRepPrefixes: Array.from(prefixSet).sort((a, b) => enCollator.compare(a, b)),
     }
   }
 
-  async function getBaseDatasetSwr(startDate, endDate, includePendingRep, forceRefresh) {
-    const key = `${startDate}:${endDate}:${includePendingRep ? 'pending' : 'rep'}`
+  function invalidateFilteredByRange(startDate, endDate) {
+    const prefix = `${startDate}|${endDate}|`
+    for (const k of filteredCache.keys()) {
+      if (k.startsWith(prefix)) filteredCache.delete(k)
+    }
+  }
+
+  async function getBaseDatasetSwr(startDate, endDate, forceRefresh) {
+    const key = `${startDate}:${endDate}`
     if (forceRefresh) {
       datasetCache.delete(key)
+      invalidateFilteredByRange(startDate, endDate)
     }
     const now = Date.now()
     const hit = datasetCache.get(key)
@@ -744,7 +827,7 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
     const triggerRefresh = () => {
       let pending = inFlightBuilds.get(key)
       if (!pending) {
-        pending = buildBaseDataset(startDate, endDate, includePendingRep)
+        pending = buildBaseDataset(startDate, endDate)
           .then((data) => {
             datasetCache.set(key, { data, updatedAt: Date.now() })
             if (datasetCache.size > 16) {
@@ -767,6 +850,38 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
     }
 
     return triggerRefresh()
+  }
+
+  // Background cache pre-warmer for current fiscal year (keeps initial SSR/first load warm)
+  const prewarmEnabled =
+    enablePrewarm === true ||
+    (enablePrewarm !== false && process.env.NODE_ENV !== 'test' && !process.env.VITEST)
+  let prewarmTimer = null
+  let prewarmInterval = null
+
+  async function prewarmCurrentFiscalYear() {
+    try {
+      const { startDate, endDate } = getDefaultFiscalRange()
+      await getBaseDatasetSwr(startDate, endDate, false)
+    } catch (err) {
+      fastify.log?.warn?.({ err: err?.message }, 'RCM funds-rep-reconcile prewarm failed')
+    }
+  }
+
+  if (prewarmEnabled) {
+    prewarmTimer = setTimeout(() => {
+      prewarmCurrentFiscalYear()
+      prewarmInterval = setInterval(prewarmCurrentFiscalYear, 2.5 * 60_000)
+      if (typeof prewarmInterval.unref === 'function') prewarmInterval.unref()
+    }, 2000)
+    if (typeof prewarmTimer.unref === 'function') prewarmTimer.unref()
+
+    if (typeof fastify.addHook === 'function') {
+      fastify.addHook('onClose', async () => {
+        if (prewarmTimer) clearTimeout(prewarmTimer)
+        if (prewarmInterval) clearInterval(prewarmInterval)
+      })
+    }
   }
 
   function buildSummary(rows, dedupRemovedCount) {
@@ -908,90 +1023,123 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
       const statusFilter = normalizeStr(q.status) || 'ALL'
       const searchLower = normalizeStr(q.search).toLowerCase()
       const focusFundId = normalizeStr(q.focusFundId)
-      const fundFilterSet = new Set(normalizeStr(q.funds).split(',').map((s) => s.trim()).filter(Boolean))
-      const sourceFilterSet = new Set(normalizeStr(q.sources).split(',').map((s) => s.trim()).filter((s) => VALID_SOURCES.has(s)))
-      const prefixFilterSet = new Set(normalizeStr(q.repPrefixes).split(',').map((s) => s.trim().toUpperCase()).filter(Boolean))
+      const fundList = normalizeStr(q.funds).split(',').map((s) => s.trim()).filter(Boolean).sort()
+      const sourceList = normalizeStr(q.sources).split(',').map((s) => s.trim()).filter((s) => VALID_SOURCES.has(s)).sort()
+      const prefixList = normalizeStr(q.repPrefixes).split(',').map((s) => s.trim().toUpperCase()).filter(Boolean).sort()
+      const fundFilterSet = new Set(fundList)
+      const sourceFilterSet = new Set(sourceList)
+      const prefixFilterSet = new Set(prefixList)
 
-      const base = await getBaseDatasetSwr(startDate, endDate, includePendingRep, forceRefresh)
+      const base = await getBaseDatasetSwr(startDate, endDate, forceRefresh)
 
-      const nonFundFiltered = base.items.filter((item) => {
-        if (deptFilter !== 'ALL' && item.department !== deptFilter) return false
-        if (sourceFilterSet.size > 0) {
-          if (!sourceFilterSet.has(item.source) && !item.matchedSources.some((s) => sourceFilterSet.has(s))) return false
-        }
-        if (prefixFilterSet.size > 0) {
-          const tag = (item.repPrefix || item.repFund || 'OTHER').toUpperCase()
-          const match = prefixFilterSet.has(tag) || (item.repPrefix ? prefixFilterSet.has(item.repPrefix.toUpperCase()) : false)
-          if (!match) return false
-        }
-        if (statusFilter === 'COMPENSATED' && item.compensated <= 0) return false
-        if (statusFilter === 'UNCOMPENSATED' && item.compensated > 0) return false
-        if (statusFilter === 'HAS_ERROR' && !item.errorCode) return false
-        if (statusFilter === 'APPEAL' && item.appeal !== 'Y') return false
-        if (statusFilter === 'PENDING_REP' && item.status !== 'pending_rep') return false
-        if (searchLower) {
-          const hay = [item.vn, item.an, item.hn, item.cid, item.ptname, item.rep, item.repFund, item.repSubFund, item.primaryFundLabel, item.primaryFundCode, item.eclaimNo, item.payNo, item.errorCode]
-            .filter(Boolean).join(' ').toLowerCase()
-          if (!hay.includes(searchLower)) return false
-        }
-        return true
-      })
+      const filterKey = [
+        startDate,
+        endDate,
+        includePendingRep ? '1' : '0',
+        deptFilter,
+        sourceList.join(','),
+        prefixList.join(','),
+        statusFilter,
+        searchLower,
+        fundList.join(','),
+        focusFundId,
+        sortBy,
+        sortOrder,
+      ].join('|')
 
-      const catalogCounts = new Map()
-      for (const item of nonFundFiltered) {
-        const cur = catalogCounts.get(item.primaryFundId) || { lineCount: 0, totalCompensated: 0 }
-        cur.lineCount += 1
-        cur.totalCompensated += item.compensated
-        catalogCounts.set(item.primaryFundId, cur)
+      let computed = !forceRefresh ? filteredCache.get(filterKey) : null
+      if (!computed || computed.builtAt !== base.builtAt) {
+        const nonFundFiltered = []
+        for (let i = 0; i < base.items.length; i++) {
+          const item = base.items[i]
+          if (!includePendingRep && item.status === 'pending_rep') continue
+          if (deptFilter !== 'ALL' && item.department !== deptFilter) continue
+          if (sourceFilterSet.size > 0) {
+            if (!sourceFilterSet.has(item.source) && !item.matchedSources.some((s) => sourceFilterSet.has(s))) continue
+          }
+          if (prefixFilterSet.size > 0) {
+            const tag = (item.repPrefix || item.repFund || 'OTHER').toUpperCase()
+            const match = prefixFilterSet.has(tag) || (item.repPrefix ? prefixFilterSet.has(item.repPrefix.toUpperCase()) : false)
+            if (!match) continue
+          }
+          if (statusFilter === 'COMPENSATED' && item.compensated <= 0) continue
+          if (statusFilter === 'UNCOMPENSATED' && item.compensated > 0) continue
+          if (statusFilter === 'HAS_ERROR' && !item.errorCode) continue
+          if (statusFilter === 'APPEAL' && item.appeal !== 'Y') continue
+          if (statusFilter === 'PENDING_REP' && item.status !== 'pending_rep') continue
+          if (searchLower && !base.searchTexts[i].includes(searchLower)) continue
+          nonFundFiltered.push(item)
+        }
+
+        const catalogCounts = new Map()
+        for (const item of nonFundFiltered) {
+          const cur = catalogCounts.get(item.primaryFundId) || { lineCount: 0, totalCompensated: 0 }
+          cur.lineCount += 1
+          cur.totalCompensated += item.compensated
+          catalogCounts.set(item.primaryFundId, cur)
+        }
+
+        const fundFiltered = fundFilterSet.size > 0
+          ? nonFundFiltered.filter((item) => fundFilterSet.has(item.primaryFundId))
+          : nonFundFiltered
+
+        const summary = buildSummary(fundFiltered, base.dedupRemovedCount)
+        const tableRows = focusFundId ? fundFiltered.filter((item) => item.primaryFundId === focusFundId) : fundFiltered
+
+        const sorted = (sortBy === 'admdate' && sortOrder === 'desc')
+          ? tableRows
+          : [...tableRows].sort((a, b) => {
+              let cmp = 0
+              switch (sortBy) {
+                case 'rep': cmp = enCollator.compare(a.rep || '', b.rep || ''); break
+                case 'vn': cmp = enCollator.compare(a.vn || a.an || '', b.vn || b.an || ''); break
+                case 'hn': cmp = enCollator.compare(a.hn, b.hn); break
+                case 'ptname': cmp = thCollator.compare(a.ptname, b.ptname); break
+                case 'fund': cmp = thCollator.compare(a.primaryFundLabel, b.primaryFundLabel); break
+                case 'income': cmp = a.income - b.income; break
+                case 'compensated': cmp = a.compensated - b.compensated; break
+                case 'diff': cmp = a.diff - b.diff; break
+                case 'admdate':
+                default:
+                  cmp = a.admdate < b.admdate ? -1 : a.admdate > b.admdate ? 1 : 0
+                  break
+              }
+              return sortOrder === 'asc' ? cmp : -cmp
+            })
+
+        const availableFundCatalog = RCM_FUND_CATALOG.map((f) => {
+          const c = catalogCounts.get(f.id)
+          return {
+            id: f.id, code: f.code, label: f.label, shortLabel: f.shortLabel, category: f.category, href: f.href,
+            lineCount: c?.lineCount || 0,
+            totalCompensated: roundMoney(c?.totalCompensated || 0),
+          }
+        })
+
+        computed = { builtAt: base.builtAt, summary, sorted, availableFundCatalog }
+        filteredCache.set(filterKey, computed)
+        if (filteredCache.size > MAX_FILTERED_CACHE) {
+          const oldestKey = filteredCache.keys().next().value
+          if (oldestKey) filteredCache.delete(oldestKey)
+        }
       }
 
-      const fundFiltered = fundFilterSet.size > 0
-        ? nonFundFiltered.filter((item) => fundFilterSet.has(item.primaryFundId))
-        : nonFundFiltered
-
-      const summary = buildSummary(fundFiltered, base.dedupRemovedCount)
-      const tableRows = focusFundId ? fundFiltered.filter((item) => item.primaryFundId === focusFundId) : fundFiltered
-
-      const sorted = [...tableRows].sort((a, b) => {
-        let cmp = 0
-        switch (sortBy) {
-          case 'rep': cmp = (a.rep || '').localeCompare(b.rep || '', 'en'); break
-          case 'vn': cmp = (a.vn || a.an || '').localeCompare(b.vn || b.an || '', 'en'); break
-          case 'hn': cmp = a.hn.localeCompare(b.hn, 'en'); break
-          case 'ptname': cmp = a.ptname.localeCompare(b.ptname, 'th'); break
-          case 'fund': cmp = a.primaryFundLabel.localeCompare(b.primaryFundLabel, 'th'); break
-          case 'income': cmp = a.income - b.income; break
-          case 'compensated': cmp = a.compensated - b.compensated; break
-          case 'diff': cmp = a.diff - b.diff; break
-          case 'admdate':
-          default: cmp = a.admdate.localeCompare(b.admdate, 'en'); break
-        }
-        return sortOrder === 'asc' ? cmp : -cmp
-      })
-
-      const totalCount = sorted.length
+      const totalCount = computed.sorted.length
       const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
       const safePage = Math.min(page, totalPages)
-      const items = exportAll ? sorted : sorted.slice((safePage - 1) * pageSize, safePage * pageSize)
+      const items = exportAll ? computed.sorted : computed.sorted.slice((safePage - 1) * pageSize, safePage * pageSize)
 
       return {
         success: true,
         data: {
           range: { startDate, endDate },
-          summary,
+          summary: computed.summary,
           items,
           totalCount,
           page: safePage,
           pageSize,
           totalPages,
-          availableFundCatalog: RCM_FUND_CATALOG.map((f) => {
-            const c = catalogCounts.get(f.id)
-            return {
-              id: f.id, code: f.code, label: f.label, shortLabel: f.shortLabel, category: f.category, href: f.href,
-              lineCount: c?.lineCount || 0,
-              totalCompensated: roundMoney(c?.totalCompensated || 0),
-            }
-          }),
+          availableFundCatalog: computed.availableFundCatalog,
           availableRepPrefixes: base.availableRepPrefixes,
         },
       }
@@ -1050,38 +1198,64 @@ export default async function rcmFundsReconcileRoutes(fastify, { pools, getCache
           [cleanKey]
         ),
         hosPool.query(
-          `SELECT oo.icode, COALESCE(d.name, nd.name, oo.icode) AS name,
-            COALESCE(NULLIF(TRIM(d.nhso_adp_code), ''), NULLIF(TRIM(nd.nhso_adp_code), ''), '') AS adp_code,
-            COALESCE(oo.qty, 0) AS qty, COALESCE(oo.sum_price, 0) AS sum_price
-          FROM opitemrece oo
-          LEFT JOIN s_drugitems d ON d.icode = oo.icode
-          LEFT JOIN nondrugitems nd ON nd.icode = oo.icode
-          WHERE (oo.vn = ? OR oo.an = ?)
-            AND (IFNULL(TRIM(d.nhso_adp_code), '') <> '' OR IFNULL(TRIM(nd.nhso_adp_code), '') <> '' OR nd.nhso_adp_type_id = 2)
-          ORDER BY oo.sum_price DESC
+          `SELECT * FROM (
+            SELECT oo.icode, COALESCE(d.name, nd.name, oo.icode) AS name,
+              COALESCE(NULLIF(TRIM(d.nhso_adp_code), ''), NULLIF(TRIM(nd.nhso_adp_code), ''), '') AS adp_code,
+              COALESCE(oo.qty, 0) AS qty, COALESCE(oo.sum_price, 0) AS sum_price
+            FROM opitemrece oo
+            LEFT JOIN s_drugitems d ON d.icode = oo.icode
+            LEFT JOIN nondrugitems nd ON nd.icode = oo.icode
+            WHERE oo.vn = ?
+              AND (IFNULL(TRIM(d.nhso_adp_code), '') <> '' OR IFNULL(TRIM(nd.nhso_adp_code), '') <> '' OR nd.nhso_adp_type_id = 2)
+            UNION ALL
+            SELECT oo.icode, COALESCE(d.name, nd.name, oo.icode) AS name,
+              COALESCE(NULLIF(TRIM(d.nhso_adp_code), ''), NULLIF(TRIM(nd.nhso_adp_code), ''), '') AS adp_code,
+              COALESCE(oo.qty, 0) AS qty, COALESCE(oo.sum_price, 0) AS sum_price
+            FROM opitemrece oo
+            LEFT JOIN s_drugitems d ON d.icode = oo.icode
+            LEFT JOIN nondrugitems nd ON nd.icode = oo.icode
+            WHERE oo.an = ? AND IFNULL(oo.vn, '') <> ?
+              AND (IFNULL(TRIM(d.nhso_adp_code), '') <> '' OR IFNULL(TRIM(nd.nhso_adp_code), '') <> '' OR nd.nhso_adp_type_id = 2)
+          ) t
+          ORDER BY t.sum_price DESC
           LIMIT 50`,
-          [cleanKey, cleanKey]
+          [cleanKey, cleanKey, cleanKey]
         ),
         hosPool.query(
           `SELECT Rep AS rep, Fund AS fund, SubFund AS subfund, COALESCE(Income, 0) AS income, COALESCE(Compensated, 0) AS compensated,
             ErrorCode AS error_code, Appeal AS appeal, EclaimNo AS eclaim_no, FileName AS file_name, HN AS hn, PtName AS ptname,
             DATE_FORMAT(COALESCE(AdmDate, DchDate), '%Y-%m-%d') AS admdate
-          FROM rcmdb.repdata WHERE VN = ? OR AN = ?`,
-          [cleanKey, cleanKey]
+          FROM rcmdb.repdata WHERE VN = ?
+          UNION ALL
+          SELECT Rep AS rep, Fund AS fund, SubFund AS subfund, COALESCE(Income, 0) AS income, COALESCE(Compensated, 0) AS compensated,
+            ErrorCode AS error_code, Appeal AS appeal, EclaimNo AS eclaim_no, FileName AS file_name, HN AS hn, PtName AS ptname,
+            DATE_FORMAT(COALESCE(AdmDate, DchDate), '%Y-%m-%d') AS admdate
+          FROM rcmdb.repdata WHERE AN = ? AND IFNULL(VN, '') <> ?`,
+          [cleanKey, cleanKey, cleanKey]
         ),
         hosPool.query(
           `SELECT Rep AS rep, Fund AS fund, SubFund AS subfund, COALESCE(Income, 0) AS income, COALESCE(Compensated, 0) AS compensated,
             ErrorCode AS error_code, Appeal AS appeal, EclaimNo AS eclaim_no, FileName AS file_name, HN AS hn, PtName AS ptname,
             DATE_FORMAT(COALESCE(AdmDate, DchDate), '%Y-%m-%d') AS admdate
-          FROM rcmdb.repeclaim WHERE VN = ? OR AN = ?`,
-          [cleanKey, cleanKey]
+          FROM rcmdb.repeclaim WHERE VN = ?
+          UNION ALL
+          SELECT Rep AS rep, Fund AS fund, SubFund AS subfund, COALESCE(Income, 0) AS income, COALESCE(Compensated, 0) AS compensated,
+            ErrorCode AS error_code, Appeal AS appeal, EclaimNo AS eclaim_no, FileName AS file_name, HN AS hn, PtName AS ptname,
+            DATE_FORMAT(COALESCE(AdmDate, DchDate), '%Y-%m-%d') AS admdate
+          FROM rcmdb.repeclaim WHERE AN = ? AND IFNULL(VN, '') <> ?`,
+          [cleanKey, cleanKey, cleanKey]
         ),
         hosPool.query(
           `SELECT Rep AS rep, Fund AS fund, Type AS subfund, COALESCE(Collected, 0) AS income, COALESCE(Compensated, 0) AS compensated,
             Note AS error_code, Status AS eclaim_status, PayNo AS pay_no, DATE_FORMAT(PayDate, '%Y-%m-%d') AS pay_date,
             FileName AS file_name, HN AS hn, PID AS cid, Ptname AS ptname, DATE_FORMAT(AdmDate, '%Y-%m-%d') AS admdate
-          FROM rcmdb.seamless WHERE VN = ? OR AN = ?`,
-          [cleanKey, cleanKey]
+          FROM rcmdb.seamless WHERE VN = ?
+          UNION ALL
+          SELECT Rep AS rep, Fund AS fund, Type AS subfund, COALESCE(Collected, 0) AS income, COALESCE(Compensated, 0) AS compensated,
+            Note AS error_code, Status AS eclaim_status, PayNo AS pay_no, DATE_FORMAT(PayDate, '%Y-%m-%d') AS pay_date,
+            FileName AS file_name, HN AS hn, PID AS cid, Ptname AS ptname, DATE_FORMAT(AdmDate, '%Y-%m-%d') AS admdate
+          FROM rcmdb.seamless WHERE AN = ? AND IFNULL(VN, '') <> ?`,
+          [cleanKey, cleanKey, cleanKey]
         ),
       ])
 

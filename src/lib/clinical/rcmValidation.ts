@@ -76,7 +76,7 @@ export const opdDebtRegistryQuerySchema = baseFiscalDateSchema
       ])
       .optional(),
     cardFilter: z
-      .enum(['ALL', 'WITH_DEBIT', 'WITH_RCPT', 'WITH_AUTHEN', 'NO_AUTHEN'])
+      .enum(['ALL', 'WITH_DEBIT', 'WITH_RCPT', 'WITH_AUTHEN', 'NO_AUTHEN', 'WITH_REP', 'NO_REP'])
       .default('ALL'),
     eclaimFilter: z.string().max(50).optional(),
     accountFilter: z.string().max(80).optional(),
