@@ -26,9 +26,24 @@ export const registrationSchema = z
       .trim()
       .min(1, 'กรุณากรอกนามสกุลภาษาไทย')
       .max(100, 'นามสกุลภาษาไทยยาวเกิน 100 ตัวอักษร'),
-    firstNameEn: z.string().trim().max(100, 'ชื่อภาษาอังกฤษยาวเกิน 100 ตัวอักษร').optional().nullable(),
-    lastNameEn: z.string().trim().max(100, 'นามสกุลภาษาอังกฤษยาวเกิน 100 ตัวอักษร').optional().nullable(),
-    nickname: z.string().trim().max(50, 'ชื่อเล่นยาวเกิน 50 ตัวอักษร').optional().nullable(),
+    firstNameEn: z
+      .string()
+      .trim()
+      .max(100, 'ชื่อภาษาอังกฤษยาวเกิน 100 ตัวอักษร')
+      .nullish()
+      .transform((v) => v ?? ''),
+    lastNameEn: z
+      .string()
+      .trim()
+      .max(100, 'นามสกุลภาษาอังกฤษยาวเกิน 100 ตัวอักษร')
+      .nullish()
+      .transform((v) => v ?? ''),
+    nickname: z
+      .string()
+      .trim()
+      .max(50, 'ชื่อเล่นยาวเกิน 50 ตัวอักษร')
+      .nullish()
+      .transform((v) => v ?? ''),
     licenseNo: z.string().trim().max(100).optional().nullable(),
     birthDate: z.string({ error: 'กรุณาระบุวันเดือนปีเกิด' }).trim().min(1, 'กรุณาระบุวันเดือนปีเกิด'),
 

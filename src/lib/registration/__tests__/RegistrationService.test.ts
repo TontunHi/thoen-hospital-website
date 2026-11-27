@@ -91,6 +91,31 @@ describe('RegistrationService.submit', () => {
     )
   })
 
+  it('normalizes null or omitted optional English name and nickname to empty string for NOT NULL DB columns', async () => {
+    const deps = makeDeps()
+    const result = await createRegistrationService(deps).submit({
+      ...validFullInput,
+      firstNameEn: null,
+      lastNameEn: undefined,
+      nickname: null,
+      licenseNo: null,
+      containDate: null,
+      lineId: null,
+    })
+
+    expect(result).toEqual({ ok: true, id: 42 })
+    expect(deps.createRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firstNameEn: '',
+        lastNameEn: '',
+        nickname: '',
+        licenseNo: null,
+        containDate: null,
+        lineId: null,
+      })
+    )
+  })
+
   it('rejects duplicate citizenId when user is already an active member', async () => {
     const deps = makeDeps({
       findExistingMember: vi.fn().mockResolvedValue({ id: 1, username: '1234567890123', email: 'other@example.com' }),

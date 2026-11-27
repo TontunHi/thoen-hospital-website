@@ -124,8 +124,8 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
             ?, ?, ?, 'pending', NOW(), NOW()
           )`,
           [
-            d.citizenId, d.title, d.firstNameTh, d.lastNameTh, d.firstNameEn, d.lastNameEn,
-            d.nickname, d.licenseNo || null, d.birthDate, d.startDate, d.containDate || null, d.department,
+            d.citizenId, d.title, d.firstNameTh, d.lastNameTh, d.firstNameEn || '', d.lastNameEn || '',
+            d.nickname || '', d.licenseNo || null, d.birthDate, d.startDate, d.containDate || null, d.department,
             d.position, d.level, d.personnelGroup, d.personnelGroupOther || null, d.hasHosxp ? 1 : 0,
             d.hosxpUser || null, d.hosxpPass || null, d.email, d.phone, d.lineId || null,
             d.inHospitalHousing ? 1 : 0, d.housingLocation || null, d.hasVehicle ? 1 : 0, vehiclesJson,
