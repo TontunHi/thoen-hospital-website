@@ -299,6 +299,47 @@ describe('InvoiceSummaryClient', () => {
     })
   })
 
+  it('fetches immediately on first click when switching between month and fiscal year date modes', async () => {
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input)
+      const data = url.includes('mode=detail') ? mockInitialDetail : mockInitialSummary
+      return {
+        ok: true,
+        json: async () => ({ success: true, data }),
+      } as Response
+    })
+
+    render(
+      <InvoiceSummaryClient
+        initialSummary={mockInitialSummary}
+        initialDetail={mockInitialDetail}
+        initialRange={{ startDate: '2026-08-01', endDate: '2026-08-31' }}
+      />
+    )
+
+    // Switch from month mode (Aug 2026) directly to fiscal year mode -> should fetch immediately
+    fireEvent.click(screen.getByRole('button', { name: 'รายปีงบประมาณ' }))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('ds1=2025-10-01&ds2=2026-09-30'),
+        expect.anything()
+      )
+    })
+
+    vi.mocked(global.fetch).mockClear()
+
+    // Switch back from fiscal year mode directly to month mode -> should fetch immediately
+    fireEvent.click(screen.getByRole('button', { name: 'รายเดือน' }))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('ds1=2026-08-01&ds2=2026-08-31'),
+        expect.anything()
+      )
+    })
+  })
+
   it('splits sticky grouped header cleanly into colSpan=3 and colSpan=5 matching sticky columns', () => {
     const { container } = render(
       <InvoiceSummaryClient

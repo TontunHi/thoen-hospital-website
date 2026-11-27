@@ -54,6 +54,60 @@ export interface InvoiceSummaryClientProps {
   initialRange?: { startDate: string; endDate: string }
 }
 
+function detectInitialDateState(
+  initialRange: { startDate: string; endDate: string } | undefined,
+  fallbackCalYear: number,
+  fallbackMonth: number,
+  fallbackFiscalYear: number
+): {
+  dateMode: 'month' | 'year' | 'custom'
+  selectedCalendarYear: number
+  selectedFiscalYear: number
+  selectedMonth: number
+} {
+  if (initialRange?.startDate && initialRange?.endDate) {
+    const fiscalMatch = initialRange.startDate.match(/^(\d{4})-10-01$/)
+    if (fiscalMatch) {
+      const startY = Number(fiscalMatch[1])
+      if (initialRange.endDate === `${startY + 1}-09-30`) {
+        return {
+          dateMode: 'year',
+          selectedCalendarYear: fallbackCalYear,
+          selectedFiscalYear: startY + 1,
+          selectedMonth: fallbackMonth,
+        }
+      }
+    }
+    const monthMatch = initialRange.startDate.match(/^(\d{4})-(\d{2})-01$/)
+    if (monthMatch) {
+      const y = Number(monthMatch[1])
+      const m = Number(monthMatch[2])
+      const lastDay = new Date(y, m, 0).getDate()
+      const expectedEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+      if (initialRange.endDate === expectedEnd) {
+        return {
+          dateMode: 'month',
+          selectedCalendarYear: y,
+          selectedFiscalYear: m >= 10 ? y + 1 : y,
+          selectedMonth: m,
+        }
+      }
+    }
+    return {
+      dateMode: 'custom',
+      selectedCalendarYear: fallbackCalYear,
+      selectedFiscalYear: fallbackFiscalYear,
+      selectedMonth: fallbackMonth,
+    }
+  }
+  return {
+    dateMode: 'month',
+    selectedCalendarYear: fallbackCalYear,
+    selectedFiscalYear: fallbackFiscalYear,
+    selectedMonth: fallbackMonth,
+  }
+}
+
 export default function InvoiceSummaryClient({
   initialSummary,
   initialDetail,
@@ -70,11 +124,17 @@ export default function InvoiceSummaryClient({
   const defaultDs1 = initialRange?.startDate || `${currentCalYear}-${initialMStr}-01`
   const defaultDs2 = initialRange?.endDate || `${currentCalYear}-${initialMStr}-${String(initialLastDay).padStart(2, '0')}`
 
+  const initialDateState = useMemo(
+    () => detectInitialDateState(initialRange, currentCalYear, currentMonth, defaultFiscalYear),
+    [initialRange, currentCalYear, currentMonth, defaultFiscalYear]
+  )
+
   // ── Filters & Controls State ───────────────────────────────
   const [department, setDepartment] = useState<'OP' | 'IP'>('OP')
-  const [dateMode, setDateMode] = useState<'month' | 'year' | 'custom'>('month')
-  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth)
-  const [selectedYear, setSelectedYear] = useState<number>(currentCalYear)
+  const [dateMode, setDateMode] = useState<'month' | 'year' | 'custom'>(initialDateState.dateMode)
+  const [selectedMonth, setSelectedMonth] = useState<number>(initialDateState.selectedMonth)
+  const [selectedCalendarYear, setSelectedCalendarYear] = useState<number>(initialDateState.selectedCalendarYear)
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(initialDateState.selectedFiscalYear)
   const [ds1, setDs1] = useState<string>(defaultDs1)
   const [ds2, setDs2] = useState<string>(defaultDs2)
   const [dateType, setDateType] = useState<'bill_date' | 'admdate'>('bill_date')
@@ -112,33 +172,49 @@ export default function InvoiceSummaryClient({
   }, [defaultFiscalYear])
 
   // ── Handle Date Changes ───────────────────────────────────
+  const computeMonthBounds = (year: number, month: number) => {
+    const mStr = String(month).padStart(2, '0')
+    const lastDay = new Date(year, month, 0).getDate()
+    return {
+      startDate: `${year}-${mStr}-01`,
+      endDate: `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`,
+    }
+  }
+
+  const handleDateModeChange = (mode: 'custom' | 'month' | 'year') => {
+    setDateMode(mode)
+    if (mode === 'month') {
+      const { startDate, endDate } = computeMonthBounds(selectedCalendarYear, selectedMonth)
+      setDs1(startDate)
+      setDs2(endDate)
+      setPage(1)
+    } else if (mode === 'year') {
+      setDs1(`${selectedFiscalYear - 1}-10-01`)
+      setDs2(`${selectedFiscalYear}-09-30`)
+      setPage(1)
+    }
+  }
+
   const handleSelectMonth = (month: number) => {
     setSelectedMonth(month)
-    const mStr = String(month).padStart(2, '0')
-    const startDate = `${selectedYear}-${mStr}-01`
-    const lastDay = new Date(selectedYear, month, 0).getDate()
-    const endDate = `${selectedYear}-${mStr}-${String(lastDay).padStart(2, '0')}`
+    const { startDate, endDate } = computeMonthBounds(selectedCalendarYear, month)
     setDs1(startDate)
     setDs2(endDate)
     setPage(1)
   }
 
-  const handleSelectYear = (year: number) => {
-    setSelectedYear(year)
-    if (dateMode === 'month') {
-      const mStr = String(selectedMonth).padStart(2, '0')
-      const startDate = `${year}-${mStr}-01`
-      const lastDay = new Date(year, selectedMonth, 0).getDate()
-      const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`
-      setDs1(startDate)
-      setDs2(endDate)
-    } else if (dateMode === 'year') {
-      // Fiscal year: Oct 1 of previous year to Sep 30 of target year
-      const startDate = `${year - 1}-10-01`
-      const endDate = `${year}-09-30`
-      setDs1(startDate)
-      setDs2(endDate)
-    }
+  const handleSelectCalendarYear = (year: number) => {
+    setSelectedCalendarYear(year)
+    const { startDate, endDate } = computeMonthBounds(year, selectedMonth)
+    setDs1(startDate)
+    setDs2(endDate)
+    setPage(1)
+  }
+
+  const handleSelectFiscalYear = (year: number) => {
+    setSelectedFiscalYear(year)
+    setDs1(`${year - 1}-10-01`)
+    setDs2(`${year}-09-30`)
     setPage(1)
   }
 
@@ -148,20 +224,20 @@ export default function InvoiceSummaryClient({
     let end = ''
     if (q === 1) {
       // Q1: ต.ค. - ธ.ค.
-      start = `${selectedYear - 1}-10-01`
-      end = `${selectedYear - 1}-12-31`
+      start = `${selectedCalendarYear - 1}-10-01`
+      end = `${selectedCalendarYear - 1}-12-31`
     } else if (q === 2) {
       // Q2: ม.ค. - มี.ค.
-      start = `${selectedYear}-01-01`
-      end = `${selectedYear}-03-31`
+      start = `${selectedCalendarYear}-01-01`
+      end = `${selectedCalendarYear}-03-31`
     } else if (q === 3) {
       // Q3: เม.ย. - มิ.ย.
-      start = `${selectedYear}-04-01`
-      end = `${selectedYear}-06-30`
+      start = `${selectedCalendarYear}-04-01`
+      end = `${selectedCalendarYear}-06-30`
     } else {
       // Q4: ก.ค. - ก.ย.
-      start = `${selectedYear}-07-01`
-      end = `${selectedYear}-09-30`
+      start = `${selectedCalendarYear}-07-01`
+      end = `${selectedCalendarYear}-09-30`
     }
     setDs1(start)
     setDs2(end)
@@ -169,11 +245,13 @@ export default function InvoiceSummaryClient({
   }
 
   const handleCustomStartDateChange = (newDate: string) => {
+    if (!newDate) return
     setDs1(newDate)
     setPage(1)
   }
 
   const handleCustomEndDateChange = (newDate: string) => {
+    if (!newDate) return
     setDs2(newDate)
     setPage(1)
   }
@@ -773,24 +851,21 @@ export default function InvoiceSummaryClient({
           <div className="invoice-date-mode-group">
             <button
               type="button"
-              onClick={() => setDateMode('custom')}
+              onClick={() => handleDateModeChange('custom')}
               className={`invoice-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
             >
               กำหนดเอง
             </button>
             <button
               type="button"
-              onClick={() => setDateMode('month')}
+              onClick={() => handleDateModeChange('month')}
               className={`invoice-mode-btn ${dateMode === 'month' ? 'active' : ''}`}
             >
               รายเดือน
             </button>
             <button
               type="button"
-              onClick={() => {
-                setDateMode('year')
-                handleSelectYear(selectedYear)
-              }}
+              onClick={() => handleDateModeChange('year')}
               className={`invoice-mode-btn ${dateMode === 'year' ? 'active' : ''}`}
             >
               รายปีงบประมาณ
@@ -834,8 +909,8 @@ export default function InvoiceSummaryClient({
                 <div className="invoice-year-select-wrap">
                   <label>เลือกปี พ.ศ.:</label>
                   <select
-                    value={selectedYear}
-                    onChange={(e) => handleSelectYear(Number(e.target.value))}
+                    value={selectedCalendarYear}
+                    onChange={(e) => handleSelectCalendarYear(Number(e.target.value))}
                     className="invoice-select"
                   >
                     {availableYears.map((y) => (
@@ -909,8 +984,8 @@ export default function InvoiceSummaryClient({
                 {availableYears.map((y) => (
                   <button
                     key={y}
-                    onClick={() => handleSelectYear(y)}
-                    className={`invoice-fiscal-pill ${selectedYear === y ? 'active' : ''}`}
+                    onClick={() => handleSelectFiscalYear(y)}
+                    className={`invoice-fiscal-pill ${selectedFiscalYear === y ? 'active' : ''}`}
                   >
                     ปีงบประมาณ {y + 543}
                   </button>
@@ -1273,7 +1348,7 @@ export default function InvoiceSummaryClient({
               รายละเอียดผู้ป่วย ({department}) • <span className="text-emerald-700">{activePttypeName}</span>
             </h2>
             <p className="invoice-card-desc">
-              แสดงรายการชดเชยระดับ Visit / Invoice พร้อมกองทุนย่อย 7 หมวดและผลต่างลูกหนี้ (พบ {detailData?.totalCount.toLocaleString() || 0} รายการ)
+              แสดงรายการชดเชยระดับ Visit / Invoice พร้อมกองทุนย่อย 7 หมวดและผลต่างลูกหนี้ (พบ {(detailData?.totalCount ?? 0).toLocaleString()} รายการ)
             </p>
           </div>
 
