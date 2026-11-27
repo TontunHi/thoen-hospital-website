@@ -34,13 +34,9 @@ const REG_UPDATE_FIELDS = [
   ['status', 'status'],
   ['rejectReason', 'reject_reason'],
   ['approvedBy', 'approved_by'],
-  ['approvedAt', 'approved_at'],
   ['title', 'title'],
   ['firstNameTh', 'first_name_th'],
   ['lastNameTh', 'last_name_th'],
-  ['firstNameEn', 'first_name_en'],
-  ['lastNameEn', 'last_name_en'],
-  ['nickname', 'nickname'],
   ['licenseNo', 'license_no'],
   ['birthDate', 'birth_date'],
   ['startDate', 'start_date'],
@@ -56,6 +52,12 @@ const REG_UPDATE_FIELDS = [
   ['phone', 'phone'],
   ['lineId', 'line_id'],
   ['housingLocation', 'housing_location'],
+]
+
+const REG_NON_NULL_TEXT_FIELDS = [
+  ['firstNameEn', 'first_name_en'],
+  ['lastNameEn', 'last_name_en'],
+  ['nickname', 'nickname'],
 ]
 
 export default async function appIntegrationsV2Routes(fastify, opts) {
@@ -200,6 +202,18 @@ export default async function appIntegrationsV2Routes(fastify, opts) {
       const params = []
       for (const [k, col] of REG_UPDATE_FIELDS) {
         if (d[k] !== undefined) { fields.push(`${col} = ?`); params.push(d[k]) }
+      }
+      for (const [k, col] of REG_NON_NULL_TEXT_FIELDS) {
+        if (d[k] !== undefined) { fields.push(`${col} = ?`); params.push(d[k] ?? '') }
+      }
+      if (d.approvedAt !== undefined) {
+        fields.push('approved_at = ?')
+        if (d.approvedAt === null || d.approvedAt === '') {
+          params.push(null)
+        } else {
+          const parsedDate = new Date(d.approvedAt)
+          params.push(Number.isNaN(parsedDate.getTime()) ? null : parsedDate)
+        }
       }
       if (d.hasHosxp !== undefined) { fields.push('has_hosxp = ?'); params.push(d.hasHosxp ? 1 : 0) }
       if (d.inHospitalHousing !== undefined) { fields.push('in_hospital_housing = ?'); params.push(d.inHospitalHousing ? 1 : 0) }

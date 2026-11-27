@@ -60,6 +60,7 @@ export default function RegistrationsAdminClient() {
 
   // Confirm dialogs
   const [confirmApproveId, setConfirmApproveId] = useState<number | null>(null)
+  const [isApproving, setIsApproving] = useState(false)
   const [confirmRejectId, setConfirmRejectId] = useState<number | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -116,6 +117,8 @@ export default function RegistrationsAdminClient() {
 
   // Action: Approve
   const handleApprove = async (id: number) => {
+    if (isApproving) return
+    setIsApproving(true)
     try {
       const res = await fetch(`/api/member/registrations/${id}/approve`, {
         method: 'POST',
@@ -131,6 +134,8 @@ export default function RegistrationsAdminClient() {
       }
     } catch {
       showToast('error', 'เกิดข้อผิดพลาดในการอนุมัติคำขอ')
+    } finally {
+      setIsApproving(false)
     }
   }
 
@@ -529,9 +534,12 @@ export default function RegistrationsAdminClient() {
                           {item.title}
                           {item.firstNameTh} {item.lastNameTh}
                         </div>
-                        <div className="text-xs text-slate-500">
-                          {item.firstNameEn} {item.lastNameEn} ({item.nickname})
-                        </div>
+                        {(item.firstNameEn || item.lastNameEn || item.nickname) && (
+                          <div className="text-xs text-slate-500">
+                            {[item.firstNameEn, item.lastNameEn].filter(Boolean).join(' ')}
+                            {item.nickname ? ` (${item.nickname})` : ''}
+                          </div>
+                        )}
                       </td>
                       <td className="tabularNums text-sm text-slate-700">{item.citizenId}</td>
                       <td>
@@ -1594,10 +1602,13 @@ export default function RegistrationsAdminClient() {
         confirmText="อนุมัติและสร้างบัญชี"
         cancelText="ยกเลิก"
         type="info"
+        loading={isApproving}
         onConfirm={() => {
           if (confirmApproveId) handleApprove(confirmApproveId)
         }}
-        onCancel={() => setConfirmApproveId(null)}
+        onCancel={() => {
+          if (!isApproving) setConfirmApproveId(null)
+        }}
       />
 
       {/* Reject Modal with Reason */}
