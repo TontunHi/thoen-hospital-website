@@ -517,23 +517,43 @@ export default function InvoiceSummaryClient({
     return map
   }, [summaryData])
 
+  // KPI Totals (filtered by selectedPttypes when active, otherwise grandTotal)
+  const kpiTotals = useMemo(() => {
+    if (!summaryData) {
+      return { visit: 0, receipt: 0, compensated: 0, down: 0, up: 0, debit: 0 }
+    }
+    if (selectedPttypes.length === 0) {
+      return summaryData.grandTotal
+    }
+    const selectedSet = new Set(selectedPttypes)
+    const matching = summaryData.items.filter((item) => selectedSet.has(item.code))
+    const round2 = (v: number) => Math.round(v * 100) / 100
+    return {
+      visit: matching.reduce((sum, item) => sum + item.visit, 0),
+      receipt: round2(matching.reduce((sum, item) => sum + item.receipt, 0)),
+      compensated: round2(matching.reduce((sum, item) => sum + item.compensated, 0)),
+      down: round2(matching.reduce((sum, item) => sum + item.down, 0)),
+      up: round2(matching.reduce((sum, item) => sum + item.up, 0)),
+      debit: round2(matching.reduce((sum, item) => sum + item.debit, 0)),
+    }
+  }, [summaryData, selectedPttypes])
+
   // Calculation for net surplus/deficit
   const netDifference = useMemo(() => {
-    if (!summaryData) return 0
-    return summaryData.grandTotal.compensated - summaryData.grandTotal.debit
-  }, [summaryData])
+    return Math.round((kpiTotals.compensated - kpiTotals.debit) * 100) / 100
+  }, [kpiTotals])
 
   // Recovery Rate KPI %
   const recoveryRate = useMemo(() => {
-    if (!summaryData || !summaryData.grandTotal.debit) return 0
-    return Math.round((summaryData.grandTotal.compensated / summaryData.grandTotal.debit) * 1000) / 10
-  }, [summaryData])
+    if (!kpiTotals.debit) return 0
+    return Math.round((kpiTotals.compensated / kpiTotals.debit) * 1000) / 10
+  }, [kpiTotals])
 
   // Average compensation per visit
   const avgCompPerVisit = useMemo(() => {
-    if (!summaryData || !summaryData.grandTotal.visit) return 0
-    return Math.round((summaryData.grandTotal.compensated / summaryData.grandTotal.visit) * 100) / 100
-  }, [summaryData])
+    if (!kpiTotals.visit) return 0
+    return Math.round((kpiTotals.compensated / kpiTotals.visit) * 100) / 100
+  }, [kpiTotals])
 
   // Filtered Patient Detail Summary (across ALL pages matching active filters)
   const filteredSummary: InvoiceDetailFilteredSummary = useMemo(() => {
@@ -975,7 +995,7 @@ export default function InvoiceSummaryClient({
       </div>
 
       {/* ── 3. KPI Metric Cards (Executive Financial Summary) ────────── */}
-      <div className="invoice-kpi-grid">
+      <div className="invoice-kpi-grid" aria-label="สรุปตัวเลขทางการเงินตามตัวกรอง">
         {/* Hero Card: Net Reconciliation Balance */}
         <div className={`invoice-kpi-card kpi-span-hero ${netDifference < 0 ? 'is-deficit' : ''}`}>
           <div className="kpi-card-top">
@@ -987,7 +1007,9 @@ export default function InvoiceSummaryClient({
             </span>
           </div>
           <div>
-            <span className="kpi-label">ผลการกระทบยอดสุทธิ (Net Reconciliation)</span>
+            <span className="kpi-label">
+              ผลการกระทบยอดสุทธิ (Net Reconciliation){selectedPttypes.length > 0 ? ` · ${activePttypeName}` : ''}
+            </span>
             <div className="kpi-value-wrap">
               <span className={`kpi-value kpi-value-hero ${netDifference >= 0 ? 'font-emerald' : 'font-rose'}`}>
                 {summaryLoading ? '...' : (netDifference >= 0 ? '+' : '') + netDifference.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1017,7 +1039,7 @@ export default function InvoiceSummaryClient({
             <span className="kpi-label">เงินชดเชยที่ได้รับจริง</span>
             <div className="kpi-value-wrap">
               <span className="kpi-value font-emerald">
-                {summaryLoading ? '...' : (summaryData?.grandTotal.compensated || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {summaryLoading ? '...' : (kpiTotals.compensated || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span className="kpi-unit">บาท</span>
             </div>
@@ -1040,7 +1062,7 @@ export default function InvoiceSummaryClient({
             <span className="kpi-label">ลูกหนี้ HOSxP รวม</span>
             <div className="kpi-value-wrap">
               <span className="kpi-value">
-                {summaryLoading ? '...' : (summaryData?.grandTotal.debit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {summaryLoading ? '...' : (kpiTotals.debit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span className="kpi-unit">บาท</span>
             </div>
@@ -1059,7 +1081,7 @@ export default function InvoiceSummaryClient({
             <span className="kpi-label">รายรับหมวดกองทุนย่อย</span>
             <div className="kpi-value-wrap">
               <span className="kpi-value font-purple">
-                {summaryLoading ? '...' : (summaryData?.grandTotal.receipt || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {summaryLoading ? '...' : (kpiTotals.receipt || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span className="kpi-unit">บาท</span>
             </div>
@@ -1078,7 +1100,7 @@ export default function InvoiceSummaryClient({
             <span className="kpi-label">ผู้รับบริการ ({department})</span>
             <div className="kpi-value-wrap">
               <span className="kpi-value">
-                {summaryLoading ? '...' : (summaryData?.grandTotal.visit || 0).toLocaleString()}
+                {summaryLoading ? '...' : (kpiTotals.visit || 0).toLocaleString()}
               </span>
               <span className="kpi-unit">ครั้ง</span>
             </div>

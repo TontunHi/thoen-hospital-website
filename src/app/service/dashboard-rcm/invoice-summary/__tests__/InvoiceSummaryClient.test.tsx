@@ -258,6 +258,47 @@ describe('InvoiceSummaryClient', () => {
     })
   })
 
+  it('updates top KPI summary cards to match selected pttype filter', async () => {
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: mockInitialDetail }),
+    } as Response)
+
+    render(
+      <InvoiceSummaryClient
+        initialSummary={mockInitialSummary}
+        initialDetail={mockInitialDetail}
+        initialRange={{ startDate: '2026-08-01', endDate: '2026-08-31' }}
+      />
+    )
+
+    const kpiGrid = screen.getByLabelText('สรุปตัวเลขทางการเงินตามตัวกรอง')
+    // Initially shows grandTotal across all rights (60,000 - 62,700 = -2,700)
+    expect(within(kpiGrid).getByText('-2,700.00')).toBeInTheDocument()
+    expect(within(kpiGrid).getByText('60,000.00')).toBeInTheDocument()
+    expect(within(kpiGrid).getByText('120')).toBeInTheDocument()
+
+    // Select pttype 17 (compensated=15000, debit=14700 -> net=+300, receipt=1000, visit=20)
+    fireEvent.click(screen.getByText('เบิกจ่ายตรงกรมบัญชีกลาง'))
+
+    await waitFor(() => {
+      expect(within(kpiGrid).getByText('+300.00')).toBeInTheDocument()
+      expect(within(kpiGrid).getByText('15,000.00')).toBeInTheDocument()
+      expect(within(kpiGrid).getByText('14,700.00')).toBeInTheDocument()
+      expect(within(kpiGrid).getByText('1,000.00')).toBeInTheDocument()
+      expect(within(kpiGrid).getByText('20')).toBeInTheDocument()
+    })
+
+    // Add pttype 01 (now both 01 + 17 selected -> back to combined totals)
+    fireEvent.click(screen.getByText('UC ใน CUP'))
+
+    await waitFor(() => {
+      expect(within(kpiGrid).getByText('-2,700.00')).toBeInTheDocument()
+      expect(within(kpiGrid).getByText('60,000.00')).toBeInTheDocument()
+      expect(within(kpiGrid).getByText('120')).toBeInTheDocument()
+    })
+  })
+
   it('splits sticky grouped header cleanly into colSpan=3 and colSpan=5 matching sticky columns', () => {
     const { container } = render(
       <InvoiceSummaryClient
