@@ -211,6 +211,53 @@ describe('InvoiceSummaryClient', () => {
     })
   })
 
+  it('supports selecting multiple pttypes via summary rows and PttypeMultiSelect dropdown', async () => {
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: mockInitialDetail }),
+    } as Response)
+
+    render(
+      <InvoiceSummaryClient
+        initialSummary={mockInitialSummary}
+        initialDetail={mockInitialDetail}
+        initialRange={{ startDate: '2026-08-01', endDate: '2026-08-31' }}
+      />
+    )
+
+    // 1. Select first right from summary table
+    fireEvent.click(screen.getByText('UC ใน CUP'))
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('pttype=01'),
+        expect.anything()
+      )
+    })
+
+    // 2. Select second right from PttypeMultiSelect dropdown
+    fireEvent.click(screen.getByRole('button', { name: /เลือกสิทธิการรักษา/i }))
+    fireEvent.click(screen.getByText(/17 - เบิกจ่ายตรงกรมบัญชีกลาง/))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('pttype=01%2C17'),
+        expect.anything()
+      )
+    })
+
+    // Detail heading & context bar reflect both selected rights
+    expect(screen.getAllByText(/2 สิทธิ: 01 \(UC ใน CUP\), 17 \(เบิกจ่ายตรงกรมบัญชีกลาง\)/).length).toBeGreaterThanOrEqual(1)
+
+    // 3. Clicking an already selected row toggles only that right off
+    fireEvent.click(screen.getByText('UC ใน CUP'))
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenLastCalledWith(
+        expect.stringContaining('pttype=17'),
+        expect.anything()
+      )
+    })
+  })
+
   it('splits sticky grouped header cleanly into colSpan=3 and colSpan=5 matching sticky columns', () => {
     const { container } = render(
       <InvoiceSummaryClient

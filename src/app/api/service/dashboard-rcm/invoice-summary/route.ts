@@ -38,7 +38,12 @@ export async function GET(request: Request) {
     ).catch((err) => logger.error({ err }, 'RCM invoice summary audit log failed'))
 
     if (mode === 'detail') {
-      const pttype = searchParams.get('pttype') || undefined
+      const pttypeValues = searchParams
+        .getAll('pttype')
+        .flatMap((v) => v.split(','))
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const pttype = pttypeValues.length > 0 ? Array.from(new Set(pttypeValues)).join(',') : undefined
       const search = searchParams.get('search') || undefined
       const page = parseInt(searchParams.get('page') || '1', 10)
       const pageSize = parseInt(searchParams.get('pageSize') || '50', 10)

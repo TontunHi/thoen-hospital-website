@@ -88,7 +88,7 @@ export async function getInvoiceDetails(
     department?: 'OP' | 'IP'
     ds1?: string
     ds2?: string
-    pttype?: string
+    pttype?: string | string[]
     search?: string
     page?: number
     pageSize?: number
@@ -100,7 +100,17 @@ export async function getInvoiceDetails(
   const department = params.department === 'IP' ? 'IP' : 'OP'
   const dateType = params.dateType === 'admdate' ? 'admdate' : 'bill_date'
   const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
-  const pttype = (params.pttype || '').trim()
+  const rawPttype = Array.isArray(params.pttype)
+    ? params.pttype.join(',')
+    : params.pttype || ''
+  const pttype = Array.from(
+    new Set(
+      rawPttype
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    )
+  ).join(',')
   const search = (params.search || '').trim()
   const page = Math.max(1, Number(params.page || 1))
   const pageSize = params.exportAll ? 1000000 : Math.max(1, Number(params.pageSize || 50))

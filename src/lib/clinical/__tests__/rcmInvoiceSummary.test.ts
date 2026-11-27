@@ -223,5 +223,46 @@ describe('RcmDashboardService - Invoice Summary (5.2.2.1)', () => {
         net_diff: -328,
       })
     })
+
+    it('normalizes multiple pttype values (comma-separated or array) when calling Gateway', async () => {
+      const getRcmInvoiceDetails = vi.fn().mockResolvedValue({
+        totalCount: 0,
+        totalPages: 1,
+        page: 1,
+        pageSize: 50,
+        items: [],
+      })
+
+      const resultFromCsv = await RcmDashboardService.getInvoiceDetails(
+        {
+          department: 'OP',
+          ds1: '2026-08-01',
+          ds2: '2026-08-31',
+          pttype: ' 01 , 17 , 01 ',
+          page: 1,
+          pageSize: 50,
+        },
+        { getRcmInvoiceDetails }
+      )
+
+      expect(getRcmInvoiceDetails).toHaveBeenCalledWith(
+        expect.objectContaining({ pttype: '01,17' })
+      )
+      expect(resultFromCsv.pttype).toBe('01,17')
+
+      await RcmDashboardService.getInvoiceDetails(
+        {
+          department: 'IP',
+          ds1: '2026-08-01',
+          ds2: '2026-08-31',
+          pttype: ['01', '17', '02'],
+        },
+        { getRcmInvoiceDetails }
+      )
+
+      expect(getRcmInvoiceDetails).toHaveBeenLastCalledWith(
+        expect.objectContaining({ department: 'IP', pttype: '01,17,02' })
+      )
+    })
   })
 })

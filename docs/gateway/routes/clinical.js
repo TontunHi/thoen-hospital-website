@@ -1000,7 +1000,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
         department: { type: 'string', enum: ['OP', 'IP'], default: 'OP' },
         startDate: { type: 'string' },
         endDate: { type: 'string' },
-        pttype: { type: 'string', description: 'รหัสกลุ่มสิทธิ e-Claim (เช่น UCS, SSS, OFC)' },
+        pttype: { type: 'string', description: 'รหัสกลุ่มสิทธิ e-Claim รองรับหลายรหัสคั่นด้วยจุลภาค (เช่น 01,02,17)' },
         search: { type: 'string', description: 'คำค้นหา HN, VN, AN, ชื่อ, CID, REP, Bill' },
         page: { type: 'integer', default: 1 },
         pageSize: { type: 'integer', default: 50 },
@@ -1028,13 +1028,35 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
   const ds2 = endDate || ds1
   const filterStart = dateType === 'admdate' ? `${ds1} 00:00:00` : ds1
   const filterEnd = dateType === 'admdate' ? `${ds2} 23:59:59` : ds2
-  const cleanPttype = String(pttype || '').trim()
+  const rawPttypeList = Array.isArray(pttype)
+    ? pttype
+    : String(pttype || '').split(',')
+  const pttypeList = Array.from(
+    new Set(rawPttypeList.map((s) => String(s || '').trim()).filter(Boolean))
+  )
   const cleanSearch = String(search || '').trim()
   const pageNum = Math.max(1, Number(page || 1))
   const limitNum = exportAll ? 1000000 : Math.max(1, Number(pageSize || 50))
   const offsetNum = (pageNum - 1) * limitNum
 
-  const pttypeClause = cleanPttype ? 'AND ptt.pttype_eclaim_id = ?' : ''
+  const hasUnknownPttype = pttypeList.includes('UNKNOWN')
+  const normalPttypes = pttypeList.filter((code) => code !== 'UNKNOWN')
+  let pttypeClause = ''
+  const pttypeParams = []
+  if (normalPttypes.length > 0 && hasUnknownPttype) {
+    const placeholders = normalPttypes.map(() => '?').join(', ')
+    pttypeClause = `AND (ptt.pttype_eclaim_id IN (${placeholders}) OR ptt.pttype_eclaim_id IS NULL)`
+    pttypeParams.push(...normalPttypes)
+  } else if (normalPttypes.length === 1) {
+    pttypeClause = 'AND ptt.pttype_eclaim_id = ?'
+    pttypeParams.push(normalPttypes[0])
+  } else if (normalPttypes.length > 1) {
+    const placeholders = normalPttypes.map(() => '?').join(', ')
+    pttypeClause = `AND ptt.pttype_eclaim_id IN (${placeholders})`
+    pttypeParams.push(...normalPttypes)
+  } else if (hasUnknownPttype) {
+    pttypeClause = 'AND ptt.pttype_eclaim_id IS NULL'
+  }
   let searchClause = ''
   const searchParams = []
 
@@ -1114,7 +1136,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
       ) sub;
     `
     const countParams = [filterStart, filterEnd]
-    if (cleanPttype) countParams.push(cleanPttype)
+    if (pttypeParams.length > 0) countParams.push(...pttypeParams)
     if (cleanSearch) countParams.push(...searchParams)
 
     const [countRows] = await hosPool.query(countSql, countParams)
@@ -1146,7 +1168,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
     // 2. Data rows query
     let dataSql = ''
     const dataParams = [filterStart, filterEnd]
-    if (cleanPttype) dataParams.push(cleanPttype)
+    if (pttypeParams.length > 0) dataParams.push(...pttypeParams)
     if (cleanSearch) dataParams.push(...searchParams)
     dataParams.push(limitNum, offsetNum)
 

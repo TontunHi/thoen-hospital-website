@@ -6,7 +6,6 @@ import {
   Activity,
   BedDouble,
   Calendar,
-  Filter,
   RefreshCw,
   AlertCircle,
   Search,
@@ -36,6 +35,7 @@ import {
 } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
 import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
+import { PttypeMultiSelect } from '@/components/rcm/PttypeMultiSelect'
 import './page.css'
 
 const THAI_MONTH_NAMES = [
@@ -78,7 +78,7 @@ export default function InvoiceSummaryClient({
   const [ds1, setDs1] = useState<string>(defaultDs1)
   const [ds2, setDs2] = useState<string>(defaultDs2)
   const [dateType, setDateType] = useState<'bill_date' | 'admdate'>('bill_date')
-  const [selectedPttype, setSelectedPttype] = useState<string>('')
+  const [selectedPttypes, setSelectedPttypes] = useState<string[]>([])
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
 
@@ -225,7 +225,8 @@ export default function InvoiceSummaryClient({
     setDetailLoading(true)
     setDetailError(null)
     try {
-      const pttypeParam = selectedPttype ? `&pttype=${encodeURIComponent(selectedPttype)}` : ''
+      const pttypeCsv = selectedPttypes.join(',')
+      const pttypeParam = pttypeCsv ? `&pttype=${encodeURIComponent(pttypeCsv)}` : ''
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''
       const res = await fetch(
         `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=detail&page=${page}&pageSize=${pageSize}${pttypeParam}${searchParam}`,
@@ -244,7 +245,7 @@ export default function InvoiceSummaryClient({
         setDetailLoading(false)
       }
     }
-  }, [department, ds1, ds2, dateType, selectedPttype, debouncedSearch, page, pageSize])
+  }, [department, ds1, ds2, dateType, selectedPttypes, debouncedSearch, page, pageSize])
 
   // Trigger data fetches on filter changes
   useEffect(() => {
@@ -269,13 +270,11 @@ export default function InvoiceSummaryClient({
     }
   }, [fetchDetails, initialDetail])
 
-  // When clicking a row in Summary table
+  // When clicking a row in Summary table or pttype badge in Detail table (multi-select toggle)
   const handlePttypeClick = (code: string) => {
-    if (selectedPttype === code) {
-      setSelectedPttype('') // unselect if already selected
-    } else {
-      setSelectedPttype(code)
-    }
+    setSelectedPttypes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    )
     setPage(1)
   }
 
@@ -285,7 +284,8 @@ export default function InvoiceSummaryClient({
     setExporting(true)
     try {
       // 1. Fetch all detail rows for export
-      const pttypeParam = selectedPttype ? `&pttype=${encodeURIComponent(selectedPttype)}` : ''
+      const pttypeCsv = selectedPttypes.join(',')
+      const pttypeParam = pttypeCsv ? `&pttype=${encodeURIComponent(pttypeCsv)}` : ''
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''
       const res = await fetch(
         `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=detail&exportAll=true${pttypeParam}${searchParam}`
@@ -370,7 +370,7 @@ export default function InvoiceSummaryClient({
 
       sheetDetail.mergeCells('A1:Y1')
       const detailTitleCell = sheetDetail.getCell('A1')
-      detailTitleCell.value = `รายชื่อผู้ป่วย รายรับ ${department} วันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} ${selectedPttype ? `(สิทธิ: ${selectedPttype})` : '(ทุกสิทธิ)'}`
+      detailTitleCell.value = `รายชื่อผู้ป่วย รายรับ ${department} วันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} ${selectedPttypes.length > 0 ? `(สิทธิ: ${selectedPttypes.join(', ')})` : '(ทุกสิทธิ)'}`
       detailTitleCell.font = { name: 'Sarabun', size: 14, bold: true, color: { argb: 'FF0F172A' } }
 
       sheetDetail.addRow([])
@@ -479,12 +479,30 @@ export default function InvoiceSummaryClient({
     return summaryData?.items?.filter((row) => row.visit > 0) || []
   }, [summaryData])
 
-  // Selected pttype name for detail section title
+  const pttypeOptions = useMemo(() => {
+    return activeSummaryItems.map((item) => ({
+      code: item.code,
+      name: `${item.code} - ${item.name} (${item.visit.toLocaleString()} ราย)`,
+    }))
+  }, [activeSummaryItems])
+
+  // Selected pttype names for detail section title
   const activePttypeName = useMemo(() => {
-    if (!selectedPttype || !summaryData) return 'ทุกสิทธิการรักษา'
-    const match = summaryData.items.find((i) => i.code === selectedPttype)
-    return match ? `${match.code} - ${match.name}` : selectedPttype
-  }, [selectedPttype, summaryData])
+    if (selectedPttypes.length === 0 || !summaryData) return 'ทุกสิทธิการรักษา'
+    if (selectedPttypes.length === 1) {
+      const code = selectedPttypes[0]
+      const match = summaryData.items.find((i) => i.code === code)
+      return match ? `${match.code} - ${match.name}` : code
+    }
+    const labels = selectedPttypes.map((code) => {
+      const match = summaryData.items.find((i) => i.code === code)
+      return match ? `${match.code} (${match.name})` : code
+    })
+    if (selectedPttypes.length <= 3) {
+      return `${selectedPttypes.length} สิทธิ: ${labels.join(', ')}`
+    }
+    return `เลือก ${selectedPttypes.length} สิทธิ (${selectedPttypes.join(', ')})`
+  }, [selectedPttypes, summaryData])
 
   // Fast lookup mapping of e-Claim code to descriptive name
   const pttypeNameMap = useMemo(() => {
@@ -710,7 +728,7 @@ export default function InvoiceSummaryClient({
             <button
               onClick={() => {
                 setDepartment('OP')
-                setSelectedPttype('')
+                setSelectedPttypes([])
                 setPage(1)
               }}
               className={`invoice-dept-btn ${department === 'OP' ? 'active' : ''}`}
@@ -721,7 +739,7 @@ export default function InvoiceSummaryClient({
             <button
               onClick={() => {
                 setDepartment('IP')
-                setSelectedPttype('')
+                setSelectedPttypes([])
                 setPage(1)
               }}
               className={`invoice-dept-btn ${department === 'IP' ? 'active' : ''}`}
@@ -927,29 +945,22 @@ export default function InvoiceSummaryClient({
           </div>
 
           <div className="invoice-pttype-filter-box">
-            <Filter size={16} className="text-slate-500" />
             <label>กรองสิทธิ e-Claim:</label>
-            <select
-              value={selectedPttype}
-              onChange={(e) => {
-                setSelectedPttype(e.target.value)
+            <PttypeMultiSelect
+              selectedCodes={selectedPttypes}
+              onChange={(codes) => {
+                setSelectedPttypes(codes)
                 setPage(1)
               }}
-              className="invoice-select invoice-pttype-select"
-            >
-              <option value="">-- ทุกสิทธิที่มีข้อมูล ({summaryData?.items?.filter((i) => i.visit > 0).length || 0} สิทธิ) --</option>
-              {summaryData?.items
-                ?.filter((item) => item.visit > 0)
-                .map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.code} - {item.name} ({item.visit.toLocaleString()} ราย)
-                  </option>
-                ))}
-            </select>
-            {selectedPttype && (
+              options={pttypeOptions}
+              placeholder={`ทุกสิทธิที่มีข้อมูล (${activeSummaryItems.length} สิทธิ)`}
+              align="right"
+            />
+            {selectedPttypes.length > 0 && (
               <button
+                type="button"
                 onClick={() => {
-                  setSelectedPttype('')
+                  setSelectedPttypes([])
                   setPage(1)
                 }}
                 className="invoice-btn-clear-filter"
@@ -1082,13 +1093,42 @@ export default function InvoiceSummaryClient({
           <div>
             <h2 className="invoice-card-title">สรุปรายรับจาก Invoice แยกตามกลุ่มสิทธิ e-Claim ({department})</h2>
             <p className="invoice-card-desc">
-              คลิกเลือกแถวของสิทธิใดเพื่อกรองตารางรายละเอียดคนไข้ด้านล่างทันที (พบ {activeSummaryItems.length} สิทธิที่มีข้อมูล)
+              คลิกเลือกแถวของสิทธิใดเพื่อกรองตารางรายละเอียดคนไข้ด้านล่างทันที (เลือกได้หลายสิทธิพร้อมกัน · พบ {activeSummaryItems.length} สิทธิที่มีข้อมูล)
             </p>
           </div>
-          {selectedPttype && (
-            <span className="invoice-active-filter-pill">
-              กำลังแสดงสิทธิ: <b>{selectedPttype}</b>
-            </span>
+          {selectedPttypes.length > 0 && (
+            <div className="invoice-active-filter-group">
+              {selectedPttypes.length <= 4 ? (
+                selectedPttypes.map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => handlePttypeClick(code)}
+                    className="invoice-active-filter-pill is-removable"
+                    title={pttypeNameMap[code] ? `${code} - ${pttypeNameMap[code]} (คลิกเพื่อเอาออก)` : `${code} (คลิกเพื่อเอาออก)`}
+                  >
+                    <span>{code}{pttypeNameMap[code] ? ` · ${pttypeNameMap[code]}` : ''}</span>
+                    <X size={12} />
+                  </button>
+                ))
+              ) : (
+                <span className="invoice-active-filter-pill">
+                  กำลังแสดง {selectedPttypes.length} สิทธิ: <b>{selectedPttypes.join(', ')}</b>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPttypes([])
+                  setPage(1)
+                }}
+                className="invoice-btn-clear-filter"
+                title="ล้างตัวกรองสิทธิทั้งหมด"
+              >
+                <X size={13} />
+                <span>ล้างทั้งหมด</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -1129,13 +1169,13 @@ export default function InvoiceSummaryClient({
                 </tr>
               ) : (
                 activeSummaryItems.map((row) => {
-                  const isSelected = selectedPttype === row.code
+                  const isSelected = selectedPttypes.includes(row.code)
                   return (
                     <tr
                       key={row.code}
                       onClick={() => handlePttypeClick(row.code)}
                       className={`invoice-summary-row ${isSelected ? 'row-selected' : ''}`}
-                      title="คลิกเพื่อกรองรายละเอียดผู้ป่วยตามสิทธินี้"
+                      title={isSelected ? 'คลิกเพื่อยกเลิกการเลือกสิทธินี้' : 'คลิกเพื่อเพิ่มสิทธินี้ในตัวกรองรายละเอียดผู้ป่วย'}
                     >
                       <td className="text-center">
                         <span className="invoice-pttype-code-badge">{row.code}</span>
@@ -1274,11 +1314,11 @@ export default function InvoiceSummaryClient({
                   <span>กำลังอัปเดต...</span>
                 </span>
               )}
-              {(selectedPttype || search) && (
+              {(selectedPttypes.length > 0 || search) && (
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedPttype('')
+                    setSelectedPttypes([])
                     setSearch('')
                     setDebouncedSearch('')
                     setPage(1)

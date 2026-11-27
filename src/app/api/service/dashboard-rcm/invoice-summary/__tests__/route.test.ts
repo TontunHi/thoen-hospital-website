@@ -176,6 +176,36 @@ describe('GET /api/service/dashboard-rcm/invoice-summary', () => {
     })
   })
 
+  it('normalizes multiple pttype values from comma-separated or repeated query params', async () => {
+    vi.spyOn(memberAuth, 'verifyMemberSession').mockResolvedValue({
+      id: 1,
+      username: 'staff01',
+      role: 'staff',
+      email: 'staff@thoenhospital.com',
+    } as any)
+
+    vi.mocked(RcmDashboardService.getInvoiceDetails).mockResolvedValue({
+      department: 'OP',
+      ds1: '2026-08-01',
+      ds2: '2026-08-31',
+      pttype: '01,17',
+      totalCount: 0,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      items: [],
+    })
+
+    const request = new Request(
+      'http://localhost:3000/api/service/dashboard-rcm/invoice-summary?department=OP&ds1=2026-08-01&ds2=2026-08-31&mode=detail&pttype=01,17&pttype=01'
+    )
+    const response = await GET(request)
+    expect(response.status).toBe(200)
+    expect(RcmDashboardService.getInvoiceDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ pttype: '01,17' })
+    )
+  })
+
   it('returns 500 when service throws an error', async () => {
     vi.spyOn(memberAuth, 'verifyMemberSession').mockResolvedValue({
       id: 1,

@@ -254,7 +254,7 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       department?: 'OP' | 'IP'
       startDate?: string
       endDate?: string
-      pttype?: string
+      pttype?: string | string[]
       search?: string
       page?: number
       pageSize?: number
@@ -265,7 +265,10 @@ export function createClinicalNamespace(client: ClinicalHttpClient) {
       if (params?.department) q.set('department', params.department)
       if (params?.startDate) q.set('startDate', params.startDate)
       if (params?.endDate) q.set('endDate', params.endDate)
-      if (params?.pttype) q.set('pttype', params.pttype)
+      const pttypeStr = Array.isArray(params?.pttype)
+        ? params.pttype.map((s) => s.trim()).filter(Boolean).join(',')
+        : params?.pttype?.trim()
+      if (pttypeStr) q.set('pttype', pttypeStr)
       if (params?.search) q.set('search', params.search)
       if (params?.page) q.set('page', String(params.page))
       if (params?.pageSize) q.set('pageSize', String(params.pageSize))
